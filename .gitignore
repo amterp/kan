@@ -1,4 +1,7 @@
 RAD_SYNTAX.md
+CLAUDE.md
+# While testing:
+.kan
 
 # Build output
 /kan
@@ -18,4 +21,4 @@ web/node_modules/
 # Test coverage
 *.out
 coverage.html
-.kan/
+#.kan/
