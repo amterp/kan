@@ -91,3 +91,19 @@ Uses [ra](https://github.com/amterp/ra) for command-line parsing. Commands are r
 ## Testing Patterns
 
 Tests create temp directories and clean up via deferred functions. See `setupTestCardStore()` in `internal/store/card_store_test.go` for the standard pattern.
+
+## Schema Versioning
+
+When modifying schemas (`internal/version/version.go`):
+
+1. **Bump version constants** — `CurrentCardVersion`, `CurrentBoardVersion`, `CurrentGlobalVersion`
+2. **Update MinKanVersion map** — Maps schema to minimum Kan version
+3. **Add migration fixtures** — `internal/service/testdata/migrations/vN/`
+4. **Add migration tests** — In `migrate_service_test.go`
+5. **Update COMPAT.md** — Document the schema change
+
+Tests enforce invariants 2 and 3 automatically:
+- `TestMinKanVersionCompleteness` fails if MinKanVersion entry missing
+- `TestMigrationFixturesComplete` fails if fixtures missing
+
+See `COMPAT.md` for design rationale and compatibility policy.

@@ -2,6 +2,7 @@ package model
 
 // GlobalConfig represents the user's global Kan configuration.
 // Stored at ~/.config/kan/config.toml
+// Schema changes require a version bump—see internal/version/version.go.
 type GlobalConfig struct {
 	KanSchema string                `toml:"kan_schema"`
 	Editor    string                `toml:"editor,omitempty"`

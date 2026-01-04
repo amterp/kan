@@ -7,6 +7,13 @@ import (
 )
 
 // Current schema versions - bump these when making breaking changes.
+//
+// CHECKLIST when bumping a version:
+//  1. Update the constant below
+//  2. Add entry to MinKanVersion map (tested by TestMinKanVersionCompleteness)
+//  3. Add testdata/migrations/vN/ fixtures (tested by TestMigrationFixturesComplete)
+//  4. Add migration tests in migrate_service_test.go
+//  5. Update COMPAT.md with migration details
 const (
 	CurrentCardVersion   = 1
 	CurrentBoardVersion  = 1

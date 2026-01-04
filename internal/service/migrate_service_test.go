@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -17,15 +18,23 @@ import (
 // Migration Test Framework
 //
 // This package tests schema migrations using checked-in test fixtures.
+//
+// IMPORTANT: When introducing schema vN, immediately add testdata/migrations/vN/
+// with sample data in that format. Don't wait until vN+1 - add it now.
+// TestMigrationFixturesComplete enforces this invariant.
+//
 // When adding new schema versions:
-//   1. Create testdata/migrations/vN/ with sample data in the OLD format
-//   2. Add tests that verify migration from vN to current version
-//   3. Existing tests remain - ensuring all historical migrations still work
+//  1. Create testdata/migrations/vN/ with sample data in the NEW format
+//  2. Add tests that verify vN data doesn't need migration (like TestMigrateService_Plan_V1_NoChanges)
+//  3. When vN+1 ships, add tests that migrate vN -> vN+1
+//  4. Existing tests remain - ensuring all historical migrations still work
 //
 // Directory structure:
-//   testdata/migrations/v0/  - Legacy data (no version stamps)
-//   testdata/migrations/v1/  - Schema v1 data (when v2 is released)
-//   etc.
+//
+//	testdata/migrations/v0/  - Legacy data (no version stamps)
+//	testdata/migrations/v1/  - Schema v1 data (current)
+//	testdata/migrations/v2/  - Schema v2 data (when v2 is released)
+//	etc.
 
 // copyDir recursively copies a directory tree.
 func copyDir(src, dst string) error {
@@ -409,5 +418,92 @@ func TestMigrationPlan_HasChanges(t *testing.T) {
 				t.Errorf("HasChanges() = %v, want %v", got, tt.expected)
 			}
 		})
+	}
+}
+
+// ============================================================================
+// Fixture Completeness Test
+// ============================================================================
+
+// TestMigrationFixturesComplete ensures migration fixtures exist for all schema
+// versions from 0 through the current version. This catches the case where
+// someone bumps a version constant but forgets to add test fixtures.
+//
+// When you see this test fail:
+//  1. Create testdata/migrations/vN/ with sample data in that schema format
+//  2. Add tests that verify vN data doesn't need migration
+//  3. See the header comment in this file for details
+func TestMigrationFixturesComplete(t *testing.T) {
+	// Fixtures should exist for v0 through current version.
+	// All schema versions (card, board, global) are currently in sync.
+	// If they diverge, use max(CardVersion, BoardVersion, GlobalVersion).
+	maxVersion := version.CurrentCardVersion
+
+	for v := 0; v <= maxVersion; v++ {
+		fixturePath := filepath.Join("testdata", "migrations", fmt.Sprintf("v%d", v))
+		if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
+			t.Errorf("Missing migration fixtures for v%d at %s\n"+
+				"When bumping schema versions, you must:\n"+
+				"  1. Create testdata/migrations/v%d/ with sample data in that format\n"+
+				"  2. Add tests that verify v%d data doesn't need migration\n"+
+				"See migrate_service_test.go header comment for details.",
+				v, fixturePath, v, v)
+		}
+	}
+}
+
+// ============================================================================
+// V1 Tests (Current schema - no migration needed)
+// ============================================================================
+
+func TestMigrateService_Plan_V1_NoChanges(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v1")
+	defer cleanup()
+
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if plan.HasChanges() {
+		t.Error("Current schema (v1) data should not need migration")
+	}
+}
+
+func TestMigrateService_V1_ReadableByStores(t *testing.T) {
+	_, tempDir, cleanup := setupMigrationTest(t, "v1")
+	defer cleanup()
+
+	// V1 fixtures should be directly readable by stores without migration
+	paths := config.NewPaths(tempDir, "")
+	cardStore := store.NewCardStore(paths)
+	boardStore := store.NewBoardStore(paths)
+
+	// Board store should read without error
+	boardCfg, err := boardStore.Get("main")
+	if err != nil {
+		t.Fatalf("BoardStore.Get failed on v1 fixtures: %v", err)
+	}
+	if boardCfg.Name != "main" {
+		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
+	}
+	if boardCfg.KanSchema != version.CurrentBoardSchema() {
+		t.Errorf("Board KanSchema = %q, want %q", boardCfg.KanSchema, version.CurrentBoardSchema())
+	}
+
+	// Card store should read without error
+	card, err := cardStore.Get("main", "card-abc")
+	if err != nil {
+		t.Fatalf("CardStore.Get failed on v1 fixtures: %v", err)
+	}
+	if card.ID != "card-abc" {
+		t.Errorf("Card ID = %q, want 'card-abc'", card.ID)
+	}
+	if card.Version != version.CurrentCardVersion {
+		t.Errorf("Card Version = %d, want %d", card.Version, version.CurrentCardVersion)
+	}
+
+	// Custom fields should be present
+	if card.CustomFields["priority"] != "high" {
+		t.Errorf("Custom field 'priority' = %v, want 'high'", card.CustomFields["priority"])
 	}
 }

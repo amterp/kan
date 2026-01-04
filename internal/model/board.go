@@ -2,6 +2,7 @@ package model
 
 // BoardConfig represents the configuration for a kanban board.
 // Stored as config.toml in the board directory.
+// Schema changes require a version bump—see internal/version/version.go.
 type BoardConfig struct {
 	KanSchema     string                       `toml:"kan_schema" json:"kan_schema"`
 	ID            string                       `toml:"id" json:"id"`

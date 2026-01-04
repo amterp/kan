@@ -6,6 +6,7 @@ import (
 )
 
 // Card represents a kanban card stored as a JSON file.
+// Schema changes require a version bump—see internal/version/version.go.
 type Card struct {
 	Version         int       `json:"_v"`
 	ID              string    `json:"id"`
