@@ -38,6 +38,15 @@ kan edit fix-login-bug        # Edit a card
 
 ## Installation
 
+### Homebrew (macOS)
+
+```bash
+brew tap amterp/tap
+brew install kan
+```
+
+### Go Install
+
 ```bash
 go install github.com/amterp/kan/cmd/kan@latest
 ```

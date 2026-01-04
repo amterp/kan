@@ -4,17 +4,21 @@ Local development script for kan.
 ---
 
 args:
-    build b bool      # Build the project (frontend + Go binary)
-    validate v bool   # Build and run tests
-    push p bool       # Push up to origin
-    re_serve s bool   # Build, validate, then run ./kan serve
+    build b bool                      # Build the project (frontend + Go binary)
+    validate v bool                   # Build and run tests
+    push p bool                       # Push up to origin
+    re_serve s bool                   # Build, validate, then run ./kan serve
+    release r str?                    # Release type (patch, minor, major)
+    tap_path str = "../homebrew-tap"  # Path to homebrew-tap repo
 
-if build or validate or push or re_serve:
+    release enum ["patch", "minor", "major"]
+
+if build or validate or push or re_serve or release:
     // Build frontend first (required for go:embed)
     $`cd web && npm run build`
     $`go build ./cmd/kan`
 
-if validate or push or re_serve:
+if validate or push or re_serve or release:
     $`go test ./...`
 
 if push:
@@ -28,3 +32,136 @@ if push:
 
 if re_serve:
     $`./kan serve`
+
+if release:
+    // Ensure we're on main branch
+    stdout = quiet $`git branch --show-current`
+    branch = stdout.trim()
+    if branch != "main":
+        print_err("Release must be run from main branch (currently on '{branch}')")
+        exit(1)
+
+    // Calculate new version from latest tag
+    stdout = quiet $`git tag -l 'v*' --sort=-v:refname`
+    tags = stdout.trim().split("\n")
+    if tags.len() == 0 or tags[0] == "":
+        // No existing tags, start at 0.1.0
+        major = 0
+        minor = 1
+        patch = 0
+        print("No existing tags found. Starting at 0.1.0")
+    else:
+        latest_tag = tags[0]
+
+        // Parse version (strip leading 'v')
+        version_str = latest_tag[1:]
+        parts = version_str.split("\\.")
+        major = parse_int(parts[0])
+        minor = parse_int(parts[1])
+        patch = parse_int(parts[2])
+
+        print("Current version: {version_str}")
+
+        // Bump based on type
+        switch release:
+            case "patch":
+                patch += 1
+            case "minor":
+                minor += 1
+                patch = 0
+            case "major":
+                major += 1
+                minor = 0
+                patch = 0
+
+    release = "{major}.{minor}.{patch}"
+    print("New version: {release}")
+
+    // Paths
+    stdout = quiet $`pwd`
+    repo = stdout.trim()
+    releases_dir = "{repo}/releases"
+    formula_path = "{repo}/{tap_path}/Formula/kan.rb"
+    tag = "v{release}"
+
+    // Build frontend (required for go:embed)
+    print("Building frontend...")
+    $`cd web && npm run build`
+
+    // Build for darwin-arm64
+    print("Building darwin-arm64...")
+    $`GOOS=darwin GOARCH=arm64 go build -o kan ./cmd/kan`
+    $`mkdir -p {releases_dir}`
+    arm64_tar = "{releases_dir}/kan-{release}-darwin-arm64.tar.gz"
+    quiet $`rm -f {arm64_tar}` catch:
+        pass
+    $`tar -czf {arm64_tar} kan`
+
+    // Build for darwin-amd64
+    print("Building darwin-amd64...")
+    $`GOOS=darwin GOARCH=amd64 go build -o kan ./cmd/kan`
+    amd64_tar = "{releases_dir}/kan-{release}-darwin-amd64.tar.gz"
+    quiet $`rm -f {amd64_tar}` catch:
+        pass
+    $`tar -czf {amd64_tar} kan`
+
+    // Clean up binary
+    quiet $`rm -f kan` catch:
+        pass
+
+    // Calculate SHA256
+    stdout = quiet $`shasum -a 256 {arm64_tar}`
+    sha256_arm64 = stdout.split(" ")[0]
+    stdout = quiet $`shasum -a 256 {amd64_tar}`
+    sha256_amd64 = stdout.split(" ")[0]
+
+    // Git tag
+    print("Tagging {tag}...")
+    $`git tag {tag}`
+
+    // GitHub release
+    print("Creating GitHub release...")
+    $`gh release create {tag} {arm64_tar} {amd64_tar} --repo amterp/kan --title "Kan {tag}" --notes "Kan {tag}"`
+
+    // Update formula
+    print("Updating formula...")
+    formula = """
+class Kan < Formula
+  desc "A kanban board that lives in your repository"
+  homepage "https://github.com/amterp/kan"
+  version "{release}"
+  license "Apache-2.0"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/amterp/kan/releases/download/v#\{version}/kan-#\{version}-darwin-arm64.tar.gz"
+      sha256 "{sha256_arm64}"
+    else
+      url "https://github.com/amterp/kan/releases/download/v#\{version}/kan-#\{version}-darwin-amd64.tar.gz"
+      sha256 "{sha256_amd64}"
+    end
+  end
+
+  def install
+    bin.install "kan"
+  end
+
+  test do
+    system "#\{bin}/kan", "--help"
+  end
+end
+"""
+    write_file(formula_path, formula)
+
+    // Push tap
+    print("Pushing tap...")
+    tap = "{repo}/{tap_path}"
+    $`git -C {tap} add Formula/kan.rb`
+    $`git -C {tap} commit -m "kan {release}"`
+    $`git -C {tap} push`
+
+    // Push kan repo (tag already pushed by gh release)
+    print("Pushing kan...")
+    $`git push origin main`
+
+    print("Done! {tag} released.")
