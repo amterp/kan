@@ -46,3 +46,8 @@ func Error(w http.ResponseWriter, err error) {
 func BadRequest(w http.ResponseWriter, message string) {
 	JSON(w, http.StatusBadRequest, map[string]string{"error": message})
 }
+
+// NotFound writes a 404 error for a missing resource.
+func NotFound(w http.ResponseWriter, resourceType, identifier string) {
+	JSON(w, http.StatusNotFound, map[string]string{"error": resourceType + " \"" + identifier + "\" not found"})
+}

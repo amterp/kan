@@ -82,6 +82,12 @@ func (h *Handler) ListCards(w http.ResponseWriter, r *http.Request) {
 	boardName := r.PathValue("board")
 	columnFilter := r.URL.Query().Get("column")
 
+	// Verify board exists first
+	if !h.boardStore.Exists(boardName) {
+		NotFound(w, "board", boardName)
+		return
+	}
+
 	cards, err := h.cardService.List(boardName, columnFilter)
 	if err != nil {
 		Error(w, err)
