@@ -1,0 +1,15 @@
+# Build output
+/kan
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Test coverage
+*.out
+coverage.html

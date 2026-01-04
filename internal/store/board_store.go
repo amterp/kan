@@ -1,0 +1,116 @@
+package store
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/BurntSushi/toml"
+	"github.com/amterp/kan/internal/config"
+	kanerr "github.com/amterp/kan/internal/errors"
+	"github.com/amterp/kan/internal/model"
+)
+
+// FileBoardStore implements BoardStore using the filesystem.
+type FileBoardStore struct {
+	paths *config.Paths
+}
+
+// NewBoardStore creates a new board store.
+func NewBoardStore(paths *config.Paths) *FileBoardStore {
+	return &FileBoardStore{paths: paths}
+}
+
+// Create creates a new board with the given config.
+func (s *FileBoardStore) Create(cfg *model.BoardConfig) error {
+	if s.Exists(cfg.Name) {
+		return kanerr.BoardAlreadyExists(cfg.Name)
+	}
+
+	cardsDir := s.paths.CardsDir(cfg.Name)
+
+	// Create directories
+	if err := os.MkdirAll(cardsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create board directory: %w", err)
+	}
+
+	// Write config
+	if err := s.writeConfig(cfg); err != nil {
+		return fmt.Errorf("failed to write board config: %w", err)
+	}
+	return nil
+}
+
+// Get reads the board config from disk.
+func (s *FileBoardStore) Get(boardName string) (*model.BoardConfig, error) {
+	path := s.paths.BoardConfigPath(boardName)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, kanerr.BoardNotFound(boardName)
+		}
+		return nil, fmt.Errorf("failed to read board config: %w", err)
+	}
+
+	var cfg model.BoardConfig
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("invalid board config: %w", err)
+	}
+
+	return &cfg, nil
+}
+
+// Update writes the board config to disk.
+func (s *FileBoardStore) Update(cfg *model.BoardConfig) error {
+	if err := s.writeConfig(cfg); err != nil {
+		return fmt.Errorf("failed to update board config: %w", err)
+	}
+	return nil
+}
+
+// List returns the names of all boards.
+func (s *FileBoardStore) List() ([]string, error) {
+	boardsRoot := s.paths.BoardsRoot()
+
+	entries, err := os.ReadDir(boardsRoot)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}, nil // Return empty slice, not nil
+		}
+		return nil, fmt.Errorf("failed to read boards directory: %w", err)
+	}
+
+	var boards []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			// Verify it has a config.toml
+			configPath := s.paths.BoardConfigPath(entry.Name())
+			if _, err := os.Stat(configPath); err == nil {
+				boards = append(boards, entry.Name())
+			}
+		}
+	}
+
+	if boards == nil {
+		boards = []string{} // Ensure non-nil
+	}
+	return boards, nil
+}
+
+// Exists returns true if the board exists.
+func (s *FileBoardStore) Exists(boardName string) bool {
+	path := s.paths.BoardConfigPath(boardName)
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func (s *FileBoardStore) writeConfig(cfg *model.BoardConfig) error {
+	path := s.paths.BoardConfigPath(cfg.Name)
+
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return toml.NewEncoder(f).Encode(cfg)
+}
