@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"net"
 	"os/exec"
 	"runtime"
 
@@ -15,10 +16,10 @@ func registerServe(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.ServePort, _ = ra.NewInt("port").
 		SetOptional(true).
-		SetDefault(8080).
+		SetDefault(3000).
 		SetShort("p").
 		SetFlagOnly(true).
-		SetUsage("Port to listen on").
+		SetUsage("Port to listen on (will try incrementally if in use)").
 		Register(cmd)
 
 	ctx.ServeNoOpen, _ = ra.NewBool("no-open").
@@ -48,9 +49,12 @@ func runServe(port int, noOpen bool) {
 		app.GetCreator(),
 	)
 
-	server := api.NewServer(handler, port)
+	// Find an available port starting from the requested one
+	actualPort := findAvailablePort(port)
 
-	url := fmt.Sprintf("http://localhost:%d", port)
+	server := api.NewServer(handler, actualPort)
+
+	url := fmt.Sprintf("http://localhost:%d", actualPort)
 	fmt.Printf("Kan web server running at %s\n", url)
 	fmt.Println("Press Ctrl+C to stop")
 
@@ -61,6 +65,29 @@ func runServe(port int, noOpen bool) {
 	if err := server.Start(); err != nil {
 		Fatal(err)
 	}
+}
+
+// findAvailablePort tries ports starting from startPort until it finds one that's available.
+func findAvailablePort(startPort int) int {
+	maxAttempts := 100
+	for i := 0; i < maxAttempts; i++ {
+		port := startPort + i
+		if isPortAvailable(port) {
+			return port
+		}
+	}
+	// If we couldn't find a port after maxAttempts, return the original and let it fail naturally
+	return startPort
+}
+
+// isPortAvailable checks if a port is available by attempting to listen on it.
+func isPortAvailable(port int) bool {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return false
+	}
+	listener.Close()
+	return true
 }
 
 func openBrowser(url string) {

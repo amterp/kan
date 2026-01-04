@@ -28,8 +28,6 @@ export default function Header({ boards, selectedBoard, onSelectBoard, onRefresh
         {boards.length === 1 && (
           <span className="text-gray-600">{boards[0]}</span>
         )}
-      </div>
-      <div className="flex items-center gap-2">
         {onNewCard && (
           <button
             onClick={onNewCard}
@@ -41,6 +39,8 @@ export default function Header({ boards, selectedBoard, onSelectBoard, onRefresh
             New Card
           </button>
         )}
+      </div>
+      <div className="flex items-center gap-2">
         <button
           onClick={onRefresh}
           className="text-gray-500 hover:text-gray-700 p-2 rounded-md hover:bg-gray-100"

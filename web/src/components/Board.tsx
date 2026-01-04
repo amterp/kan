@@ -21,6 +21,9 @@ export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdate
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [newCardForEdit, setNewCardForEdit] = useState<{ card: Card; column: string } | null>(null);
 
+  // Draft titles per column (preserved when clicking outside)
+  const [draftTitles, setDraftTitles] = useState<Record<string, string>>({});
+
   // Track which column is being hovered and at what position for cross-column drag preview
   const [overColumn, setOverColumn] = useState<string | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
@@ -280,6 +283,8 @@ export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdate
               cards={cardsByColumn[column.name] || []}
               labels={board.labels || []}
               isAddingCard={addingToColumn === column.name}
+              draftTitle={draftTitles[column.name] || ''}
+              onDraftChange={(title) => setDraftTitles((prev) => ({ ...prev, [column.name]: title }))}
               onStartAddCard={() => setAddingToColumn(column.name)}
               onCancelAddCard={() => setAddingToColumn(null)}
               onAddCard={(title, openModal, keepFormOpen) => handleAddCard(column.name, title, openModal, keepFormOpen)}

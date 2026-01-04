@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { Card, Column as ColumnType, Label } from '../api/types';
@@ -9,6 +9,8 @@ interface ColumnProps {
   cards: Card[];
   labels: Label[];
   isAddingCard: boolean;
+  draftTitle: string;
+  onDraftChange: (title: string) => void;
   onStartAddCard: () => void;
   onCancelAddCard: () => void;
   onAddCard: (title: string, openModal: boolean, keepFormOpen?: boolean) => void;
@@ -24,6 +26,8 @@ export default function Column({
   cards,
   labels,
   isAddingCard,
+  draftTitle,
+  onDraftChange,
   onStartAddCard,
   onCancelAddCard,
   onAddCard,
@@ -33,9 +37,9 @@ export default function Column({
   isOverColumn,
   overIndex,
 }: ColumnProps) {
-  const [newCardTitle, setNewCardTitle] = useState('');
   const { setNodeRef, isOver } = useDroppable({ id: column.name });
   const inputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   // SortableContext items - just the cards in this column
   // Don't add activeCard for cross-column drags (we use a manual placeholder instead)
@@ -50,12 +54,33 @@ export default function Column({
     }
   }, [isAddingCard]);
 
+  // Click outside to close (but preserve draft)
+  useEffect(() => {
+    if (!isAddingCard) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (formRef.current && !formRef.current.contains(e.target as Node)) {
+        onCancelAddCard();
+      }
+    };
+
+    // Delay adding listener to avoid immediate trigger from the click that opened the form
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isAddingCard, onCancelAddCard]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newCardTitle.trim()) {
+    if (draftTitle.trim()) {
       // keepFormOpen=true so user can add another card immediately
-      onAddCard(newCardTitle.trim(), false, true);
-      setNewCardTitle('');
+      onAddCard(draftTitle.trim(), false, true);
+      onDraftChange('');
       // Re-focus the input for the next card
       setTimeout(() => inputRef.current?.focus(), 0);
     }
@@ -63,14 +88,14 @@ export default function Column({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
-      setNewCardTitle('');
+      onDraftChange('');
       onCancelAddCard();
     } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       // Cmd+Enter or Ctrl+Enter - create and open modal
       e.preventDefault();
-      if (newCardTitle.trim()) {
-        onAddCard(newCardTitle.trim(), true);
-        setNewCardTitle('');
+      if (draftTitle.trim()) {
+        onAddCard(draftTitle.trim(), true);
+        onDraftChange('');
       }
     }
   };
@@ -174,21 +199,14 @@ export default function Column({
           })()}
         </SortableContext>
 
-        {/* Empty state */}
-        {cards.length === 0 && !isAddingCard && !isOverColumn && (
-          <div className="text-center py-8 text-gray-400 text-sm">
-            No cards yet
-          </div>
-        )}
-
         {/* Add Card Form */}
         {isAddingCard && (
-          <form onSubmit={handleSubmit} className="bg-white rounded-lg p-2 shadow-sm">
+          <form ref={formRef} onSubmit={handleSubmit} className="bg-white rounded-lg p-2 shadow-sm">
             <input
               ref={inputRef}
               type="text"
-              value={newCardTitle}
-              onChange={(e) => setNewCardTitle(e.target.value)}
+              value={draftTitle}
+              onChange={(e) => onDraftChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Enter card title..."
               className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -205,10 +223,10 @@ export default function Column({
                 <button
                   type="button"
                   onClick={() => {
-                    setNewCardTitle('');
+                    onDraftChange('');
                     onCancelAddCard();
                   }}
-                  className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                  className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded hover:shadow-sm transition-all"
                 >
                   Cancel
                 </button>
