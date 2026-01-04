@@ -8,9 +8,9 @@ interface HeaderProps {
 
 export default function Header({ boards, selectedBoard, onSelectBoard, onRefresh, onNewCard }: HeaderProps) {
   return (
-    <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+    <header className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
-        <h1 className="text-xl font-bold text-gray-900">Kan</h1>
+        <h1 className="text-4xl font-bold text-gray-900">Kan</h1>
         {boards.length > 1 && (
           <select
             value={selectedBoard || ''}
