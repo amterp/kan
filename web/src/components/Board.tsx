@@ -221,10 +221,13 @@ export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdate
     }
   };
 
-  const handleAddCard = async (column: string, title: string, openModal: boolean) => {
+  const handleAddCard = async (column: string, title: string, openModal: boolean, keepFormOpen?: boolean) => {
     try {
       const newCard = await onCreateCard({ title, column });
-      setAddingToColumn(null);
+      // Only close the form if not keeping it open for continuous add
+      if (!keepFormOpen) {
+        setAddingToColumn(null);
+      }
       if (openModal && newCard) {
         setNewCardForEdit({ card: newCard, column });
       }
@@ -273,7 +276,7 @@ export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdate
               isAddingCard={addingToColumn === column.name}
               onStartAddCard={() => setAddingToColumn(column.name)}
               onCancelAddCard={() => setAddingToColumn(null)}
-              onAddCard={(title, openModal) => handleAddCard(column.name, title, openModal)}
+              onAddCard={(title, openModal, keepFormOpen) => handleAddCard(column.name, title, openModal, keepFormOpen)}
               onCardClick={handleCardClick}
               activeCard={activeCard}
               isOverColumn={overColumn === column.name}

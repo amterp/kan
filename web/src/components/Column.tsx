@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { Card, Column as ColumnType, Label } from '../api/types';
@@ -11,7 +11,7 @@ interface ColumnProps {
   isAddingCard: boolean;
   onStartAddCard: () => void;
   onCancelAddCard: () => void;
-  onAddCard: (title: string, openModal: boolean) => void;
+  onAddCard: (title: string, openModal: boolean, keepFormOpen?: boolean) => void;
   onCardClick: (card: Card) => void;
   activeCard: Card | null;
   isOverColumn: boolean;
@@ -33,6 +33,7 @@ export default function Column({
 }: ColumnProps) {
   const [newCardTitle, setNewCardTitle] = useState('');
   const { setNodeRef, isOver } = useDroppable({ id: column.name });
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // SortableContext items - just the cards in this column
   // Don't add activeCard for cross-column drags (we use a manual placeholder instead)
@@ -40,11 +41,21 @@ export default function Column({
     return cards.map((c) => c.id);
   }, [cards]);
 
+  // Focus input when entering add mode
+  useEffect(() => {
+    if (isAddingCard && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isAddingCard]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newCardTitle.trim()) {
-      onAddCard(newCardTitle.trim(), false);
+      // keepFormOpen=true so user can add another card immediately
+      onAddCard(newCardTitle.trim(), false, true);
       setNewCardTitle('');
+      // Re-focus the input for the next card
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
   };
 
@@ -70,15 +81,7 @@ export default function Column({
       }`}
     >
       {/* Column Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-300">
-        <div className="flex items-center gap-2">
-          <div
-            className="w-3 h-3 rounded-full"
-            style={{ backgroundColor: column.color }}
-          />
-          <h2 className="font-medium text-gray-700">{column.name}</h2>
-          <span className="text-sm text-gray-500">{cards.length}</span>
-        </div>
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-300">
         <button
           onClick={onStartAddCard}
           className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-300"
@@ -88,6 +91,12 @@ export default function Column({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
         </button>
+        <div
+          className="w-3 h-3 rounded-full"
+          style={{ backgroundColor: column.color }}
+        />
+        <h2 className="font-medium text-gray-700">{column.name}</h2>
+        <span className="text-sm text-gray-500">{cards.length}</span>
       </div>
 
       {/* Cards */}
@@ -173,6 +182,7 @@ export default function Column({
         {isAddingCard && (
           <form onSubmit={handleSubmit} className="bg-white rounded-lg p-2 shadow-sm">
             <input
+              ref={inputRef}
               type="text"
               value={newCardTitle}
               onChange={(e) => setNewCardTitle(e.target.value)}
@@ -203,6 +213,19 @@ export default function Column({
               <span className="text-xs text-gray-400">⌘↵ for details</span>
             </div>
           </form>
+        )}
+
+        {/* Bottom Add Card Button - shown when not already adding */}
+        {!isAddingCard && (
+          <button
+            onClick={onStartAddCard}
+            className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-300 rounded transition-colors flex items-center justify-center gap-1"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Card
+          </button>
         )}
       </div>
     </div>
