@@ -15,14 +15,14 @@ const (
 
 // Paths provides path resolution for Kan data files.
 type Paths struct {
-	repoRoot     string
+	projectRoot  string
 	dataLocation string // Custom location from config, empty for default
 }
 
-// NewPaths creates a new Paths resolver for the given repository.
-func NewPaths(repoRoot string, dataLocation string) *Paths {
+// NewPaths creates a new Paths resolver for the given project.
+func NewPaths(projectRoot string, dataLocation string) *Paths {
 	return &Paths{
-		repoRoot:     repoRoot,
+		projectRoot:  projectRoot,
 		dataLocation: dataLocation,
 	}
 }
@@ -30,9 +30,9 @@ func NewPaths(repoRoot string, dataLocation string) *Paths {
 // KanRoot returns the root directory for Kan data.
 func (p *Paths) KanRoot() string {
 	if p.dataLocation != "" {
-		return filepath.Join(p.repoRoot, p.dataLocation)
+		return filepath.Join(p.projectRoot, p.dataLocation)
 	}
-	return filepath.Join(p.repoRoot, DefaultKanDir)
+	return filepath.Join(p.projectRoot, DefaultKanDir)
 }
 
 // BoardsRoot returns the boards directory.

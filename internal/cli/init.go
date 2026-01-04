@@ -8,7 +8,7 @@ import (
 
 func registerInit(parent *ra.Cmd, ctx *CommandContext) {
 	cmd := ra.NewCmd("init")
-	cmd.SetDescription("Initialize Kan in the current repository")
+	cmd.SetDescription("Initialize Kan in the current directory")
 
 	ctx.InitLocation, _ = ra.NewString("location").
 		SetShort("l").
@@ -26,13 +26,9 @@ func runInit(location string) {
 		Fatal(err)
 	}
 
-	if err := app.RequireRepo(); err != nil {
-		Fatal(err)
-	}
-
 	if err := app.InitService.Initialize(location); err != nil {
 		Fatal(err)
 	}
 
-	fmt.Println("Initialized Kan repository")
+	fmt.Println("Initialized Kan in current directory")
 }

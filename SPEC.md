@@ -1,14 +1,14 @@
 # Kan Specification
 
-A CLI tool for managing kanban boards where all data lives as files in your git repository.
+A CLI tool for managing kanban boards where all data lives as plain files.
 
 ## Overview
 
-Kan is a personal project management tool that stores kanban boards as plain files checked into version control. There is no database, no server, no external dependencies — just files that git tracks like any other code.
+Kan is a personal project management tool that stores kanban boards as plain files. There is no database, no server, no external dependencies — just files. Works with any VCS (or none).
 
 ### Why This Approach
 
-- **Git-native**: Full history, branching, and offline support come free
+- **File-based**: Full VCS history, branching, and offline support come free (with any VCS)
 - **No vendor lock-in**: Your data is plain files you control
 - **Portable and scriptable**: Standard file formats, easy to automate
 - **Data lives where work lives**: Boards live alongside the code they track
@@ -149,7 +149,7 @@ Location: `.kan/boards/<board-name>/cards/<flexid>.json`
 | `column` | Yes | Current column (must reference a column defined in board config) |
 | `labels` | No | Array of label names (must reference labels defined in board config) |
 | `parent` | No | ID of parent card (for subtask relationships). MAY reference cards in other boards within the same repo. |
-| `creator` | Yes | Git username of card creator |
+| `creator` | Yes | Username of card creator |
 | `created_at_millis` | Yes | Creation timestamp in milliseconds since Unix epoch |
 | `updated_at_millis` | Yes | Last update timestamp in milliseconds since Unix epoch |
 | `comments` | No | Array of comment objects |
@@ -169,7 +169,7 @@ Location: `.kan/boards/<board-name>/cards/<flexid>.json`
 |-------|----------|-------------|
 | `id` | Yes | Unique identifier (flexid, prefixed with `c_`) |
 | `body` | Yes | Comment text |
-| `author` | Yes | Git username of comment author |
+| `author` | Yes | Username of comment author |
 | `created_at_millis` | Yes | Creation timestamp in milliseconds since Unix epoch |
 
 ---
@@ -182,7 +182,7 @@ Written in Go using [ra](https://github.com/amterp/ra) for command-line parsing.
 
 #### `kan init`
 
-Initialize Kan in the current repository.
+Initialize Kan in the current directory.
 
 ```bash
 kan init [--location <relative-path>]
@@ -190,7 +190,7 @@ kan init [--location <relative-path>]
 
 - Creates `.kan/` directory (or custom location if specified)
 - Creates a default board named `main` with default columns
-- Registers the repository in global user config
+- Registers the project in global user config
 
 If `--location` is specified and the path already exists with valid Kan data, registers the existing project without re-initializing.
 
@@ -230,7 +230,7 @@ kan add <title> [description] [flags]
   - If multiple boards exist and `-b` not specified, uses configured `default_board`
   - If multiple boards exist, no `-b`, and no default configured, prompts (or fails with `-I`)
 - Column defaults to the board's configured `default_column` (first column if not configured)
-- Creator is automatically set from git config (`user.name`)
+- Creator is automatically set (from `$KAN_USER`, `git config user.name`, or `$USER`)
 
 #### `kan edit`
 
@@ -278,7 +278,7 @@ The following are planned but NOT part of the first take:
 #### CLI Extensions
 
 - `kan move <id|alias> <column>`: Move card to a different column
-- `kan archive <id|alias>`: Delete card from working tree (recoverable via git history)
+- `kan archive <id|alias>`: Delete card from working tree (recoverable via VCS history)
 - `kan comment <id|alias> [text]`: Add comment (opens `$EDITOR` if text not provided)
 - `kan config`: Manage board configuration (columns, labels, custom fields)
 - `-p, --project <fuzzy-name>`: Global flag to operate on a different registered project from anywhere
@@ -290,7 +290,7 @@ The following are planned but NOT part of the first take:
 
 #### Archival
 
-- `kan archive search <query>`: Search archived cards via git history
+- `kan archive search <query>`: Search archived cards via VCS history
 
 #### Frontends
 
@@ -308,8 +308,8 @@ The following are planned but NOT part of the first take:
 
 **Decision**: Each card is stored as a separate JSON file.
 
-**Rationale**: Git handles merges at the file level. With one file per card:
-- Adding cards never conflicts (different files)
+**Rationale**: VCS tools handle merges at the file level. With one file per card:
+- Adding cards rarely conflicts (different files)
 - Conflicts only occur when two people edit the *same* card — a real conflict worth surfacing
 - The alternative (JSONL with one card per line) causes spurious conflicts on concurrent additions
 
@@ -350,7 +350,7 @@ The following are planned but NOT part of the first take:
 
 ### Global Project Registry
 
-**Decision**: Kan maintains a registry of known projects in `~/.config/kan/config.toml`, lazily populated by any `kan` command run in a Kan-enabled repo.
+**Decision**: Kan maintains a registry of known projects in `~/.config/kan/config.toml`, lazily populated by any `kan` command run in a Kan-enabled project.
 
 **Rationale**: Enables future `-p` flag for operating on projects from anywhere. No explicit registration step needed.
 

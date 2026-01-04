@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/amterp/kan/internal/config"
-	"github.com/amterp/kan/internal/git"
 	"github.com/amterp/kan/internal/id"
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/store"
@@ -14,37 +13,41 @@ import (
 
 const defaultBoardName = "main"
 
-// InitService handles repository initialization.
+// InitService handles project initialization.
 type InitService struct {
-	gitClient   *git.Client
 	globalStore store.GlobalStore
 }
 
 // NewInitService creates a new init service.
-func NewInitService(gitClient *git.Client, globalStore store.GlobalStore) *InitService {
+func NewInitService(globalStore store.GlobalStore) *InitService {
 	return &InitService{
-		gitClient:   gitClient,
 		globalStore: globalStore,
 	}
 }
 
-// Initialize initializes Kan in the current repository.
+// Initialize initializes Kan in the current directory.
 // If customLocation is empty, uses the default .kan directory.
 func (s *InitService) Initialize(customLocation string) error {
-	// Verify we're in a git repository
-	repoRoot, err := s.gitClient.GetRepoRoot()
+	// Get current working directory as project root
+	projectRoot, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("must be in a git repository: %w", err)
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	// Make sure it's absolute
+	projectRoot, err = filepath.Abs(projectRoot)
+	if err != nil {
+		return fmt.Errorf("failed to resolve absolute path: %w", err)
 	}
 
 	// Determine kan root
-	paths := config.NewPaths(repoRoot, customLocation)
+	paths := config.NewPaths(projectRoot, customLocation)
 
 	// Check if already initialized
 	boardsRoot := paths.BoardsRoot()
 	if _, err := os.Stat(boardsRoot); err == nil {
 		// Already initialized - just register in global config
-		return s.registerRepo(repoRoot, customLocation)
+		return s.registerProject(projectRoot, customLocation)
 	}
 
 	// Create directory structure
@@ -66,25 +69,25 @@ func (s *InitService) Initialize(customLocation string) error {
 	}
 
 	// Register in global config
-	return s.registerRepo(repoRoot, customLocation)
+	return s.registerProject(projectRoot, customLocation)
 }
 
-func (s *InitService) registerRepo(repoRoot, customLocation string) error {
+func (s *InitService) registerProject(projectRoot, customLocation string) error {
 	globalCfg, err := s.globalStore.Load()
 	if err != nil {
 		return err
 	}
 
 	// Register project
-	projectName := filepath.Base(repoRoot)
-	globalCfg.RegisterProject(projectName, repoRoot)
+	projectName := filepath.Base(projectRoot)
+	globalCfg.RegisterProject(projectName, projectRoot)
 
-	// Set repo config if custom location
+	// Always set repo config entry (enables discovery via global config)
+	repoCfg := model.RepoConfig{}
 	if customLocation != "" {
-		globalCfg.SetRepoConfig(repoRoot, model.RepoConfig{
-			DataLocation: customLocation,
-		})
+		repoCfg.DataLocation = customLocation
 	}
+	globalCfg.SetRepoConfig(projectRoot, repoCfg)
 
 	return s.globalStore.Save(globalCfg)
 }

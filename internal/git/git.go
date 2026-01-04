@@ -1,7 +1,7 @@
 package git
 
 import (
-	"fmt"
+	"errors"
 	"os/exec"
 	"strings"
 )
@@ -15,13 +15,14 @@ func NewClient() *Client {
 }
 
 // GetUserName returns the configured git user.name.
-func (c *Client) GetUserName() (string, error) {
+// Returns empty string if git is unavailable or user.name is not configured.
+func (c *Client) GetUserName() string {
 	cmd := exec.Command("git", "config", "user.name")
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to get git user.name: %w", err)
+		return ""
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(string(out))
 }
 
 // GetRepoRoot returns the repository root directory.
@@ -30,7 +31,7 @@ func (c *Client) GetRepoRoot() (string, error) {
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("not in a git repository")
+		return "", errors.New("not in a git repository")
 	}
 	return strings.TrimSpace(string(out)), nil
 }

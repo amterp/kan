@@ -3,10 +3,14 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/amterp/kan/internal/config"
+	"github.com/amterp/kan/internal/creator"
+	"github.com/amterp/kan/internal/discovery"
 	kanerr "github.com/amterp/kan/internal/errors"
 	"github.com/amterp/kan/internal/git"
+	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/prompt"
 	"github.com/amterp/kan/internal/resolver"
 	"github.com/amterp/kan/internal/service"
@@ -28,7 +32,7 @@ type App struct {
 	AliasService  *service.AliasService
 	BoardResolver *resolver.BoardResolver
 	CardResolver  *resolver.CardResolver
-	RepoRoot      string
+	ProjectRoot   string
 }
 
 // NewApp creates a new App with all dependencies wired up.
@@ -44,18 +48,25 @@ func NewApp(interactive bool) (*App, error) {
 		globalCfg = nil
 	}
 
-	// Try to get repo root - not all commands require it
-	repoRoot, _ := gitClient.GetRepoRoot()
+	// Discover project root (VCS-agnostic)
+	var projectRoot, dataLocation string
+	result, err := discovery.DiscoverProject(globalCfg)
+	if err != nil {
+		// This is a real error (e.g., global config says path exists but it doesn't)
+		return nil, err
+	}
+	if result != nil {
+		projectRoot = result.ProjectRoot
+		dataLocation = result.DataLocation
 
-	// Get custom data location if configured
-	var dataLocation string
-	if repoRoot != "" && globalCfg != nil {
-		if repoCfg := globalCfg.GetRepoConfig(repoRoot); repoCfg != nil {
-			dataLocation = repoCfg.DataLocation
+		// Auto-register unregistered projects
+		if !result.WasRegistered && globalCfg != nil {
+			registerProject(globalStore, globalCfg, projectRoot, dataLocation)
 		}
 	}
+	// projectRoot may be empty - that's OK, RequireKan() will catch it
 
-	paths := config.NewPaths(repoRoot, dataLocation)
+	paths := config.NewPaths(projectRoot, dataLocation)
 	boardStore := store.NewBoardStore(paths)
 	cardStore := store.NewCardStore(paths)
 
@@ -67,10 +78,10 @@ func NewApp(interactive bool) (*App, error) {
 	}
 
 	aliasService := service.NewAliasService(cardStore)
-	initService := service.NewInitService(gitClient, globalStore)
+	initService := service.NewInitService(globalStore)
 	boardService := service.NewBoardService(boardStore)
 	cardService := service.NewCardService(cardStore, boardStore, aliasService)
-	boardResolver := resolver.NewBoardResolver(boardStore, globalStore, prompter, repoRoot)
+	boardResolver := resolver.NewBoardResolver(boardStore, globalStore, prompter, projectRoot)
 	cardResolver := resolver.NewCardResolver(cardStore)
 
 	return &App{
@@ -86,38 +97,41 @@ func NewApp(interactive bool) (*App, error) {
 		AliasService:  aliasService,
 		BoardResolver: boardResolver,
 		CardResolver:  cardResolver,
-		RepoRoot:      repoRoot,
+		ProjectRoot:   projectRoot,
 	}, nil
 }
 
-// RequireRepo ensures we're in a git repository.
-func (a *App) RequireRepo() error {
-	if a.RepoRoot == "" {
-		return fmt.Errorf("not in a git repository")
+// registerProject auto-registers a discovered but unregistered project in global config.
+func registerProject(globalStore store.GlobalStore, globalCfg *model.GlobalConfig, projectRoot, dataLocation string) {
+	projectName := filepath.Base(projectRoot)
+	globalCfg.RegisterProject(projectName, projectRoot)
+
+	repoCfg := model.RepoConfig{}
+	if dataLocation != "" {
+		repoCfg.DataLocation = dataLocation
 	}
-	return nil
+	globalCfg.SetRepoConfig(projectRoot, repoCfg)
+
+	// Best effort - don't fail if we can't save
+	_ = globalStore.Save(globalCfg)
 }
 
-// RequireKan ensures Kan is initialized in the current repo.
+// RequireKan ensures Kan is initialized in the current project.
 func (a *App) RequireKan() error {
-	if err := a.RequireRepo(); err != nil {
-		return err
+	if a.ProjectRoot == "" {
+		return &kanerr.NotInitializedError{}
 	}
 
 	boards, err := a.BoardStore.List()
 	if err != nil || len(boards) == 0 {
-		return &kanerr.NotInitializedError{Path: a.RepoRoot}
+		return &kanerr.NotInitializedError{Path: a.ProjectRoot}
 	}
 	return nil
 }
 
-// GetCreator returns the git username for the card creator field.
-func (a *App) GetCreator() string {
-	name, err := a.GitClient.GetUserName()
-	if err != nil {
-		return "unknown"
-	}
-	return name
+// GetCreator returns the username for the card creator field.
+func (a *App) GetCreator() (string, error) {
+	return creator.GetCreator(a.GitClient)
 }
 
 // Fatal prints an error and exits.

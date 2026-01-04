@@ -56,7 +56,7 @@ func Run() {
 	ctx := &CommandContext{}
 
 	cmd := ra.NewCmd("kan")
-	cmd.SetDescription("Git-native kanban boards")
+	cmd.SetDescription("File-based kanban boards")
 
 	// Global flag for non-interactive mode
 	ctx.NonInteractive, _ = ra.NewBool("non-interactive").

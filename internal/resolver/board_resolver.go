@@ -13,7 +13,7 @@ type BoardResolver struct {
 	boardStore  store.BoardStore
 	globalStore store.GlobalStore
 	prompter    prompt.Prompter
-	repoPath    string
+	projectPath string
 }
 
 // NewBoardResolver creates a new board resolver.
@@ -21,13 +21,13 @@ func NewBoardResolver(
 	boardStore store.BoardStore,
 	globalStore store.GlobalStore,
 	prompter prompt.Prompter,
-	repoPath string,
+	projectPath string,
 ) *BoardResolver {
 	return &BoardResolver{
 		boardStore:  boardStore,
 		globalStore: globalStore,
 		prompter:    prompter,
-		repoPath:    repoPath,
+		projectPath: projectPath,
 	}
 }
 
@@ -64,7 +64,7 @@ func (r *BoardResolver) Resolve(explicitBoard string, interactive bool) (string,
 	// 4. Check for configured default
 	globalCfg, _ := r.globalStore.Load()
 	if globalCfg != nil {
-		if repoCfg := globalCfg.GetRepoConfig(r.repoPath); repoCfg != nil {
+		if repoCfg := globalCfg.GetRepoConfig(r.projectPath); repoCfg != nil {
 			if repoCfg.DefaultBoard != "" && r.boardStore.Exists(repoCfg.DefaultBoard) {
 				return repoCfg.DefaultBoard, nil
 			}

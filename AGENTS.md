@@ -8,7 +8,7 @@ Guidance for AI agents working with this codebase.
 
 ## Project Overview
 
-Kan is a Git-native kanban board CLI tool. All data lives as plain files in `.kan/` that git tracks—no database, no server, no external dependencies. The Go binary embeds a React web frontend served via `kan serve`.
+Kan is a file-based kanban board CLI tool. All data lives as plain files in `.kan/`—no database, no server, no external dependencies. Works with any VCS (or none). The Go binary embeds a React web frontend served via `kan serve`.
 
 ## Build & Development Commands
 
@@ -65,7 +65,7 @@ cmd/kan/main.go
 
 ### One File Per Card
 
-Each card is a separate JSON file in `.kan/boards/<board>/cards/<flexid>.json`. This is intentional—git merges at file level, so concurrent card additions never conflict.
+Each card is a separate JSON file in `.kan/boards/<board>/cards/<flexid>.json`. This is intentional—VCS merges at file level, so concurrent card additions rarely conflict.
 
 ### JSON for Data, TOML for Config
 

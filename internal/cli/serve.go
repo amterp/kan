@@ -41,12 +41,17 @@ func runServe(port int, noOpen bool) {
 		Fatal(err)
 	}
 
+	creatorName, err := app.GetCreator()
+	if err != nil {
+		Fatal(err)
+	}
+
 	handler := api.NewHandler(
 		app.CardService,
 		app.BoardService,
 		app.CardStore,
 		app.BoardStore,
-		app.GetCreator(),
+		creatorName,
 	)
 
 	// Find an available port starting from the requested one

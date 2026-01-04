@@ -75,6 +75,11 @@ func runAdd(title, description, board, column string, labels []string, parentCar
 		}
 	}
 
+	creatorName, err := app.GetCreator()
+	if err != nil {
+		Fatal(err)
+	}
+
 	input := service.AddCardInput{
 		BoardName:   boardName,
 		Title:       title,
@@ -82,7 +87,7 @@ func runAdd(title, description, board, column string, labels []string, parentCar
 		Column:      column,
 		Labels:      labels,
 		Parent:      parentCard,
-		Creator:     app.GetCreator(),
+		Creator:     creatorName,
 	}
 
 	card, err := app.CardService.Add(input)
