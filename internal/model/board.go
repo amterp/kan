@@ -3,31 +3,31 @@ package model
 // BoardConfig represents the configuration for a kanban board.
 // Stored as config.toml in the board directory.
 type BoardConfig struct {
-	ID            string              `toml:"id"`
-	Name          string              `toml:"name"`
-	Columns       []Column            `toml:"columns"`
-	DefaultColumn string              `toml:"default_column"`
-	Labels        []Label             `toml:"labels,omitempty"`
-	CustomFields  map[string]CustomFieldSchema `toml:"custom_fields,omitempty"`
+	ID            string                       `toml:"id" json:"id"`
+	Name          string                       `toml:"name" json:"name"`
+	Columns       []Column                     `toml:"columns" json:"columns"`
+	DefaultColumn string                       `toml:"default_column" json:"default_column"`
+	Labels        []Label                      `toml:"labels,omitempty" json:"labels,omitempty"`
+	CustomFields  map[string]CustomFieldSchema `toml:"custom_fields,omitempty" json:"custom_fields,omitempty"`
 }
 
 // Column represents a kanban column.
 type Column struct {
-	Name  string `toml:"name"`
-	Color string `toml:"color"`
+	Name  string `toml:"name" json:"name"`
+	Color string `toml:"color" json:"color"`
 }
 
 // Label represents a card label.
 type Label struct {
-	Name        string `toml:"name"`
-	Color       string `toml:"color"`
-	Description string `toml:"description,omitempty"`
+	Name        string `toml:"name" json:"name"`
+	Color       string `toml:"color" json:"color"`
+	Description string `toml:"description,omitempty" json:"description,omitempty"`
 }
 
 // CustomFieldSchema defines the schema for a custom field.
 type CustomFieldSchema struct {
-	Type   string   `toml:"type"`             // "string", "enum", "date"
-	Values []string `toml:"values,omitempty"` // For enum type
+	Type   string   `toml:"type" json:"type"`                       // "string", "enum", "date"
+	Values []string `toml:"values,omitempty" json:"values,omitempty"` // For enum type
 }
 
 // DefaultColumns returns the default columns for a new board.
