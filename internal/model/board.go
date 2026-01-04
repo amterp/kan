@@ -13,8 +13,9 @@ type BoardConfig struct {
 
 // Column represents a kanban column.
 type Column struct {
-	Name  string `toml:"name" json:"name"`
-	Color string `toml:"color" json:"color"`
+	Name    string   `toml:"name" json:"name"`
+	Color   string   `toml:"color" json:"color"`
+	CardIDs []string `toml:"card_ids,omitempty" json:"card_ids,omitempty"`
 }
 
 // Label represents a card label.
@@ -68,6 +69,92 @@ func (b *BoardConfig) GetDefaultColumn() string {
 	}
 	if len(b.Columns) > 0 {
 		return b.Columns[0].Name
+	}
+	return ""
+}
+
+// GetColumnIndex returns the index of the column with the given name, or -1 if not found.
+func (b *BoardConfig) GetColumnIndex(name string) int {
+	for i, col := range b.Columns {
+		if col.Name == name {
+			return i
+		}
+	}
+	return -1
+}
+
+// AddCardToColumn adds a card ID to a column's card list at the end.
+// Returns false if the column doesn't exist.
+func (b *BoardConfig) AddCardToColumn(cardID, columnName string) bool {
+	return b.InsertCardInColumn(cardID, columnName, -1)
+}
+
+// InsertCardInColumn adds a card ID to a column's card list at a specific position.
+// If position is -1 or >= len(cards), appends to end.
+// Returns false if the column doesn't exist.
+func (b *BoardConfig) InsertCardInColumn(cardID, columnName string, position int) bool {
+	idx := b.GetColumnIndex(columnName)
+	if idx < 0 {
+		return false
+	}
+
+	cards := b.Columns[idx].CardIDs
+
+	// Append to end if position is -1 or out of bounds
+	if position < 0 || position >= len(cards) {
+		b.Columns[idx].CardIDs = append(cards, cardID)
+		return true
+	}
+
+	// Insert at position
+	newCards := make([]string, 0, len(cards)+1)
+	newCards = append(newCards, cards[:position]...)
+	newCards = append(newCards, cardID)
+	newCards = append(newCards, cards[position:]...)
+	b.Columns[idx].CardIDs = newCards
+	return true
+}
+
+// RemoveCardFromColumn removes a card ID from a column's card list.
+// Returns the column name if found, empty string if not found.
+func (b *BoardConfig) RemoveCardFromColumn(cardID string) string {
+	for i, col := range b.Columns {
+		for j, id := range col.CardIDs {
+			if id == cardID {
+				// Remove the card ID
+				b.Columns[i].CardIDs = append(col.CardIDs[:j], col.CardIDs[j+1:]...)
+				return col.Name
+			}
+		}
+	}
+	return ""
+}
+
+// MoveCardToColumn moves a card from its current column to a new column at the end.
+// Returns false if the target column doesn't exist.
+func (b *BoardConfig) MoveCardToColumn(cardID, targetColumn string) bool {
+	return b.MoveCardToColumnAt(cardID, targetColumn, -1)
+}
+
+// MoveCardToColumnAt moves a card from its current column to a new column at a specific position.
+// If position is -1, appends to end.
+// Returns false if the target column doesn't exist.
+func (b *BoardConfig) MoveCardToColumnAt(cardID, targetColumn string, position int) bool {
+	// First remove from current column (if any)
+	b.RemoveCardFromColumn(cardID)
+	// Then insert at position in target column
+	return b.InsertCardInColumn(cardID, targetColumn, position)
+}
+
+// GetCardColumn returns the column name containing the given card ID.
+// Returns empty string if the card is not found in any column.
+func (b *BoardConfig) GetCardColumn(cardID string) string {
+	for _, col := range b.Columns {
+		for _, id := range col.CardIDs {
+			if id == cardID {
+				return col.Name
+			}
+		}
 	}
 	return ""
 }

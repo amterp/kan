@@ -24,6 +24,7 @@ export interface Comment {
 export interface Column {
   name: string;
   color: string;
+  card_ids?: string[];
 }
 
 export interface Label {

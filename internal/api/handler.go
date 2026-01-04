@@ -171,34 +171,55 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Apply updates
-	if req.Title != nil {
-		if err := h.cardService.UpdateTitle(boardName, card, *req.Title); err != nil {
+	// Handle column change separately (uses MoveCard to update board config)
+	if req.Column != nil && *req.Column != card.Column {
+		if err := h.cardService.MoveCard(boardName, card.ID, *req.Column); err != nil {
 			Error(w, err)
 			return
 		}
-	} else {
-		// For non-title updates, apply directly
-		if req.Description != nil {
-			card.Description = *req.Description
-		}
-		if req.Column != nil {
-			card.Column = *req.Column
-		}
-		if req.Labels != nil {
-			card.Labels = req.Labels
-		}
-		if err := h.cardService.Update(boardName, card); err != nil {
+		// Re-fetch after move
+		card, err = h.cardService.Get(boardName, card.ID)
+		if err != nil {
 			Error(w, err)
 			return
 		}
 	}
 
-	// Re-fetch to get updated state
-	card, err = h.cardService.Get(boardName, card.ID)
-	if err != nil {
-		Error(w, err)
-		return
+	// Apply other updates
+	needsUpdate := false
+	if req.Title != nil {
+		if err := h.cardService.UpdateTitle(boardName, card, *req.Title); err != nil {
+			Error(w, err)
+			return
+		}
+		// Re-fetch after title update (which regenerates alias)
+		card, err = h.cardService.Get(boardName, card.ID)
+		if err != nil {
+			Error(w, err)
+			return
+		}
+	}
+
+	if req.Description != nil && *req.Description != card.Description {
+		card.Description = *req.Description
+		needsUpdate = true
+	}
+	if req.Labels != nil {
+		card.Labels = req.Labels
+		needsUpdate = true
+	}
+
+	if needsUpdate {
+		if err := h.cardService.Update(boardName, card); err != nil {
+			Error(w, err)
+			return
+		}
+		// Re-fetch to get updated state
+		card, err = h.cardService.Get(boardName, card.ID)
+		if err != nil {
+			Error(w, err)
+			return
+		}
 	}
 
 	JSON(w, http.StatusOK, card)
@@ -206,7 +227,8 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 
 // MoveCardRequest is the JSON body for moving a card.
 type MoveCardRequest struct {
-	Column string `json:"column"`
+	Column   string `json:"column"`
+	Position *int   `json:"position,omitempty"` // Optional: position in target column (-1 or omit for end)
 }
 
 // MoveCard moves a card to a different column.
@@ -214,6 +236,7 @@ func (h *Handler) MoveCard(w http.ResponseWriter, r *http.Request) {
 	boardName := r.PathValue("board")
 	cardID := r.PathValue("id")
 
+	// First resolve the card ID (might be an alias)
 	card, err := h.cardService.FindByIDOrAlias(boardName, cardID)
 	if err != nil {
 		Error(w, err)
@@ -231,19 +254,21 @@ func (h *Handler) MoveCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate column exists
-	board, err := h.boardStore.Get(boardName)
-	if err != nil {
+	// Determine position (-1 means append to end)
+	position := -1
+	if req.Position != nil {
+		position = *req.Position
+	}
+
+	// Use the service's MoveCardAt which updates both card and board config
+	if err := h.cardService.MoveCardAt(boardName, card.ID, req.Column, position); err != nil {
 		Error(w, err)
 		return
 	}
-	if !board.HasColumn(req.Column) {
-		BadRequest(w, "column does not exist: "+req.Column)
-		return
-	}
 
-	card.Column = req.Column
-	if err := h.cardService.Update(boardName, card); err != nil {
+	// Re-fetch to get updated state
+	card, err = h.cardService.Get(boardName, card.ID)
+	if err != nil {
 		Error(w, err)
 		return
 	}

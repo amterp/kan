@@ -3,9 +3,10 @@ interface HeaderProps {
   selectedBoard: string | null;
   onSelectBoard: (board: string) => void;
   onRefresh: () => void;
+  onNewCard?: () => void;
 }
 
-export default function Header({ boards, selectedBoard, onSelectBoard, onRefresh }: HeaderProps) {
+export default function Header({ boards, selectedBoard, onSelectBoard, onRefresh, onNewCard }: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -28,15 +29,28 @@ export default function Header({ boards, selectedBoard, onSelectBoard, onRefresh
           <span className="text-gray-600">{boards[0]}</span>
         )}
       </div>
-      <button
-        onClick={onRefresh}
-        className="text-gray-500 hover:text-gray-700 p-2 rounded-md hover:bg-gray-100"
-        title="Refresh"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-      </button>
+      <div className="flex items-center gap-2">
+        {onNewCard && (
+          <button
+            onClick={onNewCard}
+            className="flex items-center gap-1 text-sm text-white bg-blue-500 hover:bg-blue-600 px-3 py-1.5 rounded-md"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Card
+          </button>
+        )}
+        <button
+          onClick={onRefresh}
+          className="text-gray-500 hover:text-gray-700 p-2 rounded-md hover:bg-gray-100"
+          title="Refresh"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+      </div>
     </header>
   );
 }

@@ -1,12 +1,30 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useBoards, useBoard } from './hooks/useBoards';
 import Header from './components/Header';
 import Board from './components/Board';
+import CardEditModal from './components/CardEditModal';
+import type { Card } from './api/types';
 
 function App() {
   const { boards, loading: boardsLoading, error: boardsError } = useBoards();
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
-  const { board, cards, loading, error, moveCard, createCard, refresh } = useBoard(selectedBoard);
+  const { board, cards, loading, error, moveCard, createCard, updateCard, refresh } = useBoard(selectedBoard);
+  const [newCardForEdit, setNewCardForEdit] = useState<Card | null>(null);
+
+  const handleNewCard = useCallback(async () => {
+    if (!board) return;
+    const newCard = await createCard({ title: 'New Card', column: board.default_column });
+    if (newCard) {
+      setNewCardForEdit(newCard);
+    }
+  }, [board, createCard]);
+
+  const handleSaveNewCard = useCallback(async (updates: Partial<Card>) => {
+    if (newCardForEdit) {
+      await updateCard(newCardForEdit.id, updates);
+      setNewCardForEdit(null);
+    }
+  }, [newCardForEdit, updateCard]);
 
   // Auto-select first board if only one exists
   if (!selectedBoard && boards.length === 1) {
@@ -50,6 +68,7 @@ function App() {
         selectedBoard={selectedBoard}
         onSelectBoard={setSelectedBoard}
         onRefresh={refresh}
+        onNewCard={board ? handleNewCard : undefined}
       />
       <main className="flex-1 overflow-hidden">
         {loading ? (
@@ -66,6 +85,7 @@ function App() {
             cards={cards}
             onMoveCard={moveCard}
             onCreateCard={createCard}
+            onUpdateCard={updateCard}
           />
         ) : (
           <div className="h-full flex items-center justify-center">
@@ -73,6 +93,14 @@ function App() {
           </div>
         )}
       </main>
+      {newCardForEdit && board && (
+        <CardEditModal
+          card={newCardForEdit}
+          board={board}
+          onSave={handleSaveNewCard}
+          onClose={() => setNewCardForEdit(null)}
+        />
+      )}
     </div>
   );
 }

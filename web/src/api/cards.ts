@@ -19,6 +19,10 @@ export async function updateCard(board: string, id: string, input: UpdateCardInp
   return api.put<Card>(`/boards/${encodeURIComponent(board)}/cards/${encodeURIComponent(id)}`, input);
 }
 
-export async function moveCard(board: string, id: string, column: string): Promise<Card> {
-  return api.patch<Card>(`/boards/${encodeURIComponent(board)}/cards/${encodeURIComponent(id)}/move`, { column });
+export async function moveCard(board: string, id: string, column: string, position?: number): Promise<Card> {
+  const body: { column: string; position?: number } = { column };
+  if (position !== undefined) {
+    body.position = position;
+  }
+  return api.patch<Card>(`/boards/${encodeURIComponent(board)}/cards/${encodeURIComponent(id)}/move`, body);
 }
