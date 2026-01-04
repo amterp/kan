@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	fid "github.com/amterp/flexid"
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/git"
+	"github.com/amterp/kan/internal/id"
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/store"
 )
@@ -55,7 +55,7 @@ func (s *InitService) Initialize(customLocation string) error {
 	// Create default board
 	boardStore := store.NewBoardStore(paths)
 	defaultBoard := &model.BoardConfig{
-		ID:            fid.MustGenerate(),
+		ID:            id.Generate(),
 		Name:          defaultBoardName,
 		Columns:       model.DefaultColumns(),
 		DefaultColumn: "Backlog",

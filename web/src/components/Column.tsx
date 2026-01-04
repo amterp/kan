@@ -13,6 +13,7 @@ interface ColumnProps {
   onCancelAddCard: () => void;
   onAddCard: (title: string, openModal: boolean, keepFormOpen?: boolean) => void;
   onCardClick: (card: Card) => void;
+  onDeleteCard: (cardId: string) => void;
   activeCard: Card | null;
   isOverColumn: boolean;
   overIndex: number | null;
@@ -27,6 +28,7 @@ export default function Column({
   onCancelAddCard,
   onAddCard,
   onCardClick,
+  onDeleteCard,
   activeCard,
   isOverColumn,
   overIndex,
@@ -157,6 +159,7 @@ export default function Column({
                   card={card}
                   labels={labels}
                   onClick={() => onCardClick(card)}
+                  onDelete={() => onDeleteCard(card.id)}
                   isPlaceholder={isBeingDragged}
                 />
               );

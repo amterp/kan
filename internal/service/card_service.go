@@ -1,7 +1,8 @@
 package service
 
 import (
-	fid "github.com/amterp/flexid"
+	"github.com/amterp/kan/internal/id"
+
 	kanerr "github.com/amterp/kan/internal/errors"
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/store"
@@ -60,7 +61,7 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, error) {
 	}
 
 	// Generate ID and alias
-	id := fid.MustGenerate()
+	cardID := id.Generate()
 	alias, err := s.aliasService.GenerateAlias(input.BoardName, input.Title)
 	if err != nil {
 		return nil, err
@@ -68,7 +69,7 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, error) {
 
 	now := util.NowMillis()
 	card := &model.Card{
-		ID:              id,
+		ID:              cardID,
 		Alias:           alias,
 		AliasExplicit:   false,
 		Title:           input.Title,
@@ -86,7 +87,7 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, error) {
 	}
 
 	// Add card to column's card list and save board config
-	boardCfg.AddCardToColumn(id, column)
+	boardCfg.AddCardToColumn(cardID, column)
 	if err := s.boardStore.Update(boardCfg); err != nil {
 		// Card was created but board config update failed - log but don't fail
 		// The card's column field will still be correct
@@ -229,4 +230,22 @@ func (s *CardService) UpdateTitle(boardName string, card *model.Card, newTitle s
 	}
 
 	return s.Update(boardName, card)
+}
+
+// Delete removes a card from the board.
+func (s *CardService) Delete(boardName, cardID string) error {
+	// Remove from card store
+	if err := s.cardStore.Delete(boardName, cardID); err != nil {
+		return err
+	}
+
+	// Remove from board config
+	boardCfg, err := s.boardStore.Get(boardName)
+	if err != nil {
+		// Card is deleted, board config update failure is non-fatal
+		return nil
+	}
+
+	boardCfg.RemoveCardFromColumn(cardID)
+	return s.boardStore.Update(boardCfg)
 }

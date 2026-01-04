@@ -45,6 +45,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/boards/{board}/cards", h.CreateCard)
 	mux.HandleFunc("GET /api/v1/boards/{board}/cards/{id}", h.GetCard)
 	mux.HandleFunc("PUT /api/v1/boards/{board}/cards/{id}", h.UpdateCard)
+	mux.HandleFunc("DELETE /api/v1/boards/{board}/cards/{id}", h.DeleteCard)
 	mux.HandleFunc("PATCH /api/v1/boards/{board}/cards/{id}/move", h.MoveCard)
 
 	// Static files (frontend)
@@ -223,6 +224,26 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	JSON(w, http.StatusOK, card)
+}
+
+// DeleteCard deletes a card.
+func (h *Handler) DeleteCard(w http.ResponseWriter, r *http.Request) {
+	boardName := r.PathValue("board")
+	cardID := r.PathValue("id")
+
+	// First resolve the card ID (might be an alias)
+	card, err := h.cardService.FindByIDOrAlias(boardName, cardID)
+	if err != nil {
+		Error(w, err)
+		return
+	}
+
+	if err := h.cardService.Delete(boardName, card.ID); err != nil {
+		Error(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // MoveCardRequest is the JSON body for moving a card.

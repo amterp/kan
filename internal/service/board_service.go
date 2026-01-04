@@ -1,7 +1,7 @@
 package service
 
 import (
-	fid "github.com/amterp/flexid"
+	"github.com/amterp/kan/internal/id"
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/store"
 )
@@ -19,7 +19,7 @@ func NewBoardService(boardStore store.BoardStore) *BoardService {
 // Create creates a new board with default columns.
 func (s *BoardService) Create(name string) error {
 	cfg := &model.BoardConfig{
-		ID:            fid.MustGenerate(),
+		ID:            id.Generate(),
 		Name:          name,
 		Columns:       model.DefaultColumns(),
 		DefaultColumn: "Backlog",

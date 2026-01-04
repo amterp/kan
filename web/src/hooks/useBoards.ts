@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { listBoards, getBoard } from '../api/boards';
-import { listCards, moveCard as apiMoveCard, createCard as apiCreateCard, updateCard as apiUpdateCard } from '../api/cards';
+import { listCards, moveCard as apiMoveCard, createCard as apiCreateCard, updateCard as apiUpdateCard, deleteCard as apiDeleteCard } from '../api/cards';
 import type { BoardConfig, Card, CreateCardInput } from '../api/types';
 
 export function useBoards() {
@@ -126,5 +126,20 @@ export function useBoard(boardName: string | null) {
     }
   }, [boardName, refresh]);
 
-  return { board, cards, loading, error, moveCard, createCard, updateCard, refresh };
+  const deleteCard = useCallback(async (cardId: string) => {
+    if (!boardName) return;
+
+    // Optimistic update: remove from local state immediately
+    setCards((prev) => prev.filter((card) => card.id !== cardId));
+
+    try {
+      await apiDeleteCard(boardName, cardId);
+    } catch (e) {
+      // Revert on error
+      refresh();
+      throw e;
+    }
+  }, [boardName, refresh]);
+
+  return { board, cards, loading, error, moveCard, createCard, updateCard, deleteCard, refresh };
 }

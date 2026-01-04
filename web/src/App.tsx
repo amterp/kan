@@ -8,7 +8,7 @@ import type { Card } from './api/types';
 function App() {
   const { boards, loading: boardsLoading, error: boardsError } = useBoards();
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
-  const { board, cards, loading, error, moveCard, createCard, updateCard, refresh } = useBoard(selectedBoard);
+  const { board, cards, loading, error, moveCard, createCard, updateCard, deleteCard, refresh } = useBoard(selectedBoard);
   const [newCardForEdit, setNewCardForEdit] = useState<Card | null>(null);
 
   const handleNewCard = useCallback(async () => {
@@ -86,6 +86,7 @@ function App() {
             onMoveCard={moveCard}
             onCreateCard={createCard}
             onUpdateCard={updateCard}
+            onDeleteCard={deleteCard}
           />
         ) : (
           <div className="h-full flex items-center justify-center">
@@ -98,6 +99,10 @@ function App() {
           card={newCardForEdit}
           board={board}
           onSave={handleSaveNewCard}
+          onDelete={async () => {
+            await deleteCard(newCardForEdit.id);
+            setNewCardForEdit(null);
+          }}
           onClose={() => setNewCardForEdit(null)}
         />
       )}

@@ -5,6 +5,7 @@ interface CardEditModalProps {
   card: Card;
   board: BoardConfig;
   onSave: (updates: Partial<Card>) => Promise<void>;
+  onDelete: () => void;
   onClose: () => void;
 }
 
@@ -14,12 +15,13 @@ let savedModalState = {
   size: { width: 900, height: 600 },
 };
 
-export default function CardEditModal({ card, board, onSave, onClose }: CardEditModalProps) {
+export default function CardEditModal({ card, board, onSave, onDelete, onClose }: CardEditModalProps) {
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description || '');
   const [column, setColumn] = useState(card.column);
   const [selectedLabels, setSelectedLabels] = useState<string[]>(card.labels || []);
   const [saving, setSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Drag state - initialize from saved state
   const [position, setPosition] = useState(savedModalState.position);
@@ -360,6 +362,42 @@ export default function CardEditModal({ card, board, onSave, onClose }: CardEdit
                 <span className="text-gray-500 block">ID</span>
                 <span className="text-gray-900 font-mono text-xs break-all">{card.id}</span>
               </div>
+            </div>
+
+            {/* Delete */}
+            <div className="border-t border-gray-200 pt-4 mt-4">
+              {showDeleteConfirm ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-700">Delete this card?</p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={onDelete}
+                      className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:border-red-300 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Delete card
+                </button>
+              )}
             </div>
           </div>
         </div>

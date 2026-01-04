@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Card as CardType, Label } from '../api/types';
@@ -8,9 +9,11 @@ interface CardProps {
   isDragging?: boolean;
   isPlaceholder?: boolean;
   onClick?: () => void;
+  onDelete?: () => void;
 }
 
-export default function Card({ card, labels, isDragging = false, isPlaceholder = false, onClick }: CardProps) {
+export default function Card({ card, labels, isDragging = false, isPlaceholder = false, onClick, onDelete }: CardProps) {
+  const [showConfirm, setShowConfirm] = useState(false);
   const {
     attributes,
     listeners,
@@ -33,10 +36,26 @@ export default function Card({ card, labels, isDragging = false, isPlaceholder =
     .filter(Boolean) as Label[] | undefined;
 
   const handleClick = () => {
-    // Don't trigger click if we're dragging
-    if (!isDragging && !isSortableDragging && onClick) {
+    // Don't trigger click if we're dragging or confirming delete
+    if (!isDragging && !isSortableDragging && !showConfirm && onClick) {
       onClick();
     }
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowConfirm(true);
+  };
+
+  const handleConfirmDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete?.();
+    setShowConfirm(false);
+  };
+
+  const handleCancelDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowConfirm(false);
   };
 
   // Render as dashed placeholder when being dragged
@@ -59,10 +78,44 @@ export default function Card({ card, labels, isDragging = false, isPlaceholder =
       {...attributes}
       {...listeners}
       onClick={handleClick}
-      className={`bg-white rounded-lg p-3 shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
+      className={`group relative bg-white rounded-lg p-3 shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
         isDragging ? 'shadow-lg rotate-2' : ''
       }`}
     >
+      {/* Delete confirmation overlay */}
+      {showConfirm && (
+        <div className="absolute inset-0 bg-white rounded-lg flex flex-col items-center justify-center gap-2 z-10">
+          <p className="text-sm text-gray-700">Delete this card?</p>
+          <div className="flex gap-2">
+            <button
+              onClick={handleConfirmDelete}
+              className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+            >
+              Delete
+            </button>
+            <button
+              onClick={handleCancelDelete}
+              className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Trash icon - shown on hover */}
+      {onDelete && !showConfirm && (
+        <button
+          onClick={handleDeleteClick}
+          className="absolute top-1 right-1 p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Delete card"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+      )}
+
       {/* Labels */}
       {cardLabels && cardLabels.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">

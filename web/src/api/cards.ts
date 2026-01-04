@@ -26,3 +26,7 @@ export async function moveCard(board: string, id: string, column: string, positi
   }
   return api.patch<Card>(`/boards/${encodeURIComponent(board)}/cards/${encodeURIComponent(id)}/move`, body);
 }
+
+export async function deleteCard(board: string, id: string): Promise<void> {
+  await api.delete<void>(`/boards/${encodeURIComponent(board)}/cards/${encodeURIComponent(id)}`);
+}

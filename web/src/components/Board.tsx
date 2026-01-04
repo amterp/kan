@@ -12,9 +12,10 @@ interface BoardProps {
   onMoveCard: (cardId: string, column: string, position?: number) => Promise<void>;
   onCreateCard: (input: CreateCardInput) => Promise<Card | undefined>;
   onUpdateCard: (id: string, updates: Partial<Card>) => Promise<void>;
+  onDeleteCard: (id: string) => Promise<void>;
 }
 
-export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdateCard }: BoardProps) {
+export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdateCard, onDeleteCard }: BoardProps) {
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [addingToColumn, setAddingToColumn] = useState<string | null>(null);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
@@ -255,6 +256,11 @@ export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdate
     setNewCardForEdit(null);
   };
 
+  const handleDeleteCard = async (cardId: string) => {
+    await onDeleteCard(cardId);
+    handleCloseModal();
+  };
+
   const currentEditCard = editingCard || newCardForEdit?.card || null;
 
   return (
@@ -278,6 +284,7 @@ export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdate
               onCancelAddCard={() => setAddingToColumn(null)}
               onAddCard={(title, openModal, keepFormOpen) => handleAddCard(column.name, title, openModal, keepFormOpen)}
               onCardClick={handleCardClick}
+              onDeleteCard={handleDeleteCard}
               activeCard={activeCard}
               isOverColumn={overColumn === column.name}
               overIndex={overColumn === column.name ? overIndex : null}
@@ -296,6 +303,7 @@ export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdate
           card={currentEditCard}
           board={board}
           onSave={handleSaveCard}
+          onDelete={() => handleDeleteCard(currentEditCard.id)}
           onClose={handleCloseModal}
         />
       )}
