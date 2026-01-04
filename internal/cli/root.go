@@ -44,6 +44,11 @@ type CommandContext struct {
 	EditUsed  *bool
 	EditCard  *string
 	EditBoard *string
+
+	// serve command
+	ServeUsed   *bool
+	ServePort   *int
+	ServeNoOpen *bool
 }
 
 // Run is the main entry point for the CLI.
@@ -68,6 +73,7 @@ func Run() {
 	registerShow(cmd, ctx)
 	registerList(cmd, ctx)
 	registerEdit(cmd, ctx)
+	registerServe(cmd, ctx)
 
 	// Parse command line
 	cmd.ParseOrExit(os.Args[1:])
@@ -98,5 +104,8 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.EditUsed:
 		runEdit(*ctx.EditCard, *ctx.EditBoard)
+
+	case *ctx.ServeUsed:
+		runServe(*ctx.ServePort, *ctx.ServeNoOpen)
 	}
 }
