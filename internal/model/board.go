@@ -29,7 +29,7 @@ type Label struct {
 
 // CustomFieldSchema defines the schema for a custom field.
 type CustomFieldSchema struct {
-	Type   string   `toml:"type" json:"type"`                       // "string", "enum", "date"
+	Type   string   `toml:"type" json:"type"`                         // "string", "enum", "date"
 	Values []string `toml:"values,omitempty" json:"values,omitempty"` // For enum type
 }
 

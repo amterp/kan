@@ -6,11 +6,11 @@ import (
 )
 
 const (
-	DefaultKanDir    = ".kan"
-	BoardsDir        = "boards"
-	CardsDir         = "cards"
-	ConfigFileName   = "config.toml"
-	GlobalConfigDir  = ".config/kan"
+	DefaultKanDir   = ".kan"
+	BoardsDir       = "boards"
+	CardsDir        = "cards"
+	ConfigFileName  = "config.toml"
+	GlobalConfigDir = ".config/kan"
 )
 
 // Paths provides path resolution for Kan data files.

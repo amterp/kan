@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/amterp/ra"
 	"github.com/amterp/kan/internal/service"
+	"github.com/amterp/ra"
 )
 
 func registerAdd(parent *ra.Cmd, ctx *CommandContext) {

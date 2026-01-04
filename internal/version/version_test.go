@@ -48,13 +48,13 @@ func TestParseBoardVersion(t *testing.T) {
 		{"board/1", 1, false},
 		{"board/2", 2, false},
 		{"board/10", 10, false},
-		{"global/1", 0, true},    // Wrong prefix
-		{"board/", 0, true},      // Missing version
-		{"board/abc", 0, true},   // Invalid version
-		{"board/0", 0, true},     // Version must be >= 1
-		{"board/-1", 0, true},    // Negative version
-		{"", 0, true},            // Empty
-		{"1", 0, true},           // No prefix
+		{"global/1", 0, true},  // Wrong prefix
+		{"board/", 0, true},    // Missing version
+		{"board/abc", 0, true}, // Invalid version
+		{"board/0", 0, true},   // Version must be >= 1
+		{"board/-1", 0, true},  // Negative version
+		{"", 0, true},          // Empty
+		{"1", 0, true},         // No prefix
 	}
 	for _, tt := range tests {
 		got, err := ParseBoardVersion(tt.schema)

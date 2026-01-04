@@ -31,10 +31,10 @@ type MigrationPlan struct {
 
 // GlobalMigration describes changes to the global config.
 type GlobalMigration struct {
-	Path        string
+	Path           string
 	NeedsMigration bool
-	FromSchema  string // empty if missing
-	ToSchema    string
+	FromSchema     string // empty if missing
+	ToSchema       string
 }
 
 // BoardMigration describes changes to a board.
@@ -51,7 +51,7 @@ type BoardMigration struct {
 type CardMigration struct {
 	CardID       string
 	Path         string
-	FromVersion  int  // 0 if missing
+	FromVersion  int // 0 if missing
 	ToVersion    int
 	RemoveColumn bool
 }

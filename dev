@@ -8,10 +8,14 @@ args:
     validate v bool                   # Build and run tests
     push p bool                       # Push up to origin
     re_serve s bool                   # Build, validate, then run ./kan serve
+    format f bool                     # Format Go code
     release r str?                    # Release type (patch, minor, major)
     tap_path str = "../homebrew-tap"  # Path to homebrew-tap repo
 
     release enum ["patch", "minor", "major"]
+
+if format:
+    $`gofmt -w .`
 
 if build or validate or push or re_serve or release:
     // Build frontend first (required for go:embed)
@@ -19,6 +23,12 @@ if build or validate or push or re_serve or release:
     $`go build ./cmd/kan`
 
 if validate or push or re_serve or release:
+    stdout = quiet $`gofmt -l .`
+    if stdout != "":
+        print_err("Go files need formatting. Run './dev -f' to fix:")
+        print_err(stdout)
+        exit(1)
+    $`go vet ./...`
     $`go test ./...`
 
 if push:

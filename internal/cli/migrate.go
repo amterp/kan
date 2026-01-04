@@ -3,11 +3,11 @@ package cli
 import (
 	"fmt"
 
-	"github.com/amterp/ra"
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/discovery"
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/service"
+	"github.com/amterp/ra"
 )
 
 func registerMigrate(parent *ra.Cmd, ctx *CommandContext) {
