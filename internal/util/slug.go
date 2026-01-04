@@ -15,11 +15,14 @@ var (
 	trimHyphens = regexp.MustCompile(`^-+|-+$`)
 )
 
+const maxSlugLength = 30
+
 // Slugify converts a string to a URL-friendly slug.
 // - Converts to lowercase
 // - Normalizes unicode (removes accents)
 // - Replaces spaces and special characters with hyphens
 // - Removes leading/trailing hyphens
+// - Truncates to maxSlugLength chars without cutting mid-word
 func Slugify(s string) string {
 	// Normalize unicode and convert to lowercase
 	s = strings.ToLower(s)
@@ -30,6 +33,14 @@ func Slugify(s string) string {
 
 	// Trim leading/trailing hyphens
 	s = trimHyphens.ReplaceAllString(s, "")
+
+	// Truncate to max length without cutting mid-word
+	if len(s) > maxSlugLength {
+		s = s[:maxSlugLength]
+		if idx := strings.LastIndex(s, "-"); idx > 0 {
+			s = s[:idx]
+		}
+	}
 
 	return s
 }

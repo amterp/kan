@@ -39,6 +39,12 @@ func TestSlugify(t *testing.T) {
 		{"---", ""},
 		{"a", "a"},
 		{"A", "a"},
+
+		// Length limiting (max 30 chars, no mid-word cuts)
+		{"This is a very long title that exceeds the limit", "this-is-a-very-long-title"},
+		{"Short title", "short-title"},
+		{"Exactly thirty characters ok", "exactly-thirty-characters-ok"},
+		{"superlongwordwithoutanyspacesatall", "superlongwordwithoutanyspacesa"},
 	}
 
 	for _, tt := range tests {
