@@ -139,11 +139,11 @@ func testBoardConfig(name string) *model.BoardConfig {
 	return &model.BoardConfig{
 		ID:            "test-board-id",
 		Name:          name,
-		DefaultColumn: "Backlog",
+		DefaultColumn: "backlog",
 		Columns: []model.Column{
-			{Name: "Backlog", Color: "#6b7280"},
-			{Name: "In Progress", Color: "#f59e0b"},
-			{Name: "Done", Color: "#10b981"},
+			{Name: "backlog", Color: "#6b7280"},
+			{Name: "in-progress", Color: "#f59e0b"},
+			{Name: "done", Color: "#10b981"},
 		},
 		Labels: []model.Label{
 			{Name: "bug", Color: "#ef4444"},
@@ -172,7 +172,7 @@ func TestCardService_Add_Basic(t *testing.T) {
 	card, err := service.Add(AddCardInput{
 		BoardName: "main",
 		Title:     "Fix login bug",
-		Column:    "Backlog",
+		Column:    "backlog",
 	})
 	if err != nil {
 		t.Fatalf("Add failed: %v", err)
@@ -187,8 +187,8 @@ func TestCardService_Add_Basic(t *testing.T) {
 	if card.Title != "Fix login bug" {
 		t.Errorf("Expected title 'Fix login bug', got %q", card.Title)
 	}
-	if card.Column != "Backlog" {
-		t.Errorf("Expected column 'Backlog', got %q", card.Column)
+	if card.Column != "backlog" {
+		t.Errorf("Expected column 'backlog', got %q", card.Column)
 	}
 	if card.AliasExplicit {
 		t.Error("AliasExplicit should be false for auto-generated alias")
@@ -208,7 +208,7 @@ func TestCardService_Add_WithLabels(t *testing.T) {
 	card, err := service.Add(AddCardInput{
 		BoardName: "main",
 		Title:     "New feature",
-		Column:    "Backlog",
+		Column:    "backlog",
 		Labels:    []string{"bug", "feature"},
 	})
 	if err != nil {
@@ -233,8 +233,8 @@ func TestCardService_Add_DefaultColumn(t *testing.T) {
 		t.Fatalf("Add failed: %v", err)
 	}
 
-	if card.Column != "Backlog" {
-		t.Errorf("Expected default column 'Backlog', got %q", card.Column)
+	if card.Column != "backlog" {
+		t.Errorf("Expected default column 'backlog', got %q", card.Column)
 	}
 }
 
@@ -262,7 +262,7 @@ func TestCardService_Add_InvalidLabel(t *testing.T) {
 	_, err := service.Add(AddCardInput{
 		BoardName: "main",
 		Title:     "Bad label",
-		Column:    "Backlog",
+		Column:    "backlog",
 		Labels:    []string{"bug", "nonexistent-label"},
 	})
 	if err == nil {
@@ -280,7 +280,7 @@ func TestCardService_Add_BoardNotFound(t *testing.T) {
 	_, err := service.Add(AddCardInput{
 		BoardName: "nonexistent",
 		Title:     "Test",
-		Column:    "Backlog",
+		Column:    "backlog",
 	})
 	if err == nil {
 		t.Fatal("Expected error for nonexistent board")
@@ -297,7 +297,7 @@ func TestCardService_Add_UpdatesBoardConfig(t *testing.T) {
 	card, err := service.Add(AddCardInput{
 		BoardName: "main",
 		Title:     "Test card",
-		Column:    "In Progress",
+		Column:    "in-progress",
 	})
 	if err != nil {
 		t.Fatalf("Add failed: %v", err)
@@ -307,7 +307,7 @@ func TestCardService_Add_UpdatesBoardConfig(t *testing.T) {
 	cfg, _ := boardStore.Get("main")
 	found := false
 	for _, col := range cfg.Columns {
-		if col.Name == "In Progress" {
+		if col.Name == "in-progress" {
 			for _, id := range col.CardIDs {
 				if id == card.ID {
 					found = true
@@ -333,7 +333,7 @@ func TestCardService_Get_Found(t *testing.T) {
 	created, _ := service.Add(AddCardInput{
 		BoardName: "main",
 		Title:     "Test",
-		Column:    "Backlog",
+		Column:    "backlog",
 	})
 
 	card, err := service.Get("main", created.ID)
@@ -371,7 +371,7 @@ func TestCardService_Update_ModifiesTimestamp(t *testing.T) {
 	card, _ := service.Add(AddCardInput{
 		BoardName: "main",
 		Title:     "Test",
-		Column:    "Backlog",
+		Column:    "backlog",
 	})
 	originalCreated := card.CreatedAtMillis
 
@@ -422,9 +422,9 @@ func TestCardService_List_ReturnsAllCards(t *testing.T) {
 	boardStore.addBoard(testBoardConfig("main"))
 
 	// Add cards to different columns
-	service.Add(AddCardInput{BoardName: "main", Title: "Card 1", Column: "Backlog"})
-	service.Add(AddCardInput{BoardName: "main", Title: "Card 2", Column: "In Progress"})
-	service.Add(AddCardInput{BoardName: "main", Title: "Card 3", Column: "Done"})
+	service.Add(AddCardInput{BoardName: "main", Title: "Card 1", Column: "backlog"})
+	service.Add(AddCardInput{BoardName: "main", Title: "Card 2", Column: "in-progress"})
+	service.Add(AddCardInput{BoardName: "main", Title: "Card 3", Column: "done"})
 
 	cards, err := service.List("main", "")
 	if err != nil {
@@ -439,20 +439,20 @@ func TestCardService_List_WithColumnFilter(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
-	service.Add(AddCardInput{BoardName: "main", Title: "Backlog 1", Column: "Backlog"})
-	service.Add(AddCardInput{BoardName: "main", Title: "Backlog 2", Column: "Backlog"})
-	service.Add(AddCardInput{BoardName: "main", Title: "In Progress 1", Column: "In Progress"})
+	service.Add(AddCardInput{BoardName: "main", Title: "backlog 1", Column: "backlog"})
+	service.Add(AddCardInput{BoardName: "main", Title: "backlog 2", Column: "backlog"})
+	service.Add(AddCardInput{BoardName: "main", Title: "in-progress 1", Column: "in-progress"})
 
-	cards, err := service.List("main", "Backlog")
+	cards, err := service.List("main", "backlog")
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
 	if len(cards) != 2 {
-		t.Errorf("Expected 2 cards in Backlog, got %d", len(cards))
+		t.Errorf("Expected 2 cards in backlog, got %d", len(cards))
 	}
 	for _, card := range cards {
-		if card.Column != "Backlog" {
-			t.Errorf("Expected column 'Backlog', got %q", card.Column)
+		if card.Column != "backlog" {
+			t.Errorf("Expected column 'backlog', got %q", card.Column)
 		}
 	}
 }
@@ -461,10 +461,10 @@ func TestCardService_List_OrderedByBoardConfig(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
-	// Add cards - they should be returned in column order (Backlog, In Progress, Done)
-	card1, _ := service.Add(AddCardInput{BoardName: "main", Title: "Done card", Column: "Done"})
-	card2, _ := service.Add(AddCardInput{BoardName: "main", Title: "Backlog card", Column: "Backlog"})
-	card3, _ := service.Add(AddCardInput{BoardName: "main", Title: "In Progress card", Column: "In Progress"})
+	// Add cards - they should be returned in column order (backlog, in-progress, done)
+	card1, _ := service.Add(AddCardInput{BoardName: "main", Title: "done card", Column: "done"})
+	card2, _ := service.Add(AddCardInput{BoardName: "main", Title: "backlog card", Column: "backlog"})
+	card3, _ := service.Add(AddCardInput{BoardName: "main", Title: "in-progress card", Column: "in-progress"})
 
 	cards, err := service.List("main", "")
 	if err != nil {
@@ -474,15 +474,15 @@ func TestCardService_List_OrderedByBoardConfig(t *testing.T) {
 		t.Fatalf("Expected 3 cards, got %d", len(cards))
 	}
 
-	// Verify order: Backlog first, then In Progress, then Done
+	// Verify order: backlog first, then in-progress, then done
 	if cards[0].ID != card2.ID {
-		t.Error("First card should be from Backlog column")
+		t.Error("First card should be from backlog column")
 	}
 	if cards[1].ID != card3.ID {
-		t.Error("Second card should be from In Progress column")
+		t.Error("Second card should be from in-progress column")
 	}
 	if cards[2].ID != card1.ID {
-		t.Error("Third card should be from Done column")
+		t.Error("Third card should be from done column")
 	}
 }
 
@@ -494,9 +494,9 @@ func TestCardService_MoveCard_ToEnd(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
-	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "Backlog"})
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
 
-	if err := service.MoveCard("main", card.ID, "In Progress"); err != nil {
+	if err := service.MoveCard("main", card.ID, "in-progress"); err != nil {
 		t.Fatalf("MoveCard failed: %v", err)
 	}
 
@@ -504,7 +504,7 @@ func TestCardService_MoveCard_ToEnd(t *testing.T) {
 	cfg, _ := boardStore.Get("main")
 	found := false
 	for _, col := range cfg.Columns {
-		if col.Name == "In Progress" {
+		if col.Name == "in-progress" {
 			for _, id := range col.CardIDs {
 				if id == card.ID {
 					found = true
@@ -514,15 +514,15 @@ func TestCardService_MoveCard_ToEnd(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Error("Card should be in In Progress column's CardIDs")
+		t.Error("Card should be in in-progress column's CardIDs")
 	}
 
 	// Verify card is removed from old column
 	for _, col := range cfg.Columns {
-		if col.Name == "Backlog" {
+		if col.Name == "backlog" {
 			for _, id := range col.CardIDs {
 				if id == card.ID {
-					t.Error("Card should be removed from Backlog column's CardIDs")
+					t.Error("Card should be removed from backlog column's CardIDs")
 				}
 			}
 		}
@@ -533,14 +533,14 @@ func TestCardService_MoveCardAt_Position(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
-	// Add two cards to In Progress
-	card1, _ := service.Add(AddCardInput{BoardName: "main", Title: "First", Column: "In Progress"})
-	card2, _ := service.Add(AddCardInput{BoardName: "main", Title: "Second", Column: "In Progress"})
+	// Add two cards to in-progress
+	card1, _ := service.Add(AddCardInput{BoardName: "main", Title: "First", Column: "in-progress"})
+	card2, _ := service.Add(AddCardInput{BoardName: "main", Title: "Second", Column: "in-progress"})
 
-	// Add a third card to Backlog, then move it to position 0 in In Progress
-	card3, _ := service.Add(AddCardInput{BoardName: "main", Title: "Third", Column: "Backlog"})
+	// Add a third card to backlog, then move it to position 0 in in-progress
+	card3, _ := service.Add(AddCardInput{BoardName: "main", Title: "Third", Column: "backlog"})
 
-	if err := service.MoveCardAt("main", card3.ID, "In Progress", 0); err != nil {
+	if err := service.MoveCardAt("main", card3.ID, "in-progress", 0); err != nil {
 		t.Fatalf("MoveCardAt failed: %v", err)
 	}
 
@@ -548,14 +548,14 @@ func TestCardService_MoveCardAt_Position(t *testing.T) {
 	cfg, _ := boardStore.Get("main")
 	var inProgressIDs []string
 	for _, col := range cfg.Columns {
-		if col.Name == "In Progress" {
+		if col.Name == "in-progress" {
 			inProgressIDs = col.CardIDs
 			break
 		}
 	}
 
 	if len(inProgressIDs) != 3 {
-		t.Fatalf("Expected 3 cards in In Progress, got %d", len(inProgressIDs))
+		t.Fatalf("Expected 3 cards in in-progress, got %d", len(inProgressIDs))
 	}
 	if inProgressIDs[0] != card3.ID {
 		t.Error("Card3 should be at position 0")
@@ -572,7 +572,7 @@ func TestCardService_MoveCard_InvalidColumn(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
-	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "Backlog"})
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
 
 	err := service.MoveCard("main", card.ID, "NonExistent")
 	if err == nil {
@@ -587,7 +587,7 @@ func TestCardService_MoveCard_CardNotFound(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
-	err := service.MoveCard("main", "nonexistent-id", "In Progress")
+	err := service.MoveCard("main", "nonexistent-id", "in-progress")
 	if err == nil {
 		t.Fatal("Expected error for nonexistent card")
 	}
@@ -600,18 +600,18 @@ func TestCardService_MoveCard_SameColumn(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
-	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "Backlog"})
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
 
 	// Move to same column - should still work
-	if err := service.MoveCard("main", card.ID, "Backlog"); err != nil {
+	if err := service.MoveCard("main", card.ID, "backlog"); err != nil {
 		t.Fatalf("MoveCard to same column failed: %v", err)
 	}
 
-	// Verify card still in Backlog (column membership in board config)
+	// Verify card still in backlog (column membership in board config)
 	cfg, _ := boardStore.Get("main")
 	found := false
 	for _, col := range cfg.Columns {
-		if col.Name == "Backlog" {
+		if col.Name == "backlog" {
 			for _, id := range col.CardIDs {
 				if id == card.ID {
 					found = true
@@ -621,7 +621,7 @@ func TestCardService_MoveCard_SameColumn(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Error("Card should still be in Backlog column's CardIDs")
+		t.Error("Card should still be in backlog column's CardIDs")
 	}
 }
 
@@ -633,7 +633,7 @@ func TestCardService_FindByIDOrAlias_ByID(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
-	created, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "Backlog"})
+	created, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
 
 	card, err := service.FindByIDOrAlias("main", created.ID)
 	if err != nil {
@@ -648,7 +648,7 @@ func TestCardService_FindByIDOrAlias_ByAlias(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
-	created, _ := service.Add(AddCardInput{BoardName: "main", Title: "Fix login bug", Column: "Backlog"})
+	created, _ := service.Add(AddCardInput{BoardName: "main", Title: "Fix login bug", Column: "backlog"})
 
 	card, err := service.FindByIDOrAlias("main", "fix-login-bug")
 	if err != nil {
@@ -680,7 +680,7 @@ func TestCardService_UpdateTitle_RegeneratesAlias(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
-	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Original title", Column: "Backlog"})
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Original title", Column: "backlog"})
 	originalAlias := card.Alias
 
 	if err := service.UpdateTitle("main", card, "New title"); err != nil {
@@ -703,7 +703,7 @@ func TestCardService_UpdateTitle_PreservesExplicitAlias(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
-	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Original title", Column: "Backlog"})
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Original title", Column: "backlog"})
 
 	// Mark alias as explicit
 	card.AliasExplicit = true
@@ -731,7 +731,7 @@ func TestCardService_Delete_RemovesFromBothStores(t *testing.T) {
 	service, cardStore, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
-	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "To delete", Column: "Backlog"})
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "To delete", Column: "backlog"})
 
 	if err := service.Delete("main", card.ID); err != nil {
 		t.Fatalf("Delete failed: %v", err)

@@ -22,7 +22,8 @@ func (s *BoardService) Create(name string) error {
 		ID:            id.Generate(),
 		Name:          name,
 		Columns:       model.DefaultColumns(),
-		DefaultColumn: "Backlog",
+		DefaultColumn: "backlog",
+		Labels:        model.DefaultLabels(),
 	}
 
 	// Store.Create handles existence check and returns proper error

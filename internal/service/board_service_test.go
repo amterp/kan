@@ -33,8 +33,8 @@ func TestBoardService_Create_Basic(t *testing.T) {
 	if len(cfg.Columns) != 4 {
 		t.Errorf("Expected 4 default columns, got %d", len(cfg.Columns))
 	}
-	if cfg.DefaultColumn != "Backlog" {
-		t.Errorf("Expected default column 'Backlog', got %q", cfg.DefaultColumn)
+	if cfg.DefaultColumn != "backlog" {
+		t.Errorf("Expected default column 'backlog', got %q", cfg.DefaultColumn)
 	}
 	if cfg.ID == "" {
 		t.Error("Expected ID to be generated")
@@ -147,7 +147,7 @@ func TestBoardService_Create_DefaultColumns(t *testing.T) {
 	cfg, _ := service.Get("main")
 
 	// Verify default column structure
-	expectedColumns := []string{"Backlog", "Next", "In Progress", "Done"}
+	expectedColumns := []string{"backlog", "next", "in-progress", "done"}
 	if len(cfg.Columns) != len(expectedColumns) {
 		t.Fatalf("Expected %d columns, got %d", len(expectedColumns), len(cfg.Columns))
 	}

@@ -218,7 +218,7 @@ func TestDefaultColumns(t *testing.T) {
 		t.Errorf("Expected 4 default columns, got %d", len(cols))
 	}
 
-	expectedNames := []string{"Backlog", "Next", "In Progress", "Done"}
+	expectedNames := []string{"backlog", "next", "in-progress", "done"}
 	for i, name := range expectedNames {
 		if cols[i].Name != name {
 			t.Errorf("Column %d: expected name %q, got %q", i, name, cols[i].Name)

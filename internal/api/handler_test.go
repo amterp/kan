@@ -62,11 +62,11 @@ func (api *testAPI) createBoard(t *testing.T, name string) {
 	cfg := &model.BoardConfig{
 		ID:            "test-board-id",
 		Name:          name,
-		DefaultColumn: "Backlog",
+		DefaultColumn: "backlog",
 		Columns: []model.Column{
-			{Name: "Backlog", Color: "#6b7280"},
-			{Name: "In Progress", Color: "#f59e0b"},
-			{Name: "Done", Color: "#10b981"},
+			{Name: "backlog", Color: "#6b7280"},
+			{Name: "in-progress", Color: "#f59e0b"},
+			{Name: "done", Color: "#10b981"},
 		},
 		Labels: []model.Label{
 			{Name: "bug", Color: "#ef4444"},
@@ -229,7 +229,7 @@ func TestHandler_CreateCard_Basic(t *testing.T) {
 
 	body := map[string]any{
 		"title":  "Test card",
-		"column": "Backlog",
+		"column": "backlog",
 	}
 	w := api.request("POST", "/api/v1/boards/main/cards", body)
 
@@ -242,8 +242,8 @@ func TestHandler_CreateCard_Basic(t *testing.T) {
 	if card.Title != "Test card" {
 		t.Errorf("Expected title 'Test card', got %q", card.Title)
 	}
-	if card.Column != "Backlog" {
-		t.Errorf("Expected column 'Backlog', got %q", card.Column)
+	if card.Column != "backlog" {
+		t.Errorf("Expected column 'backlog', got %q", card.Column)
 	}
 	if card.ID == "" {
 		t.Error("Expected card ID to be set")
@@ -259,7 +259,7 @@ func TestHandler_CreateCard_WithLabels(t *testing.T) {
 
 	body := map[string]any{
 		"title":  "Bug fix",
-		"column": "Backlog",
+		"column": "backlog",
 		"labels": []string{"bug"},
 	}
 	w := api.request("POST", "/api/v1/boards/main/cards", body)
@@ -290,8 +290,8 @@ func TestHandler_CreateCard_DefaultColumn(t *testing.T) {
 
 	var card CardResponse
 	decodeJSON(t, w, &card)
-	if card.Column != "Backlog" {
-		t.Errorf("Expected default column 'Backlog', got %q", card.Column)
+	if card.Column != "backlog" {
+		t.Errorf("Expected default column 'backlog', got %q", card.Column)
 	}
 }
 
@@ -300,7 +300,7 @@ func TestHandler_CreateCard_MissingTitle(t *testing.T) {
 	api.createBoard(t, "main")
 
 	body := map[string]any{
-		"column": "Backlog",
+		"column": "backlog",
 	}
 	w := api.request("POST", "/api/v1/boards/main/cards", body)
 
@@ -336,7 +336,7 @@ func TestHandler_CreateCard_InvalidLabel(t *testing.T) {
 
 	body := map[string]any{
 		"title":  "Bad label",
-		"column": "Backlog",
+		"column": "backlog",
 		"labels": []string{"nonexistent"},
 	}
 	w := api.request("POST", "/api/v1/boards/main/cards", body)
@@ -365,7 +365,7 @@ func TestHandler_GetCard_ByID(t *testing.T) {
 	api.createBoard(t, "main")
 
 	// Create a card first
-	body := map[string]any{"title": "Test card", "column": "Backlog"}
+	body := map[string]any{"title": "Test card", "column": "backlog"}
 	createResp := api.request("POST", "/api/v1/boards/main/cards", body)
 	var created model.Card
 	decodeJSON(t, createResp, &created)
@@ -389,7 +389,7 @@ func TestHandler_GetCard_ByAlias(t *testing.T) {
 	api.createBoard(t, "main")
 
 	// Create a card
-	body := map[string]any{"title": "Fix login bug", "column": "Backlog"}
+	body := map[string]any{"title": "Fix login bug", "column": "backlog"}
 	createResp := api.request("POST", "/api/v1/boards/main/cards", body)
 	var created model.Card
 	decodeJSON(t, createResp, &created)
@@ -424,7 +424,7 @@ func TestHandler_UpdateCard_Title(t *testing.T) {
 	api.createBoard(t, "main")
 
 	// Create a card
-	body := map[string]any{"title": "Original", "column": "Backlog"}
+	body := map[string]any{"title": "Original", "column": "backlog"}
 	createResp := api.request("POST", "/api/v1/boards/main/cards", body)
 	var created model.Card
 	decodeJSON(t, createResp, &created)
@@ -453,13 +453,13 @@ func TestHandler_UpdateCard_Column(t *testing.T) {
 	api.createBoard(t, "main")
 
 	// Create a card
-	body := map[string]any{"title": "Test", "column": "Backlog"}
+	body := map[string]any{"title": "Test", "column": "backlog"}
 	createResp := api.request("POST", "/api/v1/boards/main/cards", body)
 	var created CardResponse
 	decodeJSON(t, createResp, &created)
 
 	// Move to different column via update
-	updateBody := map[string]any{"column": "In Progress"}
+	updateBody := map[string]any{"column": "in-progress"}
 	w := api.request("PUT", "/api/v1/boards/main/cards/"+created.ID, updateBody)
 
 	if w.Code != http.StatusOK {
@@ -468,8 +468,8 @@ func TestHandler_UpdateCard_Column(t *testing.T) {
 
 	var updated CardResponse
 	decodeJSON(t, w, &updated)
-	if updated.Column != "In Progress" {
-		t.Errorf("Expected column 'In Progress', got %q", updated.Column)
+	if updated.Column != "in-progress" {
+		t.Errorf("Expected column 'in-progress', got %q", updated.Column)
 	}
 }
 
@@ -478,7 +478,7 @@ func TestHandler_UpdateCard_Description(t *testing.T) {
 	api.createBoard(t, "main")
 
 	// Create a card
-	body := map[string]any{"title": "Test", "column": "Backlog"}
+	body := map[string]any{"title": "Test", "column": "backlog"}
 	createResp := api.request("POST", "/api/v1/boards/main/cards", body)
 	var created model.Card
 	decodeJSON(t, createResp, &created)
@@ -515,7 +515,7 @@ func TestHandler_DeleteCard(t *testing.T) {
 	api.createBoard(t, "main")
 
 	// Create a card
-	body := map[string]any{"title": "To delete", "column": "Backlog"}
+	body := map[string]any{"title": "To delete", "column": "backlog"}
 	createResp := api.request("POST", "/api/v1/boards/main/cards", body)
 	var created model.Card
 	decodeJSON(t, createResp, &created)
@@ -539,7 +539,7 @@ func TestHandler_DeleteCard_ByAlias(t *testing.T) {
 	api.createBoard(t, "main")
 
 	// Create a card
-	body := map[string]any{"title": "Delete me", "column": "Backlog"}
+	body := map[string]any{"title": "Delete me", "column": "backlog"}
 	api.request("POST", "/api/v1/boards/main/cards", body)
 
 	// Delete by alias
@@ -566,13 +566,13 @@ func TestHandler_MoveCard_ToColumn(t *testing.T) {
 	api.createBoard(t, "main")
 
 	// Create a card
-	body := map[string]any{"title": "Movable", "column": "Backlog"}
+	body := map[string]any{"title": "Movable", "column": "backlog"}
 	createResp := api.request("POST", "/api/v1/boards/main/cards", body)
 	var created CardResponse
 	decodeJSON(t, createResp, &created)
 
 	// Move it
-	moveBody := map[string]any{"column": "Done"}
+	moveBody := map[string]any{"column": "done"}
 	w := api.request("PATCH", "/api/v1/boards/main/cards/"+created.ID+"/move", moveBody)
 
 	if w.Code != http.StatusOK {
@@ -581,8 +581,8 @@ func TestHandler_MoveCard_ToColumn(t *testing.T) {
 
 	var moved CardResponse
 	decodeJSON(t, w, &moved)
-	if moved.Column != "Done" {
-		t.Errorf("Expected column 'Done', got %q", moved.Column)
+	if moved.Column != "done" {
+		t.Errorf("Expected column 'done', got %q", moved.Column)
 	}
 }
 
@@ -590,22 +590,22 @@ func TestHandler_MoveCard_WithPosition(t *testing.T) {
 	api := setupTestAPI(t)
 	api.createBoard(t, "main")
 
-	// Create two cards in Done
-	firstResp := api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "First", "column": "Done"})
+	// Create two cards in done
+	firstResp := api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "First", "column": "done"})
 	var first CardResponse
 	decodeJSON(t, firstResp, &first)
-	secondResp := api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "Second", "column": "Done"})
+	secondResp := api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "Second", "column": "done"})
 	var second CardResponse
 	decodeJSON(t, secondResp, &second)
 
-	// Create a card in Backlog
-	createResp := api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "Third", "column": "Backlog"})
+	// Create a card in backlog
+	createResp := api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "Third", "column": "backlog"})
 	var third CardResponse
 	decodeJSON(t, createResp, &third)
 
-	// Move to position 0 in Done
+	// Move to position 0 in done
 	position := 0
-	moveBody := map[string]any{"column": "Done", "position": position}
+	moveBody := map[string]any{"column": "done", "position": position}
 	w := api.request("PATCH", "/api/v1/boards/main/cards/"+third.ID+"/move", moveBody)
 
 	if w.Code != http.StatusOK {
@@ -614,17 +614,17 @@ func TestHandler_MoveCard_WithPosition(t *testing.T) {
 
 	var moved CardResponse
 	decodeJSON(t, w, &moved)
-	if moved.Column != "Done" {
-		t.Errorf("Expected column 'Done', got %q", moved.Column)
+	if moved.Column != "done" {
+		t.Errorf("Expected column 'done', got %q", moved.Column)
 	}
 
-	// Verify order in Done column: Third, First, Second
-	listResp := api.request("GET", "/api/v1/boards/main/cards?column=Done", nil)
+	// Verify order in done column: Third, First, Second
+	listResp := api.request("GET", "/api/v1/boards/main/cards?column=done", nil)
 	var listResult map[string][]CardResponse
 	decodeJSON(t, listResp, &listResult)
 	cards := listResult["cards"]
 	if len(cards) != 3 {
-		t.Fatalf("Expected 3 cards in Done, got %d", len(cards))
+		t.Fatalf("Expected 3 cards in done, got %d", len(cards))
 	}
 	if cards[0].ID != third.ID {
 		t.Errorf("Expected Third at position 0, got %s", cards[0].Title)
@@ -642,7 +642,7 @@ func TestHandler_MoveCard_InvalidColumn(t *testing.T) {
 	api.createBoard(t, "main")
 
 	// Create a card
-	body := map[string]any{"title": "Test", "column": "Backlog"}
+	body := map[string]any{"title": "Test", "column": "backlog"}
 	createResp := api.request("POST", "/api/v1/boards/main/cards", body)
 	var created model.Card
 	decodeJSON(t, createResp, &created)
@@ -661,7 +661,7 @@ func TestHandler_MoveCard_MissingColumn(t *testing.T) {
 	api.createBoard(t, "main")
 
 	// Create a card
-	body := map[string]any{"title": "Test", "column": "Backlog"}
+	body := map[string]any{"title": "Test", "column": "backlog"}
 	createResp := api.request("POST", "/api/v1/boards/main/cards", body)
 	var created model.Card
 	decodeJSON(t, createResp, &created)
@@ -685,7 +685,7 @@ func TestHandler_MoveCard_NotFound(t *testing.T) {
 	api := setupTestAPI(t)
 	api.createBoard(t, "main")
 
-	moveBody := map[string]any{"column": "Done"}
+	moveBody := map[string]any{"column": "done"}
 	w := api.request("PATCH", "/api/v1/boards/main/cards/nonexistent/move", moveBody)
 
 	if w.Code != http.StatusNotFound {
@@ -698,12 +698,12 @@ func TestHandler_ListCards_WithColumnFilter(t *testing.T) {
 	api.createBoard(t, "main")
 
 	// Create cards in different columns
-	api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "Backlog 1", "column": "Backlog"})
-	api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "Backlog 2", "column": "Backlog"})
-	api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "Done 1", "column": "Done"})
+	api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "backlog 1", "column": "backlog"})
+	api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "backlog 2", "column": "backlog"})
+	api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "done 1", "column": "done"})
 
-	// List only Backlog cards
-	w := api.request("GET", "/api/v1/boards/main/cards?column=Backlog", nil)
+	// List only backlog cards
+	w := api.request("GET", "/api/v1/boards/main/cards?column=backlog", nil)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", w.Code)
@@ -712,11 +712,11 @@ func TestHandler_ListCards_WithColumnFilter(t *testing.T) {
 	var resp map[string][]CardResponse
 	decodeJSON(t, w, &resp)
 	if len(resp["cards"]) != 2 {
-		t.Errorf("Expected 2 cards in Backlog, got %d", len(resp["cards"]))
+		t.Errorf("Expected 2 cards in backlog, got %d", len(resp["cards"]))
 	}
 	for _, card := range resp["cards"] {
-		if card.Column != "Backlog" {
-			t.Errorf("Expected column 'Backlog', got %q", card.Column)
+		if card.Column != "backlog" {
+			t.Errorf("Expected column 'backlog', got %q", card.Column)
 		}
 	}
 }
