@@ -1,6 +1,9 @@
 # Build output
 /kan
 
+# Frontend
+web/node_modules/
+
 # IDE
 .idea/
 .vscode/
