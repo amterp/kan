@@ -12,6 +12,17 @@ Kan is a Git-native kanban board CLI tool. All data lives as plain files in `.ka
 
 ## Build & Development Commands
 
+**Prefer using `./dev`** for common tasks—it handles the frontend build automatically. The script is written in [Rad](https://github.com/amterp/rad) (see [syntax reference](https://github.com/amterp/rad/blob/main/SYNTAX.md)).
+
+```bash
+./dev -b          # Build (frontend + Go binary)
+./dev -v          # Build and run tests
+./dev -p          # Build, validate, push to origin
+./dev -s          # Build, validate, run ./kan serve
+```
+
+Manual commands (for reference):
+
 ```bash
 # Build Go binary (embeds web frontend from internal/api/dist)
 go build ./cmd/kan

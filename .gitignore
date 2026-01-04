@@ -18,6 +18,9 @@ web/node_modules/
 # OS
 .DS_Store
 
+# Demo folder for screenshots
+kan-demo/
+
 # Test coverage
 *.out
 coverage.html

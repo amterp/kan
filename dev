@@ -1,0 +1,30 @@
+#!/usr/bin/env rad
+---
+Local development script for kan.
+---
+
+args:
+    build b bool      # Build the project (frontend + Go binary)
+    validate v bool   # Build and run tests
+    push p bool       # Push up to origin
+    re_serve s bool   # Build, validate, then run ./kan serve
+
+if build or validate or push or re_serve:
+    // Build frontend first (required for go:embed)
+    $`cd web && npm run build`
+    $`go build ./cmd/kan`
+
+if validate or push or re_serve:
+    $`go test ./...`
+
+if push:
+    code, stdout = quiet $`git status --porcelain -uno`
+    if stdout != "":
+        print_err("Git status is not clean, aborting push")
+        exit(1)
+    stdout = quiet $`git branch --show-current`
+    branch = stdout.trim()
+    $`git push origin {branch}`
+
+if re_serve:
+    $`./kan serve`
