@@ -237,7 +237,7 @@ func TestHandler_CreateCard_Basic(t *testing.T) {
 		t.Errorf("Expected status 201, got %d. Body: %s", w.Code, w.Body.String())
 	}
 
-	var card model.Card
+	var card CardResponse
 	decodeJSON(t, w, &card)
 	if card.Title != "Test card" {
 		t.Errorf("Expected title 'Test card', got %q", card.Title)
@@ -288,7 +288,7 @@ func TestHandler_CreateCard_DefaultColumn(t *testing.T) {
 		t.Errorf("Expected status 201, got %d. Body: %s", w.Code, w.Body.String())
 	}
 
-	var card model.Card
+	var card CardResponse
 	decodeJSON(t, w, &card)
 	if card.Column != "Backlog" {
 		t.Errorf("Expected default column 'Backlog', got %q", card.Column)
@@ -455,7 +455,7 @@ func TestHandler_UpdateCard_Column(t *testing.T) {
 	// Create a card
 	body := map[string]any{"title": "Test", "column": "Backlog"}
 	createResp := api.request("POST", "/api/v1/boards/main/cards", body)
-	var created model.Card
+	var created CardResponse
 	decodeJSON(t, createResp, &created)
 
 	// Move to different column via update
@@ -466,7 +466,7 @@ func TestHandler_UpdateCard_Column(t *testing.T) {
 		t.Errorf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
 	}
 
-	var updated model.Card
+	var updated CardResponse
 	decodeJSON(t, w, &updated)
 	if updated.Column != "In Progress" {
 		t.Errorf("Expected column 'In Progress', got %q", updated.Column)
@@ -568,7 +568,7 @@ func TestHandler_MoveCard_ToColumn(t *testing.T) {
 	// Create a card
 	body := map[string]any{"title": "Movable", "column": "Backlog"}
 	createResp := api.request("POST", "/api/v1/boards/main/cards", body)
-	var created model.Card
+	var created CardResponse
 	decodeJSON(t, createResp, &created)
 
 	// Move it
@@ -579,7 +579,7 @@ func TestHandler_MoveCard_ToColumn(t *testing.T) {
 		t.Errorf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
 	}
 
-	var moved model.Card
+	var moved CardResponse
 	decodeJSON(t, w, &moved)
 	if moved.Column != "Done" {
 		t.Errorf("Expected column 'Done', got %q", moved.Column)
@@ -592,15 +592,15 @@ func TestHandler_MoveCard_WithPosition(t *testing.T) {
 
 	// Create two cards in Done
 	firstResp := api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "First", "column": "Done"})
-	var first model.Card
+	var first CardResponse
 	decodeJSON(t, firstResp, &first)
 	secondResp := api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "Second", "column": "Done"})
-	var second model.Card
+	var second CardResponse
 	decodeJSON(t, secondResp, &second)
 
 	// Create a card in Backlog
 	createResp := api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "Third", "column": "Backlog"})
-	var third model.Card
+	var third CardResponse
 	decodeJSON(t, createResp, &third)
 
 	// Move to position 0 in Done
@@ -612,7 +612,7 @@ func TestHandler_MoveCard_WithPosition(t *testing.T) {
 		t.Errorf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
 	}
 
-	var moved model.Card
+	var moved CardResponse
 	decodeJSON(t, w, &moved)
 	if moved.Column != "Done" {
 		t.Errorf("Expected column 'Done', got %q", moved.Column)
@@ -620,7 +620,7 @@ func TestHandler_MoveCard_WithPosition(t *testing.T) {
 
 	// Verify order in Done column: Third, First, Second
 	listResp := api.request("GET", "/api/v1/boards/main/cards?column=Done", nil)
-	var listResult map[string][]*model.Card
+	var listResult map[string][]CardResponse
 	decodeJSON(t, listResp, &listResult)
 	cards := listResult["cards"]
 	if len(cards) != 3 {
@@ -709,7 +709,7 @@ func TestHandler_ListCards_WithColumnFilter(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
 
-	var resp map[string][]*model.Card
+	var resp map[string][]CardResponse
 	decodeJSON(t, w, &resp)
 	if len(resp["cards"]) != 2 {
 		t.Errorf("Expected 2 cards in Backlog, got %d", len(resp["cards"]))

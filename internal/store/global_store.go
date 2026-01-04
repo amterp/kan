@@ -7,6 +7,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/model"
+	"github.com/amterp/kan/internal/version"
 )
 
 // FileGlobalStore implements GlobalStore using the filesystem.
@@ -38,11 +39,22 @@ func (s *FileGlobalStore) Load() (*model.GlobalConfig, error) {
 		return nil, err
 	}
 
+	// Strict version validation (only if file exists)
+	if cfg.KanSchema == "" {
+		return nil, version.MissingGlobalSchema(path)
+	}
+	if cfg.KanSchema != version.CurrentGlobalSchema() {
+		return nil, version.InvalidGlobalSchema(path, cfg.KanSchema)
+	}
+
 	return &cfg, nil
 }
 
 // Save writes the global config to disk.
 func (s *FileGlobalStore) Save(cfg *model.GlobalConfig) error {
+	// Stamp current schema version
+	cfg.KanSchema = version.CurrentGlobalSchema()
+
 	path := config.GlobalConfigPath()
 	if path == "" {
 		return nil

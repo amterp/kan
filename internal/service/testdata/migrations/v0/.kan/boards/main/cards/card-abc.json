@@ -1,0 +1,13 @@
+{
+  "id": "card-abc",
+  "alias": "test-card",
+  "alias_explicit": false,
+  "title": "Test Card",
+  "description": "A test card for migration",
+  "column": "Backlog",
+  "labels": ["bug"],
+  "creator": "tester",
+  "created_at_millis": 1704307200000,
+  "updated_at_millis": 1704307200000,
+  "priority": "high"
+}

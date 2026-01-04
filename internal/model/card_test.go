@@ -8,12 +8,12 @@ import (
 
 func TestCardJSON_RoundTrip(t *testing.T) {
 	original := &Card{
+		Version:         1,
 		ID:              "abc123",
 		Alias:           "test-card",
 		AliasExplicit:   false,
 		Title:           "Test Card",
 		Description:     "A test card",
-		Column:          "backlog",
 		Labels:          []string{"bug", "urgent"},
 		Parent:          "parent123",
 		Creator:         "tester",
@@ -42,14 +42,15 @@ func TestCardJSON_RoundTrip(t *testing.T) {
 	}
 
 	// Compare (CustomFields will be nil/empty in both)
+	// Note: Column is not serialized (json:"-") so we don't compare it
+	if original.Version != restored.Version {
+		t.Errorf("Version mismatch: got %d, want %d", restored.Version, original.Version)
+	}
 	if original.ID != restored.ID {
 		t.Errorf("ID mismatch: got %q, want %q", restored.ID, original.ID)
 	}
 	if original.Title != restored.Title {
 		t.Errorf("Title mismatch: got %q, want %q", restored.Title, original.Title)
-	}
-	if original.Column != restored.Column {
-		t.Errorf("Column mismatch: got %q, want %q", restored.Column, original.Column)
 	}
 	if len(original.Labels) != len(restored.Labels) {
 		t.Errorf("Labels length mismatch: got %d, want %d", len(restored.Labels), len(original.Labels))
@@ -61,10 +62,10 @@ func TestCardJSON_RoundTrip(t *testing.T) {
 
 func TestCardJSON_CustomFields(t *testing.T) {
 	original := &Card{
+		Version:         1,
 		ID:              "abc123",
 		Alias:           "test-card",
 		Title:           "Test Card",
-		Column:          "backlog",
 		Creator:         "tester",
 		CreatedAtMillis: 1704307200000,
 		UpdatedAtMillis: 1704393600000,
@@ -109,10 +110,10 @@ func TestCardJSON_CustomFields(t *testing.T) {
 
 func TestCardJSON_EmptyCustomFields(t *testing.T) {
 	original := &Card{
+		Version:         1,
 		ID:              "abc123",
 		Alias:           "test-card",
 		Title:           "Test Card",
-		Column:          "backlog",
 		Creator:         "tester",
 		CreatedAtMillis: 1704307200000,
 		UpdatedAtMillis: 1704393600000,
@@ -305,5 +306,64 @@ func TestComment(t *testing.T) {
 
 	if !reflect.DeepEqual(comment, restored) {
 		t.Errorf("Comment round-trip failed: got %+v, want %+v", restored, comment)
+	}
+}
+
+func TestValidateCustomFieldName(t *testing.T) {
+	tests := []struct {
+		name      string
+		fieldName string
+		wantErr   bool
+	}{
+		{"valid name", "priority", false},
+		{"valid with underscore", "my_field", false},
+		{"valid x prefix", "x_priority", false},
+		{"reserved underscore prefix", "_internal", true},
+		{"reserved _v", "_v", true},
+		{"reserved kan prefix", "kan_status", true},
+		{"reserved kan_schema", "kan_schema", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateCustomFieldName(tt.fieldName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateCustomFieldName(%q) error = %v, wantErr %v", tt.fieldName, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateCustomFields(t *testing.T) {
+	// Valid fields
+	err := ValidateCustomFields(map[string]any{
+		"priority": "high",
+		"x_status": "open",
+	})
+	if err != nil {
+		t.Errorf("ValidateCustomFields with valid fields returned error: %v", err)
+	}
+
+	// Invalid field with _ prefix
+	err = ValidateCustomFields(map[string]any{
+		"priority":  "high",
+		"_internal": "bad",
+	})
+	if err == nil {
+		t.Error("ValidateCustomFields should reject fields with _ prefix")
+	}
+
+	// Invalid field with kan_ prefix
+	err = ValidateCustomFields(map[string]any{
+		"kan_reserved": "bad",
+	})
+	if err == nil {
+		t.Error("ValidateCustomFields should reject fields with kan_ prefix")
+	}
+
+	// Nil map is valid
+	err = ValidateCustomFields(nil)
+	if err != nil {
+		t.Errorf("ValidateCustomFields(nil) returned error: %v", err)
 	}
 }

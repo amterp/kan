@@ -43,13 +43,12 @@ func TestFileCardStore_CreateAndGet(t *testing.T) {
 		ID:              "test123",
 		Alias:           "test-card",
 		Title:           "Test Card",
-		Column:          "backlog",
 		Creator:         "tester",
 		CreatedAtMillis: 1704307200000,
 		UpdatedAtMillis: 1704307200000,
 	}
 
-	// Create
+	// Create (store automatically stamps Version)
 	if err := store.Create("main", card); err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -65,6 +64,9 @@ func TestFileCardStore_CreateAndGet(t *testing.T) {
 	}
 	if retrieved.Title != card.Title {
 		t.Errorf("Title mismatch: got %q, want %q", retrieved.Title, card.Title)
+	}
+	if retrieved.Version != 1 {
+		t.Errorf("Version mismatch: got %d, want 1", retrieved.Version)
 	}
 }
 
@@ -90,7 +92,6 @@ func TestFileCardStore_Update(t *testing.T) {
 		ID:              "test123",
 		Alias:           "test-card",
 		Title:           "Original Title",
-		Column:          "backlog",
 		Creator:         "tester",
 		CreatedAtMillis: 1704307200000,
 		UpdatedAtMillis: 1704307200000,
@@ -102,7 +103,7 @@ func TestFileCardStore_Update(t *testing.T) {
 
 	// Update
 	card.Title = "Updated Title"
-	card.Column = "in-progress"
+	card.Description = "New description"
 	if err := store.Update("main", card); err != nil {
 		t.Fatalf("Update failed: %v", err)
 	}
@@ -116,8 +117,8 @@ func TestFileCardStore_Update(t *testing.T) {
 	if retrieved.Title != "Updated Title" {
 		t.Errorf("Title not updated: got %q", retrieved.Title)
 	}
-	if retrieved.Column != "in-progress" {
-		t.Errorf("Column not updated: got %q", retrieved.Column)
+	if retrieved.Description != "New description" {
+		t.Errorf("Description not updated: got %q", retrieved.Description)
 	}
 }
 
@@ -129,7 +130,6 @@ func TestFileCardStore_Delete(t *testing.T) {
 		ID:              "test123",
 		Alias:           "test-card",
 		Title:           "Test Card",
-		Column:          "backlog",
 		Creator:         "tester",
 		CreatedAtMillis: 1704307200000,
 		UpdatedAtMillis: 1704307200000,
@@ -167,9 +167,9 @@ func TestFileCardStore_List(t *testing.T) {
 
 	// Create multiple cards
 	cards := []*model.Card{
-		{ID: "card1", Alias: "card-1", Title: "Card 1", Column: "backlog", Creator: "tester", CreatedAtMillis: 1, UpdatedAtMillis: 1},
-		{ID: "card2", Alias: "card-2", Title: "Card 2", Column: "backlog", Creator: "tester", CreatedAtMillis: 2, UpdatedAtMillis: 2},
-		{ID: "card3", Alias: "card-3", Title: "Card 3", Column: "done", Creator: "tester", CreatedAtMillis: 3, UpdatedAtMillis: 3},
+		{ID: "card1", Alias: "card-1", Title: "Card 1", Creator: "tester", CreatedAtMillis: 1, UpdatedAtMillis: 1},
+		{ID: "card2", Alias: "card-2", Title: "Card 2", Creator: "tester", CreatedAtMillis: 2, UpdatedAtMillis: 2},
+		{ID: "card3", Alias: "card-3", Title: "Card 3", Creator: "tester", CreatedAtMillis: 3, UpdatedAtMillis: 3},
 	}
 
 	for _, card := range cards {
@@ -215,7 +215,6 @@ func TestFileCardStore_FindByAlias(t *testing.T) {
 		ID:              "test123",
 		Alias:           "my-unique-alias",
 		Title:           "Test Card",
-		Column:          "backlog",
 		Creator:         "tester",
 		CreatedAtMillis: 1704307200000,
 		UpdatedAtMillis: 1704307200000,
@@ -254,7 +253,6 @@ func TestFileCardStore_CustomFields(t *testing.T) {
 		ID:              "test123",
 		Alias:           "test-card",
 		Title:           "Test Card",
-		Column:          "backlog",
 		Creator:         "tester",
 		CreatedAtMillis: 1704307200000,
 		UpdatedAtMillis: 1704307200000,

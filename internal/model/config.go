@@ -3,9 +3,10 @@ package model
 // GlobalConfig represents the user's global Kan configuration.
 // Stored at ~/.config/kan/config.toml
 type GlobalConfig struct {
-	Editor   string                `toml:"editor,omitempty"`
-	Projects map[string]string     `toml:"projects,omitempty"` // name -> path
-	Repos    map[string]RepoConfig `toml:"repos,omitempty"`    // path -> config
+	KanSchema string                `toml:"kan_schema"`
+	Editor    string                `toml:"editor,omitempty"`
+	Projects  map[string]string     `toml:"projects,omitempty"` // name -> path
+	Repos     map[string]RepoConfig `toml:"repos,omitempty"`    // path -> config
 }
 
 // RepoConfig holds per-repository settings.

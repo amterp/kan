@@ -8,6 +8,7 @@ import (
 	"github.com/amterp/kan/internal/config"
 	kanerr "github.com/amterp/kan/internal/errors"
 	"github.com/amterp/kan/internal/model"
+	"github.com/amterp/kan/internal/version"
 )
 
 // FileBoardStore implements BoardStore using the filesystem.
@@ -54,6 +55,14 @@ func (s *FileBoardStore) Get(boardName string) (*model.BoardConfig, error) {
 	var cfg model.BoardConfig
 	if err := toml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("invalid board config: %w", err)
+	}
+
+	// Strict version validation
+	if cfg.KanSchema == "" {
+		return nil, version.MissingBoardSchema(path)
+	}
+	if cfg.KanSchema != version.CurrentBoardSchema() {
+		return nil, version.InvalidBoardSchema(path, cfg.KanSchema)
 	}
 
 	return &cfg, nil
@@ -104,6 +113,9 @@ func (s *FileBoardStore) Exists(boardName string) bool {
 }
 
 func (s *FileBoardStore) writeConfig(cfg *model.BoardConfig) error {
+	// Stamp current schema version
+	cfg.KanSchema = version.CurrentBoardSchema()
+
 	path := s.paths.BoardConfigPath(cfg.Name)
 
 	f, err := os.Create(path)

@@ -74,12 +74,16 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, error) {
 		AliasExplicit:   false,
 		Title:           input.Title,
 		Description:     input.Description,
-		Column:          column, // Still store for backward compat, but authoritative source is board config
 		Labels:          input.Labels,
 		Parent:          input.Parent,
 		Creator:         input.Creator,
 		CreatedAtMillis: now,
 		UpdatedAtMillis: now,
+	}
+
+	// Validate custom fields don't use reserved prefixes
+	if err := model.ValidateCustomFields(card.CustomFields); err != nil {
+		return nil, err
 	}
 
 	if err := s.cardStore.Create(input.BoardName, card); err != nil {
@@ -90,10 +94,12 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, error) {
 	boardCfg.AddCardToColumn(cardID, column)
 	if err := s.boardStore.Update(boardCfg); err != nil {
 		// Card was created but board config update failed - log but don't fail
-		// The card's column field will still be correct
+		card.Column = column // Populate for return (not persisted)
 		return card, nil
 	}
 
+	// Populate Column for return (computed, not persisted)
+	card.Column = column
 	return card, nil
 }
 
@@ -104,6 +110,11 @@ func (s *CardService) Get(boardName, cardID string) (*model.Card, error) {
 
 // Update saves changes to a card.
 func (s *CardService) Update(boardName string, card *model.Card) error {
+	// Validate custom fields don't use reserved prefixes
+	if err := model.ValidateCustomFields(card.CustomFields); err != nil {
+		return err
+	}
+
 	card.UpdatedAtMillis = util.NowMillis()
 	return s.cardStore.Update(boardName, card)
 }
@@ -119,17 +130,9 @@ func (s *CardService) List(boardName string, columnFilter string) ([]*model.Card
 	// Get board config to determine card ordering and column membership
 	boardCfg, err := s.boardStore.Get(boardName)
 	if err != nil {
-		// Fall back to unordered if board config can't be read
-		if columnFilter == "" {
-			return cards, nil
-		}
-		filtered := make([]*model.Card, 0)
-		for _, card := range cards {
-			if card.Column == columnFilter {
-				filtered = append(filtered, card)
-			}
-		}
-		return filtered, nil
+		// Without board config, we can't determine column membership or ordering.
+		// Return unordered cards without column filtering.
+		return cards, nil
 	}
 
 	// Build card ID to card map for quick lookup
@@ -154,10 +157,11 @@ func (s *CardService) List(boardName string, columnFilter string) ([]*model.Card
 		}
 	}
 
-	// Append any cards not in column card_ids (orphaned or legacy cards)
-	// These are cards that exist but aren't tracked in the board config yet
-	for _, card := range cardMap {
-		if columnFilter == "" || card.Column == columnFilter {
+	// Append any cards not in column card_ids (orphaned cards)
+	// These are cards that exist but aren't tracked in the board config.
+	// Only include them if no column filter is specified (since they have no column).
+	if columnFilter == "" {
+		for _, card := range cardMap {
 			result = append(result, card)
 		}
 	}
@@ -187,20 +191,13 @@ func (s *CardService) MoveCardAt(boardName, cardID, targetColumn string, positio
 		return kanerr.ColumnNotFound(targetColumn, boardName)
 	}
 
-	// Get the card to verify it exists and update its column field
-	card, err := s.cardStore.Get(boardName, cardID)
+	// Verify the card exists
+	_, err = s.cardStore.Get(boardName, cardID)
 	if err != nil {
 		return err
 	}
 
-	// Update card's column field (for backward compat)
-	card.Column = targetColumn
-	card.UpdatedAtMillis = util.NowMillis()
-	if err := s.cardStore.Update(boardName, card); err != nil {
-		return err
-	}
-
-	// Move card in board config at position
+	// Move card in board config (authoritative source for column membership)
 	boardCfg.MoveCardToColumnAt(cardID, targetColumn, position)
 	return s.boardStore.Update(boardCfg)
 }

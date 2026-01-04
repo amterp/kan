@@ -10,6 +10,7 @@ import (
 	"github.com/amterp/kan/internal/config"
 	kanerr "github.com/amterp/kan/internal/errors"
 	"github.com/amterp/kan/internal/model"
+	"github.com/amterp/kan/internal/version"
 )
 
 // FileCardStore implements CardStore using the filesystem.
@@ -131,10 +132,21 @@ func (s *FileCardStore) readCard(path string) (*model.Card, error) {
 		return nil, fmt.Errorf("invalid JSON: %w", err)
 	}
 
+	// Strict version validation
+	if card.Version == 0 {
+		return nil, version.MissingCardVersion(path)
+	}
+	if card.Version != version.CurrentCardVersion {
+		return nil, version.InvalidCardVersion(path, card.Version, version.CurrentCardVersion)
+	}
+
 	return &card, nil
 }
 
 func (s *FileCardStore) writeCard(path string, card *model.Card) error {
+	// Stamp current schema version
+	card.Version = version.CurrentCardVersion
+
 	data, err := json.MarshalIndent(card, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal card: %w", err)

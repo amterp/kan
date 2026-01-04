@@ -2,22 +2,27 @@ package model
 
 import (
 	"encoding/json"
+	"strings"
 )
 
 // Card represents a kanban card stored as a JSON file.
 type Card struct {
+	Version         int       `json:"_v"`
 	ID              string    `json:"id"`
 	Alias           string    `json:"alias"`
 	AliasExplicit   bool      `json:"alias_explicit"`
 	Title           string    `json:"title"`
 	Description     string    `json:"description,omitempty"`
-	Column          string    `json:"column"`
 	Labels          []string  `json:"labels,omitempty"`
 	Parent          string    `json:"parent,omitempty"`
 	Creator         string    `json:"creator"`
 	CreatedAtMillis int64     `json:"created_at_millis"`
 	UpdatedAtMillis int64     `json:"updated_at_millis"`
 	Comments        []Comment `json:"comments,omitempty"`
+
+	// Column is computed from board config, not persisted to card files.
+	// Populated by service layer when cards are loaded.
+	Column string `json:"-"`
 
 	// CustomFields holds board-defined custom fields.
 	// These are serialized at the top level of the JSON, not nested.
@@ -77,8 +82,8 @@ func (c *Card) UnmarshalJSON(data []byte) error {
 	}
 
 	knownFields := map[string]bool{
-		"id": true, "alias": true, "alias_explicit": true,
-		"title": true, "description": true, "column": true,
+		"_v": true, "id": true, "alias": true, "alias_explicit": true,
+		"title": true, "description": true,
 		"labels": true, "parent": true, "creator": true,
 		"created_at_millis": true, "updated_at_millis": true,
 		"comments": true,
@@ -100,4 +105,42 @@ func (c *Card) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// ValidateCustomFieldName checks if a custom field name is allowed.
+// Returns an error if the name uses a reserved prefix.
+func ValidateCustomFieldName(name string) error {
+	if strings.HasPrefix(name, "_") {
+		return &ReservedFieldPrefixError{FieldName: name, Prefix: "_"}
+	}
+	if strings.HasPrefix(name, "kan_") {
+		return &ReservedFieldPrefixError{FieldName: name, Prefix: "kan_"}
+	}
+	return nil
+}
+
+// ValidateCustomFields checks all custom field names for reserved prefixes.
+func ValidateCustomFields(fields map[string]any) error {
+	for name := range fields {
+		if err := ValidateCustomFieldName(name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ReservedFieldPrefixError indicates a custom field uses a reserved prefix.
+type ReservedFieldPrefixError struct {
+	FieldName string
+	Prefix    string
+}
+
+func (e *ReservedFieldPrefixError) Error() string {
+	// Suggest alternatives: remove the prefix, or use x_ escape hatch
+	suggestion := strings.TrimPrefix(e.FieldName, e.Prefix)
+	if suggestion == "" || suggestion == e.FieldName {
+		suggestion = "x_" + e.FieldName
+	}
+	return "custom field \"" + e.FieldName + "\" uses reserved prefix \"" + e.Prefix +
+		"\" (reserved for Kan internal use). Try \"" + suggestion + "\" instead."
 }

@@ -500,13 +500,7 @@ func TestCardService_MoveCard_ToEnd(t *testing.T) {
 		t.Fatalf("MoveCard failed: %v", err)
 	}
 
-	// Verify card's column is updated
-	moved, _ := service.Get("main", card.ID)
-	if moved.Column != "In Progress" {
-		t.Errorf("Expected column 'In Progress', got %q", moved.Column)
-	}
-
-	// Verify board config is updated
+	// Verify board config is updated (column membership is stored in board config only)
 	cfg, _ := boardStore.Get("main")
 	found := false
 	for _, col := range cfg.Columns {
@@ -521,6 +515,17 @@ func TestCardService_MoveCard_ToEnd(t *testing.T) {
 	}
 	if !found {
 		t.Error("Card should be in In Progress column's CardIDs")
+	}
+
+	// Verify card is removed from old column
+	for _, col := range cfg.Columns {
+		if col.Name == "Backlog" {
+			for _, id := range col.CardIDs {
+				if id == card.ID {
+					t.Error("Card should be removed from Backlog column's CardIDs")
+				}
+			}
+		}
 	}
 }
 
@@ -596,21 +601,27 @@ func TestCardService_MoveCard_SameColumn(t *testing.T) {
 	boardStore.addBoard(testBoardConfig("main"))
 
 	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "Backlog"})
-	originalUpdated := card.UpdatedAtMillis
 
-	// Move to same column - should still work (updates timestamp)
+	// Move to same column - should still work
 	if err := service.MoveCard("main", card.ID, "Backlog"); err != nil {
 		t.Fatalf("MoveCard to same column failed: %v", err)
 	}
 
-	// Verify card still in Backlog
-	moved, _ := service.Get("main", card.ID)
-	if moved.Column != "Backlog" {
-		t.Errorf("Expected column 'Backlog', got %q", moved.Column)
+	// Verify card still in Backlog (column membership in board config)
+	cfg, _ := boardStore.Get("main")
+	found := false
+	for _, col := range cfg.Columns {
+		if col.Name == "Backlog" {
+			for _, id := range col.CardIDs {
+				if id == card.ID {
+					found = true
+					break
+				}
+			}
+		}
 	}
-	// Timestamp should be updated
-	if moved.UpdatedAtMillis < originalUpdated {
-		t.Error("UpdatedAtMillis should be updated even for same-column move")
+	if !found {
+		t.Error("Card should still be in Backlog column's CardIDs")
 	}
 }
 

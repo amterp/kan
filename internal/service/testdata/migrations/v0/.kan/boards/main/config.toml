@@ -1,0 +1,18 @@
+# Board config WITHOUT kan_schema (legacy v0 format)
+id = "board-test-123"
+name = "main"
+default_column = "Backlog"
+
+[[columns]]
+name = "Backlog"
+color = "#6b7280"
+card_ids = ["card-abc"]
+
+[[columns]]
+name = "Done"
+color = "#10b981"
+card_ids = []
+
+[[labels]]
+name = "bug"
+color = "#ef4444"

@@ -4,9 +4,65 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/service"
 	"github.com/amterp/kan/internal/store"
 )
+
+// CardResponse wraps a Card for JSON API responses, including the Column field
+// which is computed (from board config) and not persisted to card files.
+type CardResponse struct {
+	ID              string         `json:"id"`
+	Alias           string         `json:"alias"`
+	AliasExplicit   bool           `json:"alias_explicit"`
+	Title           string         `json:"title"`
+	Description     string         `json:"description,omitempty"`
+	Column          string         `json:"column"`
+	Labels          []string       `json:"labels,omitempty"`
+	Parent          string         `json:"parent,omitempty"`
+	Creator         string         `json:"creator"`
+	CreatedAtMillis int64          `json:"created_at_millis"`
+	UpdatedAtMillis int64          `json:"updated_at_millis"`
+	Comments        []model.Comment `json:"comments,omitempty"`
+	CustomFields    map[string]any `json:"custom_fields,omitempty"`
+}
+
+// toCardResponse converts a model.Card to a CardResponse for API output.
+func toCardResponse(card *model.Card) CardResponse {
+	return CardResponse{
+		ID:              card.ID,
+		Alias:           card.Alias,
+		AliasExplicit:   card.AliasExplicit,
+		Title:           card.Title,
+		Description:     card.Description,
+		Column:          card.Column,
+		Labels:          card.Labels,
+		Parent:          card.Parent,
+		Creator:         card.Creator,
+		CreatedAtMillis: card.CreatedAtMillis,
+		UpdatedAtMillis: card.UpdatedAtMillis,
+		Comments:        card.Comments,
+		CustomFields:    card.CustomFields,
+	}
+}
+
+// toCardResponses converts a slice of model.Card to CardResponses.
+func toCardResponses(cards []*model.Card) []CardResponse {
+	responses := make([]CardResponse, len(cards))
+	for i, card := range cards {
+		responses[i] = toCardResponse(card)
+	}
+	return responses
+}
+
+// populateCardColumn sets the Column field on a card by looking up the board config.
+func (h *Handler) populateCardColumn(boardName string, card *model.Card) {
+	boardCfg, err := h.boardStore.Get(boardName)
+	if err != nil {
+		return // Leave column empty if board config can't be read
+	}
+	card.Column = boardCfg.GetCardColumn(card.ID)
+}
 
 // Handler contains all HTTP handlers for the API.
 type Handler struct {
@@ -93,7 +149,7 @@ func (h *Handler) ListCards(w http.ResponseWriter, r *http.Request) {
 		Error(w, err)
 		return
 	}
-	JSON(w, http.StatusOK, map[string]any{"cards": cards})
+	JSON(w, http.StatusOK, map[string]any{"cards": toCardResponses(cards)})
 }
 
 // CreateCardRequest is the JSON body for creating a card.
@@ -136,7 +192,9 @@ func (h *Handler) CreateCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	JSON(w, http.StatusCreated, card)
+	// Populate Column from board config for API response
+	h.populateCardColumn(boardName, card)
+	JSON(w, http.StatusCreated, toCardResponse(card))
 }
 
 // GetCard returns a single card by ID.
@@ -150,7 +208,9 @@ func (h *Handler) GetCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	JSON(w, http.StatusOK, card)
+	// Populate Column from board config for API response
+	h.populateCardColumn(boardName, card)
+	JSON(w, http.StatusOK, toCardResponse(card))
 }
 
 // UpdateCardRequest is the JSON body for updating a card.
@@ -172,6 +232,9 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Populate Column from board config for comparison
+	h.populateCardColumn(boardName, card)
+
 	var req UpdateCardRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		BadRequest(w, "invalid JSON body")
@@ -184,12 +247,7 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 			Error(w, err)
 			return
 		}
-		// Re-fetch after move
-		card, err = h.cardService.Get(boardName, card.ID)
-		if err != nil {
-			Error(w, err)
-			return
-		}
+		card.Column = *req.Column // Update in-memory for response
 	}
 
 	// Apply other updates
@@ -205,6 +263,7 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 			Error(w, err)
 			return
 		}
+		h.populateCardColumn(boardName, card)
 	}
 
 	if req.Description != nil && *req.Description != card.Description {
@@ -221,15 +280,9 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 			Error(w, err)
 			return
 		}
-		// Re-fetch to get updated state
-		card, err = h.cardService.Get(boardName, card.ID)
-		if err != nil {
-			Error(w, err)
-			return
-		}
 	}
 
-	JSON(w, http.StatusOK, card)
+	JSON(w, http.StatusOK, toCardResponse(card))
 }
 
 // DeleteCard deletes a card.
@@ -287,18 +340,13 @@ func (h *Handler) MoveCard(w http.ResponseWriter, r *http.Request) {
 		position = *req.Position
 	}
 
-	// Use the service's MoveCardAt which updates both card and board config
+	// Use the service's MoveCardAt which updates board config
 	if err := h.cardService.MoveCardAt(boardName, card.ID, req.Column, position); err != nil {
 		Error(w, err)
 		return
 	}
 
-	// Re-fetch to get updated state
-	card, err = h.cardService.Get(boardName, card.ID)
-	if err != nil {
-		Error(w, err)
-		return
-	}
-
-	JSON(w, http.StatusOK, card)
+	// Set Column to the target column for response
+	card.Column = req.Column
+	JSON(w, http.StatusOK, toCardResponse(card))
 }

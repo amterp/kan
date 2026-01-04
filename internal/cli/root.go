@@ -49,6 +49,10 @@ type CommandContext struct {
 	ServeUsed   *bool
 	ServePort   *int
 	ServeNoOpen *bool
+
+	// migrate command
+	MigrateUsed   *bool
+	MigrateDryRun *bool
 }
 
 // Run is the main entry point for the CLI.
@@ -74,6 +78,7 @@ func Run() {
 	registerList(cmd, ctx)
 	registerEdit(cmd, ctx)
 	registerServe(cmd, ctx)
+	registerMigrate(cmd, ctx)
 
 	// Parse command line
 	cmd.ParseOrExit(os.Args[1:])
@@ -107,5 +112,8 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.ServeUsed:
 		runServe(*ctx.ServePort, *ctx.ServeNoOpen)
+
+	case *ctx.MigrateUsed:
+		runMigrate(*ctx.MigrateDryRun)
 	}
 }
