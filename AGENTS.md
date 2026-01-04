@@ -2,7 +2,7 @@
 
 Guidance for AI agents working with this codebase.
 
-**Maintenance**: Keep auxiliary files (AGENTS.md, README.md, etc.) up to date when making relevant changes.
+**Maintenance**: Keep auxiliary files (AGENTS.md, README.md, extras/claude-skill/SKILL.md, etc.) up to date when making relevant changes.
 
 **Note**: SPEC.md is a temporary bootstrapping document and will be removed once the initial implementation stabilizes.
 
