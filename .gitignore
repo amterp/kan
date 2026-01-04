@@ -1,3 +1,5 @@
+RAD_SYNTAX.md
+
 # Build output
 /kan
 
@@ -16,3 +18,4 @@ web/node_modules/
 # Test coverage
 *.out
 coverage.html
+.kan/

@@ -19,7 +19,7 @@ func TestCard(id, title string) *model.Card {
 		Alias:           "test-card",
 		AliasExplicit:   false,
 		Title:           title,
-		Column:          "backlog",
+		Column:          "Backlog",
 		Creator:         "tester",
 		CreatedAtMillis: now,
 		UpdatedAtMillis: now,
@@ -32,7 +32,7 @@ func TestBoardConfig(name string) *model.BoardConfig {
 		ID:            "test-board-id",
 		Name:          name,
 		Columns:       model.DefaultColumns(),
-		DefaultColumn: "backlog",
+		DefaultColumn: "Backlog",
 	}
 }
 

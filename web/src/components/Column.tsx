@@ -44,7 +44,7 @@ export default function Column({
   return (
     <div
       ref={setNodeRef}
-      className={`w-72 flex-shrink-0 flex flex-col bg-gray-200 rounded-lg max-h-full ${
+      className={`flex-1 min-w-64 max-w-sm flex flex-col bg-gray-200 rounded-lg max-h-full ${
         isOver ? 'ring-2 ring-blue-400' : ''
       }`}
     >

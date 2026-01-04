@@ -22,7 +22,7 @@ func (s *BoardService) Create(name string) error {
 		ID:            fid.MustGenerate(),
 		Name:          name,
 		Columns:       model.DefaultColumns(),
-		DefaultColumn: "backlog",
+		DefaultColumn: "Backlog",
 	}
 
 	// Store.Create handles existence check and returns proper error

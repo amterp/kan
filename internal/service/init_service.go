@@ -58,7 +58,7 @@ func (s *InitService) Initialize(customLocation string) error {
 		ID:            fid.MustGenerate(),
 		Name:          defaultBoardName,
 		Columns:       model.DefaultColumns(),
-		DefaultColumn: "backlog",
+		DefaultColumn: "Backlog",
 	}
 
 	if err := boardStore.Create(defaultBoard); err != nil {

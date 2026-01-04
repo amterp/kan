@@ -33,10 +33,10 @@ type CustomFieldSchema struct {
 // DefaultColumns returns the default columns for a new board.
 func DefaultColumns() []Column {
 	return []Column{
-		{Name: "backlog", Color: "#6b7280"},
-		{Name: "next", Color: "#3b82f6"},
-		{Name: "in-progress", Color: "#f59e0b"},
-		{Name: "done", Color: "#10b981"},
+		{Name: "Backlog", Color: "#6b7280"},
+		{Name: "Next", Color: "#3b82f6"},
+		{Name: "In Progress", Color: "#f59e0b"},
+		{Name: "Done", Color: "#10b981"},
 	}
 }
 
