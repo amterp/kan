@@ -64,7 +64,7 @@ func Run() {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Fail instead of prompting for missing input").
-		Register(cmd)
+		Register(cmd, ra.WithGlobal(true))
 
 	// Register all subcommands
 	registerInit(cmd, ctx)
