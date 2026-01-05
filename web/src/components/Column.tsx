@@ -103,15 +103,15 @@ export default function Column({
   return (
     <div
       ref={setNodeRef}
-      className={`flex-1 min-w-64 max-w-sm flex flex-col bg-gray-200 rounded-lg max-h-full ${
+      className={`flex-1 min-w-64 max-w-sm flex flex-col bg-gray-200 dark:bg-gray-800 rounded-lg max-h-full ${
         isOver ? 'ring-2 ring-blue-400' : ''
       }`}
     >
       {/* Column Header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-300">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-300 dark:border-gray-600">
         <button
           onClick={onStartAddCard}
-          className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-300"
+          className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
           title="Add card"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,8 +122,8 @@ export default function Column({
           className="w-3 h-3 rounded-full"
           style={{ backgroundColor: column.color }}
         />
-        <h2 className="font-medium text-gray-700">{column.name}</h2>
-        <span className="text-sm text-gray-500">{cards.length}</span>
+        <h2 className="font-medium text-gray-700 dark:text-gray-200">{column.name}</h2>
+        <span className="text-sm text-gray-500 dark:text-gray-400">{cards.length}</span>
       </div>
 
       {/* Cards */}
@@ -139,13 +139,13 @@ export default function Column({
             const renderPlaceholder = () => (
               <div
                 key="placeholder"
-                className="bg-blue-100 border-2 border-dashed border-blue-300 rounded-lg p-3 opacity-70"
+                className="bg-blue-100 dark:bg-blue-900/30 border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg p-3 opacity-70"
               >
                 {/* Render same content as the card for proper sizing */}
                 {activeCard && (
                   <>
-                    <h3 className="font-medium text-blue-400 text-sm">{activeCard.title}</h3>
-                    <div className="flex items-center justify-between mt-2 text-xs text-blue-300">
+                    <h3 className="font-medium text-blue-400 dark:text-blue-300 text-sm">{activeCard.title}</h3>
+                    <div className="flex items-center justify-between mt-2 text-xs text-blue-300 dark:text-blue-400">
                       <span className="font-mono">{activeCard.alias}</span>
                     </div>
                   </>
@@ -185,7 +185,7 @@ export default function Column({
 
         {/* Add Card Form */}
         {isAddingCard && (
-          <form ref={formRef} onSubmit={handleSubmit} className="bg-white rounded-lg p-2 shadow-sm">
+          <form ref={formRef} onSubmit={handleSubmit} className="bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm">
             <input
               ref={inputRef}
               type="text"
@@ -193,7 +193,7 @@ export default function Column({
               onChange={(e) => onDraftChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Enter card title..."
-              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
               autoFocus
             />
             <div className="flex items-center justify-between mt-2">
@@ -210,12 +210,12 @@ export default function Column({
                     onDraftChange('');
                     onCancelAddCard();
                   }}
-                  className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded hover:shadow-sm transition-all"
+                  className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded hover:shadow-sm transition-all"
                 >
                   Cancel
                 </button>
               </div>
-              <span className="text-xs text-gray-400">⌘↵ for details</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">⌘↵ for details</span>
             </div>
           </form>
         )}
@@ -224,7 +224,7 @@ export default function Column({
         {!isAddingCard && (
           <button
             onClick={onStartAddCard}
-            className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-300 rounded transition-colors flex items-center justify-center gap-1"
+            className="w-full py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors flex items-center justify-center gap-1"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

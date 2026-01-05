@@ -244,11 +244,11 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
       case FIELD_TYPE_ENUM:
         return (
           <div className="mb-4" key={fieldName}>
-            <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{fieldName}</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">{fieldName}</label>
             <select
               value={(currentValue as string) || ''}
               onChange={(e) => setEnumValue(fieldName, e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white"
             >
               <option value="">None</option>
               {schema.options?.map((opt) => (
@@ -264,7 +264,7 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
         const selectedTags = Array.isArray(currentValue) ? currentValue as string[] : [];
         return (
           <div className="mb-4" key={fieldName}>
-            <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">{fieldName}</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 capitalize">{fieldName}</label>
             <div className="flex flex-wrap gap-2">
               {schema.options?.map((opt) => {
                 const isSelected = selectedTags.includes(opt.value);
@@ -295,12 +295,12 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
       case FIELD_TYPE_STRING:
         return (
           <div className="mb-4" key={fieldName}>
-            <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{fieldName}</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">{fieldName}</label>
             <input
               type="text"
               value={(currentValue as string) || ''}
               onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [fieldName]: e.target.value }))}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder={`Enter ${fieldName}...`}
             />
           </div>
@@ -309,12 +309,12 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
       case FIELD_TYPE_DATE:
         return (
           <div className="mb-4" key={fieldName}>
-            <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{fieldName}</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">{fieldName}</label>
             <input
               type="date"
               value={(currentValue as string) || ''}
               onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [fieldName]: e.target.value }))}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         );
@@ -330,7 +330,7 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
       onClick={handleBackdropClick}
     >
       <div
-        className="bg-white rounded-lg shadow-xl overflow-hidden flex flex-col relative"
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden flex flex-col relative"
         style={{
           width: size.width,
           height: size.height,
@@ -346,7 +346,7 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
           onMouseDown={handleResizeStart}
         >
           <svg
-            className="w-3 h-3 text-gray-400"
+            className="w-3 h-3 text-gray-400 dark:text-gray-500"
             viewBox="0 0 24 24"
             fill="currentColor"
           >
@@ -357,24 +357,24 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
         </div>
 
         {/* Header */}
-        <div className="flex items-center p-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+        <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex-shrink-0">
           {/* Grip handle - larger hitbox for easier grabbing */}
           <div
-            className="flex items-center justify-center w-10 h-12 mr-2 cursor-grab active:cursor-grabbing rounded hover:bg-gray-200"
+            className="flex items-center justify-center w-10 h-12 mr-2 cursor-grab active:cursor-grabbing rounded hover:bg-gray-200 dark:hover:bg-gray-700"
             onMouseDown={handleGripMouseDown}
           >
             <div className="flex flex-col gap-0.5">
               <div className="flex gap-0.5">
-                <div className="w-1 h-1 rounded-full bg-gray-400" />
-                <div className="w-1 h-1 rounded-full bg-gray-400" />
+                <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-500" />
+                <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-500" />
               </div>
               <div className="flex gap-0.5">
-                <div className="w-1 h-1 rounded-full bg-gray-400" />
-                <div className="w-1 h-1 rounded-full bg-gray-400" />
+                <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-500" />
+                <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-500" />
               </div>
               <div className="flex gap-0.5">
-                <div className="w-1 h-1 rounded-full bg-gray-400" />
-                <div className="w-1 h-1 rounded-full bg-gray-400" />
+                <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-500" />
+                <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-500" />
               </div>
             </div>
           </div>
@@ -384,17 +384,17 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="text-xl font-semibold text-gray-900 w-full border-0 border-b-2 border-transparent focus:border-blue-500 focus:outline-none bg-transparent"
+              className="text-xl font-semibold text-gray-900 dark:text-white w-full border-0 border-b-2 border-transparent focus:border-blue-500 focus:outline-none bg-transparent"
               placeholder="Card title"
               autoFocus
             />
-            <p className="text-sm text-gray-500 font-mono mt-1">
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-mono mt-1">
               {card.alias} • {column}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -405,56 +405,56 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
         {/* Content - two column layout */}
         <div className="flex-1 flex overflow-hidden">
           {/* Left side - Description and Comments */}
-          <div className="flex-1 p-4 overflow-y-auto border-r border-gray-200">
+          <div className="flex-1 p-4 overflow-y-auto border-r border-gray-200 dark:border-gray-700">
             {/* Description */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full h-48 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full h-48 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 placeholder="Add a description..."
               />
             </div>
 
             {/* Comments (read-only for now) */}
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Comments {card.comments && card.comments.length > 0 && `(${card.comments.length})`}
               </h3>
               {card.comments && card.comments.length > 0 ? (
                 <div className="space-y-3">
                   {card.comments.map((comment) => (
-                    <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                    <div key={comment.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-gray-900 text-sm">
+                        <span className="font-medium text-gray-900 dark:text-white text-sm">
                           {comment.author}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
                           {formatDate(comment.created_at_millis)}
                         </span>
                       </div>
-                      <p className="text-gray-700 text-sm whitespace-pre-wrap">
+                      <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">
                         {comment.body}
                       </p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400 italic">No comments yet</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 italic">No comments yet</p>
               )}
             </div>
           </div>
 
           {/* Right side - Details */}
-          <div className="w-64 p-4 overflow-y-auto bg-gray-50 flex-shrink-0">
+          <div className="w-64 p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900 flex-shrink-0">
             {/* Column selector */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Column</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Column</label>
               <select
                 value={column}
                 onChange={(e) => setColumn(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white"
               >
                 {board.columns.map((col) => (
                   <option key={col.name} value={col.name}>
@@ -472,30 +472,30 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
             )}
 
             {/* Metadata */}
-            <div className="space-y-3 text-sm border-t border-gray-200 pt-4">
+            <div className="space-y-3 text-sm border-t border-gray-200 dark:border-gray-700 pt-4">
               <div>
-                <span className="text-gray-500 block">Created by</span>
-                <span className="text-gray-900">{card.creator}</span>
+                <span className="text-gray-500 dark:text-gray-400 block">Created by</span>
+                <span className="text-gray-900 dark:text-white">{card.creator}</span>
               </div>
               <div>
-                <span className="text-gray-500 block">Created</span>
-                <span className="text-gray-900">{formatDate(card.created_at_millis)}</span>
+                <span className="text-gray-500 dark:text-gray-400 block">Created</span>
+                <span className="text-gray-900 dark:text-white">{formatDate(card.created_at_millis)}</span>
               </div>
               <div>
-                <span className="text-gray-500 block">Updated</span>
-                <span className="text-gray-900">{formatDate(card.updated_at_millis)}</span>
+                <span className="text-gray-500 dark:text-gray-400 block">Updated</span>
+                <span className="text-gray-900 dark:text-white">{formatDate(card.updated_at_millis)}</span>
               </div>
               <div>
-                <span className="text-gray-500 block">ID</span>
-                <span className="text-gray-900 font-mono text-xs break-all">{card.id}</span>
+                <span className="text-gray-500 dark:text-gray-400 block">ID</span>
+                <span className="text-gray-900 dark:text-white font-mono text-xs break-all">{card.id}</span>
               </div>
             </div>
 
             {/* Delete */}
-            <div className="border-t border-gray-200 pt-4 mt-4">
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
               {showDeleteConfirm ? (
                 <div className="space-y-2">
-                  <p className="text-sm text-gray-700">Delete this card?</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">Delete this card?</p>
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -507,7 +507,7 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
                     <button
                       type="button"
                       onClick={() => setShowDeleteConfirm(false)}
-                      className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                      className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
                     >
                       Cancel
                     </button>
@@ -517,7 +517,7 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:border-red-300 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 hover:border-red-300 dark:hover:border-red-700 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -530,13 +530,13 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-          <span className="text-xs text-gray-400">⌘↵ to {hasChanges ? 'save' : 'close'}</span>
+        <div className="flex items-center justify-between p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex-shrink-0">
+          <span className="text-xs text-gray-400 dark:text-gray-500">⌘↵ to {hasChanges ? 'save' : 'close'}</span>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+              className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
             >
               Cancel
             </button>

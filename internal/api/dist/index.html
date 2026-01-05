@@ -4,8 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kan</title>
-    <script type="module" crossorigin src="/assets/index-6haCS3dH.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BQgiZCCc.css">
+    <script>
+      // Prevent flash of wrong theme on load
+      (function() {
+        const stored = localStorage.getItem('kan-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDark = stored === 'dark' || (stored !== 'light' && prefersDark);
+        if (isDark) document.documentElement.classList.add('dark');
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-CfGUpVh_.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-O67J6E29.css">
   </head>
   <body>
     <div id="root"></div>

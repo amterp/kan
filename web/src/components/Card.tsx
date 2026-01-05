@@ -86,7 +86,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
         style={style}
         {...attributes}
         {...listeners}
-        className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-3 min-h-[60px] opacity-50"
+        className="bg-gray-100 dark:bg-gray-600 border-2 border-dashed border-gray-300 dark:border-gray-500 rounded-lg p-3 min-h-[60px] opacity-50"
       />
     );
   }
@@ -98,14 +98,14 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       {...attributes}
       {...listeners}
       onClick={handleClick}
-      className={`group relative bg-white rounded-lg p-3 shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
+      className={`group relative bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
         isDragging ? 'shadow-lg rotate-2' : ''
       }`}
     >
       {/* Delete confirmation overlay */}
       {showConfirm && (
-        <div className="absolute inset-0 bg-white rounded-lg flex flex-col items-center justify-center gap-2 z-10">
-          <p className="text-sm text-gray-700">Delete this card?</p>
+        <div className="absolute inset-0 bg-white dark:bg-gray-700 rounded-lg flex flex-col items-center justify-center gap-2 z-10">
+          <p className="text-sm text-gray-700 dark:text-gray-200">Delete this card?</p>
           <div className="flex gap-2">
             <button
               onClick={handleConfirmDelete}
@@ -115,7 +115,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
             </button>
             <button
               onClick={handleCancelDelete}
-              className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+              className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
             >
               Cancel
             </button>
@@ -127,7 +127,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       {onDelete && !showConfirm && (
         <button
           onClick={handleDeleteClick}
-          className="absolute top-1 right-1 p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute top-1 right-1 p-1 text-gray-300 dark:text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
           title="Delete card"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -181,10 +181,10 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       })()}
 
       {/* Title */}
-      <h3 className="font-medium text-gray-900 text-sm">{card.title}</h3>
+      <h3 className="font-medium text-gray-900 dark:text-white text-sm">{card.title}</h3>
 
       {/* Footer */}
-      <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+      <div className="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
         <span className="font-mono">{card.alias}</span>
         <div className="flex items-center gap-2">
           {card.description?.trim() && (
