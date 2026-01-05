@@ -43,6 +43,16 @@ npm run lint     # eslint
 
 During development: run `go run ./cmd/kan serve` in one terminal and `npm run dev` in `web/` for hot-reloading.
 
+### Frontend Build Artifacts Must Be Committed
+
+The Go binary embeds the frontend from `internal/api/dist/` via `//go:embed`. When you modify frontend code and run `npm run build` (or `./dev -b`), the build outputs new hashed files (e.g., `index-abc123.js`). **These must be committed alongside your source changes** — otherwise the Go binary will have stale frontend code.
+
+After a frontend change:
+```bash
+git add internal/api/dist/ web/src/...  # include both source AND build output
+git commit -m "Your message"
+```
+
 ## Architecture
 
 ### Layered Backend Structure
