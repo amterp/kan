@@ -75,22 +75,15 @@ func DefaultColumns() []Column {
 }
 
 // DefaultCustomFields returns the default custom fields for a new board.
-// Includes 'type' (enum) for categorization and 'labels' (tags) for attributes.
 func DefaultCustomFields() map[string]CustomFieldSchema {
 	return map[string]CustomFieldSchema{
 		"type": {
 			Type: FieldTypeEnum,
 			Options: []CustomFieldOption{
-				{Value: "feature", Color: "#22c55e"},
 				{Value: "bug", Color: "#ef4444"},
-				{Value: "task", Color: "#6b7280"},
-			},
-		},
-		"labels": {
-			Type: FieldTypeTags,
-			Options: []CustomFieldOption{
-				{Value: "blocked", Color: "#dc2626"},
-				{Value: "needs-review", Color: "#f59e0b"},
+				{Value: "enhancement", Color: "#3b82f6"},
+				{Value: "feature", Color: "#22c55e"},
+				{Value: "chore", Color: "#6b7280"},
 			},
 		},
 	}
@@ -100,7 +93,6 @@ func DefaultCustomFields() map[string]CustomFieldSchema {
 func DefaultCardDisplay() CardDisplayConfig {
 	return CardDisplayConfig{
 		TypeIndicator: "type",
-		Badges:        []string{"labels"},
 	}
 }
 
