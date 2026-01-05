@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "wrap-long-card-titles-instead",
+  "alias_explicit": false,
+  "created_at_millis": 1767586019935,
+  "creator": "Alexander Terp",
+  "id": "2REATGIR",
+  "title": "Wrap long card titles instead of extending",
+  "type": "bug",
+  "updated_at_millis": 1767586019935
+}

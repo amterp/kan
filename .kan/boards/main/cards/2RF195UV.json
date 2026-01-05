@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "omnibar-with-fuzzy-search",
+  "alias_explicit": false,
+  "created_at_millis": 1767586052598,
+  "creator": "Alexander Terp",
+  "description": "Keyboard shortcut triggers a fuzzy search overlay to quickly find and jump to any card.",
+  "id": "2RF195UV",
+  "title": "Omnibar with fuzzy search",
+  "type": "feature",
+  "updated_at_millis": 1767586052598
+}

@@ -25,6 +25,5 @@ kan-demo/
 *.out
 coverage.html
 
-# Local kan data (for testing)
-.kan/
+# Local kan data for testing
 .kan2/

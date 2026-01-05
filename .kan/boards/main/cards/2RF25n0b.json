@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "revamp-labeling-ui-2",
+  "alias_explicit": false,
+  "created_at_millis": 1767586053172,
+  "creator": "Alexander Terp",
+  "description": "I don't like how it currently looks, where it shows all the labels and you toggle them on and off. Well, it's kind of neat, won't you understand? It's? but it's a little unusual. and at first when you look at it, at a card with no labels, labels, you might mistakenly think that all the labels are actually applied because they're barely ghosted. I think we just need to avoid showing them at all if they're not there but then we do also want to come up with a nice UX for adding labels.",
+  "id": "2RF25n0b",
+  "title": "revamp labeling UI",
+  "type": "enhancement",
+  "updated_at_millis": 1767586078423
+}

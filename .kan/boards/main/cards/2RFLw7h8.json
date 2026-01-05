@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "lowercase-default-list-names",
+  "alias_explicit": false,
+  "created_at_millis": 1767586065484,
+  "creator": "Alexander Terp",
+  "description": "Better for CLI. Also add hyphen to in-progress.",
+  "id": "2RFLw7h8",
+  "title": "Lowercase default list names",
+  "type": "enhancement",
+  "updated_at_millis": 1767586065484
+}

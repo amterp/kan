@@ -1,0 +1,46 @@
+kan_schema = "board/2"
+id = "2R9nzEvz"
+name = "main"
+default_column = "backlog"
+
+[[columns]]
+  name = "backlog"
+  color = "#6b7280"
+  card_ids = ["2REA5mCQ", "2REATGIR", "2REAnxC6", "2REB6NLa", "2REBORtt", "2REBgzSK", "2RERa5et", "2RERulDq", "2RESD2LM", "2RESVvds", "2RESoTin", "2RET9h3a", "2RF0BBTc", "2RF0aoHq", "2RF195UV", "2RF1gl2S", "2RF25n0b", "2RF2RcyA"]
+
+[[columns]]
+  name = "next"
+  color = "#3b82f6"
+  card_ids = ["2RFKjwYX"]
+
+[[columns]]
+  name = "in-progress"
+  color = "#f59e0b"
+
+[[columns]]
+  name = "done"
+  color = "#10b981"
+  card_ids = ["2RFLL8mC", "2RFLeA3b", "2RFLw7h8", "2RFL3u0o"]
+
+[custom_fields]
+  [custom_fields.type]
+    type = "enum"
+
+    [[custom_fields.type.options]]
+      value = "bug"
+      color = "#ef4444"
+
+    [[custom_fields.type.options]]
+      value = "enhancement"
+      color = "#3b82f6"
+
+    [[custom_fields.type.options]]
+      value = "feature"
+      color = "#22c55e"
+
+    [[custom_fields.type.options]]
+      value = "chore"
+      color = "#6b7280"
+
+[card_display]
+  type_indicator = "type"

@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "auto-refresh-to-reflect-cli",
+  "alias_explicit": false,
+  "created_at_millis": 1767586020324,
+  "creator": "Alexander Terp",
+  "id": "2REB6NLa",
+  "title": "Auto-refresh to reflect CLI commands",
+  "type": "feature",
+  "updated_at_millis": 1767586020324
+}

@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "updating-tags-on-cards",
+  "alias_explicit": false,
+  "created_at_millis": 1767586031512,
+  "creator": "Alexander Terp",
+  "id": "2RET9h3a",
+  "title": "Updating tags on cards generates new slug",
+  "type": "bug",
+  "updated_at_millis": 1767586031512
+}

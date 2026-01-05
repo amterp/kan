@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "add-claude-skill",
+  "alias_explicit": false,
+  "created_at_millis": 1767586065119,
+  "creator": "Alexander Terp",
+  "description": "Can ask Claude to interact with kan",
+  "id": "2RFLL8mC",
+  "title": "Add Claude skill",
+  "type": "feature",
+  "updated_at_millis": 1767586065119
+}
