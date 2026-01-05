@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "make-the-card-edit-modal-2",
+  "alias_explicit": false,
+  "created_at_millis": 1767586981381,
+  "creator": "Alexander Terp",
+  "id": "2RdBBLnA",
+  "title": "Make the card edit modal larger by default.",
+  "type": "enhancement",
+  "updated_at_millis": 1767586985960
+}

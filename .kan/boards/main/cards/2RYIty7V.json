@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "consider-replacing-command",
+  "alias_explicit": false,
+  "created_at_millis": 1767586793962,
+  "creator": "Alexander Terp",
+  "description": "List can be confusing because lists are an actual concept for containing cards in a Kanban board. So the list command, which actually just shows cards, You might be confused with a command that would edit your lists or deal with your lists when when it's not. I'm thinking that instead you can do command show and that will just be equivalent to list if it's not given an ID.",
+  "id": "2RYIty7V",
+  "title": "Consider replacing Command List with Show",
+  "type": "enhancement",
+  "updated_at_millis": 1767586995615
+}

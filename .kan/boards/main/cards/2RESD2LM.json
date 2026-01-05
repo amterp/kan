@@ -1,11 +1,12 @@
 {
   "_v": 1,
-  "alias": "ability-to-create-new-lists",
+  "alias": "ability-to-create-new-lists-2",
   "alias_explicit": false,
   "created_at_millis": 1767586030932,
   "creator": "Alexander Terp",
+  "description": "also from CLI, and when creating new boards, and when initializing.",
   "id": "2RESD2LM",
-  "title": "Ability to create new lists from web",
+  "title": "Ability to create new lists from web/cli",
   "type": "feature",
-  "updated_at_millis": 1767586030932
+  "updated_at_millis": 1767586633320
 }

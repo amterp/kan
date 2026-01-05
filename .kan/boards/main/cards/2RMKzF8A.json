@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "plus-new-card-in-the-top-left-2",
+  "alias_explicit": false,
+  "created_at_millis": 1767586333977,
+  "creator": "Alexander Terp",
+  "id": "2RMKzF8A",
+  "title": "plus new card in the top left, and then not editing anything should not actually save the card, but it currently does.",
+  "type": "bug",
+  "updated_at_millis": 1767586551328
+}
