@@ -237,12 +237,25 @@ kan add <title> [description] [flags]
 Edit an existing card.
 
 ```bash
-kan edit <id|alias>
+kan edit <id|alias> [OPTIONS]
 ```
 
-Opens an interactive menu to select which field to edit, then opens `$EDITOR` for that field.
+**Options:**
+- `-b, --board <name>` — Target board
+- `-t, --title <value>` — Set card title
+- `-d, --description <value>` — Set card description
+- `-c, --column <name>` — Move card to column
+- `-l, --label <name>` — Set labels (repeatable, replaces existing labels)
+- `-p, --parent <id|alias>` — Set parent card
+- `-a, --alias <value>` — Set explicit alias
+- `-f, --field <key=value>` — Set custom field (repeatable)
 
-Editor resolution order:
+**Behavior:**
+- If any flags are provided, applies the changes and exits (non-interactive).
+- If no flags are provided, opens an interactive menu to select which field to edit, then opens `$EDITOR` for that field.
+- Use `-l ""` to clear all labels.
+
+Editor resolution order (for interactive mode):
 1. `editor` from global user config
 2. `$EDITOR` environment variable
 3. `vim`

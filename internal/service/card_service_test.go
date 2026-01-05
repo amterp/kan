@@ -766,3 +766,523 @@ func TestCardService_Delete_CardNotFound(t *testing.T) {
 		t.Errorf("Expected NotFound error, got %v", err)
 	}
 }
+
+// ============================================================================
+// Edit() Tests
+// ============================================================================
+
+func TestCardService_Edit_Title(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Original", Column: "backlog"})
+
+	newTitle := "Updated Title"
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		Title:         &newTitle,
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	if updated.Title != "Updated Title" {
+		t.Errorf("Expected title 'Updated Title', got %q", updated.Title)
+	}
+	// Alias should be regenerated since it wasn't explicit
+	if updated.Alias != "updated-title" {
+		t.Errorf("Expected alias 'updated-title', got %q", updated.Alias)
+	}
+}
+
+func TestCardService_Edit_Title_EmptyError(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Original", Column: "backlog"})
+
+	emptyTitle := ""
+	_, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		Title:         &emptyTitle,
+	})
+	if err == nil {
+		t.Fatal("Expected error for empty title")
+	}
+	if !kanerr.IsValidationError(err) {
+		t.Errorf("Expected validation error, got %v", err)
+	}
+}
+
+func TestCardService_Edit_Description(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	newDesc := "New description"
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		Description:   &newDesc,
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	if updated.Description != "New description" {
+		t.Errorf("Expected description 'New description', got %q", updated.Description)
+	}
+}
+
+func TestCardService_Edit_Column(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	newColumn := "in-progress"
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		Column:        &newColumn,
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	if updated.Column != "in-progress" {
+		t.Errorf("Expected column 'in-progress', got %q", updated.Column)
+	}
+
+	// Verify board config was updated
+	cfg, _ := boardStore.Get("main")
+	found := false
+	for _, col := range cfg.Columns {
+		if col.Name == "in-progress" {
+			for _, id := range col.CardIDs {
+				if id == card.ID {
+					found = true
+					break
+				}
+			}
+		}
+	}
+	if !found {
+		t.Error("Card should be in in-progress column's CardIDs")
+	}
+}
+
+func TestCardService_Edit_Column_Invalid(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	badColumn := "nonexistent"
+	_, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		Column:        &badColumn,
+	})
+	if err == nil {
+		t.Fatal("Expected error for invalid column")
+	}
+	if !kanerr.IsNotFound(err) {
+		t.Errorf("Expected NotFound error, got %v", err)
+	}
+}
+
+func TestCardService_Edit_Labels(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog", Labels: []string{"bug"}})
+
+	newLabels := []string{"feature"}
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		Labels:        &newLabels,
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	if len(updated.Labels) != 1 || updated.Labels[0] != "feature" {
+		t.Errorf("Expected labels [feature], got %v", updated.Labels)
+	}
+}
+
+func TestCardService_Edit_Labels_Clear(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog", Labels: []string{"bug", "feature"}})
+
+	emptyLabels := []string{""}
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		Labels:        &emptyLabels,
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	if len(updated.Labels) != 0 {
+		t.Errorf("Expected empty labels, got %v", updated.Labels)
+	}
+}
+
+func TestCardService_Edit_Labels_Invalid(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	badLabels := []string{"nonexistent-label"}
+	_, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		Labels:        &badLabels,
+	})
+	if err == nil {
+		t.Fatal("Expected error for invalid label")
+	}
+	if !kanerr.IsNotFound(err) {
+		t.Errorf("Expected NotFound error, got %v", err)
+	}
+}
+
+func TestCardService_Edit_Parent(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	parentCard, _ := service.Add(AddCardInput{BoardName: "main", Title: "Parent", Column: "backlog"})
+	childCard, _ := service.Add(AddCardInput{BoardName: "main", Title: "Child", Column: "backlog"})
+
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: childCard.ID,
+		Parent:        &parentCard.ID,
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	if updated.Parent != parentCard.ID {
+		t.Errorf("Expected parent %q, got %q", parentCard.ID, updated.Parent)
+	}
+}
+
+func TestCardService_Edit_Parent_Clear(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	parentCard, _ := service.Add(AddCardInput{BoardName: "main", Title: "Parent", Column: "backlog"})
+	childCard, _ := service.Add(AddCardInput{BoardName: "main", Title: "Child", Column: "backlog", Parent: parentCard.ID})
+
+	emptyParent := ""
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: childCard.ID,
+		Parent:        &emptyParent,
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	if updated.Parent != "" {
+		t.Errorf("Expected empty parent, got %q", updated.Parent)
+	}
+}
+
+func TestCardService_Edit_Parent_NotFound(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	badParent := "nonexistent-parent"
+	_, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		Parent:        &badParent,
+	})
+	if err == nil {
+		t.Fatal("Expected error for nonexistent parent")
+	}
+}
+
+func TestCardService_Edit_Alias(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	newAlias := "my-custom-alias"
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		Alias:         &newAlias,
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	if updated.Alias != "my-custom-alias" {
+		t.Errorf("Expected alias 'my-custom-alias', got %q", updated.Alias)
+	}
+	if !updated.AliasExplicit {
+		t.Error("AliasExplicit should be true after setting explicit alias")
+	}
+}
+
+func TestCardService_Edit_Alias_Empty(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	emptyAlias := ""
+	_, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		Alias:         &emptyAlias,
+	})
+	if err == nil {
+		t.Fatal("Expected error for empty alias")
+	}
+	if !kanerr.IsValidationError(err) {
+		t.Errorf("Expected validation error, got %v", err)
+	}
+}
+
+func TestCardService_Edit_Alias_Collision(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	service.Add(AddCardInput{BoardName: "main", Title: "First card", Column: "backlog"})
+	card2, _ := service.Add(AddCardInput{BoardName: "main", Title: "Second card", Column: "backlog"})
+
+	// Try to set card2's alias to card1's alias
+	conflictingAlias := "first-card"
+	_, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card2.ID,
+		Alias:         &conflictingAlias,
+	})
+	if err == nil {
+		t.Fatal("Expected error for alias collision")
+	}
+	if !kanerr.IsValidationError(err) {
+		t.Errorf("Expected validation error, got %v", err)
+	}
+}
+
+func TestCardService_Edit_MultipleFields(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Original", Column: "backlog"})
+
+	newTitle := "Updated"
+	newDesc := "New description"
+	newColumn := "in-progress"
+	newLabels := []string{"bug", "feature"}
+
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		Title:         &newTitle,
+		Description:   &newDesc,
+		Column:        &newColumn,
+		Labels:        &newLabels,
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	if updated.Title != "Updated" {
+		t.Errorf("Expected title 'Updated', got %q", updated.Title)
+	}
+	if updated.Description != "New description" {
+		t.Errorf("Expected description 'New description', got %q", updated.Description)
+	}
+	if updated.Column != "in-progress" {
+		t.Errorf("Expected column 'in-progress', got %q", updated.Column)
+	}
+	if len(updated.Labels) != 2 {
+		t.Errorf("Expected 2 labels, got %d", len(updated.Labels))
+	}
+}
+
+func TestCardService_Edit_NilFieldsNoChange(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{
+		BoardName:   "main",
+		Title:       "Original Title",
+		Description: "Original Desc",
+		Column:      "backlog",
+		Labels:      []string{"bug"},
+	})
+
+	// Edit with all nil fields - should change nothing
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	if updated.Title != "Original Title" {
+		t.Errorf("Title should be unchanged, got %q", updated.Title)
+	}
+	if updated.Description != "Original Desc" {
+		t.Errorf("Description should be unchanged, got %q", updated.Description)
+	}
+	if len(updated.Labels) != 1 || updated.Labels[0] != "bug" {
+		t.Errorf("Labels should be unchanged, got %v", updated.Labels)
+	}
+}
+
+func TestCardService_Edit_ByAlias(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Fix login bug", Column: "backlog"})
+
+	newDesc := "Updated via alias"
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: "fix-login-bug", // Use alias instead of ID
+		Description:   &newDesc,
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	if updated.ID != card.ID {
+		t.Errorf("Expected card ID %q, got %q", card.ID, updated.ID)
+	}
+	if updated.Description != "Updated via alias" {
+		t.Errorf("Expected description 'Updated via alias', got %q", updated.Description)
+	}
+}
+
+func TestCardService_Edit_CardNotFound(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	newTitle := "Updated"
+	_, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: "nonexistent",
+		Title:         &newTitle,
+	})
+	if err == nil {
+		t.Fatal("Expected error for nonexistent card")
+	}
+	if !kanerr.IsNotFound(err) {
+		t.Errorf("Expected NotFound error, got %v", err)
+	}
+}
+
+// Helper to create a board config with custom fields for testing
+func testBoardConfigWithCustomFields(name string) *model.BoardConfig {
+	cfg := testBoardConfig(name)
+	cfg.CustomFields = map[string]model.CustomFieldSchema{
+		"priority": {Type: "enum", Values: []string{"low", "medium", "high"}},
+		"estimate": {Type: "string"},
+	}
+	return cfg
+}
+
+func TestCardService_Edit_CustomFields(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithCustomFields("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		CustomFields:  map[string]string{"priority": "high", "estimate": "3"},
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	if updated.CustomFields["priority"] != "high" {
+		t.Errorf("Expected priority 'high', got %v", updated.CustomFields["priority"])
+	}
+	if updated.CustomFields["estimate"] != "3" {
+		t.Errorf("Expected estimate '3', got %v", updated.CustomFields["estimate"])
+	}
+}
+
+func TestCardService_Edit_CustomFields_InvalidEnum(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithCustomFields("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	_, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		CustomFields:  map[string]string{"priority": "invalid-value"},
+	})
+	if err == nil {
+		t.Fatal("Expected error for invalid enum value")
+	}
+	if !kanerr.IsValidationError(err) {
+		t.Errorf("Expected validation error, got %v", err)
+	}
+}
+
+func TestCardService_Edit_CustomFields_UndefinedField(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithCustomFields("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	_, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		CustomFields:  map[string]string{"undefined_field": "value"},
+	})
+	if err == nil {
+		t.Fatal("Expected error for undefined custom field")
+	}
+	if !kanerr.IsValidationError(err) {
+		t.Errorf("Expected validation error, got %v", err)
+	}
+}
+
+func TestCardService_Edit_CustomFields_ReservedPrefix(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	// Add a board with a field that has reserved prefix (shouldn't happen in practice, but tests validation)
+	cfg := testBoardConfig("main")
+	cfg.CustomFields = map[string]model.CustomFieldSchema{
+		"valid_field": {Type: "string"},
+	}
+	boardStore.addBoard(cfg)
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	// Try to set a field with reserved prefix
+	_, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		CustomFields:  map[string]string{"_reserved": "value"},
+	})
+	if err == nil {
+		t.Fatal("Expected error for reserved prefix field")
+	}
+}

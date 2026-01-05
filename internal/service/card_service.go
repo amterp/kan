@@ -1,6 +1,9 @@
 package service
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/amterp/kan/internal/id"
 
 	kanerr "github.com/amterp/kan/internal/errors"
@@ -34,6 +37,20 @@ type AddCardInput struct {
 	Labels      []string
 	Parent      string
 	Creator     string
+}
+
+// EditCardInput contains the input for editing a card.
+// Pointer fields indicate "set this field"; nil means "don't change".
+type EditCardInput struct {
+	BoardName     string
+	CardIDOrAlias string
+	Title         *string           // nil = no change
+	Description   *string           // nil = no change
+	Column        *string           // nil = no change
+	Labels        *[]string         // nil = no change, empty slice = clear labels
+	Parent        *string           // nil = no change, empty string = clear parent
+	Alias         *string           // nil = no change
+	CustomFields  map[string]string // fields to set/update (parsed from key=value)
 }
 
 // Add creates a new card.
@@ -227,6 +244,156 @@ func (s *CardService) UpdateTitle(boardName string, card *model.Card, newTitle s
 	}
 
 	return s.Update(boardName, card)
+}
+
+// Edit applies changes specified in the input to an existing card.
+func (s *CardService) Edit(input EditCardInput) (*model.Card, error) {
+	// Resolve card
+	card, err := s.FindByIDOrAlias(input.BoardName, input.CardIDOrAlias)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get board config for validation
+	boardCfg, err := s.boardStore.Get(input.BoardName)
+	if err != nil {
+		return nil, err
+	}
+
+	needsUpdate := false
+
+	// Handle title change (regenerates alias if not explicit)
+	if input.Title != nil {
+		if *input.Title == "" {
+			return nil, kanerr.InvalidField("title", "cannot be empty")
+		}
+		if err := s.UpdateTitle(input.BoardName, card, *input.Title); err != nil {
+			return nil, err
+		}
+		// Re-fetch card after title update (alias may have changed)
+		card, err = s.Get(input.BoardName, card.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Handle column change
+	if input.Column != nil {
+		if !boardCfg.HasColumn(*input.Column) {
+			return nil, kanerr.ColumnNotFound(*input.Column, input.BoardName)
+		}
+		if err := s.MoveCard(input.BoardName, card.ID, *input.Column); err != nil {
+			return nil, err
+		}
+		card.Column = *input.Column
+	}
+
+	// Handle description change
+	if input.Description != nil {
+		card.Description = *input.Description
+		needsUpdate = true
+	}
+
+	// Handle labels change (replace mode)
+	if input.Labels != nil {
+		// Validate all non-empty labels exist
+		for _, label := range *input.Labels {
+			if label != "" && !boardCfg.HasLabel(label) {
+				return nil, kanerr.LabelNotFound(label, input.BoardName)
+			}
+		}
+		// Filter out empty strings (used for clearing)
+		filtered := make([]string, 0)
+		for _, l := range *input.Labels {
+			if l != "" {
+				filtered = append(filtered, l)
+			}
+		}
+		card.Labels = filtered
+		needsUpdate = true
+	}
+
+	// Handle parent change
+	if input.Parent != nil {
+		if *input.Parent != "" {
+			// Validate parent exists
+			_, err := s.FindByIDOrAlias(input.BoardName, *input.Parent)
+			if err != nil {
+				return nil, fmt.Errorf("parent card not found: %s", *input.Parent)
+			}
+		}
+		card.Parent = *input.Parent
+		needsUpdate = true
+	}
+
+	// Handle explicit alias change
+	if input.Alias != nil {
+		if *input.Alias == "" {
+			return nil, kanerr.InvalidField("alias", "cannot be empty")
+		}
+		// Check alias not already in use by another card
+		existing, err := s.cardStore.FindByAlias(input.BoardName, *input.Alias)
+		if err == nil && existing.ID != card.ID {
+			return nil, kanerr.InvalidField("alias", fmt.Sprintf("already in use by card %s", existing.ID))
+		}
+		card.Alias = *input.Alias
+		card.AliasExplicit = true
+		needsUpdate = true
+	}
+
+	// Handle custom fields
+	if len(input.CustomFields) > 0 {
+		if err := s.validateAndApplyCustomFields(card, boardCfg, input.CustomFields); err != nil {
+			return nil, err
+		}
+		needsUpdate = true
+	}
+
+	if needsUpdate {
+		if err := s.Update(input.BoardName, card); err != nil {
+			return nil, err
+		}
+	}
+
+	return card, nil
+}
+
+// validateAndApplyCustomFields validates and applies custom field changes.
+func (s *CardService) validateAndApplyCustomFields(card *model.Card, boardCfg *model.BoardConfig, fields map[string]string) error {
+	if card.CustomFields == nil {
+		card.CustomFields = make(map[string]any)
+	}
+
+	for key, value := range fields {
+		// Validate field name doesn't use reserved prefix
+		if err := model.ValidateCustomFieldName(key); err != nil {
+			return err
+		}
+
+		// Check field is defined in board config
+		schema, exists := boardCfg.CustomFields[key]
+		if !exists {
+			return kanerr.InvalidField("field", fmt.Sprintf("%q is not defined in board config", key))
+		}
+
+		// Validate value against schema
+		if schema.Type == "enum" {
+			valid := false
+			for _, allowed := range schema.Values {
+				if value == allowed {
+					valid = true
+					break
+				}
+			}
+			if !valid {
+				return kanerr.InvalidField(key, fmt.Sprintf("must be one of: %s", strings.Join(schema.Values, ", ")))
+			}
+		}
+
+		card.CustomFields[key] = value
+	}
+
+	return nil
 }
 
 // Delete removes a card from the board.

@@ -6,6 +6,7 @@ import (
 
 	"github.com/amterp/kan/internal/editor"
 	"github.com/amterp/kan/internal/model"
+	"github.com/amterp/kan/internal/service"
 	"github.com/amterp/ra"
 )
 
@@ -24,11 +25,70 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Board name").
 		Register(cmd)
 
+	ctx.EditTitle, _ = ra.NewString("title").
+		SetShort("t").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Set card title").
+		Register(cmd)
+
+	ctx.EditDescription, _ = ra.NewString("description").
+		SetShort("d").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Set card description").
+		Register(cmd)
+
+	ctx.EditColumn, _ = ra.NewString("column").
+		SetShort("c").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Move card to column").
+		Register(cmd)
+
+	ctx.EditLabels, _ = ra.NewStringSlice("label").
+		SetShort("l").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Set labels (repeatable, replaces existing)").
+		Register(cmd)
+
+	ctx.EditParent, _ = ra.NewString("parent").
+		SetShort("p").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Set parent card ID or alias").
+		Register(cmd)
+
+	ctx.EditAlias, _ = ra.NewString("alias").
+		SetShort("a").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Set explicit alias").
+		Register(cmd)
+
+	ctx.EditFields, _ = ra.NewStringSlice("field").
+		SetShort("f").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Set custom field (key=value format, repeatable)").
+		Register(cmd)
+
 	ctx.EditUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runEdit(idOrAlias, board string) {
-	app, err := NewApp(true)
+func runEdit(idOrAlias, board string, title, description, column string,
+	labels []string, parent, alias string, fields []string, nonInteractive bool) {
+
+	// Check if any flags were provided
+	hasFlags := title != "" || description != "" || column != "" ||
+		len(labels) > 0 || parent != "" || alias != "" || len(fields) > 0
+
+	if !hasFlags && nonInteractive {
+		Fatal(fmt.Errorf("no fields specified to edit (use -t, -d, -c, -l, -p, -a, or -f flags)"))
+	}
+
+	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
 	}
@@ -37,8 +97,8 @@ func runEdit(idOrAlias, board string) {
 		Fatal(err)
 	}
 
-	// Resolve board
-	boardName, err := app.BoardResolver.Resolve(board, true)
+	// Resolve board (allow interactive only if not in non-interactive mode)
+	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
 	if err != nil {
 		Fatal(err)
 	}
@@ -55,9 +115,83 @@ func runEdit(idOrAlias, board string) {
 		Fatal(err)
 	}
 
+	if hasFlags {
+		// Non-interactive path: apply flags directly
+		runEditNonInteractive(app, boardName, card, title, description, column,
+			labels, parent, alias, fields)
+	} else {
+		// Interactive path: existing menu-based editing
+		runEditInteractive(app, boardName, card, boardCfg)
+	}
+}
+
+// runEditNonInteractive applies CLI flag changes to the card.
+func runEditNonInteractive(app *App, boardName string, card *model.Card,
+	title, description, column string, labels []string,
+	parent, alias string, fields []string) {
+
+	input := service.EditCardInput{
+		BoardName:     boardName,
+		CardIDOrAlias: card.ID,
+	}
+
+	if title != "" {
+		input.Title = &title
+	}
+	if description != "" {
+		input.Description = &description
+	}
+	if column != "" {
+		input.Column = &column
+	}
+	if len(labels) > 0 {
+		input.Labels = &labels
+	}
+	if parent != "" {
+		input.Parent = &parent
+	}
+	if alias != "" {
+		input.Alias = &alias
+	}
+	if len(fields) > 0 {
+		parsed, err := parseCustomFields(fields)
+		if err != nil {
+			Fatal(err)
+		}
+		input.CustomFields = parsed
+	}
+
+	updatedCard, err := app.CardService.Edit(input)
+	if err != nil {
+		Fatal(err)
+	}
+
+	fmt.Printf("Updated card %s\n", updatedCard.ID)
+}
+
+// parseCustomFields converts ["key=value", ...] to map[string]string.
+func parseCustomFields(fields []string) (map[string]string, error) {
+	result := make(map[string]string)
+	for _, f := range fields {
+		parts := strings.SplitN(f, "=", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid field format %q (expected key=value)", f)
+		}
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		if key == "" {
+			return nil, fmt.Errorf("empty field name in %q", f)
+		}
+		result[key] = value
+	}
+	return result, nil
+}
+
+// runEditInteractive runs the interactive menu-based editing flow.
+func runEditInteractive(app *App, boardName string, card *model.Card, boardCfg *model.BoardConfig) {
 	// Select field to edit
-	fields := []string{"title", "description", "column", "labels"}
-	field, err := app.Prompter.Select("Select field to edit", fields)
+	fieldOptions := []string{"title", "description", "column", "labels"}
+	field, err := app.Prompter.Select("Select field to edit", fieldOptions)
 	if err != nil {
 		Fatal(err)
 	}
@@ -141,8 +275,7 @@ func editColumn(app *App, boardName string, card *model.Card, boardCfg *model.Bo
 		return
 	}
 
-	card.Column = newColumn
-	if err := app.CardService.Update(boardName, card); err != nil {
+	if err := app.CardService.MoveCard(boardName, card.ID, newColumn); err != nil {
 		Fatal(err)
 	}
 

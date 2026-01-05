@@ -41,9 +41,16 @@ type CommandContext struct {
 	ListColumn *string
 
 	// edit command
-	EditUsed  *bool
-	EditCard  *string
-	EditBoard *string
+	EditUsed        *bool
+	EditCard        *string
+	EditBoard       *string
+	EditTitle       *string
+	EditDescription *string
+	EditColumn      *string
+	EditLabels      *[]string
+	EditParent      *string
+	EditAlias       *string
+	EditFields      *[]string
 
 	// serve command
 	ServeUsed   *bool
@@ -108,7 +115,9 @@ func executeCommand(ctx *CommandContext) {
 		runList(*ctx.ListBoard, *ctx.ListColumn)
 
 	case *ctx.EditUsed:
-		runEdit(*ctx.EditCard, *ctx.EditBoard)
+		runEdit(*ctx.EditCard, *ctx.EditBoard, *ctx.EditTitle, *ctx.EditDescription,
+			*ctx.EditColumn, *ctx.EditLabels, *ctx.EditParent, *ctx.EditAlias,
+			*ctx.EditFields, *ctx.NonInteractive)
 
 	case *ctx.ServeUsed:
 		runServe(*ctx.ServePort, *ctx.ServeNoOpen)
