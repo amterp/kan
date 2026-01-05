@@ -32,8 +32,8 @@ import (
 // Directory structure:
 //
 //	testdata/migrations/v0/  - Legacy data (no version stamps)
-//	testdata/migrations/v1/  - Schema v1 data (current)
-//	testdata/migrations/v2/  - Schema v2 data (when v2 is released)
+//	testdata/migrations/v1/  - Schema v1 data (labels as first-class)
+//	testdata/migrations/v2/  - Schema v2 data (current, labels as custom field)
 //	etc.
 
 // copyDir recursively copies a directory tree.
@@ -320,17 +320,9 @@ func TestMigrateService_MigratedDataReadableByStore(t *testing.T) {
 	}
 }
 
-func TestMigrateService_PreservesTOMLFormatting(t *testing.T) {
+func TestMigrateService_V0ToV2_ConvertsLabels(t *testing.T) {
 	service, tempDir, cleanup := setupMigrationTest(t, "v0")
 	defer cleanup()
-
-	// Read original board config
-	configPath := filepath.Join(tempDir, ".kan", "boards", "main", "config.toml")
-	originalData, err := os.ReadFile(configPath)
-	if err != nil {
-		t.Fatalf("Failed to read original config: %v", err)
-	}
-	originalContent := string(originalData)
 
 	// Migrate
 	plan, err := service.Plan()
@@ -342,26 +334,34 @@ func TestMigrateService_PreservesTOMLFormatting(t *testing.T) {
 	}
 
 	// Read migrated config
+	configPath := filepath.Join(tempDir, ".kan", "boards", "main", "config.toml")
 	migratedData, err := os.ReadFile(configPath)
 	if err != nil {
 		t.Fatalf("Failed to read migrated config: %v", err)
 	}
 	migratedContent := string(migratedData)
 
-	// Should have kan_schema prepended
-	if !strings.HasPrefix(migratedContent, "kan_schema = ") {
-		t.Error("Migrated config should start with kan_schema")
+	// Should have correct kan_schema
+	if !strings.Contains(migratedContent, `kan_schema = "board/2"`) {
+		t.Error("Migrated config should have kan_schema = board/2")
 	}
 
-	// Original content should be preserved after the prepended field
-	// (with a blank line separator)
-	if !strings.Contains(migratedContent, originalContent) {
-		t.Error("Original config content should be preserved after kan_schema")
+	// Should have custom_fields.labels section
+	if !strings.Contains(migratedContent, "[custom_fields]") {
+		t.Error("Migrated config should have custom_fields section")
+	}
+	if !strings.Contains(migratedContent, "labels") {
+		t.Error("Migrated config should have labels in custom_fields")
 	}
 
-	// Comments should be preserved (our test fixture has a comment)
-	if !strings.Contains(migratedContent, "# Board config WITHOUT kan_schema") {
-		t.Error("Comments should be preserved during migration")
+	// Should have card_display section
+	if !strings.Contains(migratedContent, "[card_display]") {
+		t.Error("Migrated config should have card_display section")
+	}
+
+	// Should NOT have old [[labels]] section
+	if strings.Contains(migratedContent, "[[labels]]") {
+		t.Error("Migrated config should not have [[labels]] section")
 	}
 }
 
@@ -453,10 +453,10 @@ func TestMigrationFixturesComplete(t *testing.T) {
 }
 
 // ============================================================================
-// V1 Tests (Current schema - no migration needed)
+// V1 -> V2 Migration Tests (Labels conversion)
 // ============================================================================
 
-func TestMigrateService_Plan_V1_NoChanges(t *testing.T) {
+func TestMigrateService_Plan_V1_NeedsMigration(t *testing.T) {
 	service, _, cleanup := setupMigrationTest(t, "v1")
 	defer cleanup()
 
@@ -464,16 +464,152 @@ func TestMigrateService_Plan_V1_NoChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Plan failed: %v", err)
 	}
-	if plan.HasChanges() {
-		t.Error("Current schema (v1) data should not need migration")
+
+	// V1 should need migration to V2
+	if !plan.HasChanges() {
+		t.Error("V1 data should need migration to V2")
+	}
+
+	if len(plan.Boards) != 1 {
+		t.Fatalf("Expected 1 board, got %d", len(plan.Boards))
+	}
+
+	board := plan.Boards[0]
+	if !board.NeedsMigration {
+		t.Error("Board config should need migration")
+	}
+	if board.FromSchema != "board/1" {
+		t.Errorf("Expected FromSchema 'board/1', got %q", board.FromSchema)
+	}
+	if board.ToSchema != version.CurrentBoardSchema() {
+		t.Errorf("Expected ToSchema %q, got %q", version.CurrentBoardSchema(), board.ToSchema)
 	}
 }
 
-func TestMigrateService_V1_ReadableByStores(t *testing.T) {
-	_, tempDir, cleanup := setupMigrationTest(t, "v1")
+func TestMigrateService_V1ToV2_ConvertsLabels(t *testing.T) {
+	service, tempDir, cleanup := setupMigrationTest(t, "v1")
 	defer cleanup()
 
-	// V1 fixtures should be directly readable by stores without migration
+	// Migrate
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if err := service.Execute(plan, false); err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	// Read migrated config
+	configPath := filepath.Join(tempDir, ".kan", "boards", "main", "config.toml")
+	migratedData, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("Failed to read migrated config: %v", err)
+	}
+	migratedContent := string(migratedData)
+
+	// Should have correct kan_schema
+	if !strings.Contains(migratedContent, `kan_schema = "board/2"`) {
+		t.Errorf("Migrated config should have kan_schema = board/2, got:\n%s", migratedContent)
+	}
+
+	// Should have custom_fields.labels section with tags type
+	if !strings.Contains(migratedContent, "[custom_fields]") {
+		t.Errorf("Migrated config should have custom_fields section, got:\n%s", migratedContent)
+	}
+
+	// Should NOT have old [[labels]] section
+	if strings.Contains(migratedContent, "[[labels]]") {
+		t.Errorf("Migrated config should not have [[labels]] section, got:\n%s", migratedContent)
+	}
+
+	// Should have card_display section with badges
+	if !strings.Contains(migratedContent, "[card_display]") {
+		t.Errorf("Migrated config should have card_display section, got:\n%s", migratedContent)
+	}
+
+	// Verify stores can read the migrated data
+	paths := config.NewPaths(tempDir, "")
+	boardStore := store.NewBoardStore(paths)
+
+	boardCfg, err := boardStore.Get("main")
+	if err != nil {
+		t.Fatalf("BoardStore.Get failed after migration: %v", err)
+	}
+
+	// Verify labels custom field exists with correct type
+	labelsSchema, ok := boardCfg.CustomFields["labels"]
+	if !ok {
+		t.Fatal("Migrated board should have 'labels' custom field")
+	}
+	if labelsSchema.Type != "tags" {
+		t.Errorf("labels custom field should be type 'tags', got %q", labelsSchema.Type)
+	}
+
+	// Verify the label value was preserved
+	if len(labelsSchema.Options) != 1 {
+		t.Fatalf("Expected 1 label option, got %d", len(labelsSchema.Options))
+	}
+	if labelsSchema.Options[0].Value != "bug" {
+		t.Errorf("Expected label value 'bug', got %q", labelsSchema.Options[0].Value)
+	}
+	if labelsSchema.Options[0].Color != "#ef4444" {
+		t.Errorf("Expected label color '#ef4444', got %q", labelsSchema.Options[0].Color)
+	}
+
+	// Verify card_display references labels
+	if len(boardCfg.CardDisplay.Badges) != 1 || boardCfg.CardDisplay.Badges[0] != "labels" {
+		t.Errorf("card_display.badges should be ['labels'], got %v", boardCfg.CardDisplay.Badges)
+	}
+}
+
+func TestMigrateService_V1ToV2_Idempotent(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v1")
+	defer cleanup()
+
+	// First migration
+	plan1, err := service.Plan()
+	if err != nil {
+		t.Fatalf("First Plan failed: %v", err)
+	}
+	if !plan1.HasChanges() {
+		t.Fatal("First plan should have changes")
+	}
+	if err := service.Execute(plan1, false); err != nil {
+		t.Fatalf("First Execute failed: %v", err)
+	}
+
+	// Second migration should be no-op
+	plan2, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Second Plan failed: %v", err)
+	}
+	if plan2.HasChanges() {
+		t.Error("Second plan should have no changes (migration is idempotent)")
+	}
+}
+
+// ============================================================================
+// V2 Tests (Current schema - no migration needed)
+// ============================================================================
+
+func TestMigrateService_Plan_V2_NoChanges(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v2")
+	defer cleanup()
+
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if plan.HasChanges() {
+		t.Error("Current schema (v2) data should not need migration")
+	}
+}
+
+func TestMigrateService_V2_ReadableByStores(t *testing.T) {
+	_, tempDir, cleanup := setupMigrationTest(t, "v2")
+	defer cleanup()
+
+	// V2 fixtures should be directly readable by stores without migration
 	paths := config.NewPaths(tempDir, "")
 	cardStore := store.NewCardStore(paths)
 	boardStore := store.NewBoardStore(paths)
@@ -481,7 +617,7 @@ func TestMigrateService_V1_ReadableByStores(t *testing.T) {
 	// Board store should read without error
 	boardCfg, err := boardStore.Get("main")
 	if err != nil {
-		t.Fatalf("BoardStore.Get failed on v1 fixtures: %v", err)
+		t.Fatalf("BoardStore.Get failed on v2 fixtures: %v", err)
 	}
 	if boardCfg.Name != "main" {
 		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
@@ -493,7 +629,7 @@ func TestMigrateService_V1_ReadableByStores(t *testing.T) {
 	// Card store should read without error
 	card, err := cardStore.Get("main", "card-abc")
 	if err != nil {
-		t.Fatalf("CardStore.Get failed on v1 fixtures: %v", err)
+		t.Fatalf("CardStore.Get failed on v2 fixtures: %v", err)
 	}
 	if card.ID != "card-abc" {
 		t.Errorf("Card ID = %q, want 'card-abc'", card.ID)

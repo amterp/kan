@@ -49,6 +49,13 @@ func runShow(idOrAlias, board string) {
 		Fatal(err)
 	}
 
+	// Get column from board config (not stored in card file)
+	boardCfg, err := app.BoardService.Get(boardName)
+	if err != nil {
+		Fatal(err)
+	}
+	card.Column = boardCfg.GetCardColumn(card.ID)
+
 	printCard(card)
 }
 
@@ -60,10 +67,6 @@ func printCard(card *model.Card) {
 
 	if card.Description != "" {
 		fmt.Printf("Description:\n  %s\n", strings.ReplaceAll(card.Description, "\n", "\n  "))
-	}
-
-	if len(card.Labels) > 0 {
-		fmt.Printf("Labels:  %s\n", strings.Join(card.Labels, ", "))
 	}
 
 	if card.Parent != "" {

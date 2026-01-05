@@ -375,6 +375,300 @@ The following are planned but NOT part of the first take:
 
 ---
 
+## Card Fields Architecture Revamp
+
+This section documents a planned architectural change to how card fields work. The current implementation (described above) treats `labels` as a first-class field. This revamp generalizes the approach.
+
+### Motivation
+
+The trigger: Kan's default labels (`feature`, `bug`, `enhancement`, `chore`) are mutually exclusive—a card is a bug OR a feature, not both. But labels are multi-select by design. This revealed a category error:
+
+- **Type** (bug/feature/chore): "What kind of thing is this?" → single-select, categorical
+- **Labels** (blocked/urgent/needs-review): "What attributes does this have?" → multi-select, combinable
+
+The defaults were steering users to misuse labels as types.
+
+The deeper issue: we conflated "commonly used" with "architecturally special." Labels are common but not fundamentally different from any other multi-select enum field. Making labels first-class (dedicated CLI flag, special config section, hardcoded frontend rendering) means every future "commonly used" field faces the same question: "Is this special enough to be first-class?"
+
+**The solution**: Shrink first-class fields to truly structural/system things. Everything else—including what labels currently is—becomes a custom field with a consistent schema. Board configuration controls how custom fields render on cards.
+
+### Field Taxonomy
+
+After the revamp, fields fall into two categories:
+
+#### Core Fields (First-Class)
+
+These are structural or system fields that exist on every card:
+
+| Category | Fields | Description |
+|----------|--------|-------------|
+| Identity | `id`, `alias`, `alias_explicit` | Immutable identifiers and human-friendly references |
+| Content | `title`, `description` | User-provided content, always present |
+| Workflow | `column` | Structural—determines board position |
+| Hierarchy | `parent` | Structural—enables subtask relationships |
+| Discussion | `comments` | Nested objects, not a simple field type |
+| System | `creator`, `created_at_millis`, `updated_at_millis`, `_v` | Auto-managed metadata |
+
+Core fields have dedicated schema, validation, and (where applicable) CLI flags. They are not configurable per-board.
+
+#### Custom Fields
+
+Everything else is a custom field defined in the board's configuration:
+
+- **What the current `labels` field does** becomes a custom field with type `tags`
+- **Type distinction** (bug/feature/task) becomes a custom field with type `enum`
+- **Any user-defined fields** (priority, assignee, due date, etc.) use the same system
+
+Custom fields are:
+- Defined per-board in `[custom_fields.*]` config sections
+- Stored flattened at the top level of card JSON (not nested)
+- Validated against the board schema (undefined fields rejected, enum values checked)
+- Rendered according to `[card_display]` configuration
+
+### Custom Field Types
+
+| Type | Description | Example Values |
+|------|-------------|----------------|
+| `string` | Free-form text | `"John Doe"`, `"https://..."` |
+| `enum` | Single-select from defined options | `"bug"`, `"feature"` |
+| `tags` | Multi-select from defined options | `["blocked", "urgent"]` |
+| `date` | Date value | `"2024-03-15"` |
+
+The `tags` type replaces what `labels` currently does. The name is more intuitive than "multi-select-enum" and users immediately understand it.
+
+### Custom Field Schema
+
+Custom fields are defined in board config with type, options (for enum/tags), and per-value colors:
+
+```toml
+[custom_fields.type]
+type = "enum"
+options = [
+  { value = "feature", color = "#22c55e" },
+  { value = "bug", color = "#ef4444" },
+  { value = "task", color = "#6b7280" },
+  { value = "chore", color = "#8b5cf6" },
+]
+
+[custom_fields.labels]
+type = "tags"
+options = [
+  { value = "blocked", color = "#dc2626" },
+  { value = "needs-review", color = "#f59e0b" },
+  { value = "urgent", color = "#f97316" },
+]
+
+[custom_fields.assignee]
+type = "string"
+
+[custom_fields.due_date]
+type = "date"
+```
+
+**Schema structure:**
+
+```go
+type CustomFieldSchema struct {
+    Type    string              `toml:"type"`              // "string", "enum", "tags", "date"
+    Options []CustomFieldOption `toml:"options,omitempty"` // for enum/tags types
+}
+
+type CustomFieldOption struct {
+    Value string `toml:"value"`
+    Color string `toml:"color,omitempty"` // hex color, e.g. "#ef4444"
+    // Icon string `toml:"icon,omitempty"` // future: icon identifier
+}
+```
+
+**Validation rules:**
+- `enum` and `tags` fields require `options` to be defined
+- Values set on cards must exist in the field's `options` list
+- Field names cannot start with `_` (reserved for internal use) or `kan_` (reserved for Kan)
+- The `x_` prefix is available as an escape hatch for user-defined fields that would otherwise conflict
+
+### Card Display Configuration
+
+How cards render in the board view is configured at the **board level**, not per-field. This provides:
+
+1. **Separation of concerns**: Field schema defines *what the field is*. Card display defines *how the board renders cards*.
+2. **No conflicts**: Each display slot maps to specific field(s). Impossible for multiple fields to claim the same slot.
+3. **Explicit at a glance**: Reading `[card_display]` shows exactly how cards will appear.
+4. **Easy reassignment**: Change which field shows as the type indicator by editing one line.
+
+```toml
+[card_display]
+type_indicator = "type"           # Single enum field shown as colored badge
+badges = ["labels"]               # Array of tags fields shown as colored chips
+metadata = ["assignee"]           # Array of fields shown as small text
+```
+
+**Schema structure:**
+
+```go
+type CardDisplayConfig struct {
+    TypeIndicator string   `toml:"type_indicator,omitempty"` // single enum field
+    Badges        []string `toml:"badges,omitempty"`         // array of tags fields
+    Metadata      []string `toml:"metadata,omitempty"`       // array of any fields
+}
+```
+
+### Card Display Slots
+
+Card display slots determine where custom field values appear on cards in the board view. Each slot has specific visual treatment.
+
+#### Configurable Display Slots
+
+| Slot | Cardinality | Field Type | Rendering |
+|------|-------------|------------|-----------|
+| `type_indicator` | Single field | `enum` | Small colored badge (e.g., "bug" pill) |
+| `badges` | Array of fields | `tags` | Colored chips, displayed in config order |
+| `metadata` | Array of fields | Any | Small text in card footer |
+
+Fields not assigned to any display slot are only visible in the card detail/edit view.
+
+**Type indicator rendering**: For v1, `type_indicator` renders as a badge (similar visual treatment to `badges`, just single-value). Icons are deferred to a future version.
+
+**Badges ordering**: When multiple fields are assigned to the `badges` slot, their values are displayed in the order the fields appear in the config array. Within each field, values appear in the order stored on the card.
+
+#### System Display Indicators
+
+Some display elements are non-configurable and always present:
+
+| Indicator | Source | Rendering |
+|-----------|--------|-----------|
+| Has description | `description` field non-empty | 📝 icon on card |
+| Has comments | `comments` array non-empty | 💬 icon on card |
+
+These are hardcoded to core fields and cannot be reassigned. They indicate *presence*, not values.
+
+**Frontend rendering logic:**
+
+```
+1. SYSTEM INDICATORS (always, non-configurable):
+   - If card.description is non-empty → show description icon
+   - If card.comments is non-empty → show comments icon
+
+2. CONFIGURABLE DISPLAY SLOTS (from [card_display]):
+   - If type_indicator configured → render field value as badge
+   - If badges configured → render each field's values as chips (in order)
+   - If metadata configured → render each field's value as small text
+```
+
+### Card Visual Example
+
+```
+┌────────────────────────────────────┐
+│ Fix login timeout                  │  ← title (core field)
+│ ┌─────────┐ ┌─────────┐ ┌────────┐ │
+│ │   bug   │ │ blocked │ │ urgent │ │  ← type_indicator + badges
+│ └─────────┘ └─────────┘ └────────┘ │
+│ assignee: sarah              📝 💬 │  ← metadata + system indicators
+└────────────────────────────────────┘
+```
+
+### Validation Rules
+
+**Board config validation:**
+- `type_indicator` must reference an existing `enum` custom field
+- Each entry in `badges` must reference an existing `tags` custom field
+- Each entry in `metadata` must reference an existing custom field (any type)
+- References to non-existent fields produce a validation error on board load
+
+**Card validation:**
+- Custom field values must be defined in board schema (unknown fields rejected)
+- Enum/tags values must exist in the field's `options` list
+- Field names cannot use reserved prefixes (`_`, `kan_`)
+
+### Default Board Configuration
+
+New boards are created with sensible defaults that demonstrate the pattern:
+
+```toml
+# Columns (unchanged from current)
+[[columns]]
+name = "backlog"
+color = "#6b7280"
+
+[[columns]]
+name = "in-progress"
+color = "#f59e0b"
+
+[[columns]]
+name = "done"
+color = "#10b981"
+
+default_column = "backlog"
+
+# Custom fields
+[custom_fields.type]
+type = "enum"
+options = [
+  { value = "feature", color = "#22c55e" },
+  { value = "bug", color = "#ef4444" },
+  { value = "task", color = "#6b7280" },
+]
+
+[custom_fields.labels]
+type = "tags"
+options = [
+  { value = "blocked", color = "#dc2626" },
+  { value = "needs-review", color = "#f59e0b" },
+]
+
+# Card display configuration
+[card_display]
+type_indicator = "type"
+badges = ["labels"]
+```
+
+Users see the pattern immediately and can modify, remove, or add fields as needed.
+
+### Migration from Current Schema
+
+Existing boards with `[[labels]]` sections require migration:
+
+1. **Board config**: `[[labels]]` entries convert to `[custom_fields.labels]` with `type = "tags"` and corresponding `options` array
+2. **Card data**: No changes needed—`labels` array on cards remains the same, just sourced from a custom field now
+3. **Card display**: Auto-generated `[card_display]` with `badges = ["labels"]` to preserve current rendering
+
+The migration is handled by `kan migrate` and schema version bumping (board schema v2).
+
+### CLI Changes
+
+**Removed:**
+- `-l, --label` flag on `kan add` and `kan edit`
+
+**Unchanged:**
+- `-f, --field <key=value>` for setting custom fields
+
+**Usage after revamp:**
+```bash
+# Setting labels (now a custom field)
+kan add "Fix bug" -f labels=blocked
+
+# Setting type
+kan add "New feature" -f type=feature
+
+# Setting multiple on edit
+kan edit abc123 -f type=bug -f labels=blocked,urgent
+```
+
+The CLI is primarily for scripts and agents; ergonomics of dedicated flags is less important than consistency. All custom fields use the same `-f` mechanism.
+
+**Deferred**: CLI shortcuts configuration (e.g., `[cli.shortcuts]` to map `-l` to `-f labels=...`) may be added in a future version if demand exists.
+
+### Future Extensions
+
+The architecture supports future enhancements without structural changes:
+
+- **Icons on type_indicator**: Add `icon` field to `CustomFieldOption`
+- **Multiple badge rows**: Add `badges_top`, `badges_bottom` display slots
+- **Required fields with defaults**: Add `required` and `default` to `CustomFieldSchema`
+- **CLI shortcuts**: Add `[cli.shortcuts]` for board-specific flag aliases
+- **Additional field types**: `number`, `url`, `string-list` (freeform multi-value)
+
+---
+
 ## Open Questions
 
 None currently blocking. The following are explicitly deferred:

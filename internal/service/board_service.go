@@ -23,7 +23,8 @@ func (s *BoardService) Create(name string) error {
 		Name:          name,
 		Columns:       model.DefaultColumns(),
 		DefaultColumn: "backlog",
-		Labels:        model.DefaultLabels(),
+		CustomFields:  model.DefaultCustomFields(),
+		CardDisplay:   model.DefaultCardDisplay(),
 	}
 
 	// Store.Create handles existence check and returns proper error

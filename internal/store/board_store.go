@@ -27,6 +27,11 @@ func (s *FileBoardStore) Create(cfg *model.BoardConfig) error {
 		return kanerr.BoardAlreadyExists(cfg.Name)
 	}
 
+	// Validate card_display config references valid custom fields
+	if warnings := cfg.ValidateCardDisplay(); len(warnings) > 0 {
+		return fmt.Errorf("invalid card_display config: %s", warnings[0])
+	}
+
 	cardsDir := s.paths.CardsDir(cfg.Name)
 
 	// Create directories
@@ -69,6 +74,10 @@ func (s *FileBoardStore) Get(boardName string) (*model.BoardConfig, error) {
 }
 
 // Update writes the board config to disk.
+// Note: We don't validate card_display on Update because:
+// 1. The config may have been valid before stricter validation was added
+// 2. Update is often just adding/removing card IDs, not changing card_display
+// Validation happens on Create; invalid configs produce warnings at load time.
 func (s *FileBoardStore) Update(cfg *model.BoardConfig) error {
 	if err := s.writeConfig(cfg); err != nil {
 		return fmt.Errorf("failed to update board config: %w", err)

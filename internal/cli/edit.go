@@ -46,13 +46,6 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Move card to column").
 		Register(cmd)
 
-	ctx.EditLabels, _ = ra.NewStringSlice("label").
-		SetShort("l").
-		SetOptional(true).
-		SetFlagOnly(true).
-		SetUsage("Set labels (repeatable, replaces existing)").
-		Register(cmd)
-
 	ctx.EditParent, _ = ra.NewString("parent").
 		SetShort("p").
 		SetOptional(true).
@@ -78,14 +71,14 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 }
 
 func runEdit(idOrAlias, board string, title, description, column string,
-	labels []string, parent, alias string, fields []string, nonInteractive bool) {
+	parent, alias string, fields []string, nonInteractive bool) {
 
 	// Check if any flags were provided
 	hasFlags := title != "" || description != "" || column != "" ||
-		len(labels) > 0 || parent != "" || alias != "" || len(fields) > 0
+		parent != "" || alias != "" || len(fields) > 0
 
 	if !hasFlags && nonInteractive {
-		Fatal(fmt.Errorf("no fields specified to edit (use -t, -d, -c, -l, -p, -a, or -f flags)"))
+		Fatal(fmt.Errorf("no fields specified to edit (use -t, -d, -c, -p, -a, or -f flags)"))
 	}
 
 	app, err := NewApp(!nonInteractive)
@@ -118,7 +111,7 @@ func runEdit(idOrAlias, board string, title, description, column string,
 	if hasFlags {
 		// Non-interactive path: apply flags directly
 		runEditNonInteractive(app, boardName, card, title, description, column,
-			labels, parent, alias, fields)
+			parent, alias, fields)
 	} else {
 		// Interactive path: existing menu-based editing
 		runEditInteractive(app, boardName, card, boardCfg)
@@ -127,7 +120,7 @@ func runEdit(idOrAlias, board string, title, description, column string,
 
 // runEditNonInteractive applies CLI flag changes to the card.
 func runEditNonInteractive(app *App, boardName string, card *model.Card,
-	title, description, column string, labels []string,
+	title, description, column string,
 	parent, alias string, fields []string) {
 
 	input := service.EditCardInput{
@@ -143,9 +136,6 @@ func runEditNonInteractive(app *App, boardName string, card *model.Card,
 	}
 	if column != "" {
 		input.Column = &column
-	}
-	if len(labels) > 0 {
-		input.Labels = &labels
 	}
 	if parent != "" {
 		input.Parent = &parent
@@ -190,7 +180,7 @@ func parseCustomFields(fields []string) (map[string]string, error) {
 // runEditInteractive runs the interactive menu-based editing flow.
 func runEditInteractive(app *App, boardName string, card *model.Card, boardCfg *model.BoardConfig) {
 	// Select field to edit
-	fieldOptions := []string{"title", "description", "column", "labels"}
+	fieldOptions := []string{"title", "description", "column"}
 	field, err := app.Prompter.Select("Select field to edit", fieldOptions)
 	if err != nil {
 		Fatal(err)
@@ -204,8 +194,6 @@ func runEditInteractive(app *App, boardName string, card *model.Card, boardCfg *
 		editDescription(app, boardName, card)
 	case "column":
 		editColumn(app, boardName, card, boardCfg)
-	case "labels":
-		editLabels(app, boardName, card, boardCfg)
 	}
 }
 
@@ -280,31 +268,4 @@ func editColumn(app *App, boardName string, card *model.Card, boardCfg *model.Bo
 	}
 
 	fmt.Printf("Moved card to %q\n", newColumn)
-}
-
-func editLabels(app *App, boardName string, card *model.Card, boardCfg *model.BoardConfig) {
-	if len(boardCfg.Labels) == 0 {
-		Fatal(fmt.Errorf("no labels defined in board"))
-	}
-
-	labels := make([]string, len(boardCfg.Labels))
-	for i, lbl := range boardCfg.Labels {
-		labels[i] = lbl.Name
-	}
-
-	newLabels, err := app.Prompter.MultiSelect("Select labels", labels)
-	if err != nil {
-		Fatal(err)
-	}
-
-	card.Labels = newLabels
-	if err := app.CardService.Update(boardName, card); err != nil {
-		Fatal(err)
-	}
-
-	if len(newLabels) == 0 {
-		fmt.Println("Cleared labels")
-	} else {
-		fmt.Printf("Updated labels: %s\n", strings.Join(newLabels, ", "))
-	}
 }

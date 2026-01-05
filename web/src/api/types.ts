@@ -5,7 +5,6 @@ export interface Card {
   title: string;
   description?: string;
   column: string;
-  labels?: string[];
   parent?: string;
   creator: string;
   created_at_millis: number;
@@ -27,10 +26,35 @@ export interface Column {
   card_ids?: string[];
 }
 
-export interface Label {
-  name: string;
-  color: string;
-  description?: string;
+export interface CustomFieldOption {
+  value: string;
+  color?: string;
+}
+
+// Custom field type constants - keep in sync with internal/model/board.go
+export const FIELD_TYPE_STRING = 'string' as const;
+export const FIELD_TYPE_ENUM = 'enum' as const;
+export const FIELD_TYPE_TAGS = 'tags' as const;
+export const FIELD_TYPE_DATE = 'date' as const;
+
+export const VALID_FIELD_TYPES = [
+  FIELD_TYPE_STRING,
+  FIELD_TYPE_ENUM,
+  FIELD_TYPE_TAGS,
+  FIELD_TYPE_DATE,
+] as const;
+
+export type FieldType = (typeof VALID_FIELD_TYPES)[number];
+
+export interface CustomFieldSchema {
+  type: FieldType;
+  options?: CustomFieldOption[];
+}
+
+export interface CardDisplayConfig {
+  type_indicator?: string;
+  badges?: string[];
+  metadata?: string[];
 }
 
 export interface BoardConfig {
@@ -38,26 +62,21 @@ export interface BoardConfig {
   name: string;
   columns: Column[];
   default_column: string;
-  labels?: Label[];
   custom_fields?: Record<string, CustomFieldSchema>;
-}
-
-export interface CustomFieldSchema {
-  type: 'string' | 'enum' | 'date';
-  values?: string[];
+  card_display?: CardDisplayConfig;
 }
 
 export interface CreateCardInput {
   title: string;
   description?: string;
   column?: string;
-  labels?: string[];
   parent?: string;
+  custom_fields?: Record<string, unknown>;
 }
 
 export interface UpdateCardInput {
   title?: string;
   description?: string;
   column?: string;
-  labels?: string[];
+  custom_fields?: Record<string, unknown>;
 }

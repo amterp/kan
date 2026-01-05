@@ -145,9 +145,22 @@ func testBoardConfig(name string) *model.BoardConfig {
 			{Name: "in-progress", Color: "#f59e0b"},
 			{Name: "done", Color: "#10b981"},
 		},
-		Labels: []model.Label{
-			{Name: "bug", Color: "#ef4444"},
-			{Name: "feature", Color: "#3b82f6"},
+		CustomFields: map[string]model.CustomFieldSchema{
+			"type": {
+				Type: "enum",
+				Options: []model.CustomFieldOption{
+					{Value: "feature", Color: "#22c55e"},
+					{Value: "bug", Color: "#ef4444"},
+					{Value: "task", Color: "#6b7280"},
+				},
+			},
+			"labels": {
+				Type: "tags",
+				Options: []model.CustomFieldOption{
+					{Value: "blocked", Color: "#dc2626"},
+					{Value: "needs-review", Color: "#f59e0b"},
+				},
+			},
 		},
 	}
 }
@@ -201,22 +214,22 @@ func TestCardService_Add_Basic(t *testing.T) {
 	}
 }
 
-func TestCardService_Add_WithLabels(t *testing.T) {
+func TestCardService_Add_WithCustomFields(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
 	card, err := service.Add(AddCardInput{
-		BoardName: "main",
-		Title:     "New feature",
-		Column:    "backlog",
-		Labels:    []string{"bug", "feature"},
+		BoardName:    "main",
+		Title:        "New feature",
+		Column:       "backlog",
+		CustomFields: map[string]string{"type": "bug", "labels": "blocked"},
 	})
 	if err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
 
-	if len(card.Labels) != 2 {
-		t.Errorf("Expected 2 labels, got %d", len(card.Labels))
+	if card.CustomFields["type"] != "bug" {
+		t.Errorf("Expected type 'bug', got %v", card.CustomFields["type"])
 	}
 }
 
@@ -255,21 +268,21 @@ func TestCardService_Add_InvalidColumn(t *testing.T) {
 	}
 }
 
-func TestCardService_Add_InvalidLabel(t *testing.T) {
+func TestCardService_Add_InvalidCustomFieldValue(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
 	_, err := service.Add(AddCardInput{
-		BoardName: "main",
-		Title:     "Bad label",
-		Column:    "backlog",
-		Labels:    []string{"bug", "nonexistent-label"},
+		BoardName:    "main",
+		Title:        "Bad type",
+		Column:       "backlog",
+		CustomFields: map[string]string{"type": "nonexistent"},
 	})
 	if err == nil {
-		t.Fatal("Expected error for invalid label")
+		t.Fatal("Expected error for invalid custom field value")
 	}
-	if !kanerr.IsNotFound(err) {
-		t.Errorf("Expected NotFound error, got %v", err)
+	if !kanerr.IsValidationError(err) {
+		t.Errorf("Expected ValidationError, got %v", err)
 	}
 }
 
@@ -895,65 +908,75 @@ func TestCardService_Edit_Column_Invalid(t *testing.T) {
 	}
 }
 
-func TestCardService_Edit_Labels(t *testing.T) {
-	service, _, boardStore := setupCardService()
-	boardStore.addBoard(testBoardConfig("main"))
-
-	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog", Labels: []string{"bug"}})
-
-	newLabels := []string{"feature"}
-	updated, err := service.Edit(EditCardInput{
-		BoardName:     "main",
-		CardIDOrAlias: card.ID,
-		Labels:        &newLabels,
-	})
-	if err != nil {
-		t.Fatalf("Edit failed: %v", err)
-	}
-
-	if len(updated.Labels) != 1 || updated.Labels[0] != "feature" {
-		t.Errorf("Expected labels [feature], got %v", updated.Labels)
-	}
-}
-
-func TestCardService_Edit_Labels_Clear(t *testing.T) {
-	service, _, boardStore := setupCardService()
-	boardStore.addBoard(testBoardConfig("main"))
-
-	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog", Labels: []string{"bug", "feature"}})
-
-	emptyLabels := []string{""}
-	updated, err := service.Edit(EditCardInput{
-		BoardName:     "main",
-		CardIDOrAlias: card.ID,
-		Labels:        &emptyLabels,
-	})
-	if err != nil {
-		t.Fatalf("Edit failed: %v", err)
-	}
-
-	if len(updated.Labels) != 0 {
-		t.Errorf("Expected empty labels, got %v", updated.Labels)
-	}
-}
-
-func TestCardService_Edit_Labels_Invalid(t *testing.T) {
+func TestCardService_Edit_CustomFields_Tags(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
 	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
 
-	badLabels := []string{"nonexistent-label"}
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		CustomFields:  map[string]string{"labels": "blocked,needs-review"},
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	labels, ok := updated.CustomFields["labels"].([]string)
+	if !ok {
+		t.Fatalf("Expected labels to be []string, got %T", updated.CustomFields["labels"])
+	}
+	if len(labels) != 2 {
+		t.Errorf("Expected 2 labels, got %d", len(labels))
+	}
+}
+
+func TestCardService_Edit_CustomFields_Tags_Clear(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{
+		BoardName:    "main",
+		Title:        "Test",
+		Column:       "backlog",
+		CustomFields: map[string]string{"labels": "blocked"},
+	})
+
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		CustomFields:  map[string]string{"labels": ""},
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	// Empty tags should result in empty slice or nil
+	labels := updated.CustomFields["labels"]
+	if labels != nil {
+		if labelSlice, ok := labels.([]string); ok && len(labelSlice) > 0 {
+			t.Errorf("Expected empty labels, got %v", labels)
+		}
+	}
+}
+
+func TestCardService_Edit_CustomFields_Tags_Invalid(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
 	_, err := service.Edit(EditCardInput{
 		BoardName:     "main",
 		CardIDOrAlias: card.ID,
-		Labels:        &badLabels,
+		CustomFields:  map[string]string{"labels": "nonexistent-label"},
 	})
 	if err == nil {
-		t.Fatal("Expected error for invalid label")
+		t.Fatal("Expected error for invalid tag value")
 	}
-	if !kanerr.IsNotFound(err) {
-		t.Errorf("Expected NotFound error, got %v", err)
+	if !kanerr.IsValidationError(err) {
+		t.Errorf("Expected ValidationError, got %v", err)
 	}
 }
 
@@ -1092,7 +1115,6 @@ func TestCardService_Edit_MultipleFields(t *testing.T) {
 	newTitle := "Updated"
 	newDesc := "New description"
 	newColumn := "in-progress"
-	newLabels := []string{"bug", "feature"}
 
 	updated, err := service.Edit(EditCardInput{
 		BoardName:     "main",
@@ -1100,7 +1122,7 @@ func TestCardService_Edit_MultipleFields(t *testing.T) {
 		Title:         &newTitle,
 		Description:   &newDesc,
 		Column:        &newColumn,
-		Labels:        &newLabels,
+		CustomFields:  map[string]string{"type": "bug"},
 	})
 	if err != nil {
 		t.Fatalf("Edit failed: %v", err)
@@ -1115,8 +1137,8 @@ func TestCardService_Edit_MultipleFields(t *testing.T) {
 	if updated.Column != "in-progress" {
 		t.Errorf("Expected column 'in-progress', got %q", updated.Column)
 	}
-	if len(updated.Labels) != 2 {
-		t.Errorf("Expected 2 labels, got %d", len(updated.Labels))
+	if updated.CustomFields["type"] != "bug" {
+		t.Errorf("Expected type 'bug', got %v", updated.CustomFields["type"])
 	}
 }
 
@@ -1125,11 +1147,11 @@ func TestCardService_Edit_NilFieldsNoChange(t *testing.T) {
 	boardStore.addBoard(testBoardConfig("main"))
 
 	card, _ := service.Add(AddCardInput{
-		BoardName:   "main",
-		Title:       "Original Title",
-		Description: "Original Desc",
-		Column:      "backlog",
-		Labels:      []string{"bug"},
+		BoardName:    "main",
+		Title:        "Original Title",
+		Description:  "Original Desc",
+		Column:       "backlog",
+		CustomFields: map[string]string{"type": "bug"},
 	})
 
 	// Edit with all nil fields - should change nothing
@@ -1147,8 +1169,8 @@ func TestCardService_Edit_NilFieldsNoChange(t *testing.T) {
 	if updated.Description != "Original Desc" {
 		t.Errorf("Description should be unchanged, got %q", updated.Description)
 	}
-	if len(updated.Labels) != 1 || updated.Labels[0] != "bug" {
-		t.Errorf("Labels should be unchanged, got %v", updated.Labels)
+	if updated.CustomFields["type"] != "bug" {
+		t.Errorf("CustomFields.type should be unchanged, got %v", updated.CustomFields["type"])
 	}
 }
 
@@ -1198,7 +1220,9 @@ func TestCardService_Edit_CardNotFound(t *testing.T) {
 func testBoardConfigWithCustomFields(name string) *model.BoardConfig {
 	cfg := testBoardConfig(name)
 	cfg.CustomFields = map[string]model.CustomFieldSchema{
-		"priority": {Type: "enum", Values: []string{"low", "medium", "high"}},
+		"priority": {Type: "enum", Options: []model.CustomFieldOption{
+			{Value: "low"}, {Value: "medium"}, {Value: "high"},
+		}},
 		"estimate": {Type: "string"},
 	}
 	return cfg

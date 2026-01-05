@@ -68,9 +68,22 @@ func (api *testAPI) createBoard(t *testing.T, name string) {
 			{Name: "in-progress", Color: "#f59e0b"},
 			{Name: "done", Color: "#10b981"},
 		},
-		Labels: []model.Label{
-			{Name: "bug", Color: "#ef4444"},
-			{Name: "feature", Color: "#3b82f6"},
+		CustomFields: map[string]model.CustomFieldSchema{
+			"type": {
+				Type: "enum",
+				Options: []model.CustomFieldOption{
+					{Value: "feature", Color: "#22c55e"},
+					{Value: "bug", Color: "#ef4444"},
+					{Value: "task", Color: "#6b7280"},
+				},
+			},
+			"labels": {
+				Type: "tags",
+				Options: []model.CustomFieldOption{
+					{Value: "blocked", Color: "#dc2626"},
+					{Value: "needs-review", Color: "#f59e0b"},
+				},
+			},
 		},
 	}
 	if err := api.boardStore.Create(cfg); err != nil {
@@ -253,25 +266,30 @@ func TestHandler_CreateCard_Basic(t *testing.T) {
 	}
 }
 
-func TestHandler_CreateCard_WithLabels(t *testing.T) {
+func TestHandler_CreateCard_WithCustomFields(t *testing.T) {
 	api := setupTestAPI(t)
 	api.createBoard(t, "main")
 
 	body := map[string]any{
-		"title":  "Bug fix",
-		"column": "backlog",
-		"labels": []string{"bug"},
+		"title":         "Bug fix",
+		"column":        "backlog",
+		"custom_fields": map[string]any{"type": "bug"},
 	}
 	w := api.request("POST", "/api/v1/boards/main/cards", body)
 
 	if w.Code != http.StatusCreated {
-		t.Errorf("Expected status 201, got %d", w.Code)
+		t.Errorf("Expected status 201, got %d. Body: %s", w.Code, w.Body.String())
 	}
 
-	var card model.Card
-	decodeJSON(t, w, &card)
-	if len(card.Labels) != 1 || card.Labels[0] != "bug" {
-		t.Errorf("Expected labels ['bug'], got %v", card.Labels)
+	// Custom fields should be flattened to top level in the JSON response
+	var response map[string]any
+	decodeJSON(t, w, &response)
+	if response["type"] != "bug" {
+		t.Errorf("Expected 'type' field at top level to be 'bug', got %v", response["type"])
+	}
+	// Should NOT be nested under custom_fields
+	if response["custom_fields"] != nil {
+		t.Errorf("Expected custom_fields to be flattened, but found nested: %v", response["custom_fields"])
 	}
 }
 
@@ -330,19 +348,19 @@ func TestHandler_CreateCard_InvalidColumn(t *testing.T) {
 	}
 }
 
-func TestHandler_CreateCard_InvalidLabel(t *testing.T) {
+func TestHandler_CreateCard_InvalidCustomField(t *testing.T) {
 	api := setupTestAPI(t)
 	api.createBoard(t, "main")
 
 	body := map[string]any{
-		"title":  "Bad label",
-		"column": "backlog",
-		"labels": []string{"nonexistent"},
+		"title":         "Bad type",
+		"column":        "backlog",
+		"custom_fields": map[string]any{"type": "nonexistent"},
 	}
 	w := api.request("POST", "/api/v1/boards/main/cards", body)
 
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status 404, got %d", w.Code)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d. Body: %s", w.Code, w.Body.String())
 	}
 }
 

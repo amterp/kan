@@ -125,7 +125,11 @@ func TestFileBoardStore_Update(t *testing.T) {
 
 	// Update
 	cfg.DefaultColumn = "next"
-	cfg.Labels = []model.Label{{Name: "bug", Color: "#ff0000"}}
+	cfg.CustomFields = map[string]model.CustomFieldSchema{
+		"priority": {Type: "enum", Options: []model.CustomFieldOption{
+			{Value: "low"}, {Value: "high"},
+		}},
+	}
 	if err := store.Update(cfg); err != nil {
 		t.Fatalf("Update failed: %v", err)
 	}
@@ -139,8 +143,8 @@ func TestFileBoardStore_Update(t *testing.T) {
 	if retrieved.DefaultColumn != "next" {
 		t.Errorf("DefaultColumn not updated: got %q", retrieved.DefaultColumn)
 	}
-	if len(retrieved.Labels) != 1 {
-		t.Errorf("Labels not updated: got %d", len(retrieved.Labels))
+	if len(retrieved.CustomFields) != 1 {
+		t.Errorf("CustomFields not updated: got %d", len(retrieved.CustomFields))
 	}
 }
 
@@ -222,7 +226,7 @@ func TestFileBoardStore_Exists(t *testing.T) {
 	}
 }
 
-func TestFileBoardStore_WithLabelsAndCustomFields(t *testing.T) {
+func TestFileBoardStore_WithCustomFieldsAndCardDisplay(t *testing.T) {
 	store, _, cleanup := setupTestBoardStore(t)
 	defer cleanup()
 
@@ -231,13 +235,20 @@ func TestFileBoardStore_WithLabelsAndCustomFields(t *testing.T) {
 		Name:          "main",
 		Columns:       model.DefaultColumns(),
 		DefaultColumn: "backlog",
-		Labels: []model.Label{
-			{Name: "bug", Color: "#ef4444", Description: "Something broken"},
-			{Name: "feature", Color: "#22c55e"},
-		},
 		CustomFields: map[string]model.CustomFieldSchema{
-			"priority": {Type: "enum", Values: []string{"low", "medium", "high"}},
+			"type": {Type: "enum", Options: []model.CustomFieldOption{
+				{Value: "feature", Color: "#22c55e"},
+				{Value: "bug", Color: "#ef4444"},
+			}},
+			"labels": {Type: "tags", Options: []model.CustomFieldOption{
+				{Value: "blocked", Color: "#dc2626"},
+				{Value: "needs-review", Color: "#f59e0b"},
+			}},
 			"assignee": {Type: "string"},
+		},
+		CardDisplay: model.CardDisplayConfig{
+			TypeIndicator: "type",
+			Badges:        []string{"labels"},
 		},
 	}
 
@@ -250,17 +261,19 @@ func TestFileBoardStore_WithLabelsAndCustomFields(t *testing.T) {
 		t.Fatalf("Get failed: %v", err)
 	}
 
-	if len(retrieved.Labels) != 2 {
-		t.Errorf("Labels not preserved: got %d", len(retrieved.Labels))
-	}
-	if retrieved.Labels[0].Name != "bug" {
-		t.Errorf("Label name not preserved: got %q", retrieved.Labels[0].Name)
-	}
-
-	if len(retrieved.CustomFields) != 2 {
+	if len(retrieved.CustomFields) != 3 {
 		t.Errorf("CustomFields not preserved: got %d", len(retrieved.CustomFields))
 	}
-	if retrieved.CustomFields["priority"].Type != "enum" {
-		t.Errorf("CustomField type not preserved: got %q", retrieved.CustomFields["priority"].Type)
+	if retrieved.CustomFields["type"].Type != "enum" {
+		t.Errorf("CustomField type not preserved: got %q", retrieved.CustomFields["type"].Type)
+	}
+	if retrieved.CustomFields["labels"].Type != "tags" {
+		t.Errorf("CustomField labels type not preserved: got %q", retrieved.CustomFields["labels"].Type)
+	}
+	if retrieved.CardDisplay.TypeIndicator != "type" {
+		t.Errorf("CardDisplay.TypeIndicator not preserved: got %q", retrieved.CardDisplay.TypeIndicator)
+	}
+	if len(retrieved.CardDisplay.Badges) != 1 || retrieved.CardDisplay.Badges[0] != "labels" {
+		t.Errorf("CardDisplay.Badges not preserved: got %v", retrieved.CardDisplay.Badges)
 	}
 }

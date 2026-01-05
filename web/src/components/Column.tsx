@@ -1,13 +1,13 @@
 import { useMemo, useRef, useEffect } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import type { Card, Column as ColumnType, Label } from '../api/types';
+import type { Card, Column as ColumnType, BoardConfig } from '../api/types';
 import CardComponent from './Card';
 
 interface ColumnProps {
   column: ColumnType;
   cards: Card[];
-  labels: Label[];
+  board: BoardConfig;
   isAddingCard: boolean;
   draftTitle: string;
   onDraftChange: (title: string) => void;
@@ -24,7 +24,7 @@ interface ColumnProps {
 export default function Column({
   column,
   cards,
-  labels,
+  board,
   isAddingCard,
   draftTitle,
   onDraftChange,
@@ -144,22 +144,6 @@ export default function Column({
                 {/* Render same content as the card for proper sizing */}
                 {activeCard && (
                   <>
-                    {activeCard.labels && activeCard.labels.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {activeCard.labels.map((labelName) => {
-                          const label = labels.find((l) => l.name === labelName);
-                          return label ? (
-                            <span
-                              key={label.name}
-                              className="px-2 py-0.5 text-xs rounded-full text-white opacity-50"
-                              style={{ backgroundColor: label.color }}
-                            >
-                              {label.name}
-                            </span>
-                          ) : null;
-                        })}
-                      </div>
-                    )}
                     <h3 className="font-medium text-blue-400 text-sm">{activeCard.title}</h3>
                     <div className="flex items-center justify-between mt-2 text-xs text-blue-300">
                       <span className="font-mono">{activeCard.alias}</span>
@@ -182,7 +166,7 @@ export default function Column({
                 <CardComponent
                   key={card.id}
                   card={card}
-                  labels={labels}
+                  board={board}
                   onClick={() => onCardClick(card)}
                   onDelete={() => onDeleteCard(card.id)}
                   isPlaceholder={isBeingDragged}

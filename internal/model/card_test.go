@@ -14,7 +14,6 @@ func TestCardJSON_RoundTrip(t *testing.T) {
 		AliasExplicit:   false,
 		Title:           "Test Card",
 		Description:     "A test card",
-		Labels:          []string{"bug", "urgent"},
 		Parent:          "parent123",
 		Creator:         "tester",
 		CreatedAtMillis: 1704307200000,
@@ -51,9 +50,6 @@ func TestCardJSON_RoundTrip(t *testing.T) {
 	}
 	if original.Title != restored.Title {
 		t.Errorf("Title mismatch: got %q, want %q", restored.Title, original.Title)
-	}
-	if len(original.Labels) != len(restored.Labels) {
-		t.Errorf("Labels length mismatch: got %d, want %d", len(restored.Labels), len(original.Labels))
 	}
 	if len(original.Comments) != len(restored.Comments) {
 		t.Errorf("Comments length mismatch: got %d, want %d", len(restored.Comments), len(original.Comments))
@@ -155,22 +151,6 @@ func TestBoardConfig_HasColumn(t *testing.T) {
 	}
 }
 
-func TestBoardConfig_HasLabel(t *testing.T) {
-	cfg := &BoardConfig{
-		Labels: []Label{
-			{Name: "bug", Color: "#ef4444"},
-			{Name: "enhancement", Color: "#8b5cf6"},
-		},
-	}
-
-	if !cfg.HasLabel("bug") {
-		t.Error("HasLabel should return true for existing label")
-	}
-	if cfg.HasLabel("nonexistent") {
-		t.Error("HasLabel should return false for nonexistent label")
-	}
-}
-
 func TestBoardConfig_GetDefaultColumn(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -226,6 +206,116 @@ func TestDefaultColumns(t *testing.T) {
 		if cols[i].Color == "" {
 			t.Errorf("Column %d: missing color", i)
 		}
+	}
+}
+
+func TestBoardConfig_ValidateCardDisplay(t *testing.T) {
+	tests := []struct {
+		name         string
+		cfg          *BoardConfig
+		wantWarnings int
+	}{
+		{
+			name: "valid config",
+			cfg: &BoardConfig{
+				CustomFields: map[string]CustomFieldSchema{
+					"type":   {Type: "enum"},
+					"labels": {Type: "tags"},
+					"notes":  {Type: "string"},
+				},
+				CardDisplay: CardDisplayConfig{
+					TypeIndicator: "type",
+					Badges:        []string{"labels"},
+					Metadata:      []string{"notes"},
+				},
+			},
+			wantWarnings: 0,
+		},
+		{
+			name: "empty card_display",
+			cfg: &BoardConfig{
+				CustomFields: map[string]CustomFieldSchema{
+					"type": {Type: "enum"},
+				},
+				CardDisplay: CardDisplayConfig{},
+			},
+			wantWarnings: 0,
+		},
+		{
+			name: "type_indicator references non-existent field",
+			cfg: &BoardConfig{
+				CustomFields: map[string]CustomFieldSchema{},
+				CardDisplay: CardDisplayConfig{
+					TypeIndicator: "missing",
+				},
+			},
+			wantWarnings: 1,
+		},
+		{
+			name: "type_indicator references non-enum field",
+			cfg: &BoardConfig{
+				CustomFields: map[string]CustomFieldSchema{
+					"type": {Type: "string"},
+				},
+				CardDisplay: CardDisplayConfig{
+					TypeIndicator: "type",
+				},
+			},
+			wantWarnings: 1,
+		},
+		{
+			name: "badges references non-existent field",
+			cfg: &BoardConfig{
+				CustomFields: map[string]CustomFieldSchema{},
+				CardDisplay: CardDisplayConfig{
+					Badges: []string{"missing"},
+				},
+			},
+			wantWarnings: 1,
+		},
+		{
+			name: "badges references non-tags field",
+			cfg: &BoardConfig{
+				CustomFields: map[string]CustomFieldSchema{
+					"labels": {Type: "enum"},
+				},
+				CardDisplay: CardDisplayConfig{
+					Badges: []string{"labels"},
+				},
+			},
+			wantWarnings: 1,
+		},
+		{
+			name: "metadata references non-existent field",
+			cfg: &BoardConfig{
+				CustomFields: map[string]CustomFieldSchema{},
+				CardDisplay: CardDisplayConfig{
+					Metadata: []string{"missing"},
+				},
+			},
+			wantWarnings: 1,
+		},
+		{
+			name: "multiple warnings",
+			cfg: &BoardConfig{
+				CustomFields: map[string]CustomFieldSchema{},
+				CardDisplay: CardDisplayConfig{
+					TypeIndicator: "missing1",
+					Badges:        []string{"missing2"},
+					Metadata:      []string{"missing3"},
+				},
+			},
+			wantWarnings: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			warnings := tt.cfg.ValidateCardDisplay()
+			if len(warnings) != tt.wantWarnings {
+				t.Errorf("ValidateCardDisplay() returned %d warnings, want %d. Warnings: %v", len(warnings), tt.wantWarnings, warnings)
+			}
+		})
 	}
 }
 

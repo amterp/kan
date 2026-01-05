@@ -27,8 +27,8 @@ type CommandContext struct {
 	AddDescription *string
 	AddBoard       *string
 	AddColumn      *string
-	AddLabels      *[]string
 	AddParent      *string
+	AddFields      *[]string
 
 	// show command
 	ShowUsed  *bool
@@ -47,7 +47,6 @@ type CommandContext struct {
 	EditTitle       *string
 	EditDescription *string
 	EditColumn      *string
-	EditLabels      *[]string
 	EditParent      *string
 	EditAlias       *string
 	EditFields      *[]string
@@ -106,7 +105,7 @@ func executeCommand(ctx *CommandContext) {
 		runBoardList()
 
 	case *ctx.AddUsed:
-		runAdd(*ctx.AddTitle, *ctx.AddDescription, *ctx.AddBoard, *ctx.AddColumn, *ctx.AddLabels, *ctx.AddParent, *ctx.NonInteractive)
+		runAdd(*ctx.AddTitle, *ctx.AddDescription, *ctx.AddBoard, *ctx.AddColumn, *ctx.AddParent, *ctx.AddFields, *ctx.NonInteractive)
 
 	case *ctx.ShowUsed:
 		runShow(*ctx.ShowCard, *ctx.ShowBoard)
@@ -116,7 +115,7 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.EditUsed:
 		runEdit(*ctx.EditCard, *ctx.EditBoard, *ctx.EditTitle, *ctx.EditDescription,
-			*ctx.EditColumn, *ctx.EditLabels, *ctx.EditParent, *ctx.EditAlias,
+			*ctx.EditColumn, *ctx.EditParent, *ctx.EditAlias,
 			*ctx.EditFields, *ctx.NonInteractive)
 
 	case *ctx.ServeUsed:

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent, DragOverEvent, CollisionDetection, DroppableContainer } from '@dnd-kit/core';
-import type { BoardConfig, Card, CreateCardInput } from '../api/types';
+import type { BoardConfig, Card, CreateCardInput, UpdateCardInput } from '../api/types';
 import Column from './Column';
 import CardComponent from './Card';
 import CardEditModal from './CardEditModal';
@@ -11,7 +11,7 @@ interface BoardProps {
   cards: Card[];
   onMoveCard: (cardId: string, column: string, position?: number) => Promise<void>;
   onCreateCard: (input: CreateCardInput) => Promise<Card | undefined>;
-  onUpdateCard: (id: string, updates: Partial<Card>) => Promise<void>;
+  onUpdateCard: (id: string, updates: UpdateCardInput) => Promise<void>;
   onDeleteCard: (id: string) => Promise<void>;
 }
 
@@ -244,7 +244,7 @@ export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdate
     setEditingCard(card);
   };
 
-  const handleSaveCard = async (updates: Partial<Card>) => {
+  const handleSaveCard = async (updates: UpdateCardInput) => {
     if (editingCard) {
       await onUpdateCard(editingCard.id, updates);
       setEditingCard(null);
@@ -281,7 +281,7 @@ export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdate
               key={column.name}
               column={column}
               cards={cardsByColumn[column.name] || []}
-              labels={board.labels || []}
+              board={board}
               isAddingCard={addingToColumn === column.name}
               draftTitle={draftTitles[column.name] || ''}
               onDraftChange={(title) => setDraftTitles((prev) => ({ ...prev, [column.name]: title }))}
@@ -298,7 +298,7 @@ export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdate
         </div>
         <DragOverlay>
           {activeCard ? (
-            <CardComponent card={activeCard} labels={board.labels || []} isDragging />
+            <CardComponent card={activeCard} board={board} isDragging />
           ) : null}
         </DragOverlay>
       </DndContext>

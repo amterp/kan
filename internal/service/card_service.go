@@ -30,13 +30,13 @@ func NewCardService(cardStore store.CardStore, boardStore store.BoardStore, alia
 
 // AddCardInput contains the input for adding a card.
 type AddCardInput struct {
-	BoardName   string
-	Title       string
-	Description string
-	Column      string
-	Labels      []string
-	Parent      string
-	Creator     string
+	BoardName    string
+	Title        string
+	Description  string
+	Column       string
+	Parent       string
+	Creator      string
+	CustomFields map[string]string // custom fields to set (parsed from key=value)
 }
 
 // EditCardInput contains the input for editing a card.
@@ -47,7 +47,6 @@ type EditCardInput struct {
 	Title         *string           // nil = no change
 	Description   *string           // nil = no change
 	Column        *string           // nil = no change
-	Labels        *[]string         // nil = no change, empty slice = clear labels
 	Parent        *string           // nil = no change, empty string = clear parent
 	Alias         *string           // nil = no change
 	CustomFields  map[string]string // fields to set/update (parsed from key=value)
@@ -70,13 +69,6 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, error) {
 		return nil, kanerr.ColumnNotFound(column, input.BoardName)
 	}
 
-	// Validate labels
-	for _, label := range input.Labels {
-		if !boardCfg.HasLabel(label) {
-			return nil, kanerr.LabelNotFound(label, input.BoardName)
-		}
-	}
-
 	// Generate ID and alias
 	cardID := id.Generate()
 	alias, err := s.aliasService.GenerateAlias(input.BoardName, input.Title)
@@ -91,16 +83,17 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, error) {
 		AliasExplicit:   false,
 		Title:           input.Title,
 		Description:     input.Description,
-		Labels:          input.Labels,
 		Parent:          input.Parent,
 		Creator:         input.Creator,
 		CreatedAtMillis: now,
 		UpdatedAtMillis: now,
 	}
 
-	// Validate custom fields don't use reserved prefixes
-	if err := model.ValidateCustomFields(card.CustomFields); err != nil {
-		return nil, err
+	// Apply custom fields if provided
+	if len(input.CustomFields) > 0 {
+		if err := s.validateAndApplyCustomFields(card, boardCfg, input.CustomFields); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := s.cardStore.Create(input.BoardName, card); err != nil {
@@ -294,25 +287,6 @@ func (s *CardService) Edit(input EditCardInput) (*model.Card, error) {
 		needsUpdate = true
 	}
 
-	// Handle labels change (replace mode)
-	if input.Labels != nil {
-		// Validate all non-empty labels exist
-		for _, label := range *input.Labels {
-			if label != "" && !boardCfg.HasLabel(label) {
-				return nil, kanerr.LabelNotFound(label, input.BoardName)
-			}
-		}
-		// Filter out empty strings (used for clearing)
-		filtered := make([]string, 0)
-		for _, l := range *input.Labels {
-			if l != "" {
-				filtered = append(filtered, l)
-			}
-		}
-		card.Labels = filtered
-		needsUpdate = true
-	}
-
 	// Handle parent change
 	if input.Parent != nil {
 		if *input.Parent != "" {
@@ -377,20 +351,32 @@ func (s *CardService) validateAndApplyCustomFields(card *model.Card, boardCfg *m
 		}
 
 		// Validate value against schema
-		if schema.Type == "enum" {
-			valid := false
-			for _, allowed := range schema.Values {
-				if value == allowed {
-					valid = true
-					break
+		switch schema.Type {
+		case model.FieldTypeEnum:
+			if !isValidOption(schema.Options, value) {
+				return kanerr.InvalidField(key, fmt.Sprintf("must be one of: %s", formatOptions(schema.Options)))
+			}
+			card.CustomFields[key] = value
+
+		case model.FieldTypeTags:
+			// Parse comma-separated values
+			tags := parseTagsValue(value)
+			if len(tags) > model.MaxTagsPerField {
+				return kanerr.InvalidField(key, fmt.Sprintf("too many tags (max %d)", model.MaxTagsPerField))
+			}
+			for _, tag := range tags {
+				if !isValidOption(schema.Options, tag) {
+					return kanerr.InvalidField(key, fmt.Sprintf("%q is not a valid option; must be one of: %s", tag, formatOptions(schema.Options)))
 				}
 			}
-			if !valid {
-				return kanerr.InvalidField(key, fmt.Sprintf("must be one of: %s", strings.Join(schema.Values, ", ")))
-			}
-		}
+			card.CustomFields[key] = tags
 
-		card.CustomFields[key] = value
+		case model.FieldTypeString, model.FieldTypeDate:
+			card.CustomFields[key] = value
+
+		default:
+			return kanerr.InvalidField(key, fmt.Sprintf("unknown field type %q", schema.Type))
+		}
 	}
 
 	return nil
@@ -412,4 +398,40 @@ func (s *CardService) Delete(boardName, cardID string) error {
 
 	boardCfg.RemoveCardFromColumn(cardID)
 	return s.boardStore.Update(boardCfg)
+}
+
+// isValidOption checks if a value exists in the options list.
+func isValidOption(options []model.CustomFieldOption, value string) bool {
+	for _, opt := range options {
+		if opt.Value == value {
+			return true
+		}
+	}
+	return false
+}
+
+// formatOptions returns a comma-separated list of option values.
+func formatOptions(options []model.CustomFieldOption) string {
+	values := make([]string, len(options))
+	for i, opt := range options {
+		values[i] = opt.Value
+	}
+	return strings.Join(values, ", ")
+}
+
+// parseTagsValue parses a comma-separated string into a slice of tags.
+// Empty values are filtered out and values are trimmed.
+func parseTagsValue(value string) []string {
+	if value == "" {
+		return []string{}
+	}
+	parts := strings.Split(value, ",")
+	tags := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			tags = append(tags, p)
+		}
+	}
+	return tags
 }

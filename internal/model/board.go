@@ -1,5 +1,30 @@
 package model
 
+// Custom field type constants.
+const (
+	FieldTypeString = "string"
+	FieldTypeEnum   = "enum"
+	FieldTypeTags   = "tags"
+	FieldTypeDate   = "date"
+)
+
+// MaxTagsPerField is the maximum number of tags allowed per tags field.
+// This prevents accidental abuse and keeps the UI manageable.
+const MaxTagsPerField = 10
+
+// ValidFieldTypes lists all supported custom field types.
+var ValidFieldTypes = []string{FieldTypeString, FieldTypeEnum, FieldTypeTags, FieldTypeDate}
+
+// IsValidFieldType returns true if the given type is a valid custom field type.
+func IsValidFieldType(t string) bool {
+	for _, valid := range ValidFieldTypes {
+		if t == valid {
+			return true
+		}
+	}
+	return false
+}
+
 // BoardConfig represents the configuration for a kanban board.
 // Stored as config.toml in the board directory.
 // Schema changes require a version bump—see internal/version/version.go.
@@ -9,8 +34,8 @@ type BoardConfig struct {
 	Name          string                       `toml:"name" json:"name"`
 	Columns       []Column                     `toml:"columns" json:"columns"`
 	DefaultColumn string                       `toml:"default_column" json:"default_column"`
-	Labels        []Label                      `toml:"labels,omitempty" json:"labels,omitempty"`
 	CustomFields  map[string]CustomFieldSchema `toml:"custom_fields,omitempty" json:"custom_fields,omitempty"`
+	CardDisplay   CardDisplayConfig            `toml:"card_display,omitempty" json:"card_display,omitempty"`
 }
 
 // Column represents a kanban column.
@@ -20,17 +45,23 @@ type Column struct {
 	CardIDs []string `toml:"card_ids,omitempty" json:"card_ids,omitempty"`
 }
 
-// Label represents a card label.
-type Label struct {
-	Name        string `toml:"name" json:"name"`
-	Color       string `toml:"color" json:"color"`
-	Description string `toml:"description,omitempty" json:"description,omitempty"`
+// CustomFieldOption represents a single option for enum/tags fields.
+type CustomFieldOption struct {
+	Value string `toml:"value" json:"value"`
+	Color string `toml:"color,omitempty" json:"color,omitempty"`
 }
 
 // CustomFieldSchema defines the schema for a custom field.
 type CustomFieldSchema struct {
-	Type   string   `toml:"type" json:"type"`                         // "string", "enum", "date"
-	Values []string `toml:"values,omitempty" json:"values,omitempty"` // For enum type
+	Type    string              `toml:"type" json:"type"`                           // "string", "enum", "tags", "date"
+	Options []CustomFieldOption `toml:"options,omitempty" json:"options,omitempty"` // For enum/tags types
+}
+
+// CardDisplayConfig controls how custom fields render on cards in the board view.
+type CardDisplayConfig struct {
+	TypeIndicator string   `toml:"type_indicator,omitempty" json:"type_indicator,omitempty"` // enum field shown as badge
+	Badges        []string `toml:"badges,omitempty" json:"badges,omitempty"`                 // tags fields shown as chips
+	Metadata      []string `toml:"metadata,omitempty" json:"metadata,omitempty"`             // fields shown as small text
 }
 
 // DefaultColumns returns the default columns for a new board.
@@ -43,13 +74,33 @@ func DefaultColumns() []Column {
 	}
 }
 
-// DefaultLabels returns the default labels for a new board.
-func DefaultLabels() []Label {
-	return []Label{
-		{Name: "bug", Color: "#ef4444"},
-		{Name: "feature", Color: "#8b5cf6"},
-		{Name: "enhancement", Color: "#3b82f6"},
-		{Name: "chore", Color: "#6b7280"},
+// DefaultCustomFields returns the default custom fields for a new board.
+// Includes 'type' (enum) for categorization and 'labels' (tags) for attributes.
+func DefaultCustomFields() map[string]CustomFieldSchema {
+	return map[string]CustomFieldSchema{
+		"type": {
+			Type: FieldTypeEnum,
+			Options: []CustomFieldOption{
+				{Value: "feature", Color: "#22c55e"},
+				{Value: "bug", Color: "#ef4444"},
+				{Value: "task", Color: "#6b7280"},
+			},
+		},
+		"labels": {
+			Type: FieldTypeTags,
+			Options: []CustomFieldOption{
+				{Value: "blocked", Color: "#dc2626"},
+				{Value: "needs-review", Color: "#f59e0b"},
+			},
+		},
+	}
+}
+
+// DefaultCardDisplay returns the default card display config for a new board.
+func DefaultCardDisplay() CardDisplayConfig {
+	return CardDisplayConfig{
+		TypeIndicator: "type",
+		Badges:        []string{"labels"},
 	}
 }
 
@@ -57,16 +108,6 @@ func DefaultLabels() []Label {
 func (b *BoardConfig) HasColumn(name string) bool {
 	for _, col := range b.Columns {
 		if col.Name == name {
-			return true
-		}
-	}
-	return false
-}
-
-// HasLabel returns true if the board has a label with the given name.
-func (b *BoardConfig) HasLabel(name string) bool {
-	for _, lbl := range b.Labels {
-		if lbl.Name == name {
 			return true
 		}
 	}
@@ -169,4 +210,44 @@ func (b *BoardConfig) GetCardColumn(cardID string) string {
 		}
 	}
 	return ""
+}
+
+// ValidateCardDisplay validates that CardDisplayConfig references valid custom fields.
+// Returns a list of warning messages for invalid references (non-fatal).
+func (b *BoardConfig) ValidateCardDisplay() []string {
+	var warnings []string
+
+	cd := b.CardDisplay
+	if cd.TypeIndicator == "" && len(cd.Badges) == 0 && len(cd.Metadata) == 0 {
+		return nil // Empty config, nothing to validate
+	}
+
+	// Validate type_indicator references an enum field
+	if cd.TypeIndicator != "" {
+		schema, exists := b.CustomFields[cd.TypeIndicator]
+		if !exists {
+			warnings = append(warnings, "card_display.type_indicator references non-existent field: "+cd.TypeIndicator)
+		} else if schema.Type != FieldTypeEnum {
+			warnings = append(warnings, "card_display.type_indicator should reference an enum field, but '"+cd.TypeIndicator+"' is type '"+schema.Type+"'")
+		}
+	}
+
+	// Validate badges reference tags fields
+	for _, fieldName := range cd.Badges {
+		schema, exists := b.CustomFields[fieldName]
+		if !exists {
+			warnings = append(warnings, "card_display.badges references non-existent field: "+fieldName)
+		} else if schema.Type != FieldTypeTags {
+			warnings = append(warnings, "card_display.badges should reference tags fields, but '"+fieldName+"' is type '"+schema.Type+"'")
+		}
+	}
+
+	// Validate metadata references existing fields
+	for _, fieldName := range cd.Metadata {
+		if _, exists := b.CustomFields[fieldName]; !exists {
+			warnings = append(warnings, "card_display.metadata references non-existent field: "+fieldName)
+		}
+	}
+
+	return warnings
 }

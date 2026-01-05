@@ -14,7 +14,6 @@ type Card struct {
 	AliasExplicit   bool      `json:"alias_explicit"`
 	Title           string    `json:"title"`
 	Description     string    `json:"description,omitempty"`
-	Labels          []string  `json:"labels,omitempty"`
 	Parent          string    `json:"parent,omitempty"`
 	Creator         string    `json:"creator"`
 	CreatedAtMillis int64     `json:"created_at_millis"`
@@ -25,7 +24,7 @@ type Card struct {
 	// Populated by service layer when cards are loaded.
 	Column string `json:"-"`
 
-	// CustomFields holds board-defined custom fields.
+	// CustomFields holds board-defined custom fields (including labels, type, etc.).
 	// These are serialized at the top level of the JSON, not nested.
 	CustomFields map[string]any `json:"-"`
 }
@@ -85,7 +84,7 @@ func (c *Card) UnmarshalJSON(data []byte) error {
 	knownFields := map[string]bool{
 		"_v": true, "id": true, "alias": true, "alias_explicit": true,
 		"title": true, "description": true,
-		"labels": true, "parent": true, "creator": true,
+		"parent": true, "creator": true,
 		"created_at_millis": true, "updated_at_millis": true,
 		"comments": true,
 	}

@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import type { Card, BoardConfig } from '../api/types';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import type { Card, BoardConfig, CustomFieldSchema, UpdateCardInput } from '../api/types';
+import { FIELD_TYPE_ENUM, FIELD_TYPE_TAGS, FIELD_TYPE_STRING, FIELD_TYPE_DATE } from '../api/types';
 
 interface CardEditModalProps {
   card: Card;
   board: BoardConfig;
-  onSave: (updates: Partial<Card>) => Promise<void>;
+  onSave: (updates: UpdateCardInput) => Promise<void>;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -15,13 +16,31 @@ let savedModalState = {
   size: { width: 900, height: 600 },
 };
 
+// Helper to get current value for a custom field
+function getFieldValue(card: Card, fieldName: string): unknown {
+  return card[fieldName];
+}
+
 export default function CardEditModal({ card, board, onSave, onDelete, onClose }: CardEditModalProps) {
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description || '');
   const [column, setColumn] = useState(card.column);
-  const [selectedLabels, setSelectedLabels] = useState<string[]>(card.labels || []);
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Custom field states - initialized from card
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>(() => {
+    const values: Record<string, unknown> = {};
+    if (board.custom_fields) {
+      for (const fieldName of Object.keys(board.custom_fields)) {
+        const fieldValue = getFieldValue(card, fieldName);
+        if (fieldValue !== undefined) {
+          values[fieldName] = fieldValue;
+        }
+      }
+    }
+    return values;
+  });
 
   // Drag state - initialize from saved state
   const [position, setPosition] = useState(savedModalState.position);
@@ -37,11 +56,28 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
   const justFinishedInteraction = useRef(false);
 
   // Calculate hasChanges early so it can be used in effects
-  const hasChanges =
-    title !== card.title ||
-    description !== (card.description || '') ||
-    column !== card.column ||
-    JSON.stringify(selectedLabels.sort()) !== JSON.stringify((card.labels || []).sort());
+  const hasChanges = useMemo(() => {
+    if (title !== card.title) return true;
+    if (description !== (card.description || '')) return true;
+    if (column !== card.column) return true;
+
+    // Check custom fields
+    if (board.custom_fields) {
+      for (const fieldName of Object.keys(board.custom_fields)) {
+        const originalValue = getFieldValue(card, fieldName);
+        const currentValue = customFieldValues[fieldName];
+
+        if (board.custom_fields[fieldName].type === 'tags') {
+          const orig = Array.isArray(originalValue) ? originalValue : [];
+          const curr = Array.isArray(currentValue) ? currentValue : [];
+          if (JSON.stringify(orig.sort()) !== JSON.stringify(curr.sort())) return true;
+        } else {
+          if (originalValue !== currentValue) return true;
+        }
+      }
+    }
+    return false;
+  }, [title, description, column, customFieldValues, card, board.custom_fields]);
 
   // Save state when it changes
   useEffect(() => {
@@ -116,12 +152,18 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
     });
   };
 
-  const toggleLabel = (labelName: string) => {
-    setSelectedLabels((prev) =>
-      prev.includes(labelName)
-        ? prev.filter((l) => l !== labelName)
-        : [...prev, labelName]
-    );
+  const toggleTagValue = (fieldName: string, value: string) => {
+    setCustomFieldValues((prev) => {
+      const current = Array.isArray(prev[fieldName]) ? prev[fieldName] as string[] : [];
+      const newValues = current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value];
+      return { ...prev, [fieldName]: newValues };
+    });
+  };
+
+  const setEnumValue = (fieldName: string, value: string) => {
+    setCustomFieldValues((prev) => ({ ...prev, [fieldName]: value }));
   };
 
   const handleSave = useCallback(async () => {
@@ -129,17 +171,37 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
 
     setSaving(true);
     try {
-      await onSave({
+      const updates: UpdateCardInput = {
         title: title.trim(),
         description: description.trim() || undefined,
         column,
-        labels: selectedLabels.length > 0 ? selectedLabels : undefined,
-      });
+      };
+
+      // Build custom_fields for update
+      if (board.custom_fields && Object.keys(board.custom_fields).length > 0) {
+        const customFields: Record<string, unknown> = {};
+        for (const [fieldName, schema] of Object.entries(board.custom_fields)) {
+          const value = customFieldValues[fieldName];
+          if (value !== undefined) {
+            if (schema.type === 'tags' && Array.isArray(value)) {
+              // Send tags as comma-separated string for API
+              customFields[fieldName] = (value as string[]).join(',');
+            } else {
+              customFields[fieldName] = value;
+            }
+          }
+        }
+        if (Object.keys(customFields).length > 0) {
+          updates.custom_fields = customFields;
+        }
+      }
+
+      await onSave(updates);
       onClose();
     } finally {
       setSaving(false);
     }
-  }, [title, description, column, selectedLabels, onSave, onClose]);
+  }, [title, description, column, customFieldValues, board.custom_fields, onSave, onClose]);
 
   // Document-level keyboard handler so Cmd+Enter works without focus
   useEffect(() => {
@@ -171,6 +233,94 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
       handleSave();
     } else {
       onClose();
+    }
+  };
+
+  // Render a custom field editor based on its type
+  const renderCustomFieldEditor = (fieldName: string, schema: CustomFieldSchema) => {
+    const currentValue = customFieldValues[fieldName];
+
+    switch (schema.type) {
+      case FIELD_TYPE_ENUM:
+        return (
+          <div className="mb-4" key={fieldName}>
+            <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{fieldName}</label>
+            <select
+              value={(currentValue as string) || ''}
+              onChange={(e) => setEnumValue(fieldName, e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              <option value="">None</option>
+              {schema.options?.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.value}
+                </option>
+              ))}
+            </select>
+          </div>
+        );
+
+      case FIELD_TYPE_TAGS: {
+        const selectedTags = Array.isArray(currentValue) ? currentValue as string[] : [];
+        return (
+          <div className="mb-4" key={fieldName}>
+            <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">{fieldName}</label>
+            <div className="flex flex-wrap gap-2">
+              {schema.options?.map((opt) => {
+                const isSelected = selectedTags.includes(opt.value);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => toggleTagValue(fieldName, opt.value)}
+                    className={`px-2 py-0.5 text-xs rounded-full transition-all ${
+                      isSelected
+                        ? 'text-white ring-2 ring-offset-1'
+                        : 'text-white opacity-50 hover:opacity-75'
+                    }`}
+                    style={{
+                      backgroundColor: opt.color || '#6b7280',
+                      boxShadow: isSelected ? `0 0 0 2px white, 0 0 0 4px ${opt.color || '#6b7280'}` : undefined,
+                    }}
+                  >
+                    {opt.value}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
+
+      case FIELD_TYPE_STRING:
+        return (
+          <div className="mb-4" key={fieldName}>
+            <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{fieldName}</label>
+            <input
+              type="text"
+              value={(currentValue as string) || ''}
+              onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [fieldName]: e.target.value }))}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder={`Enter ${fieldName}...`}
+            />
+          </div>
+        );
+
+      case FIELD_TYPE_DATE:
+        return (
+          <div className="mb-4" key={fieldName}>
+            <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{fieldName}</label>
+            <input
+              type="date"
+              value={(currentValue as string) || ''}
+              onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [fieldName]: e.target.value }))}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        );
+
+      default:
+        return null;
     }
   };
 
@@ -314,34 +464,11 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
               </select>
             </div>
 
-            {/* Labels */}
-            {board.labels && board.labels.length > 0 && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Labels</label>
-                <div className="flex flex-wrap gap-2">
-                  {board.labels.map((label) => {
-                    const isSelected = selectedLabels.includes(label.name);
-                    return (
-                      <button
-                        key={label.name}
-                        type="button"
-                        onClick={() => toggleLabel(label.name)}
-                        className={`px-2 py-0.5 text-xs rounded-full transition-all ${
-                          isSelected
-                            ? 'text-white ring-2 ring-offset-1'
-                            : 'text-white opacity-50 hover:opacity-75'
-                        }`}
-                        style={{
-                          backgroundColor: label.color,
-                          boxShadow: isSelected ? `0 0 0 2px white, 0 0 0 4px ${label.color}` : undefined,
-                        }}
-                      >
-                        {label.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            {/* Custom fields */}
+            {/* TODO: Field ordering is currently undefined (Go map → JSON → JS object).
+                Consider adding explicit ordering config to boards in the future. */}
+            {board.custom_fields && Object.entries(board.custom_fields).map(([fieldName, schema]) =>
+              renderCustomFieldEditor(fieldName, schema)
             )}
 
             {/* Metadata */}

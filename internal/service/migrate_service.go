@@ -299,8 +299,98 @@ func (s *MigrateService) migrateGlobalConfig(plan *GlobalMigration) error {
 }
 
 func (s *MigrateService) migrateBoardConfig(plan *BoardMigration) error {
-	// Prepend kan_schema to preserve existing file formatting
+	// Determine which migration path to use based on source version
+	fromVersion := 0
+	if plan.FromSchema != "" {
+		v, err := version.ParseBoardVersion(plan.FromSchema)
+		if err == nil {
+			fromVersion = v
+		}
+	}
+
+	// v0 or missing → v1: just prepend schema
+	// v1 → v2: convert labels to custom fields
+	if fromVersion == 0 && version.CurrentBoardVersion == 1 {
+		return s.prependTOMLField(plan.ConfigPath, "kan_schema", plan.ToSchema)
+	}
+
+	if fromVersion <= 1 && version.CurrentBoardVersion == 2 {
+		return s.migrateBoardV1ToV2(plan.ConfigPath)
+	}
+
+	// Fallback for unknown versions: just update the schema
 	return s.prependTOMLField(plan.ConfigPath, "kan_schema", plan.ToSchema)
+}
+
+// migrateBoardV1ToV2 converts a v1 board config to v2 format.
+// This involves converting [[labels]] to [custom_fields.labels] with type="tags"
+// and adding a [card_display] section.
+func (s *MigrateService) migrateBoardV1ToV2(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var raw map[string]any
+	if _, err := toml.Decode(string(data), &raw); err != nil {
+		return fmt.Errorf("invalid TOML: %w", err)
+	}
+
+	// Update schema version
+	raw["kan_schema"] = version.CurrentBoardSchema()
+
+	// Convert labels to custom field
+	hasLabels := false
+	if labels, ok := raw["labels"].([]map[string]any); ok && len(labels) > 0 {
+		hasLabels = true
+		options := make([]map[string]any, 0, len(labels))
+		for _, lbl := range labels {
+			opt := map[string]any{
+				"value": lbl["name"],
+			}
+			if color, ok := lbl["color"].(string); ok && color != "" {
+				opt["color"] = color
+			}
+			options = append(options, opt)
+		}
+
+		// Create or update custom_fields
+		customFields, _ := raw["custom_fields"].(map[string]any)
+		if customFields == nil {
+			customFields = make(map[string]any)
+		}
+		customFields["labels"] = map[string]any{
+			"type":    "tags",
+			"options": options,
+		}
+		raw["custom_fields"] = customFields
+
+		// Remove old labels section
+		delete(raw, "labels")
+	}
+
+	// Add card_display if we had labels
+	if hasLabels {
+		if _, ok := raw["card_display"]; !ok {
+			raw["card_display"] = map[string]any{
+				"badges": []string{"labels"},
+			}
+		}
+	}
+
+	return s.writeTOML(path, raw)
+}
+
+// writeTOML writes a map to a TOML file.
+func (s *MigrateService) writeTOML(path string, data map[string]any) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	encoder := toml.NewEncoder(f)
+	return encoder.Encode(data)
 }
 
 // prependTOMLField adds a field at the top of a TOML file, preserving existing formatting.

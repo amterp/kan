@@ -11,6 +11,7 @@ import (
 
 // CardResponse wraps a Card for JSON API responses, including the Column field
 // which is computed (from board config) and not persisted to card files.
+// Custom fields are flattened into the top level to match the card JSON storage format.
 type CardResponse struct {
 	ID              string          `json:"id"`
 	Alias           string          `json:"alias"`
@@ -18,13 +19,45 @@ type CardResponse struct {
 	Title           string          `json:"title"`
 	Description     string          `json:"description,omitempty"`
 	Column          string          `json:"column"`
-	Labels          []string        `json:"labels,omitempty"`
 	Parent          string          `json:"parent,omitempty"`
 	Creator         string          `json:"creator"`
 	CreatedAtMillis int64           `json:"created_at_millis"`
 	UpdatedAtMillis int64           `json:"updated_at_millis"`
 	Comments        []model.Comment `json:"comments,omitempty"`
-	CustomFields    map[string]any  `json:"custom_fields,omitempty"`
+	CustomFields    map[string]any  `json:"-"` // Flattened into top level by MarshalJSON
+}
+
+// MarshalJSON flattens custom fields into the top level of the JSON output.
+func (c CardResponse) MarshalJSON() ([]byte, error) {
+	// Build base map with known fields
+	m := map[string]any{
+		"id":                c.ID,
+		"alias":             c.Alias,
+		"alias_explicit":    c.AliasExplicit,
+		"title":             c.Title,
+		"column":            c.Column,
+		"creator":           c.Creator,
+		"created_at_millis": c.CreatedAtMillis,
+		"updated_at_millis": c.UpdatedAtMillis,
+	}
+
+	// Add optional fields only if non-empty
+	if c.Description != "" {
+		m["description"] = c.Description
+	}
+	if c.Parent != "" {
+		m["parent"] = c.Parent
+	}
+	if len(c.Comments) > 0 {
+		m["comments"] = c.Comments
+	}
+
+	// Flatten custom fields into top level
+	for k, v := range c.CustomFields {
+		m[k] = v
+	}
+
+	return json.Marshal(m)
 }
 
 // toCardResponse converts a model.Card to a CardResponse for API output.
@@ -36,7 +69,6 @@ func toCardResponse(card *model.Card) CardResponse {
 		Title:           card.Title,
 		Description:     card.Description,
 		Column:          card.Column,
-		Labels:          card.Labels,
 		Parent:          card.Parent,
 		Creator:         card.Creator,
 		CreatedAtMillis: card.CreatedAtMillis,
@@ -154,11 +186,11 @@ func (h *Handler) ListCards(w http.ResponseWriter, r *http.Request) {
 
 // CreateCardRequest is the JSON body for creating a card.
 type CreateCardRequest struct {
-	Title       string   `json:"title"`
-	Description string   `json:"description,omitempty"`
-	Column      string   `json:"column,omitempty"`
-	Labels      []string `json:"labels,omitempty"`
-	Parent      string   `json:"parent,omitempty"`
+	Title        string            `json:"title"`
+	Description  string            `json:"description,omitempty"`
+	Column       string            `json:"column,omitempty"`
+	Parent       string            `json:"parent,omitempty"`
+	CustomFields map[string]string `json:"custom_fields,omitempty"`
 }
 
 // CreateCard creates a new card.
@@ -177,13 +209,13 @@ func (h *Handler) CreateCard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	input := service.AddCardInput{
-		BoardName:   boardName,
-		Title:       req.Title,
-		Description: req.Description,
-		Column:      req.Column,
-		Labels:      req.Labels,
-		Parent:      req.Parent,
-		Creator:     h.creator,
+		BoardName:    boardName,
+		Title:        req.Title,
+		Description:  req.Description,
+		Column:       req.Column,
+		Parent:       req.Parent,
+		Creator:      h.creator,
+		CustomFields: req.CustomFields,
 	}
 
 	card, err := h.cardService.Add(input)
@@ -215,10 +247,10 @@ func (h *Handler) GetCard(w http.ResponseWriter, r *http.Request) {
 
 // UpdateCardRequest is the JSON body for updating a card.
 type UpdateCardRequest struct {
-	Title       *string  `json:"title,omitempty"`
-	Description *string  `json:"description,omitempty"`
-	Column      *string  `json:"column,omitempty"`
-	Labels      []string `json:"labels,omitempty"`
+	Title        *string           `json:"title,omitempty"`
+	Description  *string           `json:"description,omitempty"`
+	Column       *string           `json:"column,omitempty"`
+	CustomFields map[string]string `json:"custom_fields,omitempty"`
 }
 
 // UpdateCard updates an existing card.
@@ -250,36 +282,24 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 		card.Column = *req.Column // Update in-memory for response
 	}
 
-	// Apply other updates
-	needsUpdate := false
-	if req.Title != nil {
-		if err := h.cardService.UpdateTitle(boardName, card, *req.Title); err != nil {
-			Error(w, err)
-			return
-		}
-		// Re-fetch after title update (which regenerates alias)
-		card, err = h.cardService.Get(boardName, card.ID)
+	// Apply other updates via Edit
+	input := service.EditCardInput{
+		BoardName:     boardName,
+		CardIDOrAlias: card.ID,
+		Title:         req.Title,
+		Description:   req.Description,
+		CustomFields:  req.CustomFields,
+	}
+
+	// Only call Edit if there are changes to apply
+	if req.Title != nil || req.Description != nil || len(req.CustomFields) > 0 {
+		updated, err := h.cardService.Edit(input)
 		if err != nil {
 			Error(w, err)
 			return
 		}
+		card = updated
 		h.populateCardColumn(boardName, card)
-	}
-
-	if req.Description != nil && *req.Description != card.Description {
-		card.Description = *req.Description
-		needsUpdate = true
-	}
-	if req.Labels != nil {
-		card.Labels = req.Labels
-		needsUpdate = true
-	}
-
-	if needsUpdate {
-		if err := h.cardService.Update(boardName, card); err != nil {
-			Error(w, err)
-			return
-		}
 	}
 
 	JSON(w, http.StatusOK, toCardResponse(card))

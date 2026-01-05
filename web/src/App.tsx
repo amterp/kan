@@ -3,7 +3,7 @@ import { useBoards, useBoard } from './hooks/useBoards';
 import Header from './components/Header';
 import Board from './components/Board';
 import CardEditModal from './components/CardEditModal';
-import type { Card } from './api/types';
+import type { Card, UpdateCardInput } from './api/types';
 
 function App() {
   const { boards, loading: boardsLoading, error: boardsError } = useBoards();
@@ -19,7 +19,7 @@ function App() {
     }
   }, [board, createCard]);
 
-  const handleSaveNewCard = useCallback(async (updates: Partial<Card>) => {
+  const handleSaveNewCard = useCallback(async (updates: UpdateCardInput) => {
     if (newCardForEdit) {
       await updateCard(newCardForEdit.id, updates);
       setNewCardForEdit(null);

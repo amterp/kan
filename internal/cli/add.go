@@ -34,13 +34,6 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Target column").
 		Register(cmd)
 
-	ctx.AddLabels, _ = ra.NewStringSlice("label").
-		SetShort("l").
-		SetOptional(true).
-		SetFlagOnly(true).
-		SetUsage("Add label (repeatable)").
-		Register(cmd)
-
 	ctx.AddParent, _ = ra.NewString("parent").
 		SetShort("p").
 		SetOptional(true).
@@ -48,10 +41,17 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Parent card ID or alias").
 		Register(cmd)
 
+	ctx.AddFields, _ = ra.NewStringSlice("field").
+		SetShort("f").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Set custom field (key=value format, repeatable)").
+		Register(cmd)
+
 	ctx.AddUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runAdd(title, description, board, column string, labels []string, parentCard string, nonInteractive bool) {
+func runAdd(title, description, board, column string, parentCard string, fields []string, nonInteractive bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -75,19 +75,25 @@ func runAdd(title, description, board, column string, labels []string, parentCar
 		}
 	}
 
+	// Parse custom fields
+	customFields, err := parseCustomFields(fields)
+	if err != nil {
+		Fatal(err)
+	}
+
 	creatorName, err := app.GetCreator()
 	if err != nil {
 		Fatal(err)
 	}
 
 	input := service.AddCardInput{
-		BoardName:   boardName,
-		Title:       title,
-		Description: description,
-		Column:      column,
-		Labels:      labels,
-		Parent:      parentCard,
-		Creator:     creatorName,
+		BoardName:    boardName,
+		Title:        title,
+		Description:  description,
+		Column:       column,
+		Parent:       parentCard,
+		Creator:      creatorName,
+		CustomFields: customFields,
 	}
 
 	card, err := app.CardService.Add(input)

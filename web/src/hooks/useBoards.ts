@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { listBoards, getBoard } from '../api/boards';
 import { listCards, moveCard as apiMoveCard, createCard as apiCreateCard, updateCard as apiUpdateCard, deleteCard as apiDeleteCard } from '../api/cards';
-import type { BoardConfig, Card, CreateCardInput } from '../api/types';
+import type { BoardConfig, Card, CreateCardInput, UpdateCardInput } from '../api/types';
 
 export function useBoards() {
   const [boards, setBoards] = useState<string[]>([]);
@@ -101,19 +101,25 @@ export function useBoard(boardName: string | null) {
     return newCard;
   }, [boardName]);
 
-  const updateCard = useCallback(async (cardId: string, updates: Partial<Card>) => {
+  const updateCard = useCallback(async (cardId: string, updates: UpdateCardInput) => {
     if (!boardName) return;
 
-    // Optimistic update
+    // Optimistic update (basic fields only; custom fields come from server response)
     setCards((prev) =>
       prev.map((card) =>
-        card.id === cardId ? { ...card, ...updates, updated_at_millis: Date.now() } : card
+        card.id === cardId ? {
+          ...card,
+          title: updates.title ?? card.title,
+          description: updates.description ?? card.description,
+          column: updates.column ?? card.column,
+          updated_at_millis: Date.now(),
+        } : card
       )
     );
 
     try {
       const updatedCard = await apiUpdateCard(boardName, cardId, updates);
-      // Update with server response
+      // Update with server response (includes custom fields)
       setCards((prev) =>
         prev.map((card) =>
           card.id === cardId ? updatedCard : card

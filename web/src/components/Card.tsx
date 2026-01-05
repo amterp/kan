@@ -1,18 +1,34 @@
 import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Card as CardType, Label } from '../api/types';
+import type { Card as CardType, BoardConfig, CustomFieldOption } from '../api/types';
 
 interface CardProps {
   card: CardType;
-  labels: Label[];
+  board: BoardConfig;
   isDragging?: boolean;
   isPlaceholder?: boolean;
   onClick?: () => void;
   onDelete?: () => void;
 }
 
-export default function Card({ card, labels, isDragging = false, isPlaceholder = false, onClick, onDelete }: CardProps) {
+// Helper to get option details for a field value
+function getFieldOption(board: BoardConfig, fieldName: string, value: string): CustomFieldOption | undefined {
+  const schema = board.custom_fields?.[fieldName];
+  if (!schema?.options) return undefined;
+  return schema.options.find(opt => opt.value === value);
+}
+
+// Helper to get array of values from a tags field
+function getTagsValues(card: CardType, fieldName: string): string[] {
+  const value = card[fieldName];
+  if (!value) return [];
+  if (Array.isArray(value)) return value as string[];
+  if (typeof value === 'string') return [value];
+  return [];
+}
+
+export default function Card({ card, board, isDragging = false, isPlaceholder = false, onClick, onDelete }: CardProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const {
     attributes,
@@ -31,9 +47,13 @@ export default function Card({ card, labels, isDragging = false, isPlaceholder =
     transition,
   };
 
-  const cardLabels = card.labels
-    ?.map((labelName) => labels.find((l) => l.name === labelName))
-    .filter(Boolean) as Label[] | undefined;
+  // Get type indicator field for the card
+  const typeIndicator = board.card_display?.type_indicator;
+  const typeValue = typeIndicator ? card[typeIndicator] as string : undefined;
+  const typeOption = typeValue ? getFieldOption(board, typeIndicator!, typeValue) : undefined;
+
+  // Get badge fields for the card
+  const badgeFields = board.card_display?.badges || [];
 
   const handleClick = () => {
     // Don't trigger click if we're dragging or confirming delete
@@ -116,20 +136,49 @@ export default function Card({ card, labels, isDragging = false, isPlaceholder =
         </button>
       )}
 
-      {/* Labels */}
-      {cardLabels && cardLabels.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
-          {cardLabels.map((label) => (
-            <span
-              key={label.name}
-              className="px-2 py-0.5 text-xs rounded-full text-white"
-              style={{ backgroundColor: label.color }}
-            >
-              {label.name}
-            </span>
-          ))}
-        </div>
-      )}
+      {/* Badges row: type indicator (if any) + badge fields, all on one line above title */}
+      {(() => {
+        // Collect all badges: type indicator first, then badge field values
+        const allBadges: { key: string; value: string; color: string }[] = [];
+
+        // Add type indicator if configured and has value
+        if (typeOption && typeValue) {
+          allBadges.push({
+            key: `type-${typeValue}`,
+            value: typeValue,
+            color: typeOption.color || '#6b7280',
+          });
+        }
+
+        // Add badge field values
+        for (const fieldName of badgeFields) {
+          const values = getTagsValues(card, fieldName);
+          for (const value of values) {
+            const option = getFieldOption(board, fieldName, value);
+            allBadges.push({
+              key: `${fieldName}-${value}`,
+              value,
+              color: option?.color || '#6b7280',
+            });
+          }
+        }
+
+        if (allBadges.length === 0) return null;
+
+        return (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {allBadges.map(badge => (
+              <span
+                key={badge.key}
+                className="px-2 py-0.5 text-xs rounded-full text-white"
+                style={{ backgroundColor: badge.color }}
+              >
+                {badge.value}
+              </span>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Title */}
       <h3 className="font-medium text-gray-900 text-sm">{card.title}</h3>

@@ -16,7 +16,7 @@ import (
 //  5. Update COMPAT.md with migration details
 const (
 	CurrentCardVersion   = 1
-	CurrentBoardVersion  = 1
+	CurrentBoardVersion  = 2
 	CurrentGlobalVersion = 1
 )
 
@@ -31,6 +31,7 @@ const (
 var MinKanVersion = map[string]string{
 	"card/1":   "0.1.0",
 	"board/1":  "0.1.0",
+	"board/2":  "0.2.0",
 	"global/1": "0.1.0",
 }
 
