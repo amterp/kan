@@ -8,6 +8,7 @@ interface ColumnProps {
   column: ColumnType;
   cards: Card[];
   board: BoardConfig;
+  highlightedCardId?: string | null;
   isAddingCard: boolean;
   draftTitle: string;
   onDraftChange: (title: string) => void;
@@ -25,6 +26,7 @@ export default function Column({
   column,
   cards,
   board,
+  highlightedCardId,
   isAddingCard,
   draftTitle,
   onDraftChange,
@@ -170,6 +172,7 @@ export default function Column({
                   onClick={() => onCardClick(card)}
                   onDelete={() => onDeleteCard(card.id)}
                   isPlaceholder={isBeingDragged}
+                  isHighlighted={card.id === highlightedCardId}
                 />
               );
             });

@@ -8,6 +8,7 @@ interface CardProps {
   board: BoardConfig;
   isDragging?: boolean;
   isPlaceholder?: boolean;
+  isHighlighted?: boolean;
   onClick?: () => void;
   onDelete?: () => void;
 }
@@ -28,7 +29,7 @@ function getTagsValues(card: CardType, fieldName: string): string[] {
   return [];
 }
 
-export default function Card({ card, board, isDragging = false, isPlaceholder = false, onClick, onDelete }: CardProps) {
+export default function Card({ card, board, isDragging = false, isPlaceholder = false, isHighlighted = false, onClick, onDelete }: CardProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const {
     attributes,
@@ -100,7 +101,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       onClick={handleClick}
       className={`group relative bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
         isDragging ? 'shadow-lg rotate-2' : ''
-      }`}
+      } ${isHighlighted ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-200 dark:ring-offset-gray-800' : ''}`}
     >
       {/* Delete confirmation overlay */}
       {showConfirm && (

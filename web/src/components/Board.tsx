@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent, DragOverEvent, CollisionDetection, DroppableContainer } from '@dnd-kit/core';
 import type { BoardConfig, Card, CreateCardInput, UpdateCardInput } from '../api/types';
+import { cardMatchesQuery } from '../utils/fuzzyMatch';
 import Column from './Column';
 import CardComponent from './Card';
 import CardEditModal from './CardEditModal';
@@ -9,13 +10,15 @@ import CardEditModal from './CardEditModal';
 interface BoardProps {
   board: BoardConfig;
   cards: Card[];
+  filterQuery?: string;
+  highlightedCardId?: string | null;
   onMoveCard: (cardId: string, column: string, position?: number) => Promise<void>;
   onCreateCard: (input: CreateCardInput) => Promise<Card | undefined>;
   onUpdateCard: (id: string, updates: UpdateCardInput) => Promise<void>;
   onDeleteCard: (id: string) => Promise<void>;
 }
 
-export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdateCard, onDeleteCard }: BoardProps) {
+export default function Board({ board, cards, filterQuery = '', highlightedCardId, onMoveCard, onCreateCard, onUpdateCard, onDeleteCard }: BoardProps) {
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [addingToColumn, setAddingToColumn] = useState<string | null>(null);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
@@ -38,10 +41,22 @@ export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdate
 
   const columnNames = board.columns.map((c) => c.name);
 
+  // Filter cards based on search query
+  const filteredCards = useMemo(() => {
+    if (!filterQuery.trim()) return cards;
+    return cards.filter((card) => cardMatchesQuery(card, filterQuery.trim(), board));
+  }, [cards, filterQuery, board]);
+
   const cardsByColumn = board.columns.reduce<Record<string, Card[]>>((acc, column) => {
-    acc[column.name] = cards.filter((card) => card.column === column.name);
+    acc[column.name] = filteredCards.filter((card) => card.column === column.name);
     return acc;
   }, {});
+
+  // Hide empty columns when filtering
+  const visibleColumns = useMemo(() => {
+    if (!filterQuery.trim()) return board.columns;
+    return board.columns.filter((col) => (cardsByColumn[col.name]?.length ?? 0) > 0);
+  }, [board.columns, cardsByColumn, filterQuery]);
 
   // Custom collision detection: X determines column, Y determines position within column
   const xBasedCollisionDetection: CollisionDetection = useCallback((args) => {
@@ -276,12 +291,18 @@ export default function Board({ board, cards, onMoveCard, onCreateCard, onUpdate
         onDragEnd={handleDragEnd}
       >
         <div className="flex gap-4 p-4 h-full overflow-x-auto">
-          {board.columns.map((column) => (
+          {visibleColumns.length === 0 && filterQuery.trim() && (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-gray-500 dark:text-gray-400">No cards match your filter</p>
+            </div>
+          )}
+          {visibleColumns.map((column) => (
             <Column
               key={column.name}
               column={column}
               cards={cardsByColumn[column.name] || []}
               board={board}
+              highlightedCardId={highlightedCardId}
               isAddingCard={addingToColumn === column.name}
               draftTitle={draftTitles[column.name] || ''}
               onDraftChange={(title) => setDraftTitles((prev) => ({ ...prev, [column.name]: title }))}

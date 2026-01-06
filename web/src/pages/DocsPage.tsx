@@ -4,15 +4,18 @@ import MarkdownView from '../components/MarkdownView';
 // Import docs as raw text
 import indexDoc from '../docs/index.md?raw';
 import editingDoc from '../docs/editing.md?raw';
+import shortcutsDoc from '../docs/shortcuts.md?raw';
 
 const docs: Record<string, string> = {
   '': indexDoc,
   'index': indexDoc,
   'editing': editingDoc,
+  'shortcuts': shortcutsDoc,
 };
 
 const navItems = [
   { path: '/docs', label: 'Home' },
+  { path: '/docs/shortcuts', label: 'Keyboard Shortcuts' },
   { path: '/docs/editing', label: 'Editing Cards' },
 ];
 
