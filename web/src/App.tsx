@@ -1,11 +1,13 @@
 import { useState, useCallback } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useBoards, useBoard } from './hooks/useBoards';
 import Header from './components/Header';
 import Board from './components/Board';
 import CardEditModal from './components/CardEditModal';
+import DocsPage from './pages/DocsPage';
 import type { Card, UpdateCardInput } from './api/types';
 
-function App() {
+function BoardApp() {
   const { boards, loading: boardsLoading, error: boardsError } = useBoards();
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
   const { board, cards, loading, error, moveCard, createCard, updateCard, deleteCard, refresh } = useBoard(selectedBoard);
@@ -107,6 +109,17 @@ function App() {
         />
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/docs/*" element={<DocsPage />} />
+        <Route path="/*" element={<BoardApp />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

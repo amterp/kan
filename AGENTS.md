@@ -2,7 +2,7 @@
 
 Guidance for AI agents working with this codebase.
 
-**Maintenance**: Keep auxiliary files (AGENTS.md, README.md, extras/claude-skill/SKILL.md, etc.) up to date when making relevant changes.
+**Maintenance**: Keep auxiliary files (AGENTS.md, README.md, extras/claude-skill/SKILL.md, frontend docs, etc.) up to date when making relevant changes.
 
 **Note**: SPEC.md is a temporary bootstrapping document and will be removed once the initial implementation stabilizes.
 
@@ -93,6 +93,17 @@ Each card is a separate JSON file in `.kan/boards/<board>/cards/<flexid>.json`. 
 - Global config: `~/.config/kan/config.toml`
 - Board data: `.kan/boards/<name>/config.toml` and `.kan/boards/<name>/cards/*.json`
 - Web build output: `internal/api/dist/` (embedded via `//go:embed`)
+- Web docs: `web/src/docs/*.md` (rendered at `/docs` route)
+
+## Web Frontend Features
+
+The React frontend (`web/src/`) includes:
+
+- **Markdown rendering**: Card descriptions and comments render as GitHub Flavored Markdown (tables, task lists, strikethrough, etc.)
+- **Syntax highlighting**: Code blocks use Prism with support for common languages (JS/TS, Python, Go, Rust, Bash, JSON, YAML, TOML, SQL, CSS, HTML)
+- **Editor shortcuts**: Cmd+B (bold), Cmd+I (italic), Cmd+K (link), Cmd+Enter (exit edit mode)
+- **Embedded docs**: Available at `/docs` when running `kan serve`. Docs are markdown files in `web/src/docs/` rendered client-side. Add new pages by creating `.md` files and registering them in `web/src/pages/DocsPage.tsx`
+- **Dark mode**: System-aware with manual toggle (light/dark/system)
 
 ## CLI Framework
 

@@ -63,7 +63,7 @@ body {
 .markdown-body {
   color: #374151;
   line-height: 1.6;
-  font-size: 0.875rem;
+  font-size: 1rem;
 }
 
 .dark .markdown-body {
@@ -147,12 +147,12 @@ body {
 }
 
 .markdown-body pre {
-  background-color: #1e293b;
+  background-color: #f1f5f9;
   padding: 0.75rem 1rem;
   border-radius: 0.375rem;
   overflow-x: auto;
   margin: 0.5rem 0;
-  border: 1px solid #334155;
+  border: 1px solid #e2e8f0;
 }
 
 .dark .markdown-body pre {
@@ -163,11 +163,12 @@ body {
 .markdown-body pre code {
   background-color: transparent;
   padding: 0;
-  font-size: 0.8125rem;
-  color: #e2e8f0;
+  font-size: 0.875rem;
+  color: #334155;
 }
 
 .dark .markdown-body pre code {
+  background-color: transparent;
   color: #e2e8f0;
 }
 

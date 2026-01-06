@@ -410,7 +410,17 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
           <div className="flex-1 p-4 overflow-y-auto border-r border-gray-200 dark:border-gray-700">
             {/* Description */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                <a
+                  href="/docs/editing"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"
+                >
+                  Formatting help
+                </a>
+              </div>
               <MarkdownField
                 value={description}
                 onChange={setDescription}
