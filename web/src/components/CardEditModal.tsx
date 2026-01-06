@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { Card, BoardConfig, CustomFieldSchema, UpdateCardInput } from '../api/types';
 import { FIELD_TYPE_ENUM, FIELD_TYPE_TAGS, FIELD_TYPE_STRING, FIELD_TYPE_DATE } from '../api/types';
+import MarkdownField from './MarkdownField';
+import MarkdownView from './MarkdownView';
 
 interface CardEditModalProps {
   card: Card;
@@ -409,11 +411,11 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
             {/* Description */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
-              <textarea
+              <MarkdownField
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full h-48 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                onChange={setDescription}
                 placeholder="Add a description..."
+                minHeight="min-h-48"
               />
             </div>
 
@@ -434,9 +436,7 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
                           {formatDate(comment.created_at_millis)}
                         </span>
                       </div>
-                      <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">
-                        {comment.body}
-                      </p>
+                      <MarkdownView content={comment.body} />
                     </div>
                   ))}
                 </div>
