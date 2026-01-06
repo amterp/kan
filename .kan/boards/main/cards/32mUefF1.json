@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "slight-flicker-when-switching",
+  "alias_explicit": false,
+  "created_at_millis": 1767675520776,
+  "creator": "Alexander Terp",
+  "id": "32mUefF1",
+  "title": "slight flicker when switching between board and docs",
+  "type": "enhancement",
+  "updated_at_millis": 1767675529861
+}

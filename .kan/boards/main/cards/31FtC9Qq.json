@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "add-an-option-to-make-editing-2",
+  "alias_explicit": false,
+  "created_at_millis": 1767671884196,
+  "creator": "Alexander Terp",
+  "id": "31FtC9Qq",
+  "title": "add an option to make editing boxes use monospaces font",
+  "type": "feature",
+  "updated_at_millis": 1767672610215
+}

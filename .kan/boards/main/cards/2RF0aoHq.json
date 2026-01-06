@@ -1,12 +1,12 @@
 {
   "_v": 1,
-  "alias": "card-navigation-with-left",
+  "alias": "card-navigation-with-left-2",
   "alias_explicit": false,
   "created_at_millis": 1767586052245,
   "creator": "Alexander Terp",
-  "description": "Allow iterating through cards sequentially (list by list) using keyboard shortcuts or chevron buttons on either side of the card.",
+  "description": "Allow iterating through cards sequentially (list by list) using keyboard shortcuts or chevron buttons on either side of the card.\n# yes!",
   "id": "2RF0aoHq",
   "title": "Card navigation with left/right arrows in edit panel",
   "type": "feature",
-  "updated_at_millis": 1767586052245
+  "updated_at_millis": 1767669755448
 }
