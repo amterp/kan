@@ -60,6 +60,21 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
   // Track if mousedown started on backdrop (to prevent closing when drag-selecting text)
   const mouseDownOnBackdrop = useRef(false);
 
+  // Ref for title textarea to adjust height on mount
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+
+  const adjustTextareaHeight = useCallback((element: HTMLTextAreaElement) => {
+    element.style.height = 'auto';
+    element.style.height = `${element.scrollHeight}px`;
+  }, []);
+
+  // Adjust title textarea height on mount (in case of pre-existing long title)
+  useEffect(() => {
+    if (titleRef.current) {
+      adjustTextareaHeight(titleRef.current);
+    }
+  }, [adjustTextareaHeight]);
+
   // Calculate hasChanges early so it can be used in effects
   const hasChanges = useMemo(() => {
     if (title !== card.title) return true;
@@ -396,11 +411,20 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
           </div>
 
           <div className="flex-1 mr-4">
-            <input
-              type="text"
+            <textarea
+              ref={titleRef}
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="text-xl font-semibold text-gray-900 dark:text-white w-full border-0 border-b-2 border-transparent focus:border-blue-500 focus:outline-none bg-transparent"
+              onChange={(e) => {
+                setTitle(e.target.value);
+                adjustTextareaHeight(e.target);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                }
+              }}
+              rows={1}
+              className="text-xl font-semibold text-gray-900 dark:text-white w-full border-0 border-b-2 border-transparent focus:border-blue-500 focus:outline-none bg-transparent resize-none overflow-hidden"
               placeholder="Card title"
               autoFocus
             />

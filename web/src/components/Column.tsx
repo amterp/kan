@@ -45,7 +45,7 @@ export default function Column({
   overIndex,
 }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.name });
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -137,14 +137,29 @@ export default function Column({
     if (e.key === 'Escape') {
       onDraftChange('');
       onCancelAddCard();
-    } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      // Cmd+Enter or Ctrl+Enter - create and open modal
+    } else if (e.key === 'Enter') {
+      // Prevent newline in textarea
       e.preventDefault();
-      if (draftTitle.trim()) {
-        onAddCard(draftTitle.trim(), true);
-        onDraftChange('');
+      if (e.metaKey || e.ctrlKey) {
+        // Cmd+Enter or Ctrl+Enter - create and open modal
+        if (draftTitle.trim()) {
+          onAddCard(draftTitle.trim(), true);
+          onDraftChange('');
+        }
+      } else {
+        // Plain Enter - submit form (create card without opening modal)
+        if (draftTitle.trim()) {
+          onAddCard(draftTitle.trim(), false, true);
+          onDraftChange('');
+          setTimeout(() => inputRef.current?.focus(), 0);
+        }
       }
     }
+  };
+
+  const adjustTextareaHeight = (element: HTMLTextAreaElement) => {
+    element.style.height = 'auto';
+    element.style.height = `${element.scrollHeight}px`;
   };
 
   const cardCount = cards.length;
@@ -276,14 +291,17 @@ export default function Column({
         {/* Add Card Form */}
         {isAddingCard && (
           <form ref={formRef} onSubmit={handleSubmit} className="bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm">
-            <input
+            <textarea
               ref={inputRef}
-              type="text"
               value={draftTitle}
-              onChange={(e) => onDraftChange(e.target.value)}
+              onChange={(e) => {
+                onDraftChange(e.target.value);
+                adjustTextareaHeight(e.target);
+              }}
               onKeyDown={handleKeyDown}
               placeholder="Enter card title..."
-              className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+              rows={1}
+              className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500 resize-none overflow-hidden"
               autoFocus
             />
             <div className="flex items-center justify-between mt-2">
