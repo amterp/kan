@@ -8,3 +8,4 @@ Kan is a file-based kanban board. All data lives as plain files in `.kan/` — n
 
 - [Keyboard Shortcuts](/docs/shortcuts) — Quick search, navigation, and editor shortcuts
 - [Editing Cards](/docs/editing) — Markdown support and formatting
+- [CLI Reference](/docs/cli) — Command line tool usage and options

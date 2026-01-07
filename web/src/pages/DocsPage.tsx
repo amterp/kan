@@ -5,18 +5,21 @@ import MarkdownView from '../components/MarkdownView';
 import indexDoc from '../docs/index.md?raw';
 import editingDoc from '../docs/editing.md?raw';
 import shortcutsDoc from '../docs/shortcuts.md?raw';
+import cliDoc from '../docs/cli.md?raw';
 
 const docs: Record<string, string> = {
   '': indexDoc,
   'index': indexDoc,
   'editing': editingDoc,
   'shortcuts': shortcutsDoc,
+  'cli': cliDoc,
 };
 
 const navItems = [
   { path: '/docs', label: 'Home' },
   { path: '/docs/shortcuts', label: 'Keyboard Shortcuts' },
   { path: '/docs/editing', label: 'Editing Cards' },
+  { path: '/docs/cli', label: 'CLI Reference' },
 ];
 
 export default function DocsPage() {
