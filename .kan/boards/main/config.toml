@@ -6,22 +6,21 @@ default_column = "backlog"
 [[columns]]
   name = "backlog"
   color = "#6b7280"
-  card_ids = ["2REATGIR", "2REAnxC6", "2REBORtt", "2REBgzSK", "2RERa5et", "2RESVvds", "2RESoTin", "2RF0BBTc", "2RET9h3a", "2RF0aoHq", "2RF1gl2S", "2RF25n0b", "2RMKzF8A", "2RR0gW1U", "2RYIty7V", "32mUefF1", "32odHmOO"]
+  card_ids = ["2REAnxC6", "2REBORtt", "2REBgzSK", "2RERa5et", "2RESVvds", "2RESoTin", "2RF0BBTc", "2RET9h3a", "2RF0aoHq", "2RF1gl2S", "2RF25n0b", "2RMKzF8A", "2RR0gW1U", "2RYIty7V", "32mUefF1", "32odHmOO"]
 
 [[columns]]
   name = "next"
   color = "#3b82f6"
-  card_ids = ["2RFKjwYX", "2RESD2LM", "2RF2RcyA", "2REB6NLa", "2RdBBLnA", "31FtC9Qq", "31jSrye7"]
+  card_ids = ["2RFKjwYX", "2RF2RcyA", "2REB6NLa"]
 
 [[columns]]
   name = "in-progress"
   color = "#f59e0b"
-  card_ids = ["2RF195UV"]
 
 [[columns]]
   name = "done"
   color = "#10b981"
-  card_ids = ["2RERulDq", "2REA5mCQ", "2RFLL8mC", "2RFLeA3b", "2RFLw7h8", "2RFL3u0o"]
+  card_ids = ["2REATGIR", "32uFMcPs", "2RdBBLnA", "2RESD2LM", "2RF195UV", "2RERulDq", "2REA5mCQ", "2RFLL8mC", "2RFLeA3b", "2RFLw7h8", "2RFL3u0o", "31FtC9Qq", "31jSrye7"]
 
 [custom_fields]
   [custom_fields.type]
