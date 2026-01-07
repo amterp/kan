@@ -57,6 +57,9 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
   // Track if we just finished resizing (to prevent backdrop click)
   const justFinishedInteraction = useRef(false);
 
+  // Track if mousedown started on backdrop (to prevent closing when drag-selecting text)
+  const mouseDownOnBackdrop = useRef(false);
+
   // Calculate hasChanges early so it can be used in effects
   const hasChanges = useMemo(() => {
     if (title !== card.title) return true;
@@ -224,8 +227,17 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onClose, hasChanges, title, handleSave]);
 
+  const handleBackdropMouseDown = () => {
+    mouseDownOnBackdrop.current = true;
+  };
+
   const handleBackdropClick = () => {
     if (justFinishedInteraction.current) return;
+    if (!mouseDownOnBackdrop.current) {
+      mouseDownOnBackdrop.current = false;
+      return;
+    }
+    mouseDownOnBackdrop.current = false;
     onClose();
   };
 
@@ -329,6 +341,7 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
   return (
     <div
       className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+      onMouseDown={handleBackdropMouseDown}
       onClick={handleBackdropClick}
     >
       <div
@@ -340,6 +353,7 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
           maxHeight: '95vh',
           transform: `translate(${position.x}px, ${position.y}px)`,
         }}
+        onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Resize handle - bottom right corner */}
