@@ -24,6 +24,7 @@ const navItems = [
 
 export default function DocsPage() {
   const location = useLocation();
+  const isDocsOnly = import.meta.env.BASE_URL !== '/';
 
   // Extract doc name from path: /docs/editing -> editing, /docs -> ''
   const pathParts = location.pathname.split('/').filter(Boolean);
@@ -40,12 +41,14 @@ export default function DocsPage() {
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
             Kan Documentation
           </h1>
-          <Link
-            to="/"
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            ← Back to board
-          </Link>
+{!isDocsOnly && (
+            <Link
+              to="/"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              ← Back to board
+            </Link>
+          )}
         </div>
       </header>
 
