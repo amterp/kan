@@ -1,8 +1,9 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import type { Card, Column as ColumnType, BoardConfig } from '../api/types';
+import type { Card, Column as ColumnType, BoardConfig, UpdateColumnInput } from '../api/types';
 import CardComponent from './Card';
+import ConfirmationModal from './ConfirmationModal';
 
 interface ColumnProps {
   column: ColumnType;
@@ -17,6 +18,8 @@ interface ColumnProps {
   onAddCard: (title: string, openModal: boolean, keepFormOpen?: boolean) => void;
   onCardClick: (card: Card) => void;
   onDeleteCard: (cardId: string) => void;
+  onDeleteColumn?: (columnName: string) => Promise<unknown>;
+  onUpdateColumn?: (columnName: string, updates: UpdateColumnInput) => Promise<unknown>;
   activeCard: Card | null;
   isOverColumn: boolean;
   overIndex: number | null;
@@ -35,6 +38,8 @@ export default function Column({
   onAddCard,
   onCardClick,
   onDeleteCard,
+  onDeleteColumn,
+  onUpdateColumn,
   activeCard,
   isOverColumn,
   overIndex,
@@ -42,6 +47,9 @@ export default function Column({
   const { setNodeRef, isOver } = useDroppable({ id: column.name });
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // SortableContext items - just the cards in this column
   // Don't add activeCard for cross-column drags (we use a manual placeholder instead)
@@ -77,6 +85,43 @@ export default function Column({
     };
   }, [isAddingCard, onCancelAddCard]);
 
+  // Click outside to close column menu
+  useEffect(() => {
+    if (!showMenu) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
+
+  const handleDeleteColumnClick = () => {
+    setShowMenu(false);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!onDeleteColumn) return;
+
+    try {
+      await onDeleteColumn(column.name);
+      setShowDeleteConfirm(false);
+    } catch (err) {
+      // Keep modal open on error so user knows something went wrong
+      console.error('Failed to delete column:', err);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (draftTitle.trim()) {
@@ -102,13 +147,19 @@ export default function Column({
     }
   };
 
+  const cardCount = cards.length;
+  const deleteMessage = cardCount > 0
+    ? `This will permanently delete the column "${column.name}" and ${cardCount} card${cardCount === 1 ? '' : 's'}.`
+    : `This will permanently delete the column "${column.name}".`;
+
   return (
-    <div
-      ref={setNodeRef}
-      className={`flex-1 min-w-64 max-w-sm flex flex-col bg-gray-200 dark:bg-gray-800 rounded-lg max-h-full ${
-        isOver ? 'ring-2 ring-blue-400' : ''
-      }`}
-    >
+    <>
+      <div
+        ref={setNodeRef}
+        className={`flex-1 min-w-64 max-w-sm flex flex-col bg-gray-200 dark:bg-gray-800 rounded-lg max-h-full ${
+          isOver ? 'ring-2 ring-blue-400' : ''
+        }`}
+      >
       {/* Column Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-300 dark:border-gray-600">
         <button
@@ -121,11 +172,47 @@ export default function Column({
           </svg>
         </button>
         <div
-          className="w-3 h-3 rounded-full"
+          className="w-3 h-3 rounded-full flex-shrink-0"
           style={{ backgroundColor: column.color }}
         />
-        <h2 className="font-medium text-gray-700 dark:text-gray-200">{column.name}</h2>
-        <span className="text-sm text-gray-500 dark:text-gray-400">{cards.length}</span>
+        <h2 className="font-medium text-gray-700 dark:text-gray-200 flex-1 truncate">{column.name}</h2>
+        <span className="text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">{cards.length}</span>
+
+        {/* Column Menu */}
+        {(onDeleteColumn || onUpdateColumn) && (
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+              title="Column options"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+            </button>
+
+            {showMenu && (
+              <div className="absolute right-0 mt-1 w-36 bg-white dark:bg-gray-700 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 py-1 z-50">
+                {onDeleteColumn && column.name !== board.default_column && (
+                  <button
+                    onClick={handleDeleteColumnClick}
+                    className="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete
+                  </button>
+                )}
+                {onDeleteColumn && column.name === board.default_column && (
+                  <div className="px-3 py-2 text-sm text-gray-400 dark:text-gray-500 italic">
+                    Default column
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Cards */}
@@ -236,6 +323,17 @@ export default function Column({
           </button>
         )}
       </div>
-    </div>
+      </div>
+
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        title="Delete Column"
+        message={deleteMessage}
+        confirmText="Delete"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+    </>
   );
 }

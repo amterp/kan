@@ -204,6 +204,113 @@ func (b *BoardConfig) GetCardColumn(cardID string) string {
 	return ""
 }
 
+// GetColumn returns a pointer to the column with the given name, or nil if not found.
+func (b *BoardConfig) GetColumn(name string) *Column {
+	for i := range b.Columns {
+		if b.Columns[i].Name == name {
+			return &b.Columns[i]
+		}
+	}
+	return nil
+}
+
+// AddColumn adds a new column at the specified position.
+// If position is -1 or >= len(columns), appends to end.
+// Returns false if a column with the same name already exists.
+func (b *BoardConfig) AddColumn(name, color string, position int) bool {
+	if b.HasColumn(name) {
+		return false
+	}
+
+	newCol := Column{Name: name, Color: color}
+
+	// Append to end if position is -1 or out of bounds
+	if position < 0 || position >= len(b.Columns) {
+		b.Columns = append(b.Columns, newCol)
+		return true
+	}
+
+	// Insert at position
+	b.Columns = append(b.Columns[:position], append([]Column{newCol}, b.Columns[position:]...)...)
+	return true
+}
+
+// RemoveColumn removes a column by name.
+// Returns the removed column's card IDs (for cleanup), or nil if column not found.
+// Does not delete the card files - caller is responsible for that.
+func (b *BoardConfig) RemoveColumn(name string) []string {
+	idx := b.GetColumnIndex(name)
+	if idx < 0 {
+		return nil
+	}
+
+	cardIDs := b.Columns[idx].CardIDs
+	b.Columns = append(b.Columns[:idx], b.Columns[idx+1:]...)
+	return cardIDs
+}
+
+// RenameColumn renames a column.
+// Returns false if the old column doesn't exist or new name already exists.
+func (b *BoardConfig) RenameColumn(oldName, newName string) bool {
+	if oldName == newName {
+		return true // No-op
+	}
+	if b.HasColumn(newName) {
+		return false // New name already exists
+	}
+
+	idx := b.GetColumnIndex(oldName)
+	if idx < 0 {
+		return false // Old column doesn't exist
+	}
+
+	b.Columns[idx].Name = newName
+
+	// Update default_column if it referenced the old name
+	if b.DefaultColumn == oldName {
+		b.DefaultColumn = newName
+	}
+
+	return true
+}
+
+// SetColumnColor updates a column's color.
+// Returns false if the column doesn't exist.
+func (b *BoardConfig) SetColumnColor(name, color string) bool {
+	col := b.GetColumn(name)
+	if col == nil {
+		return false
+	}
+	col.Color = color
+	return true
+}
+
+// MoveColumn moves a column to a new position.
+// Returns false if the column doesn't exist or position is invalid.
+func (b *BoardConfig) MoveColumn(name string, newPosition int) bool {
+	oldIdx := b.GetColumnIndex(name)
+	if oldIdx < 0 {
+		return false
+	}
+
+	// Validate new position
+	if newPosition < 0 || newPosition >= len(b.Columns) {
+		return false
+	}
+
+	if oldIdx == newPosition {
+		return true // No-op
+	}
+
+	// Remove from old position
+	col := b.Columns[oldIdx]
+	b.Columns = append(b.Columns[:oldIdx], b.Columns[oldIdx+1:]...)
+
+	// Insert at new position
+	b.Columns = append(b.Columns[:newPosition], append([]Column{col}, b.Columns[newPosition:]...)...)
+	return true
+}
+
 // ValidateCardDisplay validates that CardDisplayConfig references valid custom fields.
 // Returns a list of warning messages for invalid references (non-fatal).
 func (b *BoardConfig) ValidateCardDisplay() []string {

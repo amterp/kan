@@ -128,6 +128,12 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/boards", h.ListBoards)
 	mux.HandleFunc("GET /api/v1/boards/{name}", h.GetBoard)
 
+	// Column routes
+	mux.HandleFunc("POST /api/v1/boards/{board}/columns", h.CreateColumn)
+	mux.HandleFunc("DELETE /api/v1/boards/{board}/columns/{name}", h.DeleteColumn)
+	mux.HandleFunc("PATCH /api/v1/boards/{board}/columns/{name}", h.UpdateColumn)
+	mux.HandleFunc("PUT /api/v1/boards/{board}/columns/order", h.ReorderColumns)
+
 	// Card routes
 	mux.HandleFunc("GET /api/v1/boards/{board}/cards", h.ListCards)
 	mux.HandleFunc("POST /api/v1/boards/{board}/cards", h.CreateCard)
@@ -369,4 +375,154 @@ func (h *Handler) MoveCard(w http.ResponseWriter, r *http.Request) {
 	// Set Column to the target column for response
 	card.Column = req.Column
 	JSON(w, http.StatusOK, toCardResponse(card))
+}
+
+// --- Column Handlers ---
+
+// CreateColumnRequest is the JSON body for creating a column.
+type CreateColumnRequest struct {
+	Name     string `json:"name"`
+	Color    string `json:"color,omitempty"`
+	Position *int   `json:"position,omitempty"` // Optional: insert position (-1 or omit for end)
+}
+
+// CreateColumn creates a new column on a board.
+func (h *Handler) CreateColumn(w http.ResponseWriter, r *http.Request) {
+	boardName := r.PathValue("board")
+
+	var req CreateColumnRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		BadRequest(w, "invalid JSON body")
+		return
+	}
+
+	if req.Name == "" {
+		BadRequest(w, "name is required")
+		return
+	}
+
+	// Determine position (-1 means append to end)
+	position := -1
+	if req.Position != nil {
+		position = *req.Position
+	}
+
+	if err := h.boardService.AddColumn(boardName, req.Name, req.Color, position); err != nil {
+		Error(w, err)
+		return
+	}
+
+	// Get the updated board to return the new column
+	board, err := h.boardStore.Get(boardName)
+	if err != nil {
+		Error(w, err)
+		return
+	}
+
+	col := board.GetColumn(req.Name)
+	JSON(w, http.StatusCreated, col)
+}
+
+// DeleteColumnResponse is returned when a column is deleted.
+type DeleteColumnResponse struct {
+	DeletedCards int `json:"deleted_cards"`
+}
+
+// DeleteColumn deletes a column and all its cards.
+func (h *Handler) DeleteColumn(w http.ResponseWriter, r *http.Request) {
+	boardName := r.PathValue("board")
+	columnName := r.PathValue("name")
+
+	deletedCards, err := h.boardService.DeleteColumn(boardName, columnName)
+	if err != nil {
+		Error(w, err)
+		return
+	}
+
+	JSON(w, http.StatusOK, DeleteColumnResponse{DeletedCards: deletedCards})
+}
+
+// UpdateColumnRequest is the JSON body for updating a column.
+type UpdateColumnRequest struct {
+	Name  *string `json:"name,omitempty"`  // New name (rename)
+	Color *string `json:"color,omitempty"` // New color
+}
+
+// UpdateColumn updates a column's properties (rename, color).
+func (h *Handler) UpdateColumn(w http.ResponseWriter, r *http.Request) {
+	boardName := r.PathValue("board")
+	columnName := r.PathValue("name")
+
+	var req UpdateColumnRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		BadRequest(w, "invalid JSON body")
+		return
+	}
+
+	// Handle rename
+	if req.Name != nil && *req.Name != columnName {
+		if err := h.boardService.RenameColumn(boardName, columnName, *req.Name); err != nil {
+			Error(w, err)
+			return
+		}
+		columnName = *req.Name // Update for subsequent operations
+	}
+
+	// Handle color change
+	if req.Color != nil {
+		if err := h.boardService.UpdateColumnColor(boardName, columnName, *req.Color); err != nil {
+			Error(w, err)
+			return
+		}
+	}
+
+	// Return the updated column
+	board, err := h.boardStore.Get(boardName)
+	if err != nil {
+		Error(w, err)
+		return
+	}
+
+	col := board.GetColumn(columnName)
+	if col == nil {
+		NotFound(w, "column", columnName)
+		return
+	}
+
+	JSON(w, http.StatusOK, col)
+}
+
+// ReorderColumnsRequest is the JSON body for reordering columns.
+type ReorderColumnsRequest struct {
+	Columns []string `json:"columns"`
+}
+
+// ReorderColumns reorders all columns according to the provided order.
+func (h *Handler) ReorderColumns(w http.ResponseWriter, r *http.Request) {
+	boardName := r.PathValue("board")
+
+	var req ReorderColumnsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		BadRequest(w, "invalid JSON body")
+		return
+	}
+
+	if len(req.Columns) == 0 {
+		BadRequest(w, "columns array is required")
+		return
+	}
+
+	if err := h.boardService.ReorderColumns(boardName, req.Columns); err != nil {
+		Error(w, err)
+		return
+	}
+
+	// Return the updated board config
+	board, err := h.boardStore.Get(boardName)
+	if err != nil {
+		Error(w, err)
+		return
+	}
+
+	JSON(w, http.StatusOK, board)
 }

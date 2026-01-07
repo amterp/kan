@@ -80,3 +80,14 @@ export interface UpdateCardInput {
   column?: string;
   custom_fields?: Record<string, unknown>;
 }
+
+export interface CreateColumnInput {
+  name: string;
+  color?: string;
+  position?: number;
+}
+
+export interface UpdateColumnInput {
+  name?: string;
+  color?: string;
+}

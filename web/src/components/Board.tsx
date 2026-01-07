@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent, DragOverEvent, CollisionDetection, DroppableContainer } from '@dnd-kit/core';
-import type { BoardConfig, Card, CreateCardInput, UpdateCardInput } from '../api/types';
+import type { BoardConfig, Card, CreateCardInput, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
 import { cardMatchesQuery } from '../utils/fuzzyMatch';
 import Column from './Column';
 import CardComponent from './Card';
@@ -16,11 +16,31 @@ interface BoardProps {
   onCreateCard: (input: CreateCardInput) => Promise<Card | undefined>;
   onUpdateCard: (id: string, updates: UpdateCardInput) => Promise<void>;
   onDeleteCard: (id: string) => Promise<void>;
+  onCreateColumn?: (input: CreateColumnInput) => Promise<unknown>;
+  onDeleteColumn?: (columnName: string) => Promise<unknown>;
+  onUpdateColumn?: (columnName: string, updates: UpdateColumnInput) => Promise<unknown>;
+  onReorderColumns?: (columns: string[]) => Promise<void>;
 }
 
-export default function Board({ board, cards, filterQuery = '', highlightedCardId, onMoveCard, onCreateCard, onUpdateCard, onDeleteCard }: BoardProps) {
+export default function Board({
+  board,
+  cards,
+  filterQuery = '',
+  highlightedCardId,
+  onMoveCard,
+  onCreateCard,
+  onUpdateCard,
+  onDeleteCard,
+  onCreateColumn,
+  onDeleteColumn,
+  onUpdateColumn,
+}: BoardProps) {
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [addingToColumn, setAddingToColumn] = useState<string | null>(null);
+  const [isAddingColumn, setIsAddingColumn] = useState(false);
+  const [newColumnName, setNewColumnName] = useState('');
+  const addColumnInputRef = useRef<HTMLInputElement>(null);
+  const addColumnFormRef = useRef<HTMLFormElement>(null);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [newCardForEdit, setNewCardForEdit] = useState<{ card: Card; column: string } | null>(null);
 
@@ -281,6 +301,47 @@ export default function Board({ board, cards, filterQuery = '', highlightedCardI
 
   const currentEditCard = editingCard || newCardForEdit?.card || null;
 
+  // Focus add column input when opening
+  useEffect(() => {
+    if (isAddingColumn && addColumnInputRef.current) {
+      addColumnInputRef.current.focus();
+    }
+  }, [isAddingColumn]);
+
+  // Click outside to close add column form
+  useEffect(() => {
+    if (!isAddingColumn) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (addColumnFormRef.current && !addColumnFormRef.current.contains(e.target as Node)) {
+        setIsAddingColumn(false);
+        setNewColumnName('');
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isAddingColumn]);
+
+  const handleAddColumn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newColumnName.trim() || !onCreateColumn) return;
+
+    try {
+      await onCreateColumn({ name: newColumnName.trim().toLowerCase().replace(/\s+/g, '-') });
+      setNewColumnName('');
+      setIsAddingColumn(false);
+    } catch (err) {
+      console.error('Failed to create column:', err);
+    }
+  };
+
   return (
     <>
       <DndContext
@@ -311,11 +372,70 @@ export default function Board({ board, cards, filterQuery = '', highlightedCardI
               onAddCard={(title, openModal, keepFormOpen) => handleAddCard(column.name, title, openModal, keepFormOpen)}
               onCardClick={handleCardClick}
               onDeleteCard={handleDeleteCard}
+              onDeleteColumn={onDeleteColumn}
+              onUpdateColumn={onUpdateColumn}
               activeCard={activeCard}
               isOverColumn={overColumn === column.name}
               overIndex={overColumn === column.name ? overIndex : null}
             />
           ))}
+
+          {/* Add Column Button/Form */}
+          {onCreateColumn && !filterQuery.trim() && (
+            <div className="flex-1 min-w-64 max-w-sm">
+              {isAddingColumn ? (
+                <form
+                  ref={addColumnFormRef}
+                  onSubmit={handleAddColumn}
+                  className="bg-gray-200 dark:bg-gray-800 rounded-lg p-3"
+                >
+                  <input
+                    ref={addColumnInputRef}
+                    type="text"
+                    value={newColumnName}
+                    onChange={(e) => setNewColumnName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setIsAddingColumn(false);
+                        setNewColumnName('');
+                      }
+                    }}
+                    placeholder="Column name..."
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="submit"
+                      disabled={!newColumnName.trim()}
+                      className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingColumn(false);
+                        setNewColumnName('');
+                      }}
+                      className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <button
+                  onClick={() => setIsAddingColumn(true)}
+                  className="w-full py-3 px-4 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-gray-200/50 dark:bg-gray-800/50 hover:bg-gray-300 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add Column
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <DragOverlay>
           {activeCard ? (

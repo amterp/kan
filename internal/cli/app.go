@@ -79,7 +79,7 @@ func NewApp(interactive bool) (*App, error) {
 
 	aliasService := service.NewAliasService(cardStore)
 	initService := service.NewInitService(globalStore)
-	boardService := service.NewBoardService(boardStore)
+	boardService := service.NewBoardService(boardStore, cardStore)
 	cardService := service.NewCardService(cardStore, boardStore, aliasService)
 	boardResolver := resolver.NewBoardResolver(boardStore, globalStore, prompter, projectRoot)
 	cardResolver := resolver.NewCardResolver(cardStore)

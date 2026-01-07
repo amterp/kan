@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { listBoards, getBoard } from '../api/boards';
+import { listBoards, getBoard, createColumn as apiCreateColumn, deleteColumn as apiDeleteColumn, updateColumn as apiUpdateColumn, reorderColumns as apiReorderColumns } from '../api/boards';
 import { listCards, moveCard as apiMoveCard, createCard as apiCreateCard, updateCard as apiUpdateCard, deleteCard as apiDeleteCard } from '../api/cards';
-import type { BoardConfig, Card, CreateCardInput, UpdateCardInput } from '../api/types';
+import type { BoardConfig, Card, CreateCardInput, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
 
 export function useBoards() {
   const [boards, setBoards] = useState<string[]>([]);
@@ -147,5 +147,107 @@ export function useBoard(boardName: string | null) {
     }
   }, [boardName, refresh]);
 
-  return { board, cards, loading, error, moveCard, createCard, updateCard, deleteCard, refresh };
+  // Column operations
+
+  const createColumn = useCallback(async (input: CreateColumnInput) => {
+    if (!boardName) return;
+
+    const newColumn = await apiCreateColumn(boardName, input);
+    // Refresh board to get updated columns list
+    await refresh();
+    return newColumn;
+  }, [boardName, refresh]);
+
+  const deleteColumn = useCallback(async (columnName: string) => {
+    if (!boardName || !board) return;
+
+    // Optimistic update: remove column and its cards
+    setCards((prev) => prev.filter((c) => c.column !== columnName));
+    setBoard((prev) =>
+      prev ? { ...prev, columns: prev.columns.filter((c) => c.name !== columnName) } : prev
+    );
+
+    try {
+      const result = await apiDeleteColumn(boardName, columnName);
+      return result.deleted_cards;
+    } catch (e) {
+      // Revert on error
+      refresh();
+      throw e;
+    }
+  }, [boardName, board, refresh]);
+
+  const updateColumn = useCallback(async (columnName: string, updates: UpdateColumnInput) => {
+    if (!boardName || !board) return;
+
+    // Optimistic update
+    setBoard((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        columns: prev.columns.map((c) =>
+          c.name === columnName
+            ? { ...c, name: updates.name ?? c.name, color: updates.color ?? c.color }
+            : c
+        ),
+        // Update default_column if it was renamed
+        default_column:
+          prev.default_column === columnName && updates.name
+            ? updates.name
+            : prev.default_column,
+      };
+    });
+
+    // Update card columns if column was renamed
+    if (updates.name && updates.name !== columnName) {
+      setCards((prev) =>
+        prev.map((c) => (c.column === columnName ? { ...c, column: updates.name! } : c))
+      );
+    }
+
+    try {
+      const updated = await apiUpdateColumn(boardName, columnName, updates);
+      return updated;
+    } catch (e) {
+      // Revert on error
+      refresh();
+      throw e;
+    }
+  }, [boardName, board, refresh]);
+
+  const reorderColumns = useCallback(async (columnOrder: string[]) => {
+    if (!boardName || !board) return;
+
+    // Optimistic update: reorder columns in local state
+    setBoard((prev) => {
+      if (!prev) return prev;
+      const columnMap = new Map(prev.columns.map((c) => [c.name, c]));
+      const reordered = columnOrder.map((name) => columnMap.get(name)!).filter(Boolean);
+      return { ...prev, columns: reordered };
+    });
+
+    try {
+      await apiReorderColumns(boardName, columnOrder);
+    } catch (e) {
+      // Revert on error
+      refresh();
+      throw e;
+    }
+  }, [boardName, board, refresh]);
+
+  return {
+    board,
+    cards,
+    loading,
+    error,
+    moveCard,
+    createCard,
+    updateCard,
+    deleteCard,
+    createColumn,
+    deleteColumn,
+    updateColumn,
+    reorderColumns,
+    refresh,
+  };
 }

@@ -7,8 +7,9 @@ import (
 	"github.com/amterp/kan/internal/store"
 )
 
-// We reuse testBoardStore from card_service_test.go
+// We reuse testBoardStore and testCardStore from card_service_test.go
 var _ store.BoardStore = (*testBoardStore)(nil)
+var _ store.CardStore = (*testCardStore)(nil)
 
 // ============================================================================
 // BoardService Tests
@@ -16,7 +17,8 @@ var _ store.BoardStore = (*testBoardStore)(nil)
 
 func TestBoardService_Create_Basic(t *testing.T) {
 	boardStore := newTestBoardStore()
-	service := NewBoardService(boardStore)
+	cardStore := newTestCardStore()
+	service := NewBoardService(boardStore, cardStore)
 
 	if err := service.Create("main"); err != nil {
 		t.Fatalf("Create failed: %v", err)
@@ -43,7 +45,8 @@ func TestBoardService_Create_Basic(t *testing.T) {
 
 func TestBoardService_Create_AlreadyExists(t *testing.T) {
 	boardStore := newTestBoardStore()
-	service := NewBoardService(boardStore)
+	cardStore := newTestCardStore()
+	service := NewBoardService(boardStore, cardStore)
 
 	// Create first time
 	if err := service.Create("main"); err != nil {
@@ -62,7 +65,8 @@ func TestBoardService_Create_AlreadyExists(t *testing.T) {
 
 func TestBoardService_List_Empty(t *testing.T) {
 	boardStore := newTestBoardStore()
-	service := NewBoardService(boardStore)
+	cardStore := newTestCardStore()
+	service := NewBoardService(boardStore, cardStore)
 
 	boards, err := service.List()
 	if err != nil {
@@ -75,7 +79,8 @@ func TestBoardService_List_Empty(t *testing.T) {
 
 func TestBoardService_List_WithBoards(t *testing.T) {
 	boardStore := newTestBoardStore()
-	service := NewBoardService(boardStore)
+	cardStore := newTestCardStore()
+	service := NewBoardService(boardStore, cardStore)
 
 	service.Create("main")
 	service.Create("feature")
@@ -92,7 +97,8 @@ func TestBoardService_List_WithBoards(t *testing.T) {
 
 func TestBoardService_Get_Found(t *testing.T) {
 	boardStore := newTestBoardStore()
-	service := NewBoardService(boardStore)
+	cardStore := newTestCardStore()
+	service := NewBoardService(boardStore, cardStore)
 
 	service.Create("main")
 
@@ -107,7 +113,8 @@ func TestBoardService_Get_Found(t *testing.T) {
 
 func TestBoardService_Get_NotFound(t *testing.T) {
 	boardStore := newTestBoardStore()
-	service := NewBoardService(boardStore)
+	cardStore := newTestCardStore()
+	service := NewBoardService(boardStore, cardStore)
 
 	_, err := service.Get("nonexistent")
 	if err == nil {
@@ -120,7 +127,8 @@ func TestBoardService_Get_NotFound(t *testing.T) {
 
 func TestBoardService_Exists_True(t *testing.T) {
 	boardStore := newTestBoardStore()
-	service := NewBoardService(boardStore)
+	cardStore := newTestCardStore()
+	service := NewBoardService(boardStore, cardStore)
 
 	service.Create("main")
 
@@ -131,7 +139,8 @@ func TestBoardService_Exists_True(t *testing.T) {
 
 func TestBoardService_Exists_False(t *testing.T) {
 	boardStore := newTestBoardStore()
-	service := NewBoardService(boardStore)
+	cardStore := newTestCardStore()
+	service := NewBoardService(boardStore, cardStore)
 
 	if service.Exists("nonexistent") {
 		t.Error("Expected Exists to return false for nonexistent board")
@@ -140,7 +149,8 @@ func TestBoardService_Exists_False(t *testing.T) {
 
 func TestBoardService_Create_DefaultColumns(t *testing.T) {
 	boardStore := newTestBoardStore()
-	service := NewBoardService(boardStore)
+	cardStore := newTestCardStore()
+	service := NewBoardService(boardStore, cardStore)
 
 	service.Create("main")
 

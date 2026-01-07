@@ -59,6 +59,45 @@ type CommandContext struct {
 	// migrate command
 	MigrateUsed   *bool
 	MigrateDryRun *bool
+
+	// column command
+	ColumnUsed *bool
+
+	// column add
+	ColumnAddUsed     *bool
+	ColumnAddName     *string
+	ColumnAddColor    *string
+	ColumnAddPosition *int
+	ColumnAddBoard    *string
+
+	// column delete
+	ColumnDeleteUsed  *bool
+	ColumnDeleteName  *string
+	ColumnDeleteForce *bool
+	ColumnDeleteBoard *string
+
+	// column rename
+	ColumnRenameUsed  *bool
+	ColumnRenameOld   *string
+	ColumnRenameNew   *string
+	ColumnRenameBoard *string
+
+	// column edit
+	ColumnEditUsed  *bool
+	ColumnEditName  *string
+	ColumnEditColor *string
+	ColumnEditBoard *string
+
+	// column list
+	ColumnListUsed  *bool
+	ColumnListBoard *string
+
+	// column move
+	ColumnMoveUsed     *bool
+	ColumnMoveName     *string
+	ColumnMovePosition *int
+	ColumnMoveAfter    *string
+	ColumnMoveBoard    *string
 }
 
 // Run is the main entry point for the CLI.
@@ -79,6 +118,7 @@ func Run() {
 	// Register all subcommands
 	registerInit(cmd, ctx)
 	registerBoard(cmd, ctx)
+	registerColumn(cmd, ctx)
 	registerAdd(cmd, ctx)
 	registerShow(cmd, ctx)
 	registerList(cmd, ctx)
@@ -123,5 +163,23 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.MigrateUsed:
 		runMigrate(*ctx.MigrateDryRun)
+
+	case *ctx.ColumnAddUsed:
+		runColumnAdd(*ctx.ColumnAddName, *ctx.ColumnAddColor, *ctx.ColumnAddPosition, *ctx.ColumnAddBoard, *ctx.NonInteractive)
+
+	case *ctx.ColumnDeleteUsed:
+		runColumnDelete(*ctx.ColumnDeleteName, *ctx.ColumnDeleteBoard, *ctx.ColumnDeleteForce, *ctx.NonInteractive)
+
+	case *ctx.ColumnRenameUsed:
+		runColumnRename(*ctx.ColumnRenameOld, *ctx.ColumnRenameNew, *ctx.ColumnRenameBoard, *ctx.NonInteractive)
+
+	case *ctx.ColumnEditUsed:
+		runColumnEdit(*ctx.ColumnEditName, *ctx.ColumnEditColor, *ctx.ColumnEditBoard, *ctx.NonInteractive)
+
+	case *ctx.ColumnListUsed:
+		runColumnList(*ctx.ColumnListBoard, *ctx.NonInteractive)
+
+	case *ctx.ColumnMoveUsed:
+		runColumnMove(*ctx.ColumnMoveName, *ctx.ColumnMoveBoard, *ctx.ColumnMovePosition, *ctx.ColumnMoveAfter, *ctx.NonInteractive)
 	}
 }

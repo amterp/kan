@@ -13,7 +13,21 @@ import type { Card, UpdateCardInput } from './api/types';
 function BoardApp() {
   const { boards, loading: boardsLoading, error: boardsError } = useBoards();
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
-  const { board, cards, loading, error, moveCard, createCard, updateCard, deleteCard, refresh } = useBoard(selectedBoard);
+  const {
+    board,
+    cards,
+    loading,
+    error,
+    moveCard,
+    createCard,
+    updateCard,
+    deleteCard,
+    createColumn,
+    deleteColumn,
+    updateColumn,
+    reorderColumns,
+    refresh,
+  } = useBoard(selectedBoard);
   const [newCardForEdit, setNewCardForEdit] = useState<Card | null>(null);
   const [omnibarSelectedCard, setOmnibarSelectedCard] = useState<Card | null>(null);
   const omnibar = useOmnibar();
@@ -228,6 +242,10 @@ function BoardApp() {
             onCreateCard={createCard}
             onUpdateCard={updateCard}
             onDeleteCard={deleteCard}
+            onCreateColumn={createColumn}
+            onDeleteColumn={deleteColumn}
+            onUpdateColumn={updateColumn}
+            onReorderColumns={reorderColumns}
           />
         ) : (
           <div className="h-full flex items-center justify-center">

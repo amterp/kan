@@ -92,6 +92,10 @@ func BoardAlreadyExists(name string) error {
 	return &AlreadyExistsError{Resource: "board", ID: name}
 }
 
+func ColumnAlreadyExists(name, board string) error {
+	return &AlreadyExistsError{Resource: "column", ID: fmt.Sprintf("%s (in board %s)", name, board)}
+}
+
 func InvalidField(field, message string) error {
 	return &ValidationError{Field: field, Message: message}
 }

@@ -37,7 +37,7 @@ func setupTestAPI(t *testing.T) *testAPI {
 	boardStore := store.NewBoardStore(paths)
 	aliasService := service.NewAliasService(cardStore)
 	cardService := service.NewCardService(cardStore, boardStore, aliasService)
-	boardService := service.NewBoardService(boardStore)
+	boardService := service.NewBoardService(boardStore, cardStore)
 
 	handler := NewHandler(cardService, boardService, cardStore, boardStore, "test-user")
 	mux := http.NewServeMux()
