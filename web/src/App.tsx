@@ -298,8 +298,11 @@ function BoardApp() {
 }
 
 function App() {
+  // Remove trailing slash from base URL for BrowserRouter basename
+  const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined;
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <Routes>
         <Route path="/docs/*" element={<DocsPage />} />
         <Route path="/*" element={<BoardApp />} />

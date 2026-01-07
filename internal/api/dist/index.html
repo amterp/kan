@@ -13,7 +13,17 @@
         if (isDark) document.documentElement.classList.add('dark');
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-DJwzdV2j.js"></script>
+    <script>
+      // Restore path after SPA redirect from 404.html (GitHub Pages)
+      (function() {
+        var redirect = sessionStorage.getItem('spa-redirect');
+        if (redirect) {
+          sessionStorage.removeItem('spa-redirect');
+          history.replaceState(null, '', redirect);
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-W7yzU3Lz.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-Cjte7CAT.css">
   </head>
   <body>
