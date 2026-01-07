@@ -15,7 +15,7 @@ interface CardEditModalProps {
 // Module-level state to persist position/size across modal opens (ephemeral, lost on refresh)
 let savedModalState = {
   position: { x: 0, y: 0 },
-  size: { width: 900, height: 600 },
+  size: { width: 1100, height: 750 },
 };
 
 // Helper to get current value for a custom field
