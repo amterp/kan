@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useBoards, useBoard } from './hooks/useBoards';
 import { useOmnibar } from './hooks/useOmnibar';
 import { cardMatchesQuery } from './utils/fuzzyMatch';
@@ -301,11 +301,19 @@ function App() {
   // Remove trailing slash from base URL for BrowserRouter basename
   const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined;
 
+  // Docs-only mode: when deployed to a subpath (e.g., GitHub Pages at /kan/),
+  // there's no backend, so redirect all non-docs routes to /docs
+  const isDocsOnly = import.meta.env.BASE_URL !== '/';
+
   return (
     <BrowserRouter basename={basename}>
       <Routes>
         <Route path="/docs/*" element={<DocsPage />} />
-        <Route path="/*" element={<BoardApp />} />
+        {isDocsOnly ? (
+          <Route path="/*" element={<Navigate to="/docs" replace />} />
+        ) : (
+          <Route path="/*" element={<BoardApp />} />
+        )}
       </Routes>
     </BrowserRouter>
   );
