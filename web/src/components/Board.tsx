@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent, DragOverEvent, CollisionDetection, DroppableContainer } from '@dnd-kit/core';
-import type { BoardConfig, Card, CreateCardInput, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
+import { SortableContext, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import type { BoardConfig, Card, Column as ColumnType, CreateCardInput, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
 import { cardMatchesQuery } from '../utils/fuzzyMatch';
 import Column from './Column';
 import CardComponent from './Card';
@@ -34,8 +35,10 @@ export default function Board({
   onCreateColumn,
   onDeleteColumn,
   onUpdateColumn,
+  onReorderColumns,
 }: BoardProps) {
   const [activeCard, setActiveCard] = useState<Card | null>(null);
+  const [activeColumn, setActiveColumn] = useState<ColumnType | null>(null);
   const [addingToColumn, setAddingToColumn] = useState<string | null>(null);
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [newColumnName, setNewColumnName] = useState('');
@@ -78,15 +81,17 @@ export default function Board({
     return board.columns.filter((col) => (cardsByColumn[col.name]?.length ?? 0) > 0);
   }, [board.columns, cardsByColumn, filterQuery]);
 
-  // Custom collision detection: X determines column, Y determines position within column
-  const xBasedCollisionDetection: CollisionDetection = useCallback((args) => {
-    const { droppableContainers, pointerCoordinates } = args;
+  // Custom collision detection: behavior differs for card drags vs column drags
+  const customCollisionDetection: CollisionDetection = useCallback((args) => {
+    const { droppableContainers, pointerCoordinates, active } = args;
 
     if (!pointerCoordinates) {
       return [];
     }
 
     const { x: pointerX, y: pointerY } = pointerCoordinates;
+    const activeId = active.id as string;
+    const isDraggingColumn = columnNames.includes(activeId);
 
     // Separate containers into columns and cards
     const columnContainers: DroppableContainer[] = [];
@@ -100,7 +105,28 @@ export default function Board({
       }
     });
 
-    // Step 1: Find which column the pointer X is over
+    // For column drags: pure X-based detection, find closest column by X center
+    if (isDraggingColumn) {
+      let closestColumn: DroppableContainer | null = null;
+      let minDistance = Infinity;
+
+      for (const column of columnContainers) {
+        const rect = column.rect.current;
+        if (!rect) continue;
+
+        const columnCenterX = rect.left + rect.width / 2;
+        const distance = Math.abs(pointerX - columnCenterX);
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestColumn = column;
+        }
+      }
+
+      return closestColumn ? [{ id: closestColumn.id }] : [];
+    }
+
+    // For card drags: X determines column, Y determines position within column
     let targetColumn: DroppableContainer | null = null;
     let minXDistance = Infinity;
 
@@ -130,7 +156,7 @@ export default function Board({
 
     const targetColumnName = targetColumn.id as string;
 
-    // Step 2: Find cards in this column and determine position by Y
+    // Find cards in this column and determine position by Y
     const cardsInColumn = cardContainers.filter((container) => {
       const cardId = container.id as string;
       const card = cards.find((c) => c.id === cardId);
@@ -168,7 +194,17 @@ export default function Board({
   }, [columnNames, cards]);
 
   const handleDragStart = (event: DragStartEvent) => {
-    const card = cards.find((c) => c.id === event.active.id);
+    const activeId = event.active.id as string;
+
+    // Check if we're dragging a column
+    const column = board.columns.find((c) => c.name === activeId);
+    if (column) {
+      setActiveColumn(column);
+      return;
+    }
+
+    // Otherwise it's a card
+    const card = cards.find((c) => c.id === activeId);
     if (card) {
       setActiveCard(card);
     }
@@ -202,17 +238,39 @@ export default function Board({
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    const wasColumnDrag = activeColumn !== null;
+
     setActiveCard(null);
+    setActiveColumn(null);
     setOverColumn(null);
     setOverIndex(null);
 
     const { active, over } = event;
     if (!over) return;
 
-    const cardId = active.id as string;
+    const activeId = active.id as string;
     const overId = over.id as string;
 
-    const draggedCard = cards.find((c) => c.id === cardId);
+    // Handle column reordering
+    if (wasColumnDrag) {
+      if (activeId === overId) return; // No change
+
+      const oldIndex = columnNames.indexOf(activeId);
+      const newIndex = columnNames.indexOf(overId);
+
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        const newOrder = arrayMove(columnNames, oldIndex, newIndex);
+        try {
+          await onReorderColumns?.(newOrder);
+        } catch (e) {
+          console.error('Failed to reorder columns:', e);
+        }
+      }
+      return;
+    }
+
+    // Handle card movement
+    const draggedCard = cards.find((c) => c.id === activeId);
     if (!draggedCard) return;
 
     // Determine if we dropped on a column or a card
@@ -237,7 +295,7 @@ export default function Board({
 
       if (draggedCard.column === targetColumn) {
         // Same column reorder
-        const oldIndex = columnCards.findIndex((c) => c.id === cardId);
+        const oldIndex = columnCards.findIndex((c) => c.id === activeId);
         if (oldIndex === targetIndex) return; // No change
 
         // Calculate new position
@@ -254,7 +312,7 @@ export default function Board({
     if (draggedCard.column === targetColumn && position === undefined) return;
 
     try {
-      await onMoveCard(cardId, targetColumn, position);
+      await onMoveCard(activeId, targetColumn, position);
     } catch (e) {
       console.error('Failed to move card:', e);
     }
@@ -346,7 +404,7 @@ export default function Board({
     <>
       <DndContext
         sensors={sensors}
-        collisionDetection={xBasedCollisionDetection}
+        collisionDetection={customCollisionDetection}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
@@ -357,28 +415,31 @@ export default function Board({
               <p className="text-gray-500 dark:text-gray-400">No cards match your filter</p>
             </div>
           )}
-          {visibleColumns.map((column) => (
-            <Column
-              key={column.name}
-              column={column}
-              cards={cardsByColumn[column.name] || []}
-              board={board}
-              highlightedCardId={highlightedCardId}
-              isAddingCard={addingToColumn === column.name}
-              draftTitle={draftTitles[column.name] || ''}
-              onDraftChange={(title) => setDraftTitles((prev) => ({ ...prev, [column.name]: title }))}
-              onStartAddCard={() => setAddingToColumn(column.name)}
-              onCancelAddCard={() => setAddingToColumn(null)}
-              onAddCard={(title, openModal, keepFormOpen) => handleAddCard(column.name, title, openModal, keepFormOpen)}
-              onCardClick={handleCardClick}
-              onDeleteCard={handleDeleteCard}
-              onDeleteColumn={onDeleteColumn}
-              onUpdateColumn={onUpdateColumn}
-              activeCard={activeCard}
-              isOverColumn={overColumn === column.name}
-              overIndex={overColumn === column.name ? overIndex : null}
-            />
-          ))}
+          <SortableContext items={columnNames} strategy={horizontalListSortingStrategy}>
+            {visibleColumns.map((column) => (
+              <Column
+                key={column.name}
+                column={column}
+                cards={cardsByColumn[column.name] || []}
+                board={board}
+                highlightedCardId={highlightedCardId}
+                isAddingCard={addingToColumn === column.name}
+                draftTitle={draftTitles[column.name] || ''}
+                onDraftChange={(title) => setDraftTitles((prev) => ({ ...prev, [column.name]: title }))}
+                onStartAddCard={() => setAddingToColumn(column.name)}
+                onCancelAddCard={() => setAddingToColumn(null)}
+                onAddCard={(title, openModal, keepFormOpen) => handleAddCard(column.name, title, openModal, keepFormOpen)}
+                onCardClick={handleCardClick}
+                onDeleteCard={handleDeleteCard}
+                onDeleteColumn={onDeleteColumn}
+                onUpdateColumn={onUpdateColumn}
+                activeCard={activeCard}
+                isOverColumn={overColumn === column.name}
+                overIndex={overColumn === column.name ? overIndex : null}
+                isDragging={activeColumn?.name === column.name}
+              />
+            ))}
+          </SortableContext>
 
           {/* Add Column Button/Form */}
           {onCreateColumn && !filterQuery.trim() && (
@@ -440,6 +501,18 @@ export default function Board({
         <DragOverlay>
           {activeCard ? (
             <CardComponent card={activeCard} board={board} isDragging />
+          ) : activeColumn ? (
+            <div className="bg-gray-200 dark:bg-gray-800 rounded-lg shadow-lg opacity-90 cursor-grabbing">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-300 dark:border-gray-600">
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: activeColumn.color }}
+                />
+                <h2 className="font-medium text-gray-700 dark:text-gray-200 truncate">
+                  {activeColumn.name}
+                </h2>
+              </div>
+            </div>
           ) : null}
         </DragOverlay>
       </DndContext>

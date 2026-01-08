@@ -1,6 +1,7 @@
 import { useMemo, useRef, useEffect, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { Card, Column as ColumnType, BoardConfig, UpdateColumnInput } from '../api/types';
 import CardComponent from './Card';
 import ConfirmationModal from './ConfirmationModal';
@@ -23,6 +24,7 @@ interface ColumnProps {
   activeCard: Card | null;
   isOverColumn: boolean;
   overIndex: number | null;
+  isDragging?: boolean;
 }
 
 export default function Column({
@@ -43,8 +45,23 @@ export default function Column({
   activeCard,
   isOverColumn,
   overIndex,
+  isDragging,
 }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.name });
+
+  // Make the column header draggable for reordering
+  const {
+    attributes: sortableAttributes,
+    listeners: sortableListeners,
+    setNodeRef: setSortableNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: column.name });
+
+  const sortableStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -167,18 +184,30 @@ export default function Column({
     ? `This will permanently delete the column "${column.name}" and ${cardCount} card${cardCount === 1 ? '' : 's'}.`
     : `This will permanently delete the column "${column.name}".`;
 
+  // Combine refs for both droppable (cards) and sortable (column reorder)
+  const setRefs = (node: HTMLDivElement | null) => {
+    setNodeRef(node);
+    setSortableNodeRef(node);
+  };
+
   return (
     <>
       <div
-        ref={setNodeRef}
+        ref={setRefs}
+        style={sortableStyle}
         className={`flex-1 min-w-64 max-w-sm flex flex-col bg-gray-200 dark:bg-gray-800 rounded-lg max-h-full ${
           isOver ? 'ring-2 ring-blue-400' : ''
-        }`}
+        } ${isDragging ? 'opacity-50' : ''}`}
       >
-      {/* Column Header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-300 dark:border-gray-600">
+      {/* Column Header - draggable area */}
+      <div
+        className="flex items-center gap-2 px-3 py-2 border-b border-gray-300 dark:border-gray-600 cursor-grab active:cursor-grabbing"
+        {...sortableAttributes}
+        {...sortableListeners}
+      >
         <button
           onClick={onStartAddCard}
+          onPointerDown={(e) => e.stopPropagation()}
           className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
           title="Add card"
         >
@@ -198,6 +227,7 @@ export default function Column({
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setShowMenu(!showMenu)}
+              onPointerDown={(e) => e.stopPropagation()}
               className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
               title="Column options"
             >
