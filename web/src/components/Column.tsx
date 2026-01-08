@@ -5,6 +5,12 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Card, Column as ColumnType, BoardConfig, UpdateColumnInput } from '../api/types';
 import CardComponent from './Card';
 import ConfirmationModal from './ConfirmationModal';
+import { useToast } from '../contexts/ToastContext';
+
+// Transform user input to valid column name format (same as Board.tsx for createColumn)
+function transformColumnName(input: string): string {
+  return input.trim().toLowerCase().replace(/\s+/g, '-');
+}
 
 interface ColumnProps {
   column: ColumnType;
@@ -21,6 +27,9 @@ interface ColumnProps {
   onDeleteCard: (cardId: string) => void;
   onDeleteColumn?: (columnName: string) => Promise<unknown>;
   onUpdateColumn?: (columnName: string, updates: UpdateColumnInput) => Promise<unknown>;
+  isEditingName: boolean;
+  onStartEditName: () => void;
+  onStopEditName: () => void;
   activeCard: Card | null;
   isOverColumn: boolean;
   overIndex: number | null;
@@ -42,12 +51,16 @@ export default function Column({
   onDeleteCard,
   onDeleteColumn,
   onUpdateColumn,
+  isEditingName,
+  onStartEditName,
+  onStopEditName,
   activeCard,
   isOverColumn,
   overIndex,
   isDragging,
 }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.name });
+  const { showToast } = useToast();
 
   // Make the column header draggable for reordering
   const {
@@ -67,6 +80,11 @@ export default function Column({
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Column name editing state (isEditingName is controlled by parent for stability)
+  const [editName, setEditName] = useState(column.name);
+  const [editError, setEditError] = useState<string | null>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   // SortableContext items - just the cards in this column
   // Don't add activeCard for cross-column drags (we use a manual placeholder instead)
@@ -122,6 +140,19 @@ export default function Column({
     };
   }, [showMenu]);
 
+  // Focus and select text when entering edit mode for column name
+  // Note: editName is initialized via useState(column.name), so when component remounts
+  // (e.g., after a failed rename reverts), it will have the correct value automatically
+  useEffect(() => {
+    if (isEditingName) {
+      // Use setTimeout to ensure the input is rendered before focusing
+      setTimeout(() => {
+        editInputRef.current?.focus();
+        editInputRef.current?.select();
+      }, 0);
+    }
+  }, [isEditingName]);
+
   const handleDeleteColumnClick = () => {
     setShowMenu(false);
     setShowDeleteConfirm(true);
@@ -136,6 +167,65 @@ export default function Column({
     } catch (err) {
       // Keep modal open on error so user knows something went wrong
       console.error('Failed to delete column:', err);
+    }
+  };
+
+  // Column name editing handlers
+  const handleStartEdit = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent column drag
+    setEditName(column.name);
+    setEditError(null);
+    onStartEditName();
+  };
+
+  const handleSaveEdit = async () => {
+    const newName = transformColumnName(editName);
+
+    if (!newName) {
+      setEditError('Column name cannot be empty');
+      return;
+    }
+
+    if (newName === column.name) {
+      onStopEditName();
+      setEditError(null);
+      return;
+    }
+
+    if (onUpdateColumn) {
+      try {
+        await onUpdateColumn(column.name, { name: newName });
+        onStopEditName();
+        setEditError(null);
+      } catch (err) {
+        // Parse error message for user-friendly display
+        let message = 'Failed to rename column';
+        if (err instanceof Error) {
+          if (err.message.includes('already exists')) {
+            message = `Column "${newName}" already exists`;
+          } else {
+            message = err.message;
+          }
+        }
+        showToast('error', message);
+        onStopEditName();
+      }
+    }
+  };
+
+  const handleCancelEdit = () => {
+    onStopEditName();
+    setEditName(column.name);
+    setEditError(null);
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveEdit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancelEdit();
     }
   };
 
@@ -219,7 +309,40 @@ export default function Column({
           className="w-3 h-3 rounded-full flex-shrink-0"
           style={{ backgroundColor: column.color }}
         />
-        <h2 className="font-medium text-gray-700 dark:text-gray-200 flex-1 truncate">{column.name}</h2>
+        {isEditingName ? (
+          <div className="flex-1 min-w-0 relative">
+            <input
+              ref={editInputRef}
+              type="text"
+              value={editName}
+              onChange={(e) => {
+                setEditName(e.target.value);
+                setEditError(null);
+              }}
+              onKeyDown={handleEditKeyDown}
+              onBlur={handleSaveEdit}
+              className={`w-full font-medium text-gray-700 dark:text-gray-200 bg-transparent border-b-2 focus:outline-none px-0 py-0 ${
+                editError ? 'border-red-500' : 'border-blue-500'
+              }`}
+            />
+            {editError && (
+              <p className="absolute text-xs text-red-500 mt-0.5 whitespace-nowrap">{editError}</p>
+            )}
+          </div>
+        ) : (
+          <>
+            <h2
+              className="font-medium text-gray-700 dark:text-gray-200 truncate cursor-text hover:underline hover:decoration-dotted hover:decoration-gray-400 dark:hover:decoration-gray-500"
+              onClick={handleStartEdit}
+              onPointerDown={(e) => e.stopPropagation()}
+              title="Click to rename"
+            >
+              {column.name}
+            </h2>
+            {/* Spacer to push card count and menu to the right - this area remains draggable */}
+            <div className="flex-1" />
+          </>
+        )}
         <span className="text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">{cards.length}</span>
 
         {/* Column Menu */}

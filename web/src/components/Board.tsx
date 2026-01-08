@@ -46,6 +46,8 @@ export default function Board({
   const addColumnFormRef = useRef<HTMLFormElement>(null);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [newCardForEdit, setNewCardForEdit] = useState<{ card: Card; column: string } | null>(null);
+  // Track which column name is being edited (lifted from Column for stability across re-renders)
+  const [editingColumnName, setEditingColumnName] = useState<string | null>(null);
 
   // Draft titles per column (preserved when clicking outside)
   const [draftTitles, setDraftTitles] = useState<Record<string, string>>({});
@@ -430,6 +432,9 @@ export default function Board({
                 onDeleteCard={handleDeleteCard}
                 onDeleteColumn={onDeleteColumn}
                 onUpdateColumn={onUpdateColumn}
+                isEditingName={editingColumnName === column.name}
+                onStartEditName={() => setEditingColumnName(column.name)}
+                onStopEditName={() => setEditingColumnName(null)}
                 activeCard={activeCard}
                 isOverColumn={overColumn === column.name}
                 overIndex={overColumn === column.name ? overIndex : null}
