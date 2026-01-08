@@ -101,6 +101,20 @@ func NewApp(interactive bool) (*App, error) {
 	}, nil
 }
 
+// NewAppWithoutDiscovery creates a minimal App without running project discovery.
+// Used by init command when discovery fails due to stale global config.
+func NewAppWithoutDiscovery() (*App, error) {
+	globalStore := store.NewGlobalStore()
+
+	// Just need InitService for the init command
+	initService := service.NewInitService(globalStore)
+
+	return &App{
+		GlobalStore: globalStore,
+		InitService: initService,
+	}, nil
+}
+
 // registerProject auto-registers a discovered but unregistered project in global config.
 func registerProject(globalStore store.GlobalStore, globalCfg *model.GlobalConfig, projectRoot, dataLocation string) {
 	projectName := filepath.Base(projectRoot)

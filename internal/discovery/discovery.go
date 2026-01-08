@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +9,11 @@ import (
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/model"
 )
+
+// ErrStaleGlobalConfig indicates the global config references a project path
+// but the kan data directory doesn't exist. This can happen if the user
+// manually deletes the .kan/ directory.
+var ErrStaleGlobalConfig = errors.New("stale global config entry")
 
 // Result contains the discovered project root and data location.
 type Result struct {
@@ -56,8 +62,8 @@ func DiscoverProjectFrom(startDir string, globalCfg *model.GlobalConfig) (*Resul
 					}, nil
 				}
 				// Global config says this path exists but data is missing
-				return nil, fmt.Errorf("global config references %s but kan data not found at %s",
-					dir, filepath.Join(dir, dataLocation))
+				return nil, fmt.Errorf("%w: global config references %s but kan data not found at %s",
+					ErrStaleGlobalConfig, dir, filepath.Join(dir, dataLocation))
 			}
 		}
 

@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
+	"github.com/amterp/kan/internal/discovery"
 	"github.com/amterp/ra"
 )
 
@@ -78,7 +80,15 @@ func runInit(location, boardName, columnsStr string) {
 
 	app, err := NewApp(true)
 	if err != nil {
-		Fatal(err)
+		// If discovery failed due to stale global config, proceed with init anyway.
+		// This handles the case where user deleted .kan/ and wants to re-init.
+		if !errors.Is(err, discovery.ErrStaleGlobalConfig) {
+			Fatal(err)
+		}
+		app, err = NewAppWithoutDiscovery()
+		if err != nil {
+			Fatal(err)
+		}
 	}
 
 	if err := app.InitService.Initialize(location, boardName, columns); err != nil {

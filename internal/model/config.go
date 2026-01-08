@@ -42,3 +42,15 @@ func (g *GlobalConfig) RegisterProject(name, path string) {
 	}
 	g.Projects[name] = path
 }
+
+// RemoveRepoConfig removes a repo config and any project entries pointing to that path.
+// Used to clean up stale entries when re-initializing a project.
+func (g *GlobalConfig) RemoveRepoConfig(path string) {
+	delete(g.Repos, path)
+	// Also remove any Projects entries pointing to this path
+	for name, p := range g.Projects {
+		if p == path {
+			delete(g.Projects, name)
+		}
+	}
+}

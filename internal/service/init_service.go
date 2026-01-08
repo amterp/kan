@@ -103,6 +103,10 @@ func (s *InitService) registerProject(projectRoot, customLocation string) error 
 		return err
 	}
 
+	// Clean up any stale entries for this path before registering.
+	// This handles the case where the user deleted .kan/ and is re-initializing.
+	globalCfg.RemoveRepoConfig(projectRoot)
+
 	// Register project
 	projectName := filepath.Base(projectRoot)
 	globalCfg.RegisterProject(projectName, projectRoot)
