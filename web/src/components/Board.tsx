@@ -75,11 +75,8 @@ export default function Board({
     return acc;
   }, {});
 
-  // Hide empty columns when filtering
-  const visibleColumns = useMemo(() => {
-    if (!filterQuery.trim()) return board.columns;
-    return board.columns.filter((col) => (cardsByColumn[col.name]?.length ?? 0) > 0);
-  }, [board.columns, cardsByColumn, filterQuery]);
+  // Always show all columns (even when filtering, so cards can be moved into empty columns)
+  const visibleColumns = useMemo(() => board.columns, [board.columns]);
 
   // Custom collision detection: behavior differs for card drags vs column drags
   const customCollisionDetection: CollisionDetection = useCallback((args) => {
@@ -410,7 +407,7 @@ export default function Board({
         onDragEnd={handleDragEnd}
       >
         <div className="flex gap-4 p-4 h-full overflow-x-auto">
-          {visibleColumns.length === 0 && filterQuery.trim() && (
+          {filteredCards.length === 0 && filterQuery.trim() && (
             <div className="flex-1 flex items-center justify-center">
               <p className="text-gray-500 dark:text-gray-400">No cards match your filter</p>
             </div>
