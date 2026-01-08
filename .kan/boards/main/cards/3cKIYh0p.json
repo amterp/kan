@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "pressing-enter-on-title-in-2",
+  "alias_explicit": false,
+  "created_at_millis": 1767760235031,
+  "creator": "Alexander Terp",
+  "id": "3cKIYh0p",
+  "title": "pressing enter on title in modal doesn't actually submit it",
+  "type": "bug",
+  "updated_at_millis": 1767760242356
+}

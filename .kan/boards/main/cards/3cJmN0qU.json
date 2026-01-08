@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "card-type-select-should-have",
+  "alias_explicit": false,
+  "created_at_millis": 1767760215079,
+  "creator": "Alexander Terp",
+  "id": "3cJmN0qU",
+  "title": "card type select should have colors",
+  "type": "bug",
+  "updated_at_millis": 1767760225670
+}

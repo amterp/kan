@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "allow-setting-something-like",
+  "alias_explicit": false,
+  "created_at_millis": 1767759800699,
+  "creator": "Alexander Terp",
+  "id": "3c900E57",
+  "title": "allow setting something like type from the quick new card page",
+  "type": "feature",
+  "updated_at_millis": 1767759819391
+}

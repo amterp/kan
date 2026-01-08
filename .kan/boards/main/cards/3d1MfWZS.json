@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "init-delete-kan-init-doesn-t-2",
+  "alias_explicit": false,
+  "created_at_millis": 1767761890507,
+  "creator": "Alexander Terp",
+  "id": "3d1MfWZS",
+  "title": "init -\u003e delete .kan -\u003e init doesn't work but should",
+  "type": "bug",
+  "updated_at_millis": 1767761895270
+}

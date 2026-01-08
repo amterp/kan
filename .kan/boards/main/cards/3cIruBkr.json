@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "making-new-columns-doesn-t-2",
+  "alias_explicit": false,
+  "created_at_millis": 1767760180071,
+  "creator": "Alexander Terp",
+  "id": "3cIruBkr",
+  "title": "making new columns, doesn't seem to allow spaces in column name",
+  "type": "bug",
+  "updated_at_millis": 1767760206561
+}

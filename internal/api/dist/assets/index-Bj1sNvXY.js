@@ -156,10 +156,15 @@ Initialize Kan in your project directory:
 kan init
 \`\`\`
 
-This creates a \`.kan/\` directory to store your board data. You can specify a custom location:
+This creates a \`.kan/\` directory with a default board named "main" and four columns: backlog, next, in-progress, done.
+
+You can customize the initialization:
 
 \`\`\`bash
-kan init -l .kanboard
+kan init -l .kanboard              # Custom location
+kan init -c todo,doing,done        # Custom columns
+kan init -n myboard                # Custom board name
+kan init -c a,b,c -n project       # Both custom columns and name
 \`\`\`
 
 ## Commands
@@ -171,6 +176,8 @@ Initialize Kan in the current directory.
 | Flag | Description |
 |------|-------------|
 | \`-l, --location\` | Custom location for .kan directory (relative path) |
+| \`-c, --columns\` | Comma-separated column names (default: backlog,next,in-progress,done) |
+| \`-n, --name\` | Board name (default: main) |
 
 ### board
 
