@@ -1,11 +1,12 @@
 {
   "_v": 1,
-  "alias": "quicker-way-to-set-properties-2",
+  "alias": "quicker-way-to-set-properties",
   "alias_explicit": false,
   "created_at_millis": 1767836644116,
   "creator": "Alexander Terp",
+  "description": "opening edit modal -\u003e clicking dropdown or w/e -\u003e save\n\nis a slow loop. What about right click? or a little button which brings a popout?",
   "id": "48O31Ctb",
   "title": "quicker way to set properties e.g. type on cards",
   "type": "feature",
-  "updated_at_millis": 1767836650007
+  "updated_at_millis": 1767846330250
 }

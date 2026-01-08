@@ -1,11 +1,12 @@
 {
   "_v": 1,
-  "alias": "card-type-select-should-have",
+  "alias": "card-type-select-should-have-2",
   "alias_explicit": false,
   "created_at_millis": 1767760215079,
   "creator": "Alexander Terp",
+  "description": "the dropdown is all grey for all options",
   "id": "3cJmN0qU",
   "title": "card type select should have colors",
   "type": "bug",
-  "updated_at_millis": 1767760225670
+  "updated_at_millis": 1767846364207
 }

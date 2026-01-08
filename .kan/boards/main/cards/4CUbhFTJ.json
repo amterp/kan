@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "silent-column-rename-or-add",
+  "alias_explicit": false,
+  "created_at_millis": 1767846429385,
+  "creator": "Alexander Terp",
+  "description": "should at least toast",
+  "id": "4CUbhFTJ",
+  "title": "silent column rename or add failure when contains space",
+  "type": "enhancement",
+  "updated_at_millis": 1767846449452
+}

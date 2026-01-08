@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "pressing-enter-on-title-edit",
+  "alias_explicit": false,
+  "created_at_millis": 1767846215070,
+  "creator": "Alexander Terp",
+  "description": "currently just stays focused.\nin card edit modal.",
+  "id": "4CP22Hzt",
+  "title": "pressing enter on title edit should \"submit\" it",
+  "type": "enhancement",
+  "updated_at_millis": 1767846232721
+}

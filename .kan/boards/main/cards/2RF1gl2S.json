@@ -1,12 +1,12 @@
 {
   "_v": 1,
-  "alias": "list-descriptions",
+  "alias": "column-descriptions",
   "alias_explicit": false,
   "created_at_millis": 1767586052927,
   "creator": "Alexander Terp",
   "description": "Display list description next to ticket count on the board. Short descriptions provide concise context (e.g., what the list is for, constraints like 'max 10 tickets').",
   "id": "2RF1gl2S",
-  "title": "List descriptions",
+  "title": "Column descriptions",
   "type": "feature",
-  "updated_at_millis": 1767586052927
+  "updated_at_millis": 1767846198769
 }
