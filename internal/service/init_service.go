@@ -27,7 +27,9 @@ func NewInitService(globalStore store.GlobalStore) *InitService {
 
 // Initialize initializes Kan in the current directory.
 // If customLocation is empty, uses the default .kan directory.
-func (s *InitService) Initialize(customLocation string) error {
+// If boardName is empty, uses "main".
+// If customColumns is empty, uses default columns.
+func (s *InitService) Initialize(customLocation, boardName string, customColumns []string) error {
 	// Get current working directory as project root
 	projectRoot, err := os.Getwd()
 	if err != nil {
@@ -55,19 +57,40 @@ func (s *InitService) Initialize(customLocation string) error {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	// Create default board
+	// Use default board name if not specified
+	if boardName == "" {
+		boardName = defaultBoardName
+	}
+
+	// Build columns: use custom if provided, otherwise defaults
+	var columns []model.Column
+	if len(customColumns) > 0 {
+		for i, name := range customColumns {
+			columns = append(columns, model.Column{
+				Name:  name,
+				Color: model.NextColumnColor(i),
+			})
+		}
+	} else {
+		columns = model.DefaultColumns()
+	}
+
+	// Default column is first in list
+	defaultColumn := columns[0].Name
+
+	// Create board
 	boardStore := store.NewBoardStore(paths)
-	defaultBoard := &model.BoardConfig{
+	board := &model.BoardConfig{
 		ID:            id.Generate(),
-		Name:          defaultBoardName,
-		Columns:       model.DefaultColumns(),
-		DefaultColumn: "backlog",
+		Name:          boardName,
+		Columns:       columns,
+		DefaultColumn: defaultColumn,
 		CustomFields:  model.DefaultCustomFields(),
 		CardDisplay:   model.DefaultCardDisplay(),
 	}
 
-	if err := boardStore.Create(defaultBoard); err != nil {
-		return fmt.Errorf("failed to create default board: %w", err)
+	if err := boardStore.Create(board); err != nil {
+		return fmt.Errorf("failed to create board: %w", err)
 	}
 
 	// Register in global config
