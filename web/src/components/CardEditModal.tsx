@@ -186,7 +186,8 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
     setCustomFieldValues((prev) => ({ ...prev, [fieldName]: value }));
   };
 
-  const handleSave = useCallback(async () => {
+  // Core save logic without closing the modal
+  const performSave = useCallback(async () => {
     if (!title.trim()) return;
 
     setSaving(true);
@@ -217,11 +218,15 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
       }
 
       await onSave(updates);
-      onClose();
     } finally {
       setSaving(false);
     }
-  }, [title, description, column, customFieldValues, board.custom_fields, onSave, onClose]);
+  }, [title, description, column, customFieldValues, board.custom_fields, onSave]);
+
+  const handleSave = useCallback(async () => {
+    await performSave();
+    onClose();
+  }, [performSave, onClose]);
 
   // Document-level keyboard handler so Cmd+Enter works without focus
   useEffect(() => {
@@ -421,6 +426,10 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
+                  (e.target as HTMLTextAreaElement).blur();
+                  if (hasChanges && title.trim()) {
+                    performSave();
+                  }
                 }
               }}
               rows={1}
