@@ -16,7 +16,7 @@ default_column = "backlog-hi"
 [[columns]]
   name = "next"
   color = "#3b82f6"
-  card_ids = ["2RFKjwYX", "2RF2RcyA", "3c900E57", "3cIruBkr", "3cJmN0qU", "3cKIYh0p", "48AVDad4", "4CUbhFTJ", "4CXN7HhS"]
+  card_ids = ["2RFKjwYX", "2RF2RcyA", "3c900E57", "3cIruBkr", "3cJmN0qU", "48AVDad4", "4CUbhFTJ", "4CXN7HhS"]
 
 [[columns]]
   name = "in-progress"
@@ -25,7 +25,7 @@ default_column = "backlog-hi"
 [[columns]]
   name = "done"
   color = "#10b981"
-  card_ids = ["3d1MfWZS", "3d58C4UJ", "48P2Qpfg", "48OWoX57", "2RESD2LM", "48NdHhpT", "2REATGIR", "32uFMcPs", "2RdBBLnA", "2RF195UV", "2RERulDq", "2REA5mCQ", "2RFLL8mC", "2RFLeA3b", "2RFLw7h8", "2RFL3u0o", "31FtC9Qq", "31jSrye7"]
+  card_ids = ["3cKIYh0p", "3d1MfWZS", "3d58C4UJ", "48P2Qpfg", "48OWoX57", "2RESD2LM", "48NdHhpT", "2REATGIR", "32uFMcPs", "2RdBBLnA", "2RF195UV", "2RERulDq", "2REA5mCQ", "2RFLL8mC", "2RFLeA3b", "2RFLw7h8", "2RFL3u0o", "31FtC9Qq", "31jSrye7"]
 
 [custom_fields]
   [custom_fields.type]
