@@ -2,10 +2,31 @@
   "_v": 1,
   "alias": "add-favicon",
   "alias_explicit": false,
+  "comments": [
+    {
+      "author": "Alexander Terp",
+      "body": "yo!",
+      "created_at_millis": 1768098419250,
+      "id": "c_5uE0zc16"
+    },
+    {
+      "author": "Alexander Terp",
+      "body": "# test\n\n!!!",
+      "created_at_millis": 1768098440637,
+      "id": "c_5uEZTaPT",
+      "updated_at_millis": 1768098447549
+    },
+    {
+      "author": "Alexander Terp",
+      "body": "test",
+      "created_at_millis": 1768098749759,
+      "id": "c_5uMc3eCG"
+    }
+  ],
   "created_at_millis": 1767586064736,
   "creator": "Alexander Terp",
   "id": "2RFKjwYX",
   "title": "Add favicon",
   "type": "chore",
-  "updated_at_millis": 1767586064736
+  "updated_at_millis": 1768098749759
 }
