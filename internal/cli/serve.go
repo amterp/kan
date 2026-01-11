@@ -41,7 +41,7 @@ func runServe(port int, noOpen bool) {
 		Fatal(err)
 	}
 
-	creatorName, err := app.GetCreator()
+	creatorName, err := app.GetAuthor()
 	if err != nil {
 		Fatal(err)
 	}

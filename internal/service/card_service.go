@@ -70,7 +70,7 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, error) {
 	}
 
 	// Generate ID and alias
-	cardID := id.Generate()
+	cardID := id.Generate(id.Card)
 	alias, err := s.aliasService.GenerateAlias(input.BoardName, input.Title)
 	if err != nil {
 		return nil, err
@@ -434,4 +434,97 @@ func parseTagsValue(value string) []string {
 		}
 	}
 	return tags
+}
+
+// AddComment adds a new comment to a card.
+func (s *CardService) AddComment(boardName, cardIDOrAlias, body, author string) (*model.Comment, error) {
+	// Resolve card
+	card, err := s.FindByIDOrAlias(boardName, cardIDOrAlias)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create comment
+	now := util.NowMillis()
+	comment := model.Comment{
+		ID:              id.Generate(id.Comment),
+		Body:            body,
+		Author:          author,
+		CreatedAtMillis: now,
+	}
+
+	// Add to card's comments
+	card.Comments = append(card.Comments, comment)
+
+	// Save card
+	if err := s.Update(boardName, card); err != nil {
+		return nil, err
+	}
+
+	return &comment, nil
+}
+
+// EditComment updates an existing comment's body.
+func (s *CardService) EditComment(boardName, commentID, body string) (*model.Comment, error) {
+	// Find card containing this comment
+	card, err := s.FindCommentCard(boardName, commentID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find and update the comment
+	for i := range card.Comments {
+		if card.Comments[i].ID == commentID {
+			card.Comments[i].Body = body
+			card.Comments[i].UpdatedAtMillis = util.NowMillis()
+
+			// Save card
+			if err := s.Update(boardName, card); err != nil {
+				return nil, err
+			}
+
+			return &card.Comments[i], nil
+		}
+	}
+
+	// Should not reach here if FindCommentCard worked
+	return nil, kanerr.CommentNotFound(commentID)
+}
+
+// DeleteComment removes a comment from a card.
+func (s *CardService) DeleteComment(boardName, commentID string) error {
+	// Find card containing this comment
+	card, err := s.FindCommentCard(boardName, commentID)
+	if err != nil {
+		return err
+	}
+
+	// Remove the comment
+	for i, c := range card.Comments {
+		if c.ID == commentID {
+			card.Comments = append(card.Comments[:i], card.Comments[i+1:]...)
+			return s.Update(boardName, card)
+		}
+	}
+
+	// Should not reach here if FindCommentCard worked
+	return kanerr.CommentNotFound(commentID)
+}
+
+// FindCommentCard finds the card containing a comment with the given ID.
+func (s *CardService) FindCommentCard(boardName, commentID string) (*model.Card, error) {
+	cards, err := s.cardStore.List(boardName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, card := range cards {
+		for _, comment := range card.Comments {
+			if comment.ID == commentID {
+				return card, nil
+			}
+		}
+	}
+
+	return nil, kanerr.CommentNotFound(commentID)
 }

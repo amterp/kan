@@ -187,6 +187,8 @@ interface MarkdownFieldProps {
   onChange: (value: string) => void;
   placeholder?: string;
   minHeight?: string;
+  alwaysEditing?: boolean; // When true, never toggles to preview mode
+  onSubmit?: () => void; // Called on Cmd+Enter when alwaysEditing is true
 }
 
 export default function MarkdownField({
@@ -194,8 +196,10 @@ export default function MarkdownField({
   onChange,
   placeholder = '',
   minHeight = 'min-h-48',
+  alwaysEditing = false,
+  onSubmit,
 }: MarkdownFieldProps) {
-  const [isEditing, setIsEditing] = useState(!value?.trim());
+  const [isEditing, setIsEditing] = useState(alwaysEditing || !value?.trim());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isMonospace, toggleMonospace] = useMonospacePreference();
 
@@ -213,24 +217,29 @@ export default function MarkdownField({
   }, [isEditing]);
 
   const handleBlur = () => {
-    if (value?.trim()) {
+    if (!alwaysEditing && value?.trim()) {
       setIsEditing(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Escape' && value?.trim()) {
+    if (e.key === 'Escape' && !alwaysEditing && value?.trim()) {
       e.preventDefault();
       setIsEditing(false);
       return;
     }
 
     // Cmd+Enter exits edit mode (stops propagation so modal doesn't save)
+    // In alwaysEditing mode, call onSubmit if provided
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       if (value?.trim()) {
         e.preventDefault();
         e.nativeEvent.stopImmediatePropagation();
-        setIsEditing(false);
+        if (alwaysEditing && onSubmit) {
+          onSubmit();
+        } else if (!alwaysEditing) {
+          setIsEditing(false);
+        }
       }
       return;
     }

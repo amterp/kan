@@ -29,7 +29,7 @@ func NewBoardService(boardStore store.BoardStore, cardStore store.CardStore) *Bo
 // Create creates a new board with default columns.
 func (s *BoardService) Create(name string) error {
 	cfg := &model.BoardConfig{
-		ID:            id.Generate(),
+		ID:            id.Generate(id.Board),
 		Name:          name,
 		Columns:       model.DefaultColumns(),
 		DefaultColumn: "backlog",

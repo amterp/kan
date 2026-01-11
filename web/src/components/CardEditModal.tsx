@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import type { Card, BoardConfig, CustomFieldSchema, UpdateCardInput } from '../api/types';
+import type { Card, BoardConfig, CustomFieldSchema, UpdateCardInput, Comment } from '../api/types';
 import { FIELD_TYPE_ENUM, FIELD_TYPE_TAGS, FIELD_TYPE_STRING, FIELD_TYPE_DATE } from '../api/types';
+import { createComment, editComment, deleteComment } from '../api/cards';
 import MarkdownField from './MarkdownField';
 import MarkdownView from './MarkdownView';
 
@@ -29,6 +30,13 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
   const [column, setColumn] = useState(card.column);
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Comment state
+  const [comments, setComments] = useState<Comment[]>(card.comments || []);
+  const [newCommentBody, setNewCommentBody] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentBody, setEditingCommentBody] = useState('');
+  const [commentSaving, setCommentSaving] = useState(false);
 
   // Custom field states - initialized from card
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>(() => {
@@ -270,6 +278,62 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
     }
   };
 
+  // Comment handlers
+  const handleAddComment = async () => {
+    if (!newCommentBody.trim() || commentSaving) return;
+
+    setCommentSaving(true);
+    try {
+      const comment = await createComment(board.name, card.id, newCommentBody.trim());
+      setComments([...comments, comment]);
+      setNewCommentBody('');
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+    } finally {
+      setCommentSaving(false);
+    }
+  };
+
+  const handleStartEditComment = (comment: Comment) => {
+    setEditingCommentId(comment.id);
+    setEditingCommentBody(comment.body);
+  };
+
+  const handleCancelEditComment = () => {
+    setEditingCommentId(null);
+    setEditingCommentBody('');
+  };
+
+  const handleSaveEditComment = async () => {
+    if (!editingCommentId || !editingCommentBody.trim() || commentSaving) return;
+
+    setCommentSaving(true);
+    try {
+      const updated = await editComment(board.name, card.id, editingCommentId, editingCommentBody.trim());
+      setComments(comments.map(c => c.id === editingCommentId ? updated : c));
+      setEditingCommentId(null);
+      setEditingCommentBody('');
+    } catch (error) {
+      console.error('Failed to edit comment:', error);
+    } finally {
+      setCommentSaving(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (commentSaving) return;
+
+    setCommentSaving(true);
+    try {
+      await deleteComment(board.name, card.id, commentId);
+      setComments(comments.filter(c => c.id !== commentId));
+    } catch (error) {
+      console.error('Failed to delete comment:', error);
+    } finally {
+      setCommentSaving(false);
+    }
+  };
+
   // Render a custom field editor based on its type
   const renderCustomFieldEditor = (fieldName: string, schema: CustomFieldSchema) => {
     const currentValue = customFieldValues[fieldName];
@@ -476,30 +540,113 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
               />
             </div>
 
-            {/* Comments (read-only for now) */}
+            {/* Comments */}
             <div>
               <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Comments {card.comments && card.comments.length > 0 && `(${card.comments.length})`}
+                Comments {comments.length > 0 && `(${comments.length})`}
               </h3>
-              {card.comments && card.comments.length > 0 ? (
-                <div className="space-y-3">
-                  {card.comments.map((comment) => (
-                    <div key={comment.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+
+              {/* Existing comments */}
+              {comments.length > 0 ? (
+                <div className="space-y-3 mb-4">
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 group">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-gray-900 dark:text-white text-sm">
-                          {comment.author}
-                        </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {formatDate(comment.created_at_millis)}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 dark:text-white text-sm">
+                            {comment.author}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {formatDate(comment.created_at_millis)}
+                            {comment.updated_at_millis && comment.updated_at_millis > comment.created_at_millis && (
+                              <> · Updated {formatDate(comment.updated_at_millis)}</>
+                            )}
+                          </span>
+                        </div>
+                        {editingCommentId !== comment.id && (
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={() => handleStartEditComment(comment)}
+                              className="p-1 text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"
+                              title="Edit comment"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteComment(comment.id)}
+                              className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                              title="Delete comment"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <MarkdownView content={comment.body} />
+                      {editingCommentId === comment.id ? (
+                        <div>
+                          <MarkdownField
+                            value={editingCommentBody}
+                            onChange={setEditingCommentBody}
+                            placeholder="Edit comment..."
+                            minHeight="min-h-20"
+                            alwaysEditing
+                            onSubmit={handleSaveEditComment}
+                          />
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              type="button"
+                              onClick={handleSaveEditComment}
+                              disabled={commentSaving || !editingCommentBody.trim()}
+                              className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                            >
+                              {commentSaving ? 'Saving...' : 'Save'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCancelEditComment}
+                              className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <MarkdownView content={comment.body} />
+                      )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400 dark:text-gray-500 italic">No comments yet</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 italic mb-4">No comments yet</p>
               )}
+
+              {/* New comment input */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <MarkdownField
+                  value={newCommentBody}
+                  onChange={setNewCommentBody}
+                  placeholder="Add a comment..."
+                  minHeight="min-h-24"
+                  alwaysEditing
+                  onSubmit={handleAddComment}
+                />
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={handleAddComment}
+                    disabled={commentSaving || !newCommentBody.trim()}
+                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {commentSaving ? 'Adding...' : 'Add Comment'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 

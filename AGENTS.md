@@ -90,6 +90,7 @@ Each card is a separate JSON file in `.kan/boards/<board>/cards/<flexid>.json`. 
 - **Stores** are interfaces (`CardStore`, `BoardStore`, `GlobalStore`) with file-based implementations. Tests use temp directories.
 - **Prompter** interface (`HuhPrompter` for interactive, `NoopPrompter` for `-I` flag) allows the same service code to work in both modes.
 - **Card.CustomFields** uses custom JSON marshaling to flatten board-defined fields into the top-level JSON object.
+- **IDs are opaque strings**. The current format (prefixed flexids) is for human convenience only—never parse or validate ID structure in code.
 
 ## File Locations
 

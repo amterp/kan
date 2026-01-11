@@ -18,6 +18,7 @@ export interface Comment {
   body: string;
   author: string;
   created_at_millis: number;
+  updated_at_millis?: number;
 }
 
 export interface Column {

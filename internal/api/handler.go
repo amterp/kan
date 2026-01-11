@@ -142,6 +142,11 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/v1/boards/{board}/cards/{id}", h.DeleteCard)
 	mux.HandleFunc("PATCH /api/v1/boards/{board}/cards/{id}/move", h.MoveCard)
 
+	// Comment routes
+	mux.HandleFunc("POST /api/v1/boards/{board}/cards/{id}/comments", h.CreateComment)
+	mux.HandleFunc("PATCH /api/v1/boards/{board}/cards/{id}/comments/{cid}", h.EditComment)
+	mux.HandleFunc("DELETE /api/v1/boards/{board}/cards/{id}/comments/{cid}", h.DeleteComment)
+
 	// Static files (frontend)
 	mux.Handle("/", h.StaticHandler())
 }
@@ -525,4 +530,99 @@ func (h *Handler) ReorderColumns(w http.ResponseWriter, r *http.Request) {
 	}
 
 	JSON(w, http.StatusOK, board)
+}
+
+// --- Comment Handlers ---
+
+// CreateCommentRequest is the JSON body for creating a comment.
+type CreateCommentRequest struct {
+	Body string `json:"body"`
+}
+
+// CommentResponse is the JSON response for a comment.
+type CommentResponse struct {
+	ID              string `json:"id"`
+	Body            string `json:"body"`
+	Author          string `json:"author"`
+	CreatedAtMillis int64  `json:"created_at_millis"`
+	UpdatedAtMillis int64  `json:"updated_at_millis,omitempty"`
+}
+
+// toCommentResponse converts a model.Comment to a CommentResponse.
+func toCommentResponse(c *model.Comment) CommentResponse {
+	return CommentResponse{
+		ID:              c.ID,
+		Body:            c.Body,
+		Author:          c.Author,
+		CreatedAtMillis: c.CreatedAtMillis,
+		UpdatedAtMillis: c.UpdatedAtMillis,
+	}
+}
+
+// CreateComment creates a new comment on a card.
+func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
+	boardName := r.PathValue("board")
+	cardID := r.PathValue("id")
+
+	var req CreateCommentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		BadRequest(w, "invalid JSON body")
+		return
+	}
+
+	if req.Body == "" {
+		BadRequest(w, "body is required")
+		return
+	}
+
+	comment, err := h.cardService.AddComment(boardName, cardID, req.Body, h.creator)
+	if err != nil {
+		Error(w, err)
+		return
+	}
+
+	JSON(w, http.StatusCreated, toCommentResponse(comment))
+}
+
+// EditCommentRequest is the JSON body for editing a comment.
+type EditCommentRequest struct {
+	Body string `json:"body"`
+}
+
+// EditComment updates an existing comment's body.
+func (h *Handler) EditComment(w http.ResponseWriter, r *http.Request) {
+	boardName := r.PathValue("board")
+	commentID := r.PathValue("cid")
+
+	var req EditCommentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		BadRequest(w, "invalid JSON body")
+		return
+	}
+
+	if req.Body == "" {
+		BadRequest(w, "body is required")
+		return
+	}
+
+	comment, err := h.cardService.EditComment(boardName, commentID, req.Body)
+	if err != nil {
+		Error(w, err)
+		return
+	}
+
+	JSON(w, http.StatusOK, toCommentResponse(comment))
+}
+
+// DeleteComment removes a comment from a card.
+func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
+	boardName := r.PathValue("board")
+	commentID := r.PathValue("cid")
+
+	if err := h.cardService.DeleteComment(boardName, commentID); err != nil {
+		Error(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

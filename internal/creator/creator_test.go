@@ -7,7 +7,7 @@ import (
 	"github.com/amterp/kan/internal/git"
 )
 
-func TestGetCreator_KanUserEnvVar(t *testing.T) {
+func TestGetAuthor_KanUserEnvVar(t *testing.T) {
 	// KAN_USER should take highest priority
 	originalKanUser := os.Getenv("KAN_USER")
 	originalUser := os.Getenv("USER")
@@ -19,7 +19,7 @@ func TestGetCreator_KanUserEnvVar(t *testing.T) {
 	os.Setenv("KAN_USER", "kan-test-user")
 	os.Setenv("USER", "os-user")
 
-	result, err := GetCreator(git.NewClient())
+	result, err := GetAuthor(git.NewClient())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -28,7 +28,7 @@ func TestGetCreator_KanUserEnvVar(t *testing.T) {
 	}
 }
 
-func TestGetCreator_FallsBackToUser(t *testing.T) {
+func TestGetAuthor_FallsBackToUser(t *testing.T) {
 	// When KAN_USER is not set and git isn't available/configured,
 	// should fall back to $USER
 	originalKanUser := os.Getenv("KAN_USER")
@@ -42,7 +42,7 @@ func TestGetCreator_FallsBackToUser(t *testing.T) {
 	os.Setenv("USER", "fallback-user")
 
 	// Pass nil git client to simulate git not being available
-	result, err := GetCreator(nil)
+	result, err := GetAuthor(nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestGetCreator_FallsBackToUser(t *testing.T) {
 	}
 }
 
-func TestGetCreator_ErrorWhenNothingAvailable(t *testing.T) {
+func TestGetAuthor_ErrorWhenNothingAvailable(t *testing.T) {
 	originalKanUser := os.Getenv("KAN_USER")
 	originalUser := os.Getenv("USER")
 	defer func() {
@@ -63,19 +63,19 @@ func TestGetCreator_ErrorWhenNothingAvailable(t *testing.T) {
 	os.Unsetenv("USER")
 
 	// Pass nil git client
-	_, err := GetCreator(nil)
+	_, err := GetAuthor(nil)
 	if err == nil {
 		t.Fatal("expected error when no creator source available")
 	}
 
 	// Error message should be helpful
-	expectedSubstring := "cannot determine creator"
+	expectedSubstring := "cannot determine author"
 	if !contains(err.Error(), expectedSubstring) {
 		t.Errorf("expected error to contain %q, got %q", expectedSubstring, err.Error())
 	}
 }
 
-func TestGetCreator_KanUserTakesPrecedenceOverGit(t *testing.T) {
+func TestGetAuthor_KanUserTakesPrecedenceOverGit(t *testing.T) {
 	// Even when git is available, KAN_USER should win
 	originalKanUser := os.Getenv("KAN_USER")
 	defer func() {
@@ -85,7 +85,7 @@ func TestGetCreator_KanUserTakesPrecedenceOverGit(t *testing.T) {
 	os.Setenv("KAN_USER", "explicit-user")
 
 	// Real git client - but KAN_USER should still take precedence
-	result, err := GetCreator(git.NewClient())
+	result, err := GetAuthor(git.NewClient())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestGetCreator_KanUserTakesPrecedenceOverGit(t *testing.T) {
 	}
 }
 
-func TestGetCreator_EmptyKanUserIsIgnored(t *testing.T) {
+func TestGetAuthor_EmptyKanUserIsIgnored(t *testing.T) {
 	originalKanUser := os.Getenv("KAN_USER")
 	originalUser := os.Getenv("USER")
 	defer func() {
@@ -105,7 +105,7 @@ func TestGetCreator_EmptyKanUserIsIgnored(t *testing.T) {
 	os.Setenv("KAN_USER", "") // Empty string
 	os.Setenv("USER", "os-user")
 
-	result, err := GetCreator(nil)
+	result, err := GetAuthor(nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

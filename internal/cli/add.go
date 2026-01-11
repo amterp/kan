@@ -81,7 +81,7 @@ func runAdd(title, description, board, column string, parentCard string, fields 
 		Fatal(err)
 	}
 
-	creatorName, err := app.GetCreator()
+	creatorName, err := app.GetAuthor()
 	if err != nil {
 		Fatal(err)
 	}

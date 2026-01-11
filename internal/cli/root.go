@@ -100,6 +100,26 @@ type CommandContext struct {
 	ColumnMovePosition *int
 	ColumnMoveAfter    *string
 	ColumnMoveBoard    *string
+
+	// comment command
+	CommentUsed *bool
+
+	// comment add
+	CommentAddUsed  *bool
+	CommentAddCard  *string
+	CommentAddBody  *string
+	CommentAddBoard *string
+
+	// comment edit
+	CommentEditUsed  *bool
+	CommentEditID    *string
+	CommentEditBody  *string
+	CommentEditBoard *string
+
+	// comment delete
+	CommentDeleteUsed  *bool
+	CommentDeleteID    *string
+	CommentDeleteBoard *string
 }
 
 // Run is the main entry point for the CLI.
@@ -121,6 +141,7 @@ func Run() {
 	registerInit(cmd, ctx)
 	registerBoard(cmd, ctx)
 	registerColumn(cmd, ctx)
+	registerComment(cmd, ctx)
 	registerAdd(cmd, ctx)
 	registerShow(cmd, ctx)
 	registerList(cmd, ctx)
@@ -183,5 +204,14 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.ColumnMoveUsed:
 		runColumnMove(*ctx.ColumnMoveName, *ctx.ColumnMoveBoard, *ctx.ColumnMovePosition, *ctx.ColumnMoveAfter, *ctx.NonInteractive)
+
+	case *ctx.CommentAddUsed:
+		runCommentAdd(*ctx.CommentAddCard, *ctx.CommentAddBody, *ctx.CommentAddBoard, *ctx.NonInteractive)
+
+	case *ctx.CommentEditUsed:
+		runCommentEdit(*ctx.CommentEditID, *ctx.CommentEditBody, *ctx.CommentEditBoard, *ctx.NonInteractive)
+
+	case *ctx.CommentDeleteUsed:
+		runCommentDelete(*ctx.CommentDeleteID, *ctx.CommentDeleteBoard, *ctx.NonInteractive)
 	}
 }

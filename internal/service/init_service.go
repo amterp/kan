@@ -81,7 +81,7 @@ func (s *InitService) Initialize(customLocation, boardName string, customColumns
 	// Create board
 	boardStore := store.NewBoardStore(paths)
 	board := &model.BoardConfig{
-		ID:            id.Generate(),
+		ID:            id.Generate(id.Board),
 		Name:          boardName,
 		Columns:       columns,
 		DefaultColumn: defaultColumn,

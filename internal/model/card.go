@@ -35,6 +35,7 @@ type Comment struct {
 	Body            string `json:"body"`
 	Author          string `json:"author"`
 	CreatedAtMillis int64  `json:"created_at_millis"`
+	UpdatedAtMillis int64  `json:"updated_at_millis,omitempty"`
 }
 
 // MarshalJSON implements custom JSON marshaling to merge custom fields

@@ -143,9 +143,9 @@ func (a *App) RequireKan() error {
 	return nil
 }
 
-// GetCreator returns the username for the card creator field.
-func (a *App) GetCreator() (string, error) {
-	return creator.GetCreator(a.GitClient)
+// GetAuthor returns the username for authorship fields (card creator, comment author).
+func (a *App) GetAuthor() (string, error) {
+	return creator.GetAuthor(a.GitClient)
 }
 
 // Fatal prints an error and exits.

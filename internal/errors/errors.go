@@ -88,6 +88,10 @@ func ColumnNotFound(name, board string) error {
 	return &NotFoundError{Resource: "column", ID: fmt.Sprintf("%s (in board %s)", name, board)}
 }
 
+func CommentNotFound(id string) error {
+	return &NotFoundError{Resource: "comment", ID: id}
+}
+
 func BoardAlreadyExists(name string) error {
 	return &AlreadyExistsError{Resource: "board", ID: name}
 }
