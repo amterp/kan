@@ -29,6 +29,34 @@ function getTagsValues(card: CardType, fieldName: string): string[] {
   return [];
 }
 
+// URL regex pattern - matches http(s) URLs
+const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
+
+// Parse text and split into segments of plain text and URLs
+function parseTextWithUrls(text: string): Array<{ type: 'text' | 'url'; content: string }> {
+  const segments: Array<{ type: 'text' | 'url'; content: string }> = [];
+  let lastIndex = 0;
+  let match;
+
+  URL_PATTERN.lastIndex = 0; // Reset regex state
+  while ((match = URL_PATTERN.exec(text)) !== null) {
+    // Add text before the URL
+    if (match.index > lastIndex) {
+      segments.push({ type: 'text', content: text.slice(lastIndex, match.index) });
+    }
+    // Add the URL
+    segments.push({ type: 'url', content: match[1] });
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text after last URL
+  if (lastIndex < text.length) {
+    segments.push({ type: 'text', content: text.slice(lastIndex) });
+  }
+
+  return segments;
+}
+
 export default function Card({ card, board, isDragging = false, isPlaceholder = false, isHighlighted = false, onClick, onDelete }: CardProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const {
@@ -182,7 +210,24 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       })()}
 
       {/* Title */}
-      <h3 className="font-medium text-gray-900 dark:text-white text-sm break-words">{card.title}</h3>
+      <h3 className="font-medium text-gray-900 dark:text-white text-sm break-words">
+        {parseTextWithUrls(card.title).map((segment, i) =>
+          segment.type === 'url' ? (
+            <a
+              key={i}
+              href={segment.content}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              {segment.content}
+            </a>
+          ) : (
+            <span key={i}>{segment.content}</span>
+          )
+        )}
+      </h3>
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
