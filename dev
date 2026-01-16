@@ -137,17 +137,19 @@ if release:
         compare_url = ""
     else:
         // Compare API returns all commits with GitHub usernames in one request
-        stdout = quiet $`gh api repos/amterp/kan/compare/{latest_tag}...main --jq '.commits[] | "\(.sha[0:7])|\(.sha)|\(.commit.message | split("\n")[0])|\(.author.login // .commit.author.name)"'`
-        lines = stdout.trim().split("\n")
+        stdout = quiet $`gh api repos/amterp/kan/compare/{latest_tag}...main`
+        data = parse_json(stdout)
+        commits = data["commits"]
         changelog = ""
-        for line in lines:
-            if line == "":
-                continue
-            parts = line.split("|")
-            short_hash = parts[0]
-            full_hash = parts[1]
-            subject = parts[2]
-            author = parts[3]
+        for commit in commits:
+            full_hash = commit["sha"]
+            short_hash = full_hash[:7]
+            subject = commit["commit"]["message"].split("\n")[0]
+            // Use GitHub login if available, fall back to git author name
+            if commit["author"] != null:
+                author = commit["author"]["login"]
+            else:
+                author = commit["commit"]["author"]["name"]
             if changelog != "":
                 changelog += "\n"
             changelog += "- [`{short_hash}`](https://github.com/amterp/kan/commit/{full_hash}): {subject} by @{author}"
