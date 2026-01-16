@@ -64,6 +64,8 @@ body {
   color: #374151;
   line-height: 1.6;
   font-size: 1rem;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .dark .markdown-body {

@@ -182,7 +182,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       })()}
 
       {/* Title */}
-      <h3 className="font-medium text-gray-900 dark:text-white text-sm">{card.title}</h3>
+      <h3 className="font-medium text-gray-900 dark:text-white text-sm break-words">{card.title}</h3>
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">

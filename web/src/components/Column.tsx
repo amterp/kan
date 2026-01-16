@@ -384,7 +384,7 @@ export default function Column({
       </div>
 
       {/* Cards */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-2">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-2">
         <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
           {(() => {
             // Build the list of elements to render
