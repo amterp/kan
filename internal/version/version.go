@@ -15,24 +15,27 @@ import (
 //  4. Add migration tests in migrate_service_test.go
 //  5. Update COMPAT.md with migration details
 const (
-	CurrentCardVersion   = 1
-	CurrentBoardVersion  = 2
-	CurrentGlobalVersion = 1
+	CurrentCardVersion    = 1
+	CurrentBoardVersion   = 2
+	CurrentGlobalVersion  = 1
+	CurrentProjectVersion = 1
 )
 
 // Schema type prefixes for config files.
 const (
-	BoardSchemaPrefix  = "board/"
-	GlobalSchemaPrefix = "global/"
+	BoardSchemaPrefix   = "board/"
+	GlobalSchemaPrefix  = "global/"
+	ProjectSchemaPrefix = "project/"
 )
 
 // MinKanVersion maps schema identifiers to the minimum Kan version required.
 // Used to provide helpful upgrade messages when encountering newer schemas.
 var MinKanVersion = map[string]string{
-	"card/1":   "0.1.0",
-	"board/1":  "0.1.0",
-	"board/2":  "0.2.0",
-	"global/1": "0.1.0",
+	"card/1":    "0.1.0",
+	"board/1":   "0.1.0",
+	"board/2":   "0.2.0",
+	"global/1":  "0.1.0",
+	"project/1": "0.3.0",
 }
 
 // FormatBoardSchema creates a board schema string from a version number.
@@ -82,4 +85,21 @@ func CurrentBoardSchema() string {
 // CurrentGlobalSchema returns the current global schema string.
 func CurrentGlobalSchema() string {
 	return FormatGlobalSchema(CurrentGlobalVersion)
+}
+
+// FormatProjectSchema creates a project schema string from a version number.
+// Example: FormatProjectSchema(1) returns "project/1"
+func FormatProjectSchema(v int) string {
+	return fmt.Sprintf("%s%d", ProjectSchemaPrefix, v)
+}
+
+// ParseProjectVersion extracts the version number from a project schema string.
+// Returns an error if the format is invalid.
+func ParseProjectVersion(schema string) (int, error) {
+	return parseSchemaVersion(schema, ProjectSchemaPrefix, "project")
+}
+
+// CurrentProjectSchema returns the current project schema string.
+func CurrentProjectSchema() string {
+	return FormatProjectSchema(CurrentProjectVersion)
 }

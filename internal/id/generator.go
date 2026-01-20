@@ -25,6 +25,7 @@ const (
 	Card    Entity = iota // a_
 	Board                 // b_
 	Comment               // c_
+	Project               // p_
 	// Future entities: d_, e_, ...
 )
 
@@ -34,6 +35,7 @@ var prefixes = map[Entity]string{
 	Card:    "a_",
 	Board:   "b_",
 	Comment: "c_",
+	Project: "p_",
 }
 
 var generator *fid.Generator

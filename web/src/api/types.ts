@@ -92,3 +92,15 @@ export interface UpdateColumnInput {
   name?: string;
   color?: string;
 }
+
+export interface FaviconConfig {
+  background: string;
+  icon_type: string;
+  letter: string;
+  emoji: string;
+}
+
+export interface ProjectConfig {
+  name: string;
+  favicon: FaviconConfig;
+}

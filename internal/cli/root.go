@@ -12,10 +12,11 @@ type CommandContext struct {
 	NonInteractive *bool
 
 	// init command
-	InitUsed     *bool
-	InitLocation *string
-	InitColumns  *string
-	InitName     *string
+	InitUsed        *bool
+	InitLocation    *string
+	InitColumns     *string
+	InitName        *string
+	InitProjectName *string
 
 	// board command
 	BoardUsed       *bool
@@ -159,7 +160,7 @@ func Run() {
 func executeCommand(ctx *CommandContext) {
 	switch {
 	case *ctx.InitUsed:
-		runInit(*ctx.InitLocation, *ctx.InitName, *ctx.InitColumns)
+		runInit(*ctx.InitLocation, *ctx.InitName, *ctx.InitColumns, *ctx.InitProjectName)
 
 	case *ctx.BoardCreateUsed:
 		runBoardCreate(*ctx.BoardCreateName)

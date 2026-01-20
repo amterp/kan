@@ -22,6 +22,7 @@ import (
 type App struct {
 	GitClient     *git.Client
 	GlobalStore   store.GlobalStore
+	ProjectStore  store.ProjectStore
 	Paths         *config.Paths
 	BoardStore    store.BoardStore
 	CardStore     store.CardStore
@@ -69,6 +70,16 @@ func NewApp(interactive bool) (*App, error) {
 	paths := config.NewPaths(projectRoot, dataLocation)
 	boardStore := store.NewBoardStore(paths)
 	cardStore := store.NewCardStore(paths)
+	projectStore := store.NewProjectStore(paths)
+
+	// Ensure project config exists with ID (graceful upgrade for older projects)
+	if projectRoot != "" {
+		defaultName := filepath.Base(projectRoot)
+		if err := projectStore.EnsureInitialized(defaultName); err != nil {
+			// Non-fatal: log warning but continue
+			fmt.Fprintf(os.Stderr, "Warning: failed to initialize project config: %v\n", err)
+		}
+	}
 
 	var prompter prompt.Prompter
 	if interactive {
@@ -87,6 +98,7 @@ func NewApp(interactive bool) (*App, error) {
 	return &App{
 		GitClient:     gitClient,
 		GlobalStore:   globalStore,
+		ProjectStore:  projectStore,
 		Paths:         paths,
 		BoardStore:    boardStore,
 		CardStore:     cardStore,

@@ -38,6 +38,13 @@ func registerInit(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Board name (default: main)").
 		Register(cmd)
 
+	ctx.InitProjectName, _ = ra.NewString("project-name").
+		SetShort("p").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Project name for favicon and page title (default: git repo or directory name)").
+		Register(cmd)
+
 	ctx.InitUsed, _ = parent.RegisterCmd(cmd)
 }
 
@@ -72,7 +79,7 @@ func parseColumns(columnsStr string) ([]string, error) {
 	return columns, nil
 }
 
-func runInit(location, boardName, columnsStr string) {
+func runInit(location, boardName, columnsStr, projectName string) {
 	columns, err := parseColumns(columnsStr)
 	if err != nil {
 		Fatal(err)
@@ -91,7 +98,7 @@ func runInit(location, boardName, columnsStr string) {
 		}
 	}
 
-	if err := app.InitService.Initialize(location, boardName, columns); err != nil {
+	if err := app.InitService.Initialize(location, boardName, columns, projectName); err != nil {
 		Fatal(err)
 	}
 

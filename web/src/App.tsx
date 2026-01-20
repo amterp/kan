@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useBoards, useBoard } from './hooks/useBoards';
 import { useOmnibar } from './hooks/useOmnibar';
+import { useProject, usePageTitle, useFavicon } from './hooks/useProject';
 import { cardMatchesQuery } from './utils/fuzzyMatch';
 import Header from './components/Header';
 import Board from './components/Board';
@@ -31,6 +32,11 @@ function BoardApp() {
   const [newCardForEdit, setNewCardForEdit] = useState<Card | null>(null);
   const [omnibarSelectedCard, setOmnibarSelectedCard] = useState<Card | null>(null);
   const omnibar = useOmnibar();
+  const { project } = useProject();
+
+  // Set page title and favicon
+  usePageTitle(project?.name, selectedBoard);
+  useFavicon();
 
   // Compute filtered cards for navigation
   const filteredCards = useMemo(() => {

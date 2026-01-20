@@ -51,6 +51,8 @@ func runServe(port int, noOpen bool) {
 		app.BoardService,
 		app.CardStore,
 		app.BoardStore,
+		app.ProjectStore,
+		app.Paths,
 		creatorName,
 	)
 

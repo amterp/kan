@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/service"
 	"github.com/amterp/kan/internal/store"
@@ -102,6 +103,8 @@ type Handler struct {
 	boardService *service.BoardService
 	cardStore    store.CardStore
 	boardStore   store.BoardStore
+	projectStore store.ProjectStore
+	paths        *config.Paths
 	creator      string
 }
 
@@ -111,6 +114,8 @@ func NewHandler(
 	boardService *service.BoardService,
 	cardStore store.CardStore,
 	boardStore store.BoardStore,
+	projectStore store.ProjectStore,
+	paths *config.Paths,
 	creator string,
 ) *Handler {
 	return &Handler{
@@ -118,12 +123,18 @@ func NewHandler(
 		boardService: boardService,
 		cardStore:    cardStore,
 		boardStore:   boardStore,
+		projectStore: projectStore,
+		paths:        paths,
 		creator:      creator,
 	}
 }
 
 // RegisterRoutes sets up all API routes on the given mux.
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
+	// Project routes
+	mux.HandleFunc("GET /api/v1/project", h.GetProject)
+	mux.HandleFunc("GET /favicon.svg", h.GetFavicon)
+
 	// Board routes
 	mux.HandleFunc("GET /api/v1/boards", h.ListBoards)
 	mux.HandleFunc("GET /api/v1/boards/{name}", h.GetBoard)
@@ -149,6 +160,44 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	// Static files (frontend)
 	mux.Handle("/", h.StaticHandler())
+}
+
+// --- Project Handlers ---
+
+// ProjectResponse is the JSON response for project metadata.
+type ProjectResponse struct {
+	Name    string              `json:"name"`
+	Favicon model.FaviconConfig `json:"favicon"`
+}
+
+// GetProject returns the project metadata.
+func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
+	cfg, err := h.projectStore.Load()
+	if err != nil {
+		// Return sensible defaults on error
+		JSON(w, http.StatusOK, ProjectResponse{
+			Name:    "Kan",
+			Favicon: model.DefaultFaviconConfig("", "Kan"),
+		})
+		return
+	}
+
+	// If no name set, use "Kan"
+	name := cfg.Name
+	if name == "" {
+		name = "Kan"
+	}
+
+	// If no favicon config, use defaults
+	favicon := cfg.Favicon
+	if favicon.Background == "" {
+		favicon = model.DefaultFaviconConfig(cfg.ID, name)
+	}
+
+	JSON(w, http.StatusOK, ProjectResponse{
+		Name:    name,
+		Favicon: favicon,
+	})
 }
 
 // --- Board Handlers ---

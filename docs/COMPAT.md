@@ -18,6 +18,7 @@ Because the files are the persistence layer, schema decisions have long-term con
 
 ```
 .kan/
+  config.toml               # Project configuration (name, favicon)
   boards/
     <board-name>/
       config.toml           # Board configuration (columns, labels, settings)
@@ -87,6 +88,27 @@ editor = "vim"
 ```
 
 Same pattern as board config.
+
+### Project Configuration (TOML)
+
+```toml
+kan_schema = "project/1"
+id = "p_abc123"
+name = "my-project"
+
+[favicon]
+background = "#3b82f6"
+icon_type = "letter"
+letter = "M"
+```
+
+**Decision**: Project config is stored at `.kan/config.toml` (not board-specific).
+
+**Why separate from board config?** Project-level settings (name, favicon) apply to all boards in a project. Board config is per-board. Keeping them separate follows single-responsibility.
+
+**Auto-creation**: Unlike board/card schemas which require `kan init`, project config is auto-created on first CLI interaction if missing. This provides a graceful upgrade path for projects created before project config existed. The `EnsureInitialized` pattern (in `ProjectStore`) generates a stable project ID that persists for the lifetime of the project.
+
+**Project ID**: Each project has a unique ID (e.g., `p_abc123`). This ID is used to derive deterministic values like favicon colors. The ID is stable even if the project name changes, ensuring visual consistency.
 
 ### Why Independent Versions?
 
@@ -347,6 +369,8 @@ These principles guided our decisions:
 |--------|----------|-----------|
 | Card versioning | `"_v": 1` (integer) | Compact, no shell escaping |
 | Config versioning | `kan_schema = "type/1"` | Human-readable, typed |
+| Project config | `.kan/config.toml` with auto-creation | Graceful upgrade for existing projects |
+| Project ID | Stable ID for deterministic derivation | Favicon colors persist even if name changes |
 | Reserved prefixes | `_*`, `kan_*` | Protect future core fields |
 | Custom fields | Flat at top level | Best ergonomics; reserved prefixes protect us |
 | Collision handling | Detect-and-refuse | User decides, no silent loss |

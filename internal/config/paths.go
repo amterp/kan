@@ -6,11 +6,12 @@ import (
 )
 
 const (
-	DefaultKanDir   = ".kan"
-	BoardsDir       = "boards"
-	CardsDir        = "cards"
-	ConfigFileName  = "config.toml"
-	GlobalConfigDir = ".config/kan"
+	DefaultKanDir     = ".kan"
+	BoardsDir         = "boards"
+	CardsDir          = "cards"
+	ConfigFileName    = "config.toml"
+	GlobalConfigDir   = ".config/kan"
+	CustomFaviconFile = "favicon.svg"
 )
 
 // Paths provides path resolution for Kan data files.
@@ -58,6 +59,16 @@ func (p *Paths) CardsDir(boardName string) string {
 // CardPath returns the file path for a specific card.
 func (p *Paths) CardPath(boardName, cardID string) string {
 	return filepath.Join(p.CardsDir(boardName), cardID+".json")
+}
+
+// ProjectConfigPath returns the path to the project config file.
+func (p *Paths) ProjectConfigPath() string {
+	return filepath.Join(p.KanRoot(), ConfigFileName)
+}
+
+// CustomFaviconPath returns the path to a custom favicon file.
+func (p *Paths) CustomFaviconPath() string {
+	return filepath.Join(p.KanRoot(), CustomFaviconFile)
 }
 
 // GlobalConfigPath returns the path to the global config file.

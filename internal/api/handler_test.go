@@ -35,11 +35,12 @@ func setupTestAPI(t *testing.T) *testAPI {
 	paths := config.NewPaths(tempDir, "")
 	cardStore := store.NewCardStore(paths)
 	boardStore := store.NewBoardStore(paths)
+	projectStore := store.NewProjectStore(paths)
 	aliasService := service.NewAliasService(cardStore)
 	cardService := service.NewCardService(cardStore, boardStore, aliasService)
 	boardService := service.NewBoardService(boardStore, cardStore)
 
-	handler := NewHandler(cardService, boardService, cardStore, boardStore, "test-user")
+	handler := NewHandler(cardService, boardService, cardStore, boardStore, projectStore, paths, "test-user")
 	mux := http.NewServeMux()
 	handler.RegisterRoutes(mux)
 

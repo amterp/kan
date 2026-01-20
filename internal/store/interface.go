@@ -27,3 +27,11 @@ type GlobalStore interface {
 	Save(config *model.GlobalConfig) error
 	EnsureExists() error
 }
+
+// ProjectStore handles project-level config persistence.
+type ProjectStore interface {
+	Load() (*model.ProjectConfig, error)
+	Save(config *model.ProjectConfig) error
+	Exists() bool
+	EnsureInitialized(defaultName string) error
+}

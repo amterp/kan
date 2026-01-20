@@ -5,6 +5,7 @@ Guidance for AI agents working with this codebase.
 **Maintenance**: Keep auxiliary files up to date when making relevant changes:
 - **CLI changes**: Update `extras/claude-skill/SKILL.md` and `web/src/docs/cli.md` when adding/modifying commands or flags
 - **Frontend changes**: Update `web/src/docs/*.md` if user-facing behavior changes
+- **Schema changes**: Update `docs/COMPAT.md` and migration fixtures—see "Schema Versioning" section below
 - **General**: Keep README.md and this file accurate
 
 **Note**: SPEC.md is a temporary bootstrapping document and will be removed once the initial implementation stabilizes.
@@ -119,16 +120,42 @@ Tests create temp directories and clean up via deferred functions. See `setupTes
 
 ## Schema Versioning
 
+**IMPORTANT**: This is a critical maintenance discipline. When modifying ANY persisted file format (cards, boards, global config, project config), you MUST follow ALL steps below. Partial compliance creates compatibility bugs that are hard to diagnose.
+
+### When Does This Apply?
+
+This applies when you:
+- Add/remove/rename fields in persisted structures
+- Change field types or semantics
+- Introduce new config file types
+- Modify how data is stored on disk
+
+### Required Steps
+
 When modifying schemas (`internal/version/version.go`):
 
-1. **Bump version constants** — `CurrentCardVersion`, `CurrentBoardVersion`, `CurrentGlobalVersion`
-2. **Update MinKanVersion map** — Maps schema to minimum Kan version
-3. **Add migration fixtures** — `internal/service/testdata/migrations/vN/`
-4. **Add migration tests** — In `migrate_service_test.go`
-5. **Update COMPAT.md** — Document the schema change
+1. **Bump version constants** — `CurrentCardVersion`, `CurrentBoardVersion`, `CurrentGlobalVersion`, `CurrentProjectVersion`
+2. **Update MinKanVersion map** — Maps schema string to minimum Kan version that supports it
+3. **Add migration fixtures** — `internal/service/testdata/migrations/vN/` with sample data in the NEW format
+4. **Add migration tests** — In `migrate_service_test.go` verifying:
+   - Old data migrates correctly to new format
+   - New data doesn't need migration (no-op test)
+5. **Update COMPAT.md** — Document the schema change with rationale
 
-Tests enforce invariants 2 and 3 automatically:
-- `TestMinKanVersionCompleteness` fails if MinKanVersion entry missing
-- `TestMigrationFixturesComplete` fails if fixtures missing
+### Automated Enforcement
 
-See `COMPAT.md` for design rationale and compatibility policy.
+Tests catch common mistakes:
+- `TestMinKanVersionCompleteness` — fails if MinKanVersion entry missing for a schema
+- `TestMigrationFixturesComplete` — fails if fixtures missing for schema versions
+
+### New File Types
+
+When introducing a new persisted file type (like project config):
+- Add schema version constants and prefix to `internal/version/version.go`
+- Add the file to the current `testdata/migrations/vN/` fixtures
+- Document in COMPAT.md with rationale for the design
+- Consider backward compatibility for projects created before the file existed
+
+### Reference
+
+See `docs/COMPAT.md` for design rationale, compatibility policy, and detailed schema documentation.

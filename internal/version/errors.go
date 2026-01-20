@@ -119,3 +119,32 @@ func InvalidGlobalSchema(path, found string) error {
 	}
 	return e
 }
+
+// MissingProjectSchema creates an error for a project config missing kan_schema.
+func MissingProjectSchema(path string) error {
+	return &SchemaVersionError{
+		FileType: "project config",
+		FilePath: path,
+		Found:    "missing",
+		Expected: CurrentProjectSchema(),
+	}
+}
+
+// InvalidProjectSchema creates an error for a project config with unsupported schema.
+func InvalidProjectSchema(path, found string) error {
+	e := &SchemaVersionError{
+		FileType: "project config",
+		FilePath: path,
+		Found:    found,
+		Expected: CurrentProjectSchema(),
+	}
+	// Check if it's a future version
+	if v, err := ParseProjectVersion(found); err == nil && v > CurrentProjectVersion {
+		if minKan, ok := MinKanVersion[found]; ok {
+			e.MinRequired = minKan
+		} else {
+			e.MinRequired = "a newer version"
+		}
+	}
+	return e
+}

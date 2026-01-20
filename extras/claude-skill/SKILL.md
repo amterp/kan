@@ -24,6 +24,7 @@ kan init                              # Create .kan/ in current directory
 kan init -l .kanboard                 # Custom location
 kan init -c todo,doing,done           # Custom columns
 kan init -n myboard                   # Custom board name
+kan init -p myproject                 # Custom project name for favicon/title
 kan init -c a,b,c -n project          # Both custom columns and name
 ```
 
@@ -32,6 +33,7 @@ kan init -c a,b,c -n project          # Both custom columns and name
 | `-l, --location` | Custom location for .kan directory |
 | `-c, --columns` | Comma-separated column names (default: backlog,next,in-progress,done) |
 | `-n, --name` | Board name (default: main) |
+| `-p, --project-name` | Project name for favicon and page title (default: git repo or directory name) |
 
 ## Adding Cards
 

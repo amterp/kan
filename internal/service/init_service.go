@@ -3,7 +3,9 @@ package service
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/id"
@@ -29,7 +31,8 @@ func NewInitService(globalStore store.GlobalStore) *InitService {
 // If customLocation is empty, uses the default .kan directory.
 // If boardName is empty, uses "main".
 // If customColumns is empty, uses default columns.
-func (s *InitService) Initialize(customLocation, boardName string, customColumns []string) error {
+// If projectName is empty, derives from git repo root or cwd basename.
+func (s *InitService) Initialize(customLocation, boardName string, customColumns []string, projectName string) error {
 	// Get current working directory as project root
 	projectRoot, err := os.Getwd()
 	if err != nil {
@@ -93,8 +96,40 @@ func (s *InitService) Initialize(customLocation, boardName string, customColumns
 		return fmt.Errorf("failed to create board: %w", err)
 	}
 
+	// Create project config
+	if projectName == "" {
+		projectName = deriveProjectName(projectRoot)
+	}
+	projectID := id.Generate(id.Project)
+	projectStore := store.NewProjectStore(paths)
+	projectCfg := &model.ProjectConfig{
+		ID:      projectID,
+		Name:    projectName,
+		Favicon: model.DefaultFaviconConfig(projectID, projectName),
+	}
+	if err := projectStore.Save(projectCfg); err != nil {
+		return fmt.Errorf("failed to create project config: %w", err)
+	}
+
 	// Register in global config
 	return s.registerProject(projectRoot, customLocation)
+}
+
+// deriveProjectName determines the project name from git repo root or cwd basename.
+func deriveProjectName(projectRoot string) string {
+	// Try to get git repo root
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	cmd.Dir = projectRoot
+	out, err := cmd.Output()
+	if err == nil {
+		repoRoot := strings.TrimSpace(string(out))
+		if repoRoot != "" {
+			return filepath.Base(repoRoot)
+		}
+	}
+
+	// Fallback to cwd basename
+	return filepath.Base(projectRoot)
 }
 
 func (s *InitService) registerProject(projectRoot, customLocation string) error {
