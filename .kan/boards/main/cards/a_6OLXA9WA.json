@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "keep-description-box-2",
+  "alias_explicit": false,
+  "created_at_millis": 1768170206701,
+  "creator": "Alexander Terp",
+  "id": "a_6OLXA9WA",
+  "title": "keep description box consistent size between rendered \u0026 editing",
+  "type": "enhancement",
+  "updated_at_millis": 1768170210559
+}

@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "clicking-outside-of-edit-2",
+  "alias_explicit": false,
+  "created_at_millis": 1768168976595,
+  "creator": "Alexander Terp",
+  "id": "a_6NpX7nrE",
+  "title": "clicking outside of edit modal should save it",
+  "type": "bug",
+  "updated_at_millis": 1768168979774
+}

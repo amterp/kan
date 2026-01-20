@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "opening-new-card-with-cmd-2",
+  "alias_explicit": false,
+  "created_at_millis": 1768169053876,
+  "creator": "Alexander Terp",
+  "id": "a_6NrXm5Ky",
+  "title": "opening new card with cmd+enter should put cursor into description box, ready to edit",
+  "type": "enhancement",
+  "updated_at_millis": 1768169056865
+}

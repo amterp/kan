@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "down-hold-up-click-should-not-2",
+  "alias_explicit": false,
+  "created_at_millis": 1768168681977,
+  "creator": "Alexander Terp",
+  "id": "a_6NhrwFOp",
+  "title": "down-hold-up click should not trigger editing",
+  "type": "enhancement",
+  "updated_at_millis": 1768168688626
+}
