@@ -19,6 +19,10 @@ kan serve
 
 That's it. Your board opens in the browser.
 
+## Documentation
+
+Full documentation is available at [amterp.github.io/kan](https://amterp.github.io/kan/), or run `kan serve` and visit `/docs`.
+
 ## CLI
 
 ```bash
