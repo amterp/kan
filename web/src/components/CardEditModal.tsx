@@ -11,6 +11,7 @@ interface CardEditModalProps {
   onSave: (updates: UpdateCardInput) => Promise<void>;
   onDelete: () => void;
   onClose: () => void;
+  focusDescription?: boolean; // Focus description field instead of title (for new cards)
 }
 
 // Calculate responsive initial size based on viewport
@@ -32,7 +33,7 @@ function getFieldValue(card: Card, fieldName: string): unknown {
   return card[fieldName];
 }
 
-export default function CardEditModal({ card, board, onSave, onDelete, onClose }: CardEditModalProps) {
+export default function CardEditModal({ card, board, onSave, onDelete, onClose, focusDescription }: CardEditModalProps) {
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description || '');
   const [column, setColumn] = useState(card.column);
@@ -516,7 +517,7 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
               rows={1}
               className="text-xl font-semibold text-gray-900 dark:text-white w-full border-0 border-b-2 border-transparent focus:border-blue-500 focus:outline-none bg-transparent resize-none overflow-hidden"
               placeholder="Card title"
-              autoFocus
+              autoFocus={!focusDescription}
             />
             <p className="text-sm text-gray-500 dark:text-gray-400 font-mono mt-1">
               {card.alias} • {column}
@@ -554,6 +555,7 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
                 onChange={setDescription}
                 placeholder="Add a description..."
                 minHeight="min-h-48"
+                autoFocus={focusDescription}
               />
             </div>
 

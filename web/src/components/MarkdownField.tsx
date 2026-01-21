@@ -189,6 +189,7 @@ interface MarkdownFieldProps {
   minHeight?: string;
   alwaysEditing?: boolean; // When true, never toggles to preview mode
   onSubmit?: () => void; // Called on Cmd+Enter when alwaysEditing is true
+  autoFocus?: boolean; // Focus on initial mount when starting in edit mode
 }
 
 export default function MarkdownField({
@@ -198,10 +199,14 @@ export default function MarkdownField({
   minHeight = 'min-h-48',
   alwaysEditing = false,
   onSubmit,
+  autoFocus = false,
 }: MarkdownFieldProps) {
   const [isEditing, setIsEditing] = useState(alwaysEditing || !value?.trim());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isMonospace, toggleMonospace] = useMonospacePreference();
+
+  // Track previous isEditing state to detect transitions
+  const prevIsEditingRef = useRef<boolean | null>(null);
 
   // Toolbar button handlers
   const handleBold = () => applyFormatting(textareaRef, value, onChange, '**');
@@ -210,11 +215,20 @@ export default function MarkdownField({
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
-      textareaRef.current.focus();
-      const len = textareaRef.current.value.length;
-      textareaRef.current.setSelectionRange(len, len);
+      const wasEditing = prevIsEditingRef.current;
+      // Focus if:
+      // 1. autoFocus is true and this is the initial mount (wasEditing is null), OR
+      // 2. User clicked to enter edit mode (wasEditing was false)
+      const shouldFocus = (autoFocus && wasEditing === null) || wasEditing === false;
+
+      if (shouldFocus) {
+        textareaRef.current.focus();
+        const len = textareaRef.current.value.length;
+        textareaRef.current.setSelectionRange(len, len);
+      }
     }
-  }, [isEditing]);
+    prevIsEditingRef.current = isEditing;
+  }, [isEditing, autoFocus]);
 
   const handleBlur = () => {
     if (!alwaysEditing && value?.trim()) {

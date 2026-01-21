@@ -527,6 +527,7 @@ export default function Board({
           onSave={handleSaveCard}
           onDelete={() => handleDeleteCard(currentEditCard.id)}
           onClose={handleCloseModal}
+          focusDescription={!!newCardForEdit}
         />
       )}
     </BoardConfigProvider>
