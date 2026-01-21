@@ -13,10 +13,18 @@ interface CardEditModalProps {
   onClose: () => void;
 }
 
+// Calculate responsive initial size based on viewport
+function getInitialModalSize() {
+  return {
+    width: Math.min(1200, window.innerWidth * 0.7),
+    height: Math.min(900, window.innerHeight * 0.85),
+  };
+}
+
 // Module-level state to persist position/size across modal opens (ephemeral, lost on refresh)
 let savedModalState = {
   position: { x: 0, y: 0 },
-  size: { width: 1100, height: 750 },
+  size: getInitialModalSize(),
 };
 
 // Helper to get current value for a custom field
