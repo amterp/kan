@@ -70,6 +70,13 @@ func (s *FileBoardStore) Get(boardName string) (*model.BoardConfig, error) {
 		return nil, version.InvalidBoardSchema(path, cfg.KanSchema)
 	}
 
+	// Validate link rules and print warnings for invalid patterns
+	if warnings := model.ValidateLinkRules(cfg.LinkRules); len(warnings) > 0 {
+		for _, w := range warnings {
+			fmt.Fprintln(os.Stderr, "Warning:", w)
+		}
+	}
+
 	return &cfg, nil
 }
 

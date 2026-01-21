@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight, oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useTheme } from '../contexts/ThemeContext';
+import { useBoardConfigOptional } from '../contexts/BoardConfigContext';
+import { applyLinkRulesToMarkdown } from '../utils/linkParser';
 
 // Import only common languages to reduce bundle size
 import javascript from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
@@ -51,8 +54,15 @@ interface MarkdownViewProps {
 export default function MarkdownView({ content, className = '' }: MarkdownViewProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+  const board = useBoardConfigOptional();
 
-  if (!content?.trim()) {
+  // Pre-process content with link rules before rendering
+  const processedContent = useMemo(() => {
+    if (!content?.trim()) return '';
+    return applyLinkRulesToMarkdown(content, board?.link_rules);
+  }, [content, board?.link_rules]);
+
+  if (!processedContent) {
     return null;
   }
 
@@ -99,7 +109,7 @@ export default function MarkdownView({ content, className = '' }: MarkdownViewPr
           },
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );

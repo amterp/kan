@@ -4,6 +4,7 @@ import type { DragEndEvent, DragStartEvent, DragOverEvent, CollisionDetection, D
 import { SortableContext, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import type { BoardConfig, Card, Column as ColumnType, CreateCardInput, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
 import { cardMatchesQuery } from '../utils/fuzzyMatch';
+import { BoardConfigProvider } from '../contexts/BoardConfigContext';
 import Column from './Column';
 import CardComponent from './Card';
 import CardEditModal from './CardEditModal';
@@ -400,7 +401,7 @@ export default function Board({
   };
 
   return (
-    <>
+    <BoardConfigProvider board={board}>
       <DndContext
         sensors={sensors}
         collisionDetection={customCollisionDetection}
@@ -528,6 +529,6 @@ export default function Board({
           onClose={handleCloseModal}
         />
       )}
-    </>
+    </BoardConfigProvider>
   );
 }

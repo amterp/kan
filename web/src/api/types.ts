@@ -58,6 +58,12 @@ export interface CardDisplayConfig {
   metadata?: string[];
 }
 
+export interface LinkRule {
+  name: string;
+  pattern: string;
+  url: string;
+}
+
 export interface BoardConfig {
   id: string;
   name: string;
@@ -65,6 +71,7 @@ export interface BoardConfig {
   default_column: string;
   custom_fields?: Record<string, CustomFieldSchema>;
   card_display?: CardDisplayConfig;
+  link_rules?: LinkRule[];
 }
 
 export interface CreateCardInput {

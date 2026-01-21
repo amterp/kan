@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Card as CardType, BoardConfig, CustomFieldOption } from '../api/types';
+import { parseTextWithLinks } from '../utils/linkParser';
 
 interface CardProps {
   card: CardType;
@@ -27,34 +28,6 @@ function getTagsValues(card: CardType, fieldName: string): string[] {
   if (Array.isArray(value)) return value as string[];
   if (typeof value === 'string') return [value];
   return [];
-}
-
-// URL regex pattern - matches http(s) URLs
-const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
-
-// Parse text and split into segments of plain text and URLs
-function parseTextWithUrls(text: string): Array<{ type: 'text' | 'url'; content: string }> {
-  const segments: Array<{ type: 'text' | 'url'; content: string }> = [];
-  let lastIndex = 0;
-  let match;
-
-  URL_PATTERN.lastIndex = 0; // Reset regex state
-  while ((match = URL_PATTERN.exec(text)) !== null) {
-    // Add text before the URL
-    if (match.index > lastIndex) {
-      segments.push({ type: 'text', content: text.slice(lastIndex, match.index) });
-    }
-    // Add the URL
-    segments.push({ type: 'url', content: match[1] });
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Add remaining text after last URL
-  if (lastIndex < text.length) {
-    segments.push({ type: 'text', content: text.slice(lastIndex) });
-  }
-
-  return segments;
 }
 
 export default function Card({ card, board, isDragging = false, isPlaceholder = false, isHighlighted = false, onClick, onDelete }: CardProps) {
@@ -211,11 +184,11 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
 
       {/* Title */}
       <h3 className="font-medium text-gray-900 dark:text-white text-sm break-words">
-        {parseTextWithUrls(card.title).map((segment, i) =>
-          segment.type === 'url' ? (
+        {parseTextWithLinks(card.title, board.link_rules).map((segment, i) =>
+          segment.type === 'link' ? (
             <a
               key={i}
-              href={segment.content}
+              href={segment.url}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}

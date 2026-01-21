@@ -1,5 +1,10 @@
 package model
 
+import (
+	"fmt"
+	"regexp"
+)
+
 // Custom field type constants.
 const (
 	FieldTypeString = "string"
@@ -36,6 +41,7 @@ type BoardConfig struct {
 	DefaultColumn string                       `toml:"default_column" json:"default_column"`
 	CustomFields  map[string]CustomFieldSchema `toml:"custom_fields,omitempty" json:"custom_fields,omitempty"`
 	CardDisplay   CardDisplayConfig            `toml:"card_display,omitempty" json:"card_display,omitempty"`
+	LinkRules     []LinkRule                   `toml:"link_rules,omitempty" json:"link_rules,omitempty"`
 }
 
 // Column represents a kanban column.
@@ -62,6 +68,27 @@ type CardDisplayConfig struct {
 	TypeIndicator string   `toml:"type_indicator,omitempty" json:"type_indicator,omitempty"` // enum field shown as badge
 	Badges        []string `toml:"badges,omitempty" json:"badges,omitempty"`                 // tags fields shown as chips
 	Metadata      []string `toml:"metadata,omitempty" json:"metadata,omitempty"`             // fields shown as small text
+}
+
+// LinkRule defines a pattern-based auto-link rule.
+// Text matching the pattern will be converted to clickable links.
+type LinkRule struct {
+	Name    string `toml:"name" json:"name"`       // Human-readable name for the rule (e.g., "Jira")
+	Pattern string `toml:"pattern" json:"pattern"` // Regex pattern with capture groups
+	URL     string `toml:"url" json:"url"`         // URL template using {0} for full match, {1}, {2}, etc. for groups
+}
+
+// ValidateLinkRules validates that all link rules have valid regex patterns.
+// Returns a list of warning messages for invalid patterns (non-fatal).
+func ValidateLinkRules(rules []LinkRule) []string {
+	var warnings []string
+	for _, rule := range rules {
+		if _, err := regexp.Compile(rule.Pattern); err != nil {
+			warnings = append(warnings, fmt.Sprintf(
+				"link_rules: invalid regex in '%s': %s", rule.Name, err.Error()))
+		}
+	}
+	return warnings
 }
 
 // DefaultColumns returns the default columns for a new board.
