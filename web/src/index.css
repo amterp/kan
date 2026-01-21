@@ -174,6 +174,46 @@ body {
   color: #e2e8f0;
 }
 
+/* Code block copy button */
+.code-block-wrapper {
+  position: relative;
+}
+
+.code-copy-button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.25rem;
+  background: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.code-block-wrapper:hover .code-copy-button {
+  opacity: 0.7;
+}
+
+.code-copy-button:hover {
+  opacity: 1 !important;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Dark mode */
+.dark .code-copy-button {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dark .code-copy-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
 .markdown-body a {
   color: #2563eb;
   text-decoration: underline;

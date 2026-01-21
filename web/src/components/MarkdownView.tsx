@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -46,6 +46,63 @@ SyntaxHighlighter.registerLanguage('html', markup);
 SyntaxHighlighter.registerLanguage('xml', markup);
 SyntaxHighlighter.registerLanguage('toml', toml);
 
+function CopyIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+      <path d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function CheckIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+      <path d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
+interface CodeBlockProps {
+  code: string;
+  language: string;
+  isDark: boolean;
+}
+
+function CodeBlock({ code, language, isDark }: CodeBlockProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="code-block-wrapper">
+      <button
+        className="code-copy-button"
+        onClick={handleCopy}
+        title={copied ? 'Copied!' : 'Copy code'}
+      >
+        {copied ? <CheckIcon /> : <CopyIcon />}
+      </button>
+      <SyntaxHighlighter
+        style={isDark ? oneDark : oneLight}
+        language={language}
+        PreTag="div"
+        customStyle={{
+          margin: 0,
+          borderRadius: '0.375rem',
+          fontSize: '0.875rem',
+        }}
+      >
+        {code}
+      </SyntaxHighlighter>
+    </div>
+  );
+}
+
 interface MarkdownViewProps {
   content: string;
   className?: string;
@@ -85,18 +142,11 @@ export default function MarkdownView({ content, className = '' }: MarkdownViewPr
 
             if (isCodeBlock) {
               return (
-                <SyntaxHighlighter
-                  style={isDark ? oneDark : oneLight}
+                <CodeBlock
+                  code={codeString}
                   language={match ? match[1] : 'text'}
-                  PreTag="div"
-                  customStyle={{
-                    margin: 0,
-                    borderRadius: '0.375rem',
-                    fontSize: '0.875rem',
-                  }}
-                >
-                  {codeString}
-                </SyntaxHighlighter>
+                  isDark={isDark}
+                />
               );
             }
 
