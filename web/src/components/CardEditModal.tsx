@@ -202,7 +202,7 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
     try {
       const updates: UpdateCardInput = {
         title: title.trim(),
-        description: description.trim() || undefined,
+        description: description.trim(),
         column,
       };
 
@@ -236,11 +236,20 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
     onClose();
   }, [performSave, onClose]);
 
+  // Close handler that saves changes first (used by Escape, backdrop click, X button)
+  const handleCloseWithSave = useCallback(async () => {
+    if (saving) return; // Prevent double-save if already saving
+    if (hasChanges && title.trim()) {
+      await performSave();
+    }
+    onClose();
+  }, [saving, hasChanges, title, performSave, onClose]);
+
   // Document-level keyboard handler so Cmd+Enter works without focus
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        handleCloseWithSave();
       } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         if (hasChanges && title.trim()) {
@@ -253,7 +262,7 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, hasChanges, title, handleSave]);
+  }, [onClose, hasChanges, title, handleSave, handleCloseWithSave]);
 
   const handleBackdropMouseDown = () => {
     mouseDownOnBackdrop.current = true;
@@ -266,7 +275,7 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
       return;
     }
     mouseDownOnBackdrop.current = false;
-    onClose();
+    handleCloseWithSave();
   };
 
   // Button click handler - save if changes, close if no changes
@@ -506,7 +515,7 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose }
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleCloseWithSave}
             className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
