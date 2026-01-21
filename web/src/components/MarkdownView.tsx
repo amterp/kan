@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -108,10 +109,17 @@ interface MarkdownViewProps {
   className?: string;
 }
 
+// Check if a link should be handled by React Router (internal docs links)
+function isInternalDocsLink(href: string | undefined): boolean {
+  if (!href) return false;
+  return href === '/docs' || href.startsWith('/docs/');
+}
+
 export default function MarkdownView({ content, className = '' }: MarkdownViewProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const board = useBoardConfigOptional();
+  const navigate = useNavigate();
 
   // Pre-process content with link rules before rendering
   const processedContent = useMemo(() => {
@@ -128,11 +136,26 @@ export default function MarkdownView({ content, className = '' }: MarkdownViewPr
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noopener noreferrer">
-              {children}
-            </a>
-          ),
+          a: ({ href, children }) => {
+            if (isInternalDocsLink(href)) {
+              return (
+                <a
+                  href={href}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate(href!);
+                  }}
+                >
+                  {children}
+                </a>
+              );
+            }
+            return (
+              <a href={href} target="_blank" rel="noopener noreferrer">
+                {children}
+              </a>
+            );
+          },
           code: ({ className, children, ...props }) => {
             const match = /language-(\w+)/.exec(className || '');
             const codeString = String(children).replace(/\n$/, '');
