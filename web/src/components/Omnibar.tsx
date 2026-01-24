@@ -82,7 +82,8 @@ export default function Omnibar({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center pb-16 pointer-events-none">
-      <div className="pointer-events-auto bg-white dark:bg-gray-800 rounded-2xl ring-1 ring-black/10 dark:ring-white/10 px-5 py-4 flex items-center gap-3 min-w-96 shadow-[0_8px_30px_rgb(0,0,0,0.25)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)]">
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/5 dark:from-black/20 to-transparent pointer-events-none" />
+      <div className="pointer-events-auto animate-omnibar-enter bg-white/95 backdrop-blur-sm dark:bg-gray-800/95 rounded-2xl ring-1 ring-black/10 dark:ring-white/10 px-5 py-4 flex items-center gap-3 min-w-96 shadow-[0_8px_30px_rgb(0,0,0,0.25)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)]">
         {/* Search icon */}
         <svg
           className="w-5 h-5 text-gray-400 dark:text-gray-500 flex-shrink-0"
