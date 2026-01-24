@@ -12,8 +12,8 @@ export default function Header({ boards, selectedBoard, onSelectBoard, onRefresh
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
-        <h1 className="text-3xl font-bold tracking-tight">
-          <span className="bg-gradient-to-r from-blue-600 to-blue-400 dark:from-blue-400 dark:to-blue-300 bg-clip-text text-transparent">
+        <h1 className="text-4xl font-bold tracking-tight">
+          <span className="bg-gradient-to-r from-blue-700 to-blue-500 dark:from-white dark:to-blue-300 bg-clip-text text-transparent">
             Kan
           </span>
         </h1>
