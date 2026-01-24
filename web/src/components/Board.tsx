@@ -505,13 +505,9 @@ export default function Board({
           {activeCard ? (
             <CardComponent card={activeCard} board={board} isDragging />
           ) : activeColumn ? (
-            <div className="bg-gray-200 dark:bg-gray-800 rounded-lg shadow-lg opacity-90 cursor-grabbing">
+            <div className="bg-gray-200 dark:bg-gray-800 rounded-lg shadow-lg opacity-90 cursor-grabbing border-t-[3px]" style={{ borderTopColor: activeColumn.color }}>
               <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-300 dark:border-gray-600">
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: activeColumn.color }}
-                />
-                <h2 className="font-medium text-gray-700 dark:text-gray-200 truncate">
+                <h2 className="font-semibold text-gray-700 dark:text-gray-200 truncate">
                   {activeColumn.name}
                 </h2>
               </div>

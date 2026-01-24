@@ -93,14 +93,19 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
     );
   }
 
+  const cardStyle = {
+    ...style,
+    ...(typeOption?.color ? { borderLeftWidth: '3px', borderLeftStyle: 'solid' as const, borderLeftColor: typeOption.color } : {}),
+  };
+
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={cardStyle}
       {...attributes}
       {...listeners}
       onClick={handleClick}
-      className={`group relative bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
+      className={`group relative bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-100 dark:border-gray-600 cursor-pointer hover:shadow-md transition-shadow ${
         isDragging ? 'shadow-lg rotate-2' : ''
       } ${isHighlighted ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-200 dark:ring-offset-gray-800' : ''}`}
     >

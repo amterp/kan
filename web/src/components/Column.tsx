@@ -284,8 +284,8 @@ export default function Column({
     <>
       <div
         ref={setRefs}
-        style={sortableStyle}
-        className={`flex-1 min-w-64 max-w-sm flex flex-col bg-gray-200 dark:bg-gray-800 rounded-lg max-h-full ${
+        style={{ ...sortableStyle, borderTopColor: column.color }}
+        className={`flex-1 min-w-64 max-w-sm flex flex-col bg-gray-200 dark:bg-gray-800 rounded-lg max-h-full border-t-[3px] ${
           isOver ? 'ring-2 ring-blue-400' : ''
         } ${isDragging ? 'opacity-50' : ''}`}
       >
@@ -305,10 +305,6 @@ export default function Column({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
         </button>
-        <div
-          className="w-3 h-3 rounded-full flex-shrink-0"
-          style={{ backgroundColor: column.color }}
-        />
         {isEditingName ? (
           <div className="flex-1 min-w-0 relative">
             <input
@@ -321,7 +317,7 @@ export default function Column({
               }}
               onKeyDown={handleEditKeyDown}
               onBlur={handleSaveEdit}
-              className={`w-full font-medium text-gray-700 dark:text-gray-200 bg-transparent border-b-2 focus:outline-none px-0 py-0 ${
+              className={`w-full font-semibold text-gray-700 dark:text-gray-200 bg-transparent border-b-2 focus:outline-none px-0 py-0 ${
                 editError ? 'border-red-500' : 'border-blue-500'
               }`}
             />
@@ -332,7 +328,7 @@ export default function Column({
         ) : (
           <>
             <h2
-              className="font-medium text-gray-700 dark:text-gray-200 truncate cursor-text hover:underline hover:decoration-dotted hover:decoration-gray-400 dark:hover:decoration-gray-500"
+              className="font-semibold text-gray-700 dark:text-gray-200 truncate cursor-text hover:underline hover:decoration-dotted hover:decoration-gray-400 dark:hover:decoration-gray-500"
               onClick={handleStartEdit}
               onPointerDown={(e) => e.stopPropagation()}
               title="Click to rename"
@@ -440,6 +436,10 @@ export default function Column({
             return elements;
           })()}
         </SortableContext>
+
+        {cards.length === 0 && !isAddingCard && (
+          <p className="text-center text-xs text-gray-400 dark:text-gray-500 py-4">No cards yet</p>
+        )}
 
         {/* Add Card Form */}
         {isAddingCard && (
