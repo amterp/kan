@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/amterp/kan/internal/config"
@@ -40,7 +41,17 @@ func setupTestAPI(t *testing.T) *testAPI {
 	cardService := service.NewCardService(cardStore, boardStore, aliasService)
 	boardService := service.NewBoardService(boardStore, cardStore)
 
-	handler := NewHandler(cardService, boardService, cardStore, boardStore, projectStore, paths, "test-user")
+	ctx := &ProjectContext{
+		Paths:        paths,
+		BoardStore:   boardStore,
+		CardStore:    cardStore,
+		ProjectStore: projectStore,
+		CardService:  cardService,
+		BoardService: boardService,
+		Creator:      "test-user",
+		ProjectRoot:  tempDir,
+	}
+	handler := NewHandler(nil, ctx)
 	mux := http.NewServeMux()
 	handler.RegisterRoutes(mux)
 
@@ -737,5 +748,291 @@ func TestHandler_ListCards_WithColumnFilter(t *testing.T) {
 		if card.Column != "backlog" {
 			t.Errorf("Expected column 'backlog', got %q", card.Column)
 		}
+	}
+}
+
+// ============================================================================
+// Cross-Project Endpoint Tests
+// ============================================================================
+
+// mockGlobalStore implements store.GlobalStore for tests.
+type mockGlobalStore struct {
+	cfg *model.GlobalConfig
+	err error
+}
+
+func (m *mockGlobalStore) Load() (*model.GlobalConfig, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.cfg, nil
+}
+
+func (m *mockGlobalStore) Save(_ *model.GlobalConfig) error { return nil }
+func (m *mockGlobalStore) EnsureExists() error              { return nil }
+
+// createProjectDir creates a temp directory with a Kan project structure (boards dir + a board).
+func createProjectDir(t *testing.T, boardName string) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "kan-project-*")
+	if err != nil {
+		t.Fatalf("Failed to create project dir: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+
+	paths := config.NewPaths(dir, "")
+	boardStore := store.NewBoardStore(paths)
+	cfg := &model.BoardConfig{
+		ID:            "test-id",
+		Name:          boardName,
+		DefaultColumn: "todo",
+		Columns: []model.Column{
+			{Name: "todo", Color: "#6b7280"},
+		},
+	}
+	if err := boardStore.Create(cfg); err != nil {
+		t.Fatalf("Failed to create board: %v", err)
+	}
+	return dir
+}
+
+// setupCrossProjectAPI creates a handler wired with a mock global store.
+func setupCrossProjectAPI(t *testing.T, globalCfg *model.GlobalConfig) (*testAPI, *mockGlobalStore) {
+	t.Helper()
+
+	tempDir, err := os.MkdirTemp("", "kan-api-cross-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+
+	paths := config.NewPaths(tempDir, "")
+	cardStore := store.NewCardStore(paths)
+	boardStore := store.NewBoardStore(paths)
+	projectStore := store.NewProjectStore(paths)
+	aliasService := service.NewAliasService(cardStore)
+	cardService := service.NewCardService(cardStore, boardStore, aliasService)
+	boardService := service.NewBoardService(boardStore, cardStore)
+
+	ctx := &ProjectContext{
+		Paths:        paths,
+		BoardStore:   boardStore,
+		CardStore:    cardStore,
+		ProjectStore: projectStore,
+		CardService:  cardService,
+		BoardService: boardService,
+		Creator:      "test-user",
+		ProjectRoot:  tempDir,
+	}
+
+	gs := &mockGlobalStore{cfg: globalCfg}
+	handler := NewHandler(gs, ctx)
+	mux := http.NewServeMux()
+	handler.RegisterRoutes(mux)
+
+	return &testAPI{
+		handler:    handler,
+		mux:        mux,
+		cardStore:  cardStore,
+		boardStore: boardStore,
+		tempDir:    tempDir,
+	}, gs
+}
+
+func TestHandler_ListAllBoards_Empty(t *testing.T) {
+	globalCfg := &model.GlobalConfig{}
+	api, _ := setupCrossProjectAPI(t, globalCfg)
+
+	w := api.request("GET", "/api/v1/all-boards", nil)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp AllBoardsResponse
+	decodeJSON(t, w, &resp)
+	if len(resp.Boards) != 0 {
+		t.Errorf("Expected empty boards, got %d", len(resp.Boards))
+	}
+	if resp.CurrentProjectPath == "" {
+		t.Error("Expected current_project_path to be set")
+	}
+}
+
+func TestHandler_ListAllBoards_MultipleProjects(t *testing.T) {
+	projADir := createProjectDir(t, "main")
+	projBDir := createProjectDir(t, "dev")
+
+	globalCfg := &model.GlobalConfig{
+		Projects: map[string]string{
+			"project-a": projADir,
+			"project-b": projBDir,
+		},
+		Repos: map[string]model.RepoConfig{
+			projADir: {},
+			projBDir: {},
+		},
+	}
+	api, _ := setupCrossProjectAPI(t, globalCfg)
+
+	w := api.request("GET", "/api/v1/all-boards", nil)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp AllBoardsResponse
+	decodeJSON(t, w, &resp)
+	if len(resp.Boards) != 2 {
+		t.Errorf("Expected 2 boards, got %d", len(resp.Boards))
+	}
+}
+
+func TestHandler_ListAllBoards_SkipsInvalidProjects(t *testing.T) {
+	validDir := createProjectDir(t, "main")
+	invalidDir := filepath.Join(os.TempDir(), "nonexistent-kan-project-xyz")
+
+	globalCfg := &model.GlobalConfig{
+		Projects: map[string]string{
+			"valid":   validDir,
+			"invalid": invalidDir,
+		},
+		Repos: map[string]model.RepoConfig{
+			validDir:   {},
+			invalidDir: {},
+		},
+	}
+	api, _ := setupCrossProjectAPI(t, globalCfg)
+
+	w := api.request("GET", "/api/v1/all-boards", nil)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp AllBoardsResponse
+	decodeJSON(t, w, &resp)
+	if len(resp.Boards) != 1 {
+		t.Errorf("Expected 1 board (skipping invalid), got %d", len(resp.Boards))
+	}
+	if len(resp.Skipped) != 1 {
+		t.Errorf("Expected 1 skipped project, got %d", len(resp.Skipped))
+	}
+	if len(resp.Skipped) > 0 && resp.Skipped[0].Name != "invalid" {
+		t.Errorf("Expected skipped project name 'invalid', got %q", resp.Skipped[0].Name)
+	}
+}
+
+func TestHandler_SwitchProject_Success(t *testing.T) {
+	projDir := createProjectDir(t, "main")
+
+	globalCfg := &model.GlobalConfig{
+		Projects: map[string]string{
+			"target": projDir,
+		},
+		Repos: map[string]model.RepoConfig{
+			projDir: {},
+		},
+	}
+	api, _ := setupCrossProjectAPI(t, globalCfg)
+
+	body := map[string]any{"project_path": projDir}
+	w := api.request("POST", "/api/v1/switch", body)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp SwitchProjectResponse
+	decodeJSON(t, w, &resp)
+	if len(resp.Boards) == 0 {
+		t.Error("Expected at least one board in response")
+	}
+	if resp.Boards[0] != "main" {
+		t.Errorf("Expected board 'main', got %q", resp.Boards[0])
+	}
+
+	// Verify the context actually switched
+	api2 := api.request("GET", "/api/v1/all-boards", nil)
+	var allResp AllBoardsResponse
+	decodeJSON(t, api2, &allResp)
+	if allResp.CurrentProjectPath != projDir {
+		t.Errorf("Expected current path %q, got %q", projDir, allResp.CurrentProjectPath)
+	}
+}
+
+func TestHandler_SwitchProject_UnregisteredPath(t *testing.T) {
+	globalCfg := &model.GlobalConfig{
+		Projects: map[string]string{
+			"only": "/some/path",
+		},
+	}
+	api, _ := setupCrossProjectAPI(t, globalCfg)
+
+	body := map[string]any{"project_path": "/not/registered"}
+	w := api.request("POST", "/api/v1/switch", body)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestHandler_SwitchProject_PathDoesNotExist(t *testing.T) {
+	badPath := filepath.Join(os.TempDir(), "nonexistent-kan-switch-test")
+
+	globalCfg := &model.GlobalConfig{
+		Projects: map[string]string{
+			"ghost": badPath,
+		},
+		Repos: map[string]model.RepoConfig{
+			badPath: {},
+		},
+	}
+	api, _ := setupCrossProjectAPI(t, globalCfg)
+
+	body := map[string]any{"project_path": badPath}
+	w := api.request("POST", "/api/v1/switch", body)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestHandler_SwitchProject_NoBoards(t *testing.T) {
+	// Create a project dir with no boards (just the .kan/boards directory)
+	dir, err := os.MkdirTemp("", "kan-noboards-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	os.MkdirAll(filepath.Join(dir, ".kan", "boards"), 0755)
+
+	globalCfg := &model.GlobalConfig{
+		Projects: map[string]string{
+			"empty": dir,
+		},
+		Repos: map[string]model.RepoConfig{
+			dir: {},
+		},
+	}
+	api, _ := setupCrossProjectAPI(t, globalCfg)
+
+	body := map[string]any{"project_path": dir}
+	w := api.request("POST", "/api/v1/switch", body)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestHandler_SwitchProject_MissingBody(t *testing.T) {
+	globalCfg := &model.GlobalConfig{}
+	api, _ := setupCrossProjectAPI(t, globalCfg)
+
+	body := map[string]any{}
+	w := api.request("POST", "/api/v1/switch", body)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected 400, got %d: %s", w.Code, w.Body.String())
 	}
 }

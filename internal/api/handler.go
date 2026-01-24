@@ -2,7 +2,10 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+	"sync"
 
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/model"
@@ -90,7 +93,7 @@ func toCardResponses(cards []*model.Card) []CardResponse {
 
 // populateCardColumn sets the Column field on a card by looking up the board config.
 func (h *Handler) populateCardColumn(boardName string, card *model.Card) {
-	boardCfg, err := h.boardStore.Get(boardName)
+	boardCfg, err := h.ctx().BoardStore.Get(boardName)
 	if err != nil {
 		return // Leave column empty if board config can't be read
 	}
@@ -98,35 +101,35 @@ func (h *Handler) populateCardColumn(boardName string, card *model.Card) {
 }
 
 // Handler contains all HTTP handlers for the API.
+//
+// Design: single-user, single-session. The Handler holds one active ProjectContext
+// that is shared by all requests. SwitchProject swaps it atomically. This is intentional —
+// `kan serve` is a local development tool, not a multi-tenant server. All connected
+// clients (browser tabs) see the same project.
+//
+// Lifecycle: globalStore is read fresh on each ListAllBoards/SwitchProject call (never
+// cached), so external changes to ~/.config/kan/config.toml are picked up immediately.
 type Handler struct {
-	cardService  *service.CardService
-	boardService *service.BoardService
-	cardStore    store.CardStore
-	boardStore   store.BoardStore
-	projectStore store.ProjectStore
-	paths        *config.Paths
-	creator      string
+	globalStore store.GlobalStore
+	mu          sync.RWMutex
+	current     *ProjectContext
 }
 
 // NewHandler creates a new handler with the given dependencies.
-func NewHandler(
-	cardService *service.CardService,
-	boardService *service.BoardService,
-	cardStore store.CardStore,
-	boardStore store.BoardStore,
-	projectStore store.ProjectStore,
-	paths *config.Paths,
-	creator string,
-) *Handler {
+func NewHandler(globalStore store.GlobalStore, ctx *ProjectContext) *Handler {
 	return &Handler{
-		cardService:  cardService,
-		boardService: boardService,
-		cardStore:    cardStore,
-		boardStore:   boardStore,
-		projectStore: projectStore,
-		paths:        paths,
-		creator:      creator,
+		globalStore: globalStore,
+		current:     ctx,
 	}
+}
+
+// ctx returns the current ProjectContext under read lock.
+// The returned context is immutable; callers should not modify it.
+func (h *Handler) ctx() *ProjectContext {
+	h.mu.RLock()
+	c := h.current
+	h.mu.RUnlock()
+	return c
 }
 
 // RegisterRoutes sets up all API routes on the given mux.
@@ -134,6 +137,10 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	// Project routes
 	mux.HandleFunc("GET /api/v1/project", h.GetProject)
 	mux.HandleFunc("GET /favicon.svg", h.GetFavicon)
+
+	// Cross-project routes
+	mux.HandleFunc("GET /api/v1/all-boards", h.ListAllBoards)
+	mux.HandleFunc("POST /api/v1/switch", h.SwitchProject)
 
 	// Board routes
 	mux.HandleFunc("GET /api/v1/boards", h.ListBoards)
@@ -172,7 +179,7 @@ type ProjectResponse struct {
 
 // GetProject returns the project metadata.
 func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
-	cfg, err := h.projectStore.Load()
+	cfg, err := h.ctx().ProjectStore.Load()
 	if err != nil {
 		// Return sensible defaults on error
 		JSON(w, http.StatusOK, ProjectResponse{
@@ -204,7 +211,7 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 
 // ListBoards returns all board names.
 func (h *Handler) ListBoards(w http.ResponseWriter, r *http.Request) {
-	boards, err := h.boardStore.List()
+	boards, err := h.ctx().BoardStore.List()
 	if err != nil {
 		Error(w, err)
 		return
@@ -215,7 +222,7 @@ func (h *Handler) ListBoards(w http.ResponseWriter, r *http.Request) {
 // GetBoard returns a board's configuration.
 func (h *Handler) GetBoard(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	board, err := h.boardStore.Get(name)
+	board, err := h.ctx().BoardStore.Get(name)
 	if err != nil {
 		Error(w, err)
 		return
@@ -231,12 +238,12 @@ func (h *Handler) ListCards(w http.ResponseWriter, r *http.Request) {
 	columnFilter := r.URL.Query().Get("column")
 
 	// Verify board exists first
-	if !h.boardStore.Exists(boardName) {
+	if !h.ctx().BoardStore.Exists(boardName) {
 		NotFound(w, "board", boardName)
 		return
 	}
 
-	cards, err := h.cardService.List(boardName, columnFilter)
+	cards, err := h.ctx().CardService.List(boardName, columnFilter)
 	if err != nil {
 		Error(w, err)
 		return
@@ -274,11 +281,11 @@ func (h *Handler) CreateCard(w http.ResponseWriter, r *http.Request) {
 		Description:  req.Description,
 		Column:       req.Column,
 		Parent:       req.Parent,
-		Creator:      h.creator,
+		Creator:      h.ctx().Creator,
 		CustomFields: req.CustomFields,
 	}
 
-	card, err := h.cardService.Add(input)
+	card, err := h.ctx().CardService.Add(input)
 	if err != nil {
 		Error(w, err)
 		return
@@ -294,7 +301,7 @@ func (h *Handler) GetCard(w http.ResponseWriter, r *http.Request) {
 	boardName := r.PathValue("board")
 	cardID := r.PathValue("id")
 
-	card, err := h.cardService.FindByIDOrAlias(boardName, cardID)
+	card, err := h.ctx().CardService.FindByIDOrAlias(boardName, cardID)
 	if err != nil {
 		Error(w, err)
 		return
@@ -318,7 +325,7 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 	boardName := r.PathValue("board")
 	cardID := r.PathValue("id")
 
-	card, err := h.cardService.FindByIDOrAlias(boardName, cardID)
+	card, err := h.ctx().CardService.FindByIDOrAlias(boardName, cardID)
 	if err != nil {
 		Error(w, err)
 		return
@@ -335,7 +342,7 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 
 	// Handle column change separately (uses MoveCard to update board config)
 	if req.Column != nil && *req.Column != card.Column {
-		if err := h.cardService.MoveCard(boardName, card.ID, *req.Column); err != nil {
+		if err := h.ctx().CardService.MoveCard(boardName, card.ID, *req.Column); err != nil {
 			Error(w, err)
 			return
 		}
@@ -353,7 +360,7 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 
 	// Only call Edit if there are changes to apply
 	if req.Title != nil || req.Description != nil || len(req.CustomFields) > 0 {
-		updated, err := h.cardService.Edit(input)
+		updated, err := h.ctx().CardService.Edit(input)
 		if err != nil {
 			Error(w, err)
 			return
@@ -371,13 +378,13 @@ func (h *Handler) DeleteCard(w http.ResponseWriter, r *http.Request) {
 	cardID := r.PathValue("id")
 
 	// First resolve the card ID (might be an alias)
-	card, err := h.cardService.FindByIDOrAlias(boardName, cardID)
+	card, err := h.ctx().CardService.FindByIDOrAlias(boardName, cardID)
 	if err != nil {
 		Error(w, err)
 		return
 	}
 
-	if err := h.cardService.Delete(boardName, card.ID); err != nil {
+	if err := h.ctx().CardService.Delete(boardName, card.ID); err != nil {
 		Error(w, err)
 		return
 	}
@@ -397,7 +404,7 @@ func (h *Handler) MoveCard(w http.ResponseWriter, r *http.Request) {
 	cardID := r.PathValue("id")
 
 	// First resolve the card ID (might be an alias)
-	card, err := h.cardService.FindByIDOrAlias(boardName, cardID)
+	card, err := h.ctx().CardService.FindByIDOrAlias(boardName, cardID)
 	if err != nil {
 		Error(w, err)
 		return
@@ -421,7 +428,7 @@ func (h *Handler) MoveCard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Use the service's MoveCardAt which updates board config
-	if err := h.cardService.MoveCardAt(boardName, card.ID, req.Column, position); err != nil {
+	if err := h.ctx().CardService.MoveCardAt(boardName, card.ID, req.Column, position); err != nil {
 		Error(w, err)
 		return
 	}
@@ -461,13 +468,13 @@ func (h *Handler) CreateColumn(w http.ResponseWriter, r *http.Request) {
 		position = *req.Position
 	}
 
-	if err := h.boardService.AddColumn(boardName, req.Name, req.Color, position); err != nil {
+	if err := h.ctx().BoardService.AddColumn(boardName, req.Name, req.Color, position); err != nil {
 		Error(w, err)
 		return
 	}
 
 	// Get the updated board to return the new column
-	board, err := h.boardStore.Get(boardName)
+	board, err := h.ctx().BoardStore.Get(boardName)
 	if err != nil {
 		Error(w, err)
 		return
@@ -487,7 +494,7 @@ func (h *Handler) DeleteColumn(w http.ResponseWriter, r *http.Request) {
 	boardName := r.PathValue("board")
 	columnName := r.PathValue("name")
 
-	deletedCards, err := h.boardService.DeleteColumn(boardName, columnName)
+	deletedCards, err := h.ctx().BoardService.DeleteColumn(boardName, columnName)
 	if err != nil {
 		Error(w, err)
 		return
@@ -515,7 +522,7 @@ func (h *Handler) UpdateColumn(w http.ResponseWriter, r *http.Request) {
 
 	// Handle rename
 	if req.Name != nil && *req.Name != columnName {
-		if err := h.boardService.RenameColumn(boardName, columnName, *req.Name); err != nil {
+		if err := h.ctx().BoardService.RenameColumn(boardName, columnName, *req.Name); err != nil {
 			Error(w, err)
 			return
 		}
@@ -524,14 +531,14 @@ func (h *Handler) UpdateColumn(w http.ResponseWriter, r *http.Request) {
 
 	// Handle color change
 	if req.Color != nil {
-		if err := h.boardService.UpdateColumnColor(boardName, columnName, *req.Color); err != nil {
+		if err := h.ctx().BoardService.UpdateColumnColor(boardName, columnName, *req.Color); err != nil {
 			Error(w, err)
 			return
 		}
 	}
 
 	// Return the updated column
-	board, err := h.boardStore.Get(boardName)
+	board, err := h.ctx().BoardStore.Get(boardName)
 	if err != nil {
 		Error(w, err)
 		return
@@ -566,13 +573,13 @@ func (h *Handler) ReorderColumns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.boardService.ReorderColumns(boardName, req.Columns); err != nil {
+	if err := h.ctx().BoardService.ReorderColumns(boardName, req.Columns); err != nil {
 		Error(w, err)
 		return
 	}
 
 	// Return the updated board config
-	board, err := h.boardStore.Get(boardName)
+	board, err := h.ctx().BoardStore.Get(boardName)
 	if err != nil {
 		Error(w, err)
 		return
@@ -624,7 +631,7 @@ func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	comment, err := h.cardService.AddComment(boardName, cardID, req.Body, h.creator)
+	comment, err := h.ctx().CardService.AddComment(boardName, cardID, req.Body, h.ctx().Creator)
 	if err != nil {
 		Error(w, err)
 		return
@@ -654,7 +661,7 @@ func (h *Handler) EditComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	comment, err := h.cardService.EditComment(boardName, commentID, req.Body)
+	comment, err := h.ctx().CardService.EditComment(boardName, commentID, req.Body)
 	if err != nil {
 		Error(w, err)
 		return
@@ -668,10 +675,189 @@ func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 	boardName := r.PathValue("board")
 	commentID := r.PathValue("cid")
 
-	if err := h.cardService.DeleteComment(boardName, commentID); err != nil {
+	if err := h.ctx().CardService.DeleteComment(boardName, commentID); err != nil {
 		Error(w, err)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- Cross-Project Handlers ---
+
+// BoardEntry represents a single board across all registered projects.
+type BoardEntry struct {
+	ProjectName string `json:"project_name"`
+	ProjectPath string `json:"project_path"`
+	BoardName   string `json:"board_name"`
+}
+
+// SkippedProject describes a registered project that couldn't be listed.
+type SkippedProject struct {
+	Name   string `json:"name"`
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
+}
+
+// AllBoardsResponse is the JSON response for listing all boards across projects.
+type AllBoardsResponse struct {
+	Boards             []BoardEntry     `json:"boards"`
+	CurrentProjectPath string           `json:"current_project_path"`
+	Skipped            []SkippedProject `json:"skipped,omitempty"`
+}
+
+// ListAllBoards returns all boards across all registered projects.
+func (h *Handler) ListAllBoards(w http.ResponseWriter, r *http.Request) {
+	globalCfg, err := h.globalStore.Load()
+	if err != nil {
+		Error(w, fmt.Errorf("failed to load global config: %w", err))
+		return
+	}
+
+	var boards []BoardEntry
+	var skipped []SkippedProject
+
+	for projectName, projectPath := range globalCfg.Projects {
+		dataLocation := ""
+		if repoCfg := globalCfg.GetRepoConfig(projectPath); repoCfg != nil {
+			dataLocation = repoCfg.DataLocation
+		}
+
+		paths := config.NewPaths(projectPath, dataLocation)
+		boardStore := store.NewBoardStore(paths)
+
+		boardNames, err := boardStore.List()
+		if err != nil {
+			log.Printf("Skipping project %q (%s): %v", projectName, projectPath, err)
+			skipped = append(skipped, SkippedProject{
+				Name:   projectName,
+				Path:   projectPath,
+				Reason: fmt.Sprintf("failed to list boards: %v", err),
+			})
+			continue
+		}
+
+		if len(boardNames) == 0 {
+			log.Printf("Skipping project %q (%s): no boards", projectName, projectPath)
+			skipped = append(skipped, SkippedProject{
+				Name:   projectName,
+				Path:   projectPath,
+				Reason: "no boards found",
+			})
+			continue
+		}
+
+		// Try to get display name from project config
+		displayName := projectName
+		projectStore := store.NewProjectStore(paths)
+		if projCfg, err := projectStore.Load(); err == nil && projCfg.Name != "" {
+			displayName = projCfg.Name
+		}
+
+		for _, bn := range boardNames {
+			boards = append(boards, BoardEntry{
+				ProjectName: displayName,
+				ProjectPath: projectPath,
+				BoardName:   bn,
+			})
+		}
+	}
+
+	if boards == nil {
+		boards = []BoardEntry{}
+	}
+
+	JSON(w, http.StatusOK, AllBoardsResponse{
+		Boards:             boards,
+		CurrentProjectPath: h.ctx().ProjectRoot,
+		Skipped:            skipped,
+	})
+}
+
+// SwitchProjectRequest is the JSON body for switching projects.
+type SwitchProjectRequest struct {
+	ProjectPath string `json:"project_path"`
+}
+
+// SwitchProjectResponse is the JSON response after switching projects.
+type SwitchProjectResponse struct {
+	ProjectName string   `json:"project_name"`
+	Boards      []string `json:"boards"`
+}
+
+// SwitchProject switches the handler's active project context.
+func (h *Handler) SwitchProject(w http.ResponseWriter, r *http.Request) {
+	var req SwitchProjectRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		BadRequest(w, "invalid JSON body")
+		return
+	}
+
+	if req.ProjectPath == "" {
+		BadRequest(w, "project_path is required")
+		return
+	}
+
+	// Validate the path is a registered project
+	globalCfg, err := h.globalStore.Load()
+	if err != nil {
+		Error(w, fmt.Errorf("failed to load global config: %w", err))
+		return
+	}
+
+	dataLocation := ""
+	registered := false
+	for _, path := range globalCfg.Projects {
+		if path == req.ProjectPath {
+			registered = true
+			break
+		}
+	}
+	if !registered {
+		NotFound(w, "project", req.ProjectPath)
+		return
+	}
+
+	if repoCfg := globalCfg.GetRepoConfig(req.ProjectPath); repoCfg != nil {
+		dataLocation = repoCfg.DataLocation
+	}
+
+	// Build new context
+	newCtx, err := BuildProjectContext(req.ProjectPath, dataLocation, h.ctx().Creator)
+	if err != nil {
+		Error(w, fmt.Errorf("failed to switch to project: %w", err))
+		return
+	}
+
+	// Verify the project has at least one board
+	boardNames, err := newCtx.BoardStore.List()
+	if err != nil || len(boardNames) == 0 {
+		BadRequest(w, "project has no boards")
+		return
+	}
+
+	// Get display name
+	projectName := ""
+	if projCfg, err := newCtx.ProjectStore.Load(); err == nil && projCfg.Name != "" {
+		projectName = projCfg.Name
+	}
+	if projectName == "" {
+		// Fall back to project registry name
+		for name, path := range globalCfg.Projects {
+			if path == req.ProjectPath {
+				projectName = name
+				break
+			}
+		}
+	}
+
+	// Swap context
+	h.mu.Lock()
+	h.current = newCtx
+	h.mu.Unlock()
+
+	JSON(w, http.StatusOK, SwitchProjectResponse{
+		ProjectName: projectName,
+		Boards:      boardNames,
+	})
 }

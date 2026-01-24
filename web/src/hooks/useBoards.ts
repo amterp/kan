@@ -3,22 +3,31 @@ import { listBoards, getBoard, createColumn as apiCreateColumn, deleteColumn as 
 import { listCards, moveCard as apiMoveCard, createCard as apiCreateCard, updateCard as apiUpdateCard, deleteCard as apiDeleteCard } from '../api/cards';
 import type { BoardConfig, Card, CreateCardInput, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
 
-export function useBoards() {
+export function useBoards(refreshKey = 0) {
   const [boards, setBoards] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    listBoards()
-      .then(setBoards)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+  const fetchBoards = useCallback(async () => {
+    try {
+      const result = await listBoards();
+      setBoards(result);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load boards');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchBoards();
+  }, [fetchBoards, refreshKey]);
 
   return { boards, loading, error };
 }
 
-export function useBoard(boardName: string | null) {
+export function useBoard(boardName: string | null, refreshKey = 0) {
   const [board, setBoard] = useState<BoardConfig | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +55,7 @@ export function useBoard(boardName: string | null) {
     if (boardName) {
       refresh();
     }
-  }, [boardName, refresh]);
+  }, [boardName, refresh, refreshKey]);
 
   const moveCard = useCallback(async (cardId: string, newColumn: string, position?: number) => {
     if (!boardName || !board) return;

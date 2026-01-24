@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getProject } from '../api/project';
 import type { ProjectConfig } from '../api/types';
 
-export function useProject() {
+export function useProject(refreshKey = 0) {
   const [project, setProject] = useState<ProjectConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +21,7 @@ export function useProject() {
 
   useEffect(() => {
     refresh();
-  }, [refresh]);
+  }, [refresh, refreshKey]);
 
   return { project, loading, error, refresh };
 }

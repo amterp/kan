@@ -111,3 +111,28 @@ export interface ProjectConfig {
   name: string;
   favicon: FaviconConfig;
 }
+
+// Cross-project types
+
+export interface BoardEntry {
+  project_name: string;
+  project_path: string;
+  board_name: string;
+}
+
+export interface SkippedProject {
+  name: string;
+  path: string;
+  reason: string;
+}
+
+export interface AllBoardsResponse {
+  boards: BoardEntry[];
+  current_project_path: string;
+  skipped?: SkippedProject[];
+}
+
+export interface SwitchResponse {
+  project_name: string;
+  boards: string[];
+}

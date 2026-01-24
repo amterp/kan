@@ -44,16 +44,16 @@ func GenerateFaviconSVG(cfg *model.FaviconConfig) string {
 // GetFavicon serves the favicon, checking for a custom file first.
 func (h *Handler) GetFavicon(w http.ResponseWriter, r *http.Request) {
 	// Check for custom favicon first
-	customPath := h.paths.CustomFaviconPath()
+	customPath := h.ctx().Paths.CustomFaviconPath()
 	if data, err := os.ReadFile(customPath); err == nil {
 		w.Header().Set("Content-Type", "image/svg+xml")
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Header().Set("Cache-Control", "no-store")
 		w.Write(data)
 		return
 	}
 
 	// Generate dynamic favicon from project config
-	cfg, err := h.projectStore.Load()
+	cfg, err := h.ctx().ProjectStore.Load()
 	if err != nil {
 		// Fallback to default favicon on error
 		cfg = &model.ProjectConfig{
@@ -69,6 +69,6 @@ func (h *Handler) GetFavicon(w http.ResponseWriter, r *http.Request) {
 	svg := GenerateFaviconSVG(&cfg.Favicon)
 
 	w.Header().Set("Content-Type", "image/svg+xml")
-	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Header().Set("Cache-Control", "no-store")
 	w.Write([]byte(svg))
 }

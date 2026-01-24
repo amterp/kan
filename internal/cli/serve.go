@@ -46,15 +46,18 @@ func runServe(port int, noOpen bool) {
 		Fatal(err)
 	}
 
-	handler := api.NewHandler(
-		app.CardService,
-		app.BoardService,
-		app.CardStore,
-		app.BoardStore,
-		app.ProjectStore,
-		app.Paths,
-		creatorName,
-	)
+	ctx := &api.ProjectContext{
+		Paths:        app.Paths,
+		BoardStore:   app.BoardStore,
+		CardStore:    app.CardStore,
+		ProjectStore: app.ProjectStore,
+		CardService:  app.CardService,
+		BoardService: app.BoardService,
+		Creator:      creatorName,
+		ProjectRoot:  app.ProjectRoot,
+	}
+
+	handler := api.NewHandler(app.GlobalStore, ctx)
 
 	// Find an available port starting from the requested one
 	actualPort := findAvailablePort(port)
