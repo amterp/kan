@@ -339,3 +339,19 @@ body {
 .animate-slide-in-left {
   animation: slide-in-left 0.2s ease-out;
 }
+
+/* Board dot-pattern background */
+.board-bg {
+  background-image: radial-gradient(circle, #d1d5db 0.5px, transparent 0.5px);
+  background-size: 16px 16px;
+}
+.dark .board-bg {
+  background-image: radial-gradient(circle, #374151 0.5px, transparent 0.5px);
+}
+
+/* Card entrance animation */
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-card-enter { animation: card-enter 150ms ease-out backwards; }

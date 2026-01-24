@@ -105,7 +105,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       {...attributes}
       {...listeners}
       onClick={handleClick}
-      className={`group relative bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-100 dark:border-gray-600 cursor-pointer hover:shadow-md transition-shadow ${
+      className={`group relative bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-100 dark:border-gray-600 cursor-pointer hover:shadow-md transition-shadow animate-card-enter ${
         isDragging ? 'shadow-lg rotate-2' : ''
       } ${isHighlighted ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-200 dark:ring-offset-gray-800' : ''}`}
     >
