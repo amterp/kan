@@ -110,6 +110,19 @@ kan column move review --position 1      # Reorder column
 kan column move review --after backlog   # Insert after another
 ```
 
+## Comments
+
+```bash
+kan comment add fix-login "Found the issue"   # Add comment to card
+kan comment add fix-login                     # Add comment (opens editor)
+kan comment edit c_9kL2x "Updated text"       # Edit comment by ID
+kan comment delete c_9kL2x                    # Delete comment
+```
+
+| Flag | Description |
+|------|-------------|
+| `-b, --board` | Board name |
+
 ## Web Interface
 
 ```bash

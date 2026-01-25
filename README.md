@@ -25,20 +25,24 @@ Full documentation is available at [amterp.github.io/kan](https://amterp.github.
 
 ## CLI
 
+Most users just need `kan init` and `kan serve`. The web UI handles everything else.
+
+For scripting or automation (CI, AI agents, etc.), Kan has a full CLI:
+
 ```bash
-kan add "Fix login bug"       # Add a card
-kan add "Update docs" -c done # Add to specific column
-kan list                      # See all cards
-kan show fix-login-bug        # View card details (by alias or ID)
-kan edit fix-login-bug        # Edit a card
+kan add "Fix login bug"        # Add a card
+kan edit fix-login-bug -c done # Move to column
+kan list                       # List all cards
+kan show fix-login-bug         # View card details
 ```
 
 ## Why Kan?
 
-- **Your board lives where your project lives.** Clone a repo, see its board.
-- **Runs locally.** No SaaS, no accounts, works offline, stays snappy.
-- **Plain files, no lock-in.** Cards are JSON, config is TOML.
-- **Version-controlled.** Changes tracked by Git (or any VCS) like everything else.
+Kan works great for solo developers and small teams juggling multiple projects. Every project gets its own board that lives in the repo - open the project, run `kan serve`, and you're right where you left off.
+
+- **Local and fast.** No network calls, no loading spinners. Just files on disk.
+- **Self-contained.** No accounts, no syncing, no external services to manage.
+- **Version-controlled.** Your board history is your Git history.
 
 ## Installation
 
@@ -72,5 +76,5 @@ Cards are JSON. Board config is TOML. Version control tracks changes like any ot
 
 ## Status
 
-Kan is in early development. Core features work - boards, cards, columns, drag-and-drop in the web UI, CLI commands.
-More coming: comments, search, and other refinements.
+Kan is usable and actively developed. Core features are solid - boards, cards, columns, custom fields, comments, drag-and-drop, and a full CLI.
+Still to come: card relationships and other refinements.

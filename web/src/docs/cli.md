@@ -28,11 +28,11 @@ kan init -c a,b,c -n project       # Both custom columns and name
 
 Initialize Kan in the current directory.
 
-| Flag | Description |
-|------|-------------|
-| `-l, --location` | Custom location for .kan directory (relative path) |
-| `-c, --columns` | Comma-separated column names (default: backlog,next,in-progress,done) |
-| `-n, --name` | Board name (default: main) |
+| Flag                 | Description                                                                   |
+|----------------------|-------------------------------------------------------------------------------|
+| `-l, --location`     | Custom location for .kan directory (relative path)                            |
+| `-c, --columns`      | Comma-separated column names (default: backlog,next,in-progress,done)         |
+| `-n, --name`         | Board name (default: main)                                                    |
 | `-p, --project-name` | Project name for favicon and page title (default: git repo or directory name) |
 
 ### board
@@ -62,10 +62,10 @@ kan column add review
 kan column add review --color "#9333ea" --position 2
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-b, --board` | Target board |
-| `-C, --color` | Hex color (default: auto from palette) |
+| Flag             | Description                               |
+|------------------|-------------------------------------------|
+| `-b, --board`    | Target board                              |
+| `-C, --color`    | Hex color (default: auto from palette)    |
 | `-p, --position` | Insert position (0-indexed, default: end) |
 
 **Delete a column:**
@@ -75,9 +75,9 @@ kan column delete review
 kan column delete review --force
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-b, --board` | Target board |
+| Flag          | Description                                                              |
+|---------------|--------------------------------------------------------------------------|
+| `-b, --board` | Target board                                                             |
 | `-f, --force` | Skip confirmation (required in non-interactive mode if column has cards) |
 
 **Rename a column:**
@@ -86,8 +86,8 @@ kan column delete review --force
 kan column rename review code-review
 ```
 
-| Flag | Description |
-|------|-------------|
+| Flag          | Description  |
+|---------------|--------------|
 | `-b, --board` | Target board |
 
 **Edit column properties:**
@@ -96,9 +96,9 @@ kan column rename review code-review
 kan column edit review --color "#ec4899"
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-b, --board` | Target board |
+| Flag          | Description   |
+|---------------|---------------|
+| `-b, --board` | Target board  |
 | `-C, --color` | New hex color |
 
 **List columns:**
@@ -108,8 +108,8 @@ kan column list
 kan column list -b features
 ```
 
-| Flag | Description |
-|------|-------------|
+| Flag          | Description  |
+|---------------|--------------|
 | `-b, --board` | Target board |
 
 **Move/reorder a column:**
@@ -119,11 +119,11 @@ kan column move review --position 1
 kan column move review --after backlog
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-b, --board` | Target board |
+| Flag             | Description              |
+|------------------|--------------------------|
+| `-b, --board`    | Target board             |
 | `-p, --position` | Target index (0-indexed) |
-| `-a, --after` | Insert after this column |
+| `-a, --after`    | Insert after this column |
 
 ### add
 
@@ -134,12 +134,12 @@ kan add "Fix login bug"
 kan add "Update docs" "Description goes here"
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-b, --board` | Target board |
-| `-c, --column` | Target column |
-| `-p, --parent` | Parent card ID or alias |
-| `-f, --field` | Custom field in key=value format (repeatable) |
+| Flag           | Description                                   |
+|----------------|-----------------------------------------------|
+| `-b, --board`  | Target board                                  |
+| `-c, --column` | Target column                                 |
+| `-p, --parent` | Parent card ID or alias                       |
+| `-f, --field`  | Custom field in key=value format (repeatable) |
 
 **Examples:**
 
@@ -156,9 +156,9 @@ Display card details.
 kan show fix-login-bug
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-b, --board` | Board name |
+| Flag          | Description |
+|---------------|-------------|
+| `-b, --board` | Board name  |
 
 ### list
 
@@ -170,9 +170,9 @@ kan list -b features
 kan list -c done
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-b, --board` | Filter by board |
+| Flag           | Description      |
+|----------------|------------------|
+| `-b, --board`  | Filter by board  |
 | `-c, --column` | Filter by column |
 
 ### edit
@@ -184,15 +184,15 @@ kan edit fix-login-bug
 kan edit fix-login-bug -t "New title" -c done
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-b, --board` | Board name |
-| `-t, --title` | Set card title |
-| `-d, --description` | Set card description |
-| `-c, --column` | Move card to column |
-| `-p, --parent` | Set parent card ID or alias |
-| `-a, --alias` | Set explicit alias |
-| `-f, --field` | Set custom field in key=value format (repeatable) |
+| Flag                | Description                                       |
+|---------------------|---------------------------------------------------|
+| `-b, --board`       | Board name                                        |
+| `-t, --title`       | Set card title                                    |
+| `-d, --description` | Set card description                              |
+| `-c, --column`      | Move card to column                               |
+| `-p, --parent`      | Set parent card ID or alias                       |
+| `-a, --alias`       | Set explicit alias                                |
+| `-f, --field`       | Set custom field in key=value format (repeatable) |
 
 ### serve
 
@@ -204,10 +204,49 @@ kan serve -p 8080
 kan serve --no-open
 ```
 
-| Flag | Description |
-|------|-------------|
+| Flag         | Description                       |
+|--------------|-----------------------------------|
 | `-p, --port` | Port to listen on (default: 5260) |
-| `--no-open` | Don't open browser automatically |
+| `--no-open`  | Don't open browser automatically  |
+
+### comment
+
+Manage card comments.
+
+**Add a comment:**
+
+```bash
+kan comment add fix-login-bug "Found the issue in session.go"
+kan comment add fix-login-bug  # Opens editor for body
+```
+
+| Flag          | Description |
+|---------------|-------------|
+| `-b, --board` | Board name  |
+
+The first argument is the card ID or alias. The second argument is the comment body - if omitted, your editor opens to
+write the comment.
+
+**Edit a comment:**
+
+```bash
+kan comment edit c_9kL2x "Updated comment text"
+kan comment edit c_9kL2x  # Opens editor with existing text
+```
+
+| Flag          | Description |
+|---------------|-------------|
+| `-b, --board` | Board name  |
+
+**Delete a comment:**
+
+```bash
+kan comment delete c_9kL2x
+```
+
+| Flag          | Description |
+|---------------|-------------|
+| `-b, --board` | Board name  |
 
 ### migrate
 
@@ -218,12 +257,12 @@ kan migrate
 kan migrate --dry-run
 ```
 
-| Flag | Description |
-|------|-------------|
+| Flag        | Description                                        |
+|-------------|----------------------------------------------------|
 | `--dry-run` | Show what would be changed without modifying files |
 
 ## Global Flags
 
-| Flag | Description |
-|------|-------------|
+| Flag                    | Description                                 |
+|-------------------------|---------------------------------------------|
 | `-I, --non-interactive` | Fail instead of prompting for missing input |

@@ -8,6 +8,8 @@ import editingDoc from '../docs/editing.md?raw';
 import shortcutsDoc from '../docs/shortcuts.md?raw';
 import cliDoc from '../docs/cli.md?raw';
 import linkRulesDoc from '../docs/link-rules.md?raw';
+import customFieldsDoc from '../docs/custom-fields.md?raw';
+import configurationDoc from '../docs/configuration.md?raw';
 
 const docs: Record<string, string> = {
   '': indexDoc,
@@ -16,12 +18,16 @@ const docs: Record<string, string> = {
   'shortcuts': shortcutsDoc,
   'cli': cliDoc,
   'link-rules': linkRulesDoc,
+  'custom-fields': customFieldsDoc,
+  'configuration': configurationDoc,
 };
 
 const navItems = [
   { path: '/docs', label: 'Home' },
   { path: '/docs/shortcuts', label: 'Keyboard Shortcuts' },
   { path: '/docs/editing', label: 'Editing Cards' },
+  { path: '/docs/custom-fields', label: 'Custom Fields' },
+  { path: '/docs/configuration', label: 'Configuration' },
   { path: '/docs/link-rules', label: 'Link Rules' },
   { path: '/docs/cli', label: 'CLI Reference' },
 ];
