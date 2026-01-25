@@ -107,10 +107,10 @@ func DefaultCustomFields() map[string]CustomFieldSchema {
 		"type": {
 			Type: FieldTypeEnum,
 			Options: []CustomFieldOption{
-				{Value: "bug", Color: "#ef4444"},
-				{Value: "enhancement", Color: "#3b82f6"},
-				{Value: "feature", Color: "#22c55e"},
-				{Value: "chore", Color: "#6b7280"},
+				{Value: "bug", Color: "#dc2626"},
+				{Value: "enhancement", Color: "#2563eb"},
+				{Value: "feature", Color: "#16a34a"},
+				{Value: "chore", Color: "#4b5563"},
 			},
 		},
 	}

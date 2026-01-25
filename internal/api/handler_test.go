@@ -84,9 +84,9 @@ func (api *testAPI) createBoard(t *testing.T, name string) {
 			"type": {
 				Type: "enum",
 				Options: []model.CustomFieldOption{
-					{Value: "feature", Color: "#22c55e"},
-					{Value: "bug", Color: "#ef4444"},
-					{Value: "task", Color: "#6b7280"},
+					{Value: "feature", Color: "#16a34a"},
+					{Value: "bug", Color: "#dc2626"},
+					{Value: "task", Color: "#4b5563"},
 				},
 			},
 			"labels": {

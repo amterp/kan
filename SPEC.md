@@ -444,9 +444,9 @@ Custom fields are defined in board config with type, options (for enum/tags), an
 [custom_fields.type]
 type = "enum"
 options = [
-  { value = "feature", color = "#22c55e" },
-  { value = "bug", color = "#ef4444" },
-  { value = "task", color = "#6b7280" },
+  { value = "feature", color = "#16a34a" },
+  { value = "bug", color = "#dc2626" },
+  { value = "task", color = "#4b5563" },
   { value = "chore", color = "#8b5cf6" },
 ]
 
@@ -603,9 +603,9 @@ default_column = "backlog"
 [custom_fields.type]
 type = "enum"
 options = [
-  { value = "feature", color = "#22c55e" },
-  { value = "bug", color = "#ef4444" },
-  { value = "task", color = "#6b7280" },
+  { value = "feature", color = "#16a34a" },
+  { value = "bug", color = "#dc2626" },
+  { value = "task", color = "#4b5563" },
 ]
 
 [custom_fields.labels]

@@ -237,8 +237,8 @@ func TestFileBoardStore_WithCustomFieldsAndCardDisplay(t *testing.T) {
 		DefaultColumn: "backlog",
 		CustomFields: map[string]model.CustomFieldSchema{
 			"type": {Type: "enum", Options: []model.CustomFieldOption{
-				{Value: "feature", Color: "#22c55e"},
-				{Value: "bug", Color: "#ef4444"},
+				{Value: "feature", Color: "#16a34a"},
+				{Value: "bug", Color: "#dc2626"},
 			}},
 			"labels": {Type: "tags", Options: []model.CustomFieldOption{
 				{Value: "blocked", Color: "#dc2626"},
