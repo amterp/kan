@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import type { Card, BoardConfig, CustomFieldSchema, UpdateCardInput, Comment } from '../api/types';
-import { FIELD_TYPE_ENUM, FIELD_TYPE_TAGS, FIELD_TYPE_STRING, FIELD_TYPE_DATE } from '../api/types';
+import type { Card, BoardConfig, UpdateCardInput, Comment } from '../api/types';
 import { createComment, editComment, deleteComment } from '../api/cards';
+import { toApiFieldValues } from '../utils/customFields';
 import MarkdownField from './MarkdownField';
 import MarkdownView from './MarkdownView';
+import CustomFieldsEditor from './CustomFieldsEditor';
 
 interface CardEditModalProps {
   card: Card;
@@ -189,19 +190,9 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose, 
     });
   };
 
-  const toggleTagValue = (fieldName: string, value: string) => {
-    setCustomFieldValues((prev) => {
-      const current = Array.isArray(prev[fieldName]) ? prev[fieldName] as string[] : [];
-      const newValues = current.includes(value)
-        ? current.filter((v) => v !== value)
-        : [...current, value];
-      return { ...prev, [fieldName]: newValues };
-    });
-  };
-
-  const setEnumValue = (fieldName: string, value: string) => {
+  const handleCustomFieldChange = useCallback((fieldName: string, value: unknown) => {
     setCustomFieldValues((prev) => ({ ...prev, [fieldName]: value }));
-  };
+  }, []);
 
   // Core save logic without closing the modal
   const performSave = useCallback(async () => {
@@ -216,21 +207,10 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose, 
       };
 
       // Build custom_fields for update
-      if (board.custom_fields && Object.keys(board.custom_fields).length > 0) {
-        const customFields: Record<string, unknown> = {};
-        for (const [fieldName, schema] of Object.entries(board.custom_fields)) {
-          const value = customFieldValues[fieldName];
-          if (value !== undefined) {
-            if (schema.type === 'tags' && Array.isArray(value)) {
-              // Send tags as comma-separated string for API
-              customFields[fieldName] = (value as string[]).join(',');
-            } else {
-              customFields[fieldName] = value;
-            }
-          }
-        }
-        if (Object.keys(customFields).length > 0) {
-          updates.custom_fields = customFields;
+      if (board.custom_fields && Object.keys(customFieldValues).length > 0) {
+        const apiFields = toApiFieldValues(customFieldValues, board.custom_fields);
+        if (Object.keys(apiFields).length > 0) {
+          updates.custom_fields = apiFields;
         }
       }
 
@@ -349,94 +329,6 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose, 
       console.error('Failed to delete comment:', error);
     } finally {
       setCommentSaving(false);
-    }
-  };
-
-  // Render a custom field editor based on its type
-  const renderCustomFieldEditor = (fieldName: string, schema: CustomFieldSchema) => {
-    const currentValue = customFieldValues[fieldName];
-
-    switch (schema.type) {
-      case FIELD_TYPE_ENUM:
-        return (
-          <div className="mb-4" key={fieldName}>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">{fieldName}</label>
-            <select
-              value={(currentValue as string) || ''}
-              onChange={(e) => setEnumValue(fieldName, e.target.value)}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white"
-            >
-              <option value="">None</option>
-              {schema.options?.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.value}
-                </option>
-              ))}
-            </select>
-          </div>
-        );
-
-      case FIELD_TYPE_TAGS: {
-        const selectedTags = Array.isArray(currentValue) ? currentValue as string[] : [];
-        return (
-          <div className="mb-4" key={fieldName}>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 capitalize">{fieldName}</label>
-            <div className="flex flex-wrap gap-2">
-              {schema.options?.map((opt) => {
-                const isSelected = selectedTags.includes(opt.value);
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => toggleTagValue(fieldName, opt.value)}
-                    className={`px-2 py-0.5 text-xs rounded-full transition-all ${
-                      isSelected
-                        ? 'text-white ring-2 ring-offset-1'
-                        : 'text-white opacity-50 hover:opacity-75'
-                    }`}
-                    style={{
-                      backgroundColor: opt.color || '#6b7280',
-                      boxShadow: isSelected ? `0 0 0 2px white, 0 0 0 4px ${opt.color || '#6b7280'}` : undefined,
-                    }}
-                  >
-                    {opt.value}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      }
-
-      case FIELD_TYPE_STRING:
-        return (
-          <div className="mb-4" key={fieldName}>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">{fieldName}</label>
-            <input
-              type="text"
-              value={(currentValue as string) || ''}
-              onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [fieldName]: e.target.value }))}
-              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder={`Enter ${fieldName}...`}
-            />
-          </div>
-        );
-
-      case FIELD_TYPE_DATE:
-        return (
-          <div className="mb-4" key={fieldName}>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">{fieldName}</label>
-            <input
-              type="date"
-              value={(currentValue as string) || ''}
-              onChange={(e) => setCustomFieldValues((prev) => ({ ...prev, [fieldName]: e.target.value }))}
-              className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        );
-
-      default:
-        return null;
     }
   };
 
@@ -690,9 +582,11 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose, 
             {/* Custom fields */}
             {/* TODO: Field ordering is currently undefined (Go map → JSON → JS object).
                 Consider adding explicit ordering config to boards in the future. */}
-            {board.custom_fields && Object.entries(board.custom_fields).map(([fieldName, schema]) =>
-              renderCustomFieldEditor(fieldName, schema)
-            )}
+            <CustomFieldsEditor
+              board={board}
+              values={customFieldValues}
+              onChange={handleCustomFieldChange}
+            />
 
             {/* Metadata */}
             <div className="space-y-3 text-sm border-t border-gray-200 dark:border-gray-700 pt-4">

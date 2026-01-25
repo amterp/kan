@@ -22,7 +22,7 @@ interface ColumnProps {
   onDraftChange: (title: string) => void;
   onStartAddCard: () => void;
   onCancelAddCard: () => void;
-  onAddCard: (title: string, openModal: boolean, keepFormOpen?: boolean) => void;
+  onAddCard: (title: string, openModal: boolean, keepFormOpen?: boolean, showPanel?: boolean) => void;
   onCardClick: (card: Card) => void;
   onDeleteCard: (cardId: string) => void;
   onDeleteColumn?: (columnName: string) => Promise<unknown>;
@@ -34,6 +34,8 @@ interface ColumnProps {
   isOverColumn: boolean;
   overIndex: number | null;
   isDragging?: boolean;
+  // Floating panel props
+  onPanelHide?: () => void;
 }
 
 export default function Column({
@@ -58,6 +60,7 @@ export default function Column({
   isOverColumn,
   overIndex,
   isDragging,
+  onPanelHide,
 }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.name });
   const { showToast } = useToast();
@@ -98,6 +101,7 @@ export default function Column({
       inputRef.current.focus();
     }
   }, [isAddingCard]);
+
 
   // Click outside to close (but preserve draft)
   useEffect(() => {
@@ -244,18 +248,27 @@ export default function Column({
     if (e.key === 'Escape') {
       onDraftChange('');
       onCancelAddCard();
+      onPanelHide?.();
     } else if (e.key === 'Enter') {
       // Prevent newline in textarea
       e.preventDefault();
       if (e.metaKey || e.ctrlKey) {
-        // Cmd+Enter or Ctrl+Enter - create and open modal
+        // Cmd+Enter or Ctrl+Enter - create and open full modal
         if (draftTitle.trim()) {
+          onPanelHide?.();
           onAddCard(draftTitle.trim(), true);
           onDraftChange('');
         }
-      } else {
-        // Plain Enter - submit form (create card without opening modal)
+      } else if (e.shiftKey) {
+        // Shift+Enter - create card, close form, show field panel anchored to card
         if (draftTitle.trim()) {
+          onAddCard(draftTitle.trim(), false, false, true); // keepFormOpen=false, showPanel=true
+          onDraftChange('');
+        }
+      } else {
+        // Plain Enter - create card and continue (no panel)
+        if (draftTitle.trim()) {
+          onPanelHide?.();
           onAddCard(draftTitle.trim(), false, true);
           onDraftChange('');
           setTimeout(() => inputRef.current?.focus(), 0);
@@ -470,13 +483,14 @@ export default function Column({
                   onClick={() => {
                     onDraftChange('');
                     onCancelAddCard();
+                    onPanelHide?.();
                   }}
                   className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded hover:shadow-sm transition-all"
                 >
                   Cancel
                 </button>
               </div>
-              <span className="text-xs text-gray-400 dark:text-gray-500">⌘↵ for details</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">⇧↵ fields · ⌘↵ modal</span>
             </div>
           </form>
         )}

@@ -29,6 +29,19 @@ The search looks across all card fields: title, alias, description, and any cust
 - Drag-and-drop continues to work with the filtered set
 - The filter clears when you close quick search
 
+## Card Creation
+
+When typing in the new card input:
+
+| Shortcut | Action |
+|----------|--------|
+| Enter | Create card and continue adding |
+| ⇧↵ | Create card and open field panel |
+| ⌘↵ | Create card and open full modal |
+| Escape | Cancel and close input |
+
+The **field panel** is a compact popup that appears next to your newly created card, letting you quickly set custom fields (like type, priority, tags) without opening the full modal.
+
 ## Card Editor
 
 When editing a card's description:

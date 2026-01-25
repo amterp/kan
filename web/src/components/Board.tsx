@@ -4,10 +4,20 @@ import type { DragEndEvent, DragStartEvent, DragOverEvent, CollisionDetection, D
 import { SortableContext, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import type { BoardConfig, Card, Column as ColumnType, CreateCardInput, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
 import { cardMatchesQuery } from '../utils/fuzzyMatch';
+import { toApiFieldValue } from '../utils/customFields';
 import { BoardConfigProvider } from '../contexts/BoardConfigContext';
 import Column from './Column';
 import CardComponent from './Card';
 import CardEditModal from './CardEditModal';
+import FloatingFieldPanel from './FloatingFieldPanel';
+
+// Panel target - tracks what the floating field panel is editing
+interface PanelTarget {
+  type: 'draft' | 'created';
+  column: string;
+  cardId?: string; // Only set when type is 'created'
+  anchorEl: HTMLElement;
+}
 
 interface BoardProps {
   board: BoardConfig;
@@ -52,6 +62,12 @@ export default function Board({
 
   // Draft titles per column (preserved when clicking outside)
   const [draftTitles, setDraftTitles] = useState<Record<string, string>>({});
+
+  // Panel target - what the floating field panel is currently editing
+  const [panelTarget, setPanelTarget] = useState<PanelTarget | null>(null);
+
+  // Debounce timer for updating created cards
+  const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track which column is being hovered and at what position for cross-column drag preview
   const [overColumn, setOverColumn] = useState<string | null>(null);
@@ -318,22 +334,111 @@ export default function Board({
     }
   };
 
-  const handleAddCard = async (column: string, title: string, openModal: boolean, keepFormOpen?: boolean) => {
+  // Local state for created card fields (to avoid stale data issues)
+  const [createdCardFields, setCreatedCardFields] = useState<Record<string, unknown>>({});
+
+  const handleAddCard = async (column: string, title: string, openModal: boolean, keepFormOpen?: boolean, showPanel?: boolean) => {
     try {
       const newCard = await onCreateCard({ title, column });
-      // Only close the form if not keeping it open for continuous add
+
+      // Close the form if not keeping it open
       if (!keepFormOpen) {
         setAddingToColumn(null);
       }
+
       if (openModal && newCard) {
+        setPanelTarget(null);
         setNewCardForEdit({ card: newCard, column });
+      } else if (showPanel && newCard) {
+        // Show panel anchored to the just-created card.
+        // NOTE: This relies on Card.tsx rendering with data-card-id={card.id} attribute.
+        // We use double RAF to wait for React to render the new card after state update.
+        setCreatedCardFields({});
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const cardEl = document.querySelector(`[data-card-id="${newCard.id}"]`) as HTMLElement | null;
+            if (cardEl) {
+              setPanelTarget({ type: 'created', column, cardId: newCard.id, anchorEl: cardEl });
+            } else {
+              // Card element not found - this can happen if rendering is delayed or
+              // the Card component doesn't have the data-card-id attribute
+              console.warn(`FloatingFieldPanel: Could not find card element for id "${newCard.id}"`);
+            }
+          });
+        });
+      } else {
+        // Plain Enter - dismiss any existing panel
+        setPanelTarget(null);
       }
     } catch (e) {
       console.error('Failed to create card:', e);
     }
   };
 
+  const handlePanelHide = useCallback(() => {
+    // Clear any pending debounced update
+    if (updateTimerRef.current) {
+      clearTimeout(updateTimerRef.current);
+      updateTimerRef.current = null;
+    }
+    setPanelTarget(null);
+    setCreatedCardFields({});
+  }, []);
+
+  const handlePanelFieldChange = useCallback(async (fieldName: string, value: unknown) => {
+    if (!panelTarget || panelTarget.type !== 'created' || !panelTarget.cardId) return;
+
+    // Update local state immediately for responsive UI
+    setCreatedCardFields((prev) => ({ ...prev, [fieldName]: value }));
+
+    const apiValue = toApiFieldValue(value);
+    const cardId = panelTarget.cardId;
+
+    // Check field type - only debounce string fields (user typing)
+    const fieldType = board.custom_fields?.[fieldName]?.type;
+    const shouldDebounce = fieldType === 'string';
+
+    if (shouldDebounce) {
+      // Debounce text input
+      if (updateTimerRef.current) {
+        clearTimeout(updateTimerRef.current);
+      }
+      updateTimerRef.current = setTimeout(async () => {
+        try {
+          await onUpdateCard(cardId, { custom_fields: { [fieldName]: apiValue } });
+        } catch (e) {
+          console.error('Failed to update card field:', e);
+        }
+      }, 500);
+    } else {
+      // Immediate update for enum, tags, date
+      try {
+        await onUpdateCard(cardId, { custom_fields: { [fieldName]: apiValue } });
+      } catch (e) {
+        console.error('Failed to update card field:', e);
+      }
+    }
+  }, [panelTarget, onUpdateCard, board.custom_fields]);
+
+  // Get field values for the panel
+  const getPanelFieldValues = useCallback((): Record<string, unknown> => {
+    if (!panelTarget || panelTarget.type !== 'created') return {};
+
+    // Merge card data with local edits (local edits take precedence)
+    const card = cards.find((c) => c.id === panelTarget.cardId);
+    const cardValues: Record<string, unknown> = {};
+    if (card && board.custom_fields) {
+      for (const fieldName of Object.keys(board.custom_fields)) {
+        if (card[fieldName] !== undefined) {
+          cardValues[fieldName] = card[fieldName];
+        }
+      }
+    }
+    return { ...cardValues, ...createdCardFields };
+  }, [panelTarget, cards, board.custom_fields, createdCardFields]);
+
   const handleCardClick = (card: Card) => {
+    setPanelTarget(null); // Dismiss panel when opening card modal
     setEditingCard(card);
   };
 
@@ -358,6 +463,23 @@ export default function Board({
   };
 
   const currentEditCard = editingCard || newCardForEdit?.card || null;
+
+  // Clear debounce timer when panel target changes (switching cards or dismissing)
+  useEffect(() => {
+    if (updateTimerRef.current) {
+      clearTimeout(updateTimerRef.current);
+      updateTimerRef.current = null;
+    }
+  }, [panelTarget?.cardId]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (updateTimerRef.current) {
+        clearTimeout(updateTimerRef.current);
+      }
+    };
+  }, []);
 
   // Focus add column input when opening
   useEffect(() => {
@@ -428,7 +550,7 @@ export default function Board({
                 onDraftChange={(title) => setDraftTitles((prev) => ({ ...prev, [column.name]: title }))}
                 onStartAddCard={() => setAddingToColumn(column.name)}
                 onCancelAddCard={() => setAddingToColumn(null)}
-                onAddCard={(title, openModal, keepFormOpen) => handleAddCard(column.name, title, openModal, keepFormOpen)}
+                onAddCard={(title, openModal, keepFormOpen, showPanel) => handleAddCard(column.name, title, openModal, keepFormOpen, showPanel)}
                 onCardClick={handleCardClick}
                 onDeleteCard={handleDeleteCard}
                 onDeleteColumn={onDeleteColumn}
@@ -440,6 +562,7 @@ export default function Board({
                 isOverColumn={overColumn === column.name}
                 overIndex={overColumn === column.name ? overIndex : null}
                 isDragging={activeColumn?.name === column.name}
+                onPanelHide={handlePanelHide}
               />
             ))}
           </SortableContext>
@@ -515,6 +638,17 @@ export default function Board({
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {/* Floating field panel for quick card creation */}
+      {panelTarget && (
+        <FloatingFieldPanel
+          board={board}
+          values={getPanelFieldValues()}
+          onChange={handlePanelFieldChange}
+          anchorEl={panelTarget.anchorEl}
+          onDismiss={handlePanelHide}
+        />
+      )}
 
       {currentEditCard && (
         <CardEditModal

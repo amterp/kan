@@ -30,6 +30,12 @@ function getTagsValues(card: CardType, fieldName: string): string[] {
   return [];
 }
 
+/**
+ * Card component renders a kanban card with drag-and-drop support.
+ *
+ * NOTE: The data-card-id attribute is used by Board.tsx to find this element
+ * when anchoring the FloatingFieldPanel after card creation. Don't remove it.
+ */
 export default function Card({ card, board, isDragging = false, isPlaceholder = false, isHighlighted = false, onClick, onDelete }: CardProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const {
@@ -86,6 +92,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       <div
         ref={setNodeRef}
         style={style}
+        data-card-id={card.id}
         {...attributes}
         {...listeners}
         className="bg-gray-100 dark:bg-gray-600 border-2 border-dashed border-gray-300 dark:border-gray-500 rounded-lg p-3 min-h-[60px] opacity-50"
@@ -102,6 +109,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
     <div
       ref={setNodeRef}
       style={cardStyle}
+      data-card-id={card.id}
       {...attributes}
       {...listeners}
       onClick={handleClick}
