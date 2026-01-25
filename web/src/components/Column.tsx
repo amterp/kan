@@ -450,10 +450,6 @@ export default function Column({
           })()}
         </SortableContext>
 
-        {cards.length === 0 && !isAddingCard && (
-          <p className="text-center text-xs text-gray-400 dark:text-gray-500 py-4">No cards yet</p>
-        )}
-
         {/* Add Card Form */}
         {isAddingCard && (
           <form ref={formRef} onSubmit={handleSubmit} className="bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm">
