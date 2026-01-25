@@ -1,11 +1,12 @@
 {
   "_v": 1,
-  "alias": "auto-refresh-to-reflect-cli",
+  "alias": "auto-refresh-to-reflect-cli-2",
   "alias_explicit": false,
   "created_at_millis": 1767586020324,
   "creator": "Alexander Terp",
+  "description": "Actually, it might be a bit annoying if this happened automatically. we might just want a little UI element to say, \"Hey, there are outstanding changes, refresh to show them.\" Maybe you can hover on it and it will show you those changes concisely. maybe you can actually just click on the button as well and it will just refresh for you like in place if that makes sense like not without Not a browser refresh, but refreshing inline.",
   "id": "2REB6NLa",
   "title": "Auto-refresh to reflect CLI commands",
   "type": "feature",
-  "updated_at_millis": 1767586020324
+  "updated_at_millis": 1769263987762
 }

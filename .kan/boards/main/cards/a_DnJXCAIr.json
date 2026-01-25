@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "in-built-way-to-switch-2",
+  "alias_explicit": false,
+  "created_at_millis": 1769264055378,
+  "creator": "Alexander Terp",
+  "description": "Right now, I might run two or three kAN boards, like via the KAN CLI serve, and they're completely isolated. they occur and they kind of pop up in their own tabs. It would be nice because one of the things that I do sorry Sorry. They can pop up in their own tabs in my browser, but the other one is you can save a website as an application. And then you can name it just KAN. and then you know using something like Alfred or Spotlight I can open KAN that way and I just get brought straight to the standalone window that's dedicated to my board and it's quite useful. It's a quick way to switch to it. however you basically get that one localhost 3000 port or whatever and and that's dedicated to the one KAN board. so if I have multiple I would need to like save one application for each port and just kind of remember or you know like it's just It's just a complete hassle in terms of like, oh I want to go to this other project now or whatever so I'm wondering if well open to suggestions. Maybe we brainstorm a little bit about how this could work or alternatives. one way I can imagine is K-A-N on the front end either via being told by the CLI or whatever can somehow detect that you're running multiple serves if that makes sense and then there's just like a little menu somewhere or button that appears maybe in the top bar or something, that quickly lets you just switch between them. And it basically just... well it matters a little bit how the Chrome save as application thing works because if that button switches you you click it and it like just switches the port that you're looking at, kind of it just switches you to the other KAN serve serve. if the Chrome saved web application, the way that it works is that it just opens a new window or it opens Something else like that would be quite annoying. I would want it to stay in the KAN web application. I kind of want the KAN application to seem kind of native, you know? The Chrome application, that is.",
+  "id": "a_DnJXCAIr",
+  "title": "in-built way to switch between kan serves from other kan serves",
+  "type": "feature",
+  "updated_at_millis": 1769264254730
+}
