@@ -16,7 +16,7 @@ func registerServe(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.ServePort, _ = ra.NewInt("port").
 		SetOptional(true).
-		SetDefault(3000).
+		SetDefault(5260).
 		SetShort("p").
 		SetFlagOnly(true).
 		SetUsage("Port to listen on (will try incrementally if in use)").

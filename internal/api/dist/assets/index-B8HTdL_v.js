@@ -367,7 +367,7 @@ kan serve --no-open
 
 | Flag | Description |
 |------|-------------|
-| \`-p, --port\` | Port to listen on (default: 3000) |
+| \`-p, --port\` | Port to listen on (default: 5260) |
 | \`--no-open\` | Don't open browser automatically |
 
 ### migrate
