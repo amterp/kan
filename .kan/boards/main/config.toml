@@ -11,12 +11,12 @@ default_column = "backlog-hi"
 [[columns]]
   name = "backlog-hi"
   color = "#6b7280"
-  card_ids = ["3cIruBkr", "2RF2RcyA", "48AVDad4", "2REB6NLa", "2REBgzSK", "2RESoTin", "2RF0BBTc", "2RET9h3a", "2RF1gl2S", "2RF25n0b", "3dav9GZU", "4CWvz4xq", "a_6NBw2rbK", "a_6NPbhW3o", "a_BlWLznge", "4CXN7HhS"]
+  card_ids = ["3cIruBkr", "2RF2RcyA", "48AVDad4", "2REB6NLa", "2REBgzSK", "2RESoTin", "2RET9h3a", "2RF1gl2S", "2RF25n0b", "4CWvz4xq", "a_6NBw2rbK", "a_6NPbhW3o", "a_BlWLznge", "4CXN7HhS", "a_EX5Arv9h"]
 
 [[columns]]
   name = "next"
   color = "#3b82f6"
-  card_ids = ["3cJmN0qU", "a_6NhrwFOp", "4CUbhFTJ"]
+  card_ids = ["3cJmN0qU", "a_6NhrwFOp", "4CUbhFTJ", "3dav9GZU", "a_EYZAQKps"]
 
 [[columns]]
   name = "in-progress"

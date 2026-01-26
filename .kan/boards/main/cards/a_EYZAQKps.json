@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "make-omni-search-stricter",
+  "alias_explicit": false,
+  "created_at_millis": 1769376670431,
+  "creator": "Alexander Terp",
+  "description": "It's just very loose right now. and when I search for like a complete word I still have a hundred cards appear",
+  "id": "a_EYZAQKps",
+  "title": "make omni search stricter",
+  "type": "enhancement",
+  "updated_at_millis": 1769376691370
+}
