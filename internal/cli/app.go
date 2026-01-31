@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -46,7 +45,7 @@ func NewApp(interactive bool) (*App, error) {
 	// Load global config with warnings (don't silently ignore errors)
 	globalCfg, err := globalStore.Load()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to load global config: %v\n", err)
+		PrintWarning("failed to load global config: %v", err)
 		globalCfg = nil
 	}
 
@@ -78,7 +77,7 @@ func NewApp(interactive bool) (*App, error) {
 		defaultName := filepath.Base(projectRoot)
 		if err := projectStore.EnsureInitialized(defaultName); err != nil {
 			// Non-fatal: log warning but continue
-			fmt.Fprintf(os.Stderr, "Warning: failed to initialize project config: %v\n", err)
+			PrintWarning("failed to initialize project config: %v", err)
 		}
 	}
 
@@ -169,8 +168,8 @@ func (a *App) GetAuthor() (string, error) {
 	return creator.GetAuthor(a.GitClient)
 }
 
-// Fatal prints an error and exits.
+// Fatal prints a styled error and exits.
 func Fatal(err error) {
-	fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	PrintError("%v", err)
 	os.Exit(1)
 }

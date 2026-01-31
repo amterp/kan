@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/service"
@@ -192,5 +191,5 @@ func printJson(v any) error {
 
 // warnJsonNotSupported prints a warning to stderr when --json is used on an unsupported command.
 func warnJsonNotSupported(command string) {
-	fmt.Fprintf(os.Stderr, "Warning: --json is not supported for '%s' (flag ignored)\n", command)
+	PrintWarning("--json is not supported for '%s' (flag ignored)", command)
 }

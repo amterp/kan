@@ -43,7 +43,7 @@ func runBoardCreate(name string) {
 		Fatal(err)
 	}
 
-	fmt.Printf("Created board %q\n", name)
+	PrintSuccess("Created board %q", name)
 }
 
 func runBoardList(jsonOutput bool) {
@@ -69,11 +69,12 @@ func runBoardList(jsonOutput bool) {
 	}
 
 	if len(boards) == 0 {
-		fmt.Println("No boards found")
+		PrintInfo("No boards found")
 		return
 	}
 
+	fmt.Println(RenderMuted("Boards:"))
 	for _, board := range boards {
-		fmt.Println(board)
+		fmt.Printf("  %s %s\n", RenderMuted("•"), board)
 	}
 }

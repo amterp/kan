@@ -65,8 +65,11 @@ func runServe(port int, noOpen bool) {
 	server := api.NewServer(handler, actualPort, app.ProjectRoot)
 
 	url := fmt.Sprintf("http://localhost:%d", actualPort)
-	fmt.Printf("Kan web server running at %s\n", url)
-	fmt.Println("Press Ctrl+C to stop")
+
+	// Display styled server info
+	content := fmt.Sprintf("Kan Web Server\n\n%s %s\n\nPress Ctrl+C to stop",
+		RenderMuted("→"), RenderURL(url))
+	fmt.Println(Box(content))
 
 	if !noOpen {
 		openBrowser(url)

@@ -43,12 +43,12 @@ func runMigrate(dryRun bool) {
 	}
 
 	if !plan.HasChanges() {
-		fmt.Println("Everything is up to date. No migration needed.")
+		PrintSuccess("Everything is up to date. No migration needed.")
 		return
 	}
 
 	if dryRun {
-		fmt.Println("Migration plan (dry run):")
+		fmt.Println(RenderBold("Migration plan (dry run):"))
 		fmt.Println()
 	}
 
@@ -58,7 +58,7 @@ func runMigrate(dryRun bool) {
 
 	if !dryRun {
 		fmt.Println()
-		fmt.Println("Migration complete.")
-		fmt.Println("Tip: Commit this migration separately. Use 'git blame --ignore-rev' to hide bulk changes.")
+		PrintSuccess("Migration complete.")
+		fmt.Println(RenderMuted("Tip: Commit this migration separately. Use 'git blame --ignore-rev' to hide bulk changes."))
 	}
 }

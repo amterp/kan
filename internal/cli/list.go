@@ -79,7 +79,7 @@ func runList(board, column string, jsonOutput bool) {
 	}
 
 	if len(cards) == 0 {
-		fmt.Println("No cards found")
+		PrintInfo("No cards found")
 		return
 	}
 
@@ -103,7 +103,10 @@ func printCardsByColumn(cards []*model.Card, boardCfg *model.BoardConfig) {
 			continue
 		}
 
-		fmt.Printf("\n[%s] (%d)\n", col.Name, len(colCards))
+		// Column header with color from board config
+		colHeader := RenderColumnColor(col.Name, col.Color)
+		countStr := RenderMuted(fmt.Sprintf("(%d)", len(colCards)))
+		fmt.Printf("\n%s %s\n", colHeader, countStr)
 		for _, card := range colCards {
 			printCardLine(card)
 		}
@@ -117,5 +120,5 @@ func printCardsList(cards []*model.Card) {
 }
 
 func printCardLine(card *model.Card) {
-	fmt.Printf("  %s  %s\n", card.ID, card.Title)
+	fmt.Printf("  %s  %s\n", RenderID(card.ID), card.Title)
 }

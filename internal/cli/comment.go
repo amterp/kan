@@ -115,7 +115,7 @@ func runCommentAdd(card, body, board string, nonInteractive, jsonOutput bool) {
 
 		commentBody = strings.TrimSpace(edited)
 		if commentBody == "" {
-			fmt.Println("Cancelled (empty comment)")
+			PrintInfo("Cancelled (empty comment)")
 			return
 		}
 	}
@@ -133,7 +133,7 @@ func runCommentAdd(card, body, board string, nonInteractive, jsonOutput bool) {
 		return
 	}
 
-	fmt.Printf("Added comment %s\n", comment.ID)
+	PrintSuccess("Added comment %s", RenderID(comment.ID))
 }
 
 func runCommentEdit(commentID, body, board string, nonInteractive bool) {
@@ -184,12 +184,12 @@ func runCommentEdit(commentID, body, board string, nonInteractive bool) {
 
 		newBody = strings.TrimSpace(edited)
 		if newBody == "" {
-			fmt.Println("Cancelled (empty comment)")
+			PrintInfo("Cancelled (empty comment)")
 			return
 		}
 
 		if newBody == existingBody {
-			fmt.Println("No changes made")
+			PrintInfo("No changes made")
 			return
 		}
 	}
@@ -200,7 +200,7 @@ func runCommentEdit(commentID, body, board string, nonInteractive bool) {
 		Fatal(err)
 	}
 
-	fmt.Printf("Updated comment %s\n", comment.ID)
+	PrintSuccess("Updated comment %s", RenderID(comment.ID))
 }
 
 func runCommentDelete(commentID, board string, nonInteractive bool) {
@@ -224,5 +224,5 @@ func runCommentDelete(commentID, board string, nonInteractive bool) {
 		Fatal(err)
 	}
 
-	fmt.Printf("Deleted comment %s\n", commentID)
+	PrintSuccess("Deleted comment %s", RenderID(commentID))
 }

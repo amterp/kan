@@ -170,7 +170,7 @@ func runEditNonInteractive(app *App, boardName string, card *model.Card,
 		return
 	}
 
-	fmt.Printf("Updated card %s\n", updatedCard.ID)
+	PrintSuccess("Updated card %s", RenderID(updatedCard.ID))
 }
 
 // parseCustomFields converts ["key=value", ...] to map[string]string.
@@ -226,7 +226,7 @@ func editTitle(app *App, boardName string, card *model.Card) {
 	}
 
 	if newTitle == card.Title {
-		fmt.Println("No changes made")
+		PrintInfo("No changes made")
 		return
 	}
 
@@ -234,7 +234,7 @@ func editTitle(app *App, boardName string, card *model.Card) {
 		Fatal(err)
 	}
 
-	fmt.Printf("Updated title to %q\n", newTitle)
+	PrintSuccess("Updated title to %q", newTitle)
 }
 
 func editDescription(app *App, boardName string, card *model.Card) {
@@ -249,7 +249,7 @@ func editDescription(app *App, boardName string, card *model.Card) {
 	newDesc = strings.TrimSpace(newDesc)
 
 	if newDesc == card.Description {
-		fmt.Println("No changes made")
+		PrintInfo("No changes made")
 		return
 	}
 
@@ -258,7 +258,7 @@ func editDescription(app *App, boardName string, card *model.Card) {
 		Fatal(err)
 	}
 
-	fmt.Println("Updated description")
+	PrintSuccess("Updated description")
 }
 
 func editColumn(app *App, boardName string, card *model.Card, boardCfg *model.BoardConfig) {
@@ -273,7 +273,7 @@ func editColumn(app *App, boardName string, card *model.Card, boardCfg *model.Bo
 	}
 
 	if newColumn == card.Column {
-		fmt.Println("No changes made")
+		PrintInfo("No changes made")
 		return
 	}
 
@@ -281,5 +281,5 @@ func editColumn(app *App, boardName string, card *model.Card, boardCfg *model.Bo
 		Fatal(err)
 	}
 
-	fmt.Printf("Moved card to %q\n", newColumn)
+	PrintSuccess("Moved card to %q", newColumn)
 }

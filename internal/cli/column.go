@@ -182,7 +182,7 @@ func runColumnAdd(name, color string, position int, board string, nonInteractive
 		Fatal(err)
 	}
 
-	fmt.Printf("Added column %q to board %q\n", name, boardName)
+	PrintSuccess("Added column %q to board %q", name, boardName)
 }
 
 func runColumnDelete(name, board string, force, nonInteractive bool) {
@@ -224,7 +224,7 @@ func runColumnDelete(name, board string, force, nonInteractive bool) {
 			Fatal(err)
 		}
 		if !confirmed {
-			fmt.Println("Cancelled")
+			PrintInfo("Cancelled")
 			return
 		}
 	}
@@ -239,9 +239,9 @@ func runColumnDelete(name, board string, force, nonInteractive bool) {
 		if deletedCards == 1 {
 			cardWord = "card"
 		}
-		fmt.Printf("Deleted column %q and %d %s from board %q\n", name, deletedCards, cardWord, boardName)
+		PrintSuccess("Deleted column %q and %d %s from board %q", name, deletedCards, cardWord, boardName)
 	} else {
-		fmt.Printf("Deleted column %q from board %q\n", name, boardName)
+		PrintSuccess("Deleted column %q from board %q", name, boardName)
 	}
 }
 
@@ -264,7 +264,7 @@ func runColumnRename(oldName, newName, board string, nonInteractive bool) {
 		Fatal(err)
 	}
 
-	fmt.Printf("Renamed column %q to %q in board %q\n", oldName, newName, boardName)
+	PrintSuccess("Renamed column %q to %q in board %q", oldName, newName, boardName)
 }
 
 func runColumnEdit(name, color, board string, nonInteractive bool) {
@@ -290,7 +290,7 @@ func runColumnEdit(name, color, board string, nonInteractive bool) {
 		Fatal(err)
 	}
 
-	fmt.Printf("Updated column %q in board %q\n", name, boardName)
+	PrintSuccess("Updated column %q in board %q", name, boardName)
 }
 
 func runColumnList(board string, nonInteractive, jsonOutput bool) {
@@ -329,7 +329,7 @@ func runColumnList(board string, nonInteractive, jsonOutput bool) {
 	}
 
 	if len(boardCfg.Columns) == 0 {
-		fmt.Println("No columns found")
+		PrintInfo("No columns found")
 		return
 	}
 
@@ -338,7 +338,9 @@ func runColumnList(board string, nonInteractive, jsonOutput bool) {
 		if len(col.CardIDs) == 1 {
 			cardWord = "card"
 		}
-		fmt.Printf("%-15s %s  (%d %s)\n", col.Name, col.Color, len(col.CardIDs), cardWord)
+		swatch := ColorSwatch(col.Color)
+		count := RenderMuted(fmt.Sprintf("(%d %s)", len(col.CardIDs), cardWord))
+		fmt.Printf("%-15s %s %s\n", col.Name, swatch, count)
 	}
 }
 
@@ -381,5 +383,5 @@ func runColumnMove(name, board string, position int, after string, nonInteractiv
 		Fatal(err)
 	}
 
-	fmt.Printf("Moved column %q to position %d in board %q\n", name, targetPos, boardName)
+	PrintSuccess("Moved column %q to position %d in board %q", name, targetPos, boardName)
 }

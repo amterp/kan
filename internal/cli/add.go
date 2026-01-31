@@ -116,25 +116,29 @@ func runAdd(title, description, board, column string, parentCard string, fields 
 		return
 	}
 
-	fmt.Printf("Created card %s (%s)\n", card.ID, card.Alias)
+	PrintSuccess("Created card %s (%s)", RenderID(card.ID), card.Alias)
 
 	// Display hook results
-	for _, result := range hookResults {
+	printHookResults(hookResults)
+}
+
+// printHookResults displays hook results with appropriate styling.
+// Silent success is fine - only show output when there's something to report.
+func printHookResults(results []*service.HookResult) {
+	for _, result := range results {
 		if result.Success {
+			// Only show output if the hook produced something
 			if result.Stdout != "" {
-				// Show hook output with clear prefix
-				fmt.Printf("[hook: %s] %s\n", result.HookName, result.Stdout)
-			} else {
-				// Show feedback even for quiet successful hooks
-				fmt.Printf("[hook: %s] completed\n", result.HookName)
+				PrintInfo("hook: %s %s", result.HookName, result.Stdout)
 			}
+			// Silent success is fine - no news is good news
 		} else {
-			// Show warning with actionable details
-			fmt.Fprintf(os.Stderr, "Warning: hook '%s' failed", result.HookName)
+			// Always show failures with actionable details
+			msg := fmt.Sprintf("hook '%s' failed", result.HookName)
 			if result.ExitCode > 0 {
-				fmt.Fprintf(os.Stderr, " (exit code %d)", result.ExitCode)
+				msg += fmt.Sprintf(" (exit code %d)", result.ExitCode)
 			}
-			fmt.Fprintln(os.Stderr)
+			PrintWarning("%s", msg)
 			if result.Stderr != "" {
 				fmt.Fprintf(os.Stderr, "  stderr: %s\n", result.Stderr)
 			}

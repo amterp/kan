@@ -102,5 +102,34 @@ func runInit(location, boardName, columnsStr, projectName string) {
 		Fatal(err)
 	}
 
-	fmt.Println("Initialized Kan in current directory")
+	// Display initialization result
+	PrintSuccess("Initialized Kan board")
+	fmt.Println()
+
+	// Board name (default: main)
+	displayBoard := boardName
+	if displayBoard == "" {
+		displayBoard = "main"
+	}
+	fmt.Println(LabelValue("Board", displayBoard, 10))
+
+	// Columns
+	var displayCols string
+	if len(columns) > 0 {
+		displayCols = strings.Join(columns, ", ")
+	} else {
+		displayCols = "backlog, next, in-progress, done"
+	}
+	fmt.Println(LabelValue("Columns", displayCols, 10))
+
+	// Location
+	displayLoc := ".kan/"
+	if location != "" {
+		displayLoc = location + "/"
+	}
+	fmt.Println(LabelValue("Location", displayLoc, 10))
+
+	// Helpful hint
+	fmt.Println()
+	fmt.Printf("Run %s to open the web interface\n", RenderBold("kan serve"))
 }

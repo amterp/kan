@@ -63,39 +63,57 @@ func runShow(idOrAlias, board string, jsonOutput bool) {
 		return
 	}
 
-	printCard(card)
+	// Get column color for display
+	var colColor string
+	for _, col := range boardCfg.Columns {
+		if col.Name == card.Column {
+			colColor = col.Color
+			break
+		}
+	}
+	printCard(card, colColor)
 }
 
-func printCard(card *model.Card) {
-	fmt.Printf("ID:      %s\n", card.ID)
-	fmt.Printf("Alias:   %s\n", card.Alias)
-	fmt.Printf("Title:   %s\n", card.Title)
-	fmt.Printf("Column:  %s\n", card.Column)
+func printCard(card *model.Card, colColor string) {
+	const labelWidth = 10
+
+	// Title box
+	fmt.Println(TitleBox(card.Title))
+	fmt.Println()
+
+	// Card details with aligned labels
+	fmt.Println(LabelValue("ID", RenderID(card.ID), labelWidth))
+	fmt.Println(LabelValue("Alias", card.Alias, labelWidth))
+	fmt.Println(LabelValue("Column", RenderColumnColor(card.Column, colColor), labelWidth))
 
 	if card.Description != "" {
-		fmt.Printf("Description:\n  %s\n", strings.ReplaceAll(card.Description, "\n", "\n  "))
+		fmt.Println()
+		fmt.Println(RenderMuted("Description:"))
+		fmt.Printf("  %s\n", strings.ReplaceAll(card.Description, "\n", "\n  "))
 	}
 
 	if card.Parent != "" {
-		fmt.Printf("Parent:  %s\n", card.Parent)
+		fmt.Println(LabelValue("Parent", RenderID(card.Parent), labelWidth))
 	}
 
-	fmt.Printf("Creator: %s\n", card.Creator)
-	fmt.Printf("Created: %s\n", util.FormatMillis(card.CreatedAtMillis))
-	fmt.Printf("Updated: %s\n", util.FormatMillis(card.UpdatedAtMillis))
+	fmt.Println()
+	fmt.Println(LabelValue("Creator", card.Creator, labelWidth))
+	fmt.Println(LabelValue("Created", RenderMuted(util.FormatMillis(card.CreatedAtMillis)), labelWidth))
+	fmt.Println(LabelValue("Updated", RenderMuted(util.FormatMillis(card.UpdatedAtMillis)), labelWidth))
 
 	if len(card.Comments) > 0 {
-		fmt.Printf("\nComments (%d):\n", len(card.Comments))
+		fmt.Printf("\n%s\n", RenderMuted(fmt.Sprintf("Comments (%d):", len(card.Comments))))
 		for _, comment := range card.Comments {
-			fmt.Printf("  [%s] %s:\n", util.FormatMillis(comment.CreatedAtMillis), comment.Author)
+			timestamp := RenderMuted(fmt.Sprintf("[%s]", util.FormatMillis(comment.CreatedAtMillis)))
+			fmt.Printf("  %s %s:\n", timestamp, RenderBold(comment.Author))
 			fmt.Printf("    %s\n", strings.ReplaceAll(comment.Body, "\n", "\n    "))
 		}
 	}
 
 	if len(card.CustomFields) > 0 {
-		fmt.Println("\nCustom Fields:")
+		fmt.Printf("\n%s\n", RenderMuted("Custom Fields:"))
 		for k, v := range card.CustomFields {
-			fmt.Printf("  %s: %v\n", k, v)
+			fmt.Printf("  %s: %v\n", RenderMuted(k), v)
 		}
 	}
 }
