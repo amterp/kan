@@ -122,6 +122,12 @@ type CommandContext struct {
 	CommentDeleteUsed  *bool
 	CommentDeleteID    *string
 	CommentDeleteBoard *string
+
+	// doctor command
+	DoctorUsed   *bool
+	DoctorFix    *bool
+	DoctorDryRun *bool
+	DoctorBoard  *string
 }
 
 // Run is the main entry point for the CLI.
@@ -157,6 +163,7 @@ func Run() {
 	registerEdit(cmd, ctx)
 	registerServe(cmd, ctx)
 	registerMigrate(cmd, ctx)
+	registerDoctor(cmd, ctx)
 
 	// Parse command line
 	cmd.ParseOrExit(os.Args[1:])
@@ -254,5 +261,8 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.CommentDeleteUsed:
 		runCommentDelete(*ctx.CommentDeleteID, *ctx.CommentDeleteBoard, *ctx.NonInteractive)
+
+	case *ctx.DoctorUsed:
+		runDoctor(*ctx.DoctorBoard, *ctx.DoctorFix, *ctx.DoctorDryRun, *ctx.Json)
 	}
 }

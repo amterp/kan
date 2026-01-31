@@ -138,12 +138,26 @@ kan migrate              # Migrate data to current schema
 kan migrate --dry-run    # Preview changes without applying
 ```
 
+## Health Checks
+
+```bash
+kan doctor               # Check for consistency issues
+kan doctor --fix         # Apply automatic fixes
+kan doctor --dry-run     # Preview fixes without applying
+kan doctor -b main       # Check specific board only
+kan doctor --json        # Machine-readable output
+```
+
+**Exit codes:** 0 = no errors (warnings OK), 1 = errors found
+
+**Fixable issues:** orphaned cards, missing card references, duplicate IDs, invalid default column, invalid parent refs.
+
 ## Global Flags
 
 | Flag | Description |
 |------|-------------|
 | `-I, --non-interactive` | Fail instead of prompting for input |
-| `--json` | Output results as JSON (supported by: show, list, add, edit, board list, column list, comment add) |
+| `--json` | Output results as JSON (supported by: show, list, add, edit, board list, column list, comment add, doctor) |
 
 ## Board Configuration
 

@@ -261,12 +261,55 @@ kan migrate --dry-run
 |-------------|----------------------------------------------------|
 | `--dry-run` | Show what would be changed without modifying files |
 
+### doctor
+
+Check board data for consistency issues and optionally fix them.
+
+```bash
+kan doctor
+kan doctor --fix
+kan doctor --dry-run
+kan doctor -b main
+kan doctor --json
+```
+
+| Flag          | Description                                         |
+|---------------|-----------------------------------------------------|
+| `--fix`       | Apply automatic fixes for issues with deterministic solutions |
+| `--dry-run`   | Show what fixes would be applied without making changes |
+| `-b, --board` | Check only a specific board (default: all)          |
+
+**Exit codes:**
+
+- `0`: No errors (warnings are OK)
+- `1`: Errors found
+
+**Issues detected:**
+
+- **Errors** (must be fixed):
+  - `MALFORMED_BOARD_CONFIG`: Board config.toml fails to parse
+  - `MALFORMED_CARD`: Card JSON fails to parse
+  - `MISSING_CARD_FILE`: Card ID in column but file not found (fixable)
+  - `ORPHANED_CARD`: Card file not in any column (fixable)
+  - `DUPLICATE_CARD_ID`: Same ID in multiple columns (fixable)
+
+- **Warnings** (should be addressed):
+  - `SCHEMA_OUTDATED`: Board/card needs migration (run `kan migrate`)
+  - `INVALID_DEFAULT_COLUMN`: References missing column (fixable)
+  - `INVALID_CARD_DISPLAY`: References missing custom field (fixable)
+  - `INVALID_LINK_RULE`: Regex doesn't compile
+  - `INVALID_PATTERN_HOOK`: Regex doesn't compile
+  - `MISSING_HOOK_FILE`: Pattern hook references non-existent file
+  - `INVALID_PARENT_REF`: Parent points to non-existent card (fixable)
+  - `MALFORMED_GLOBAL_CONFIG`: Global config.toml fails to parse
+  - `GLOBAL_SCHEMA_OUTDATED`: Global config needs migration
+
 ## Global Flags
 
 | Flag                    | Description                                                                              |
 |-------------------------|------------------------------------------------------------------------------------------|
 | `-I, --non-interactive` | Fail instead of prompting for missing input                                              |
-| `--json`                | Output results as JSON (supported by: show, list, add, edit, board list, column list, comment add) |
+| `--json`                | Output results as JSON (supported by: show, list, add, edit, board list, column list, comment add, doctor) |
 
 ## JSON Output
 

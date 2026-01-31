@@ -68,7 +68,7 @@ func (s *MigrateService) Plan() (*MigrationPlan, error) {
 	plan.GlobalConfig = globalPlan
 
 	// Plan board migrations
-	boards, err := s.listBoards()
+	boards, err := listBoards(s.paths)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list boards: %w", err)
 	}
@@ -348,7 +348,7 @@ func (s *MigrateService) updateBoardSchema(path, newSchema string) error {
 	}
 
 	raw["kan_schema"] = newSchema
-	return s.writeTOML(path, raw)
+	return writeTOMLMap(path, raw)
 }
 
 // migrateBoardV1ToV2 converts a v1 board config to v2 format.
@@ -407,20 +407,10 @@ func (s *MigrateService) migrateBoardV1ToV2(path string) error {
 		}
 	}
 
-	return s.writeTOML(path, raw)
+	return writeTOMLMap(path, raw)
 }
 
 // writeTOML writes a map to a TOML file.
-func (s *MigrateService) writeTOML(path string, data map[string]any) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	encoder := toml.NewEncoder(f)
-	return encoder.Encode(data)
-}
 
 // prependTOMLField adds a field at the top of a TOML file, preserving existing formatting.
 // This avoids scrambling field order that would happen with decode/encode round-trip.
@@ -453,37 +443,6 @@ func (s *MigrateService) migrateCard(plan *CardMigration) error {
 	// Remove column field
 	delete(raw, "column")
 
-	return s.writeJSON(plan.Path, raw)
+	return writeJSONMap(plan.Path, raw)
 }
 
-func (s *MigrateService) listBoards() ([]string, error) {
-	boardsRoot := s.paths.BoardsRoot()
-
-	entries, err := os.ReadDir(boardsRoot)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return []string{}, nil
-		}
-		return nil, err
-	}
-
-	var boards []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			configPath := s.paths.BoardConfigPath(entry.Name())
-			if _, err := os.Stat(configPath); err == nil {
-				boards = append(boards, entry.Name())
-			}
-		}
-	}
-
-	return boards, nil
-}
-
-func (s *MigrateService) writeJSON(path string, data map[string]any) error {
-	output, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, output, 0644)
-}

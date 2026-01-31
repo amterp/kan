@@ -1,0 +1,10 @@
+{
+  "_v": 1,
+  "id": "card-1",
+  "alias": "c1",
+  "alias_explicit": false,
+  "title": "Valid Card",
+  "creator": "test",
+  "created_at_millis": 1700000000000,
+  "updated_at_millis": 1700000000000
+}
