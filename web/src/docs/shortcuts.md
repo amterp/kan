@@ -14,11 +14,11 @@ Press **⌘K** to open quick search. Start typing to filter cards in real-time.
 
 ### How Filtering Works
 
-Quick search uses **fuzzy matching** — your query characters must appear in the target text in order, but not necessarily consecutively. For example:
+Quick search uses **word-based substring matching**. Each word in your query must appear as a consecutive substring somewhere in the card. Multiple words are AND'd together, but can match different fields. For example:
 
-- `usr` matches "**u**se**r**" and "u**s**e**r**name"
-- `cdb` matches "**c**reate **d**ata**b**ase"
-- `abc` does *not* match "cab" (wrong order)
+- `bug` matches "fixing a **bug**" and "de**bug**ging"
+- `fix bug` matches a card with "**fix** login" in title and "**bug** report" in description
+- `fg` does *not* match "fixing a bug" (not a consecutive substring)
 
 The search looks across all card fields: title, alias, description, and any custom fields defined on your board.
 

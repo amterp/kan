@@ -1,47 +1,56 @@
 import type { Card, BoardConfig } from '../api/types';
 
 /**
- * Fuzzy match: all query characters must appear in target, in order, but not necessarily consecutively.
+ * Substring match: query must appear as a consecutive substring in target.
  * Case-insensitive.
  *
  * Examples:
- *   fuzzyMatch("abc", "aXbYc") → true (a...b...c in order)
- *   fuzzyMatch("usr", "user") → true
- *   fuzzyMatch("abc", "cab") → false (wrong order)
+ *   fuzzyMatch("bug", "fixing a bug") → true
+ *   fuzzyMatch("fix", "prefix") → true
+ *   fuzzyMatch("fg", "fixing a bug") → false (not consecutive)
  */
 export function fuzzyMatch(query: string, target: string): boolean {
-  const q = query.toLowerCase();
-  const t = target.toLowerCase();
-  let qi = 0;
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) qi++;
-  }
-  return qi === q.length;
+  return target.toLowerCase().includes(query.toLowerCase());
 }
 
 /**
  * Check if a card matches a search query.
  * Searches: title, alias, description, and all custom field values.
+ *
+ * Query is split on whitespace into words. Each word must appear as a
+ * consecutive substring (case-insensitive) in at least one field.
+ * All words must match (AND logic), but can match different fields.
+ *
+ * Examples with query "fix bug":
+ *   - "Bug fix for login" (title) → match
+ *   - "Fixing a nasty bug" (title) → match
+ *   - Title: "Fix login", Description: "Related to bug #123" → match
+ *   - "f-i-x b-u-g" → no match
  */
 export function cardMatchesQuery(card: Card, query: string, board: BoardConfig): boolean {
-  if (!query.trim()) return true;
+  const words = query.toLowerCase().split(/\s+/).filter((w) => w.length > 0);
+  if (words.length === 0) return true;
 
-  // Standard fields
-  if (fuzzyMatch(query, card.title)) return true;
-  if (fuzzyMatch(query, card.alias)) return true;
-  if (card.description && fuzzyMatch(query, card.description)) return true;
+  // Build searchable texts from all fields
+  const searchableTexts: string[] = [
+    card.title.toLowerCase(),
+    card.alias.toLowerCase(),
+    card.description?.toLowerCase() ?? '',
+  ];
 
-  // Custom fields
+  // Add custom field values
   if (board.custom_fields) {
     for (const fieldName of Object.keys(board.custom_fields)) {
       const value = card[fieldName];
       if (value == null) continue;
       if (Array.isArray(value)) {
-        if (value.some((v) => fuzzyMatch(query, String(v)))) return true;
+        searchableTexts.push(...value.map((v) => String(v).toLowerCase()));
       } else {
-        if (fuzzyMatch(query, String(value))) return true;
+        searchableTexts.push(String(value).toLowerCase());
       }
     }
   }
-  return false;
+
+  // Each word must appear in at least one field
+  return words.every((word) => searchableTexts.some((text) => text.includes(word)));
 }
