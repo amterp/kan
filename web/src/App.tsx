@@ -31,6 +31,9 @@ function BoardApp() {
     updateColumn,
     reorderColumns,
     refresh,
+    fileSyncConnected,
+    fileSyncReconnecting,
+    fileSyncFailed,
   } = useBoard(selectedBoard, refreshKey);
   const [newCardForEdit, setNewCardForEdit] = useState<Card | null>(null);
   const [omnibarSelectedCard, setOmnibarSelectedCard] = useState<Card | null>(null);
@@ -226,9 +229,9 @@ function BoardApp() {
 
   const handleNewCard = useCallback(async () => {
     if (!board) return;
-    const newCard = await createCard({ title: 'New Card', column: board.default_column });
-    if (newCard) {
-      setNewCardForEdit(newCard);
+    const response = await createCard({ title: 'New Card', column: board.default_column });
+    if (response?.card) {
+      setNewCardForEdit(response.card);
     }
   }, [board, createCard]);
 
@@ -282,6 +285,11 @@ function BoardApp() {
         onSelectBoard={setSelectedBoard}
         onRefresh={refresh}
         onNewCard={board ? handleNewCard : undefined}
+        syncStatus={{
+          connected: fileSyncConnected,
+          reconnecting: fileSyncReconnecting,
+          failed: fileSyncFailed,
+        }}
       />
       <main className="flex-1 overflow-hidden">
         {loading ? (

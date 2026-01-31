@@ -31,6 +31,7 @@ type App struct {
 	BoardService  *service.BoardService
 	CardService   *service.CardService
 	AliasService  *service.AliasService
+	HookService   *service.HookService
 	BoardResolver *resolver.BoardResolver
 	CardResolver  *resolver.CardResolver
 	ProjectRoot   string
@@ -95,6 +96,13 @@ func NewApp(interactive bool) (*App, error) {
 	boardResolver := resolver.NewBoardResolver(boardStore, globalStore, prompter, projectRoot)
 	cardResolver := resolver.NewCardResolver(cardStore)
 
+	// Set up hook service if we have a project root
+	var hookService *service.HookService
+	if projectRoot != "" {
+		hookService = service.NewHookService(projectRoot)
+		cardService.SetHookService(hookService)
+	}
+
 	return &App{
 		GitClient:     gitClient,
 		GlobalStore:   globalStore,
@@ -107,6 +115,7 @@ func NewApp(interactive bool) (*App, error) {
 		BoardService:  boardService,
 		CardService:   cardService,
 		AliasService:  aliasService,
+		HookService:   hookService,
 		BoardResolver: boardResolver,
 		CardResolver:  cardResolver,
 		ProjectRoot:   projectRoot,

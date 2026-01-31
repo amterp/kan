@@ -7,6 +7,8 @@ require (
 	github.com/amterp/flexid v1.3.0
 	github.com/amterp/ra v0.4.3
 	github.com/charmbracelet/huh v0.8.0
+	github.com/fsnotify/fsnotify v1.9.0
+	github.com/gorilla/websocket v1.5.3
 	golang.org/x/text v0.32.0
 )
 

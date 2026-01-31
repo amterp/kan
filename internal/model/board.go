@@ -42,6 +42,7 @@ type BoardConfig struct {
 	CustomFields  map[string]CustomFieldSchema `toml:"custom_fields,omitempty" json:"custom_fields,omitempty"`
 	CardDisplay   CardDisplayConfig            `toml:"card_display,omitempty" json:"card_display,omitempty"`
 	LinkRules     []LinkRule                   `toml:"link_rules,omitempty" json:"link_rules,omitempty"`
+	PatternHooks  []PatternHook                `toml:"pattern_hooks,omitempty" json:"pattern_hooks,omitempty"`
 }
 
 // Column represents a kanban column.
@@ -78,6 +79,15 @@ type LinkRule struct {
 	URL     string `toml:"url" json:"url"`         // URL template using {0} for full match, {1}, {2}, etc. for groups
 }
 
+// PatternHook defines a hook that runs when cards are created with matching titles.
+// The command receives the card ID and board name as arguments.
+type PatternHook struct {
+	Name         string `toml:"name" json:"name"`                           // Human-readable name for the hook
+	PatternTitle string `toml:"pattern_title" json:"pattern_title"`         // Regex pattern to match card titles
+	Command      string `toml:"command" json:"command"`                     // Command to execute (~ expanded)
+	Timeout      int    `toml:"timeout,omitempty" json:"timeout,omitempty"` // Timeout in seconds (default: 30)
+}
+
 // ValidateLinkRules validates that all link rules have valid regex patterns.
 // Returns a list of warning messages for invalid patterns (non-fatal).
 func ValidateLinkRules(rules []LinkRule) []string {
@@ -86,6 +96,30 @@ func ValidateLinkRules(rules []LinkRule) []string {
 		if _, err := regexp.Compile(rule.Pattern); err != nil {
 			warnings = append(warnings, fmt.Sprintf(
 				"link_rules: invalid regex in '%s': %s", rule.Name, err.Error()))
+		}
+	}
+	return warnings
+}
+
+// ValidatePatternHooks validates that all pattern hooks have valid regex patterns.
+// Returns a list of warning messages for invalid patterns (non-fatal).
+func ValidatePatternHooks(hooks []PatternHook) []string {
+	var warnings []string
+	for _, hook := range hooks {
+		if hook.Name == "" {
+			warnings = append(warnings, "pattern_hooks: hook missing required 'name' field")
+			continue
+		}
+		if hook.PatternTitle == "" {
+			warnings = append(warnings, fmt.Sprintf(
+				"pattern_hooks: hook '%s' missing required 'pattern_title' field", hook.Name))
+		} else if _, err := regexp.Compile(hook.PatternTitle); err != nil {
+			warnings = append(warnings, fmt.Sprintf(
+				"pattern_hooks: invalid regex in '%s': %s", hook.Name, err.Error()))
+		}
+		if hook.Command == "" {
+			warnings = append(warnings, fmt.Sprintf(
+				"pattern_hooks: hook '%s' missing required 'command' field", hook.Name))
 		}
 	}
 	return warnings

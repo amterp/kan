@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { listBoards, getBoard, createColumn as apiCreateColumn, deleteColumn as apiDeleteColumn, updateColumn as apiUpdateColumn, reorderColumns as apiReorderColumns } from '../api/boards';
-import { listCards, moveCard as apiMoveCard, createCard as apiCreateCard, updateCard as apiUpdateCard, deleteCard as apiDeleteCard } from '../api/cards';
-import type { BoardConfig, Card, CreateCardInput, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
+import { listCards, moveCard as apiMoveCard, createCard as apiCreateCard, updateCard as apiUpdateCard, deleteCard as apiDeleteCard, getCard as apiGetCard } from '../api/cards';
+import type { BoardConfig, Card, CreateCardInput, CreateCardResponse, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
+import { useFileSync, type FileChange } from './useFileSync';
 
 export function useBoards(refreshKey = 0) {
   const [boards, setBoards] = useState<string[]>([]);
@@ -33,6 +34,9 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Track pending local changes to avoid overwriting optimistic updates
+  const pendingChangesRef = useRef<Set<string>>(new Set());
+
   const refresh = useCallback(async () => {
     if (!boardName) return;
     setLoading(true);
@@ -51,6 +55,75 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
     }
   }, [boardName]);
 
+  // Handle file change notifications from the server
+  const handleCardChange = useCallback(async (change: FileChange) => {
+    if (!boardName || change.board_name !== boardName) return;
+
+    // Skip if this card has pending local changes
+    if (change.card_id && pendingChangesRef.current.has(change.card_id)) {
+      return;
+    }
+
+    if (change.type === 'deleted' && change.card_id) {
+      // Remove deleted card from state
+      setCards((prev) => prev.filter((c) => c.id !== change.card_id));
+    } else if (change.type === 'created' || change.type === 'modified') {
+      // Fetch the updated card from the server
+      if (change.card_id) {
+        try {
+          const updatedCard = await apiGetCard(boardName, change.card_id);
+          setCards((prev) => {
+            const existing = prev.find((c) => c.id === change.card_id);
+            if (existing) {
+              // Update existing card
+              return prev.map((c) => (c.id === change.card_id ? updatedCard : c));
+            } else {
+              // Add new card
+              return [...prev, updatedCard];
+            }
+          });
+        } catch (err) {
+          // Card might have been deleted between notification and fetch
+          console.warn('Failed to fetch updated card:', err);
+        }
+      }
+    }
+  }, [boardName]);
+
+  const handleBoardChange = useCallback(async () => {
+    // Board config changed - refresh both board AND cards
+    // Cards need refresh because their column assignments come from board config
+    if (!boardName) return;
+    try {
+      const [boardData, cardsData] = await Promise.all([
+        getBoard(boardName),
+        listCards(boardName),
+      ]);
+      setBoard(boardData);
+      // Merge fetched cards, but preserve any with pending local changes
+      setCards((prev) => {
+        const pendingIds = pendingChangesRef.current;
+        if (pendingIds.size === 0) {
+          return cardsData;
+        }
+        // Keep local versions of cards with pending changes
+        const pendingCards = prev.filter((c) => pendingIds.has(c.id));
+        const freshCards = cardsData.filter((c) => !pendingIds.has(c.id));
+        return [...freshCards, ...pendingCards];
+      });
+    } catch (err) {
+      console.warn('Failed to refresh board:', err);
+    }
+  }, [boardName]);
+
+  // Enable file sync when we have a board
+  const { connected: fileSyncConnected, reconnecting: fileSyncReconnecting, failed: fileSyncFailed } = useFileSync({
+    onCardChange: handleCardChange,
+    onBoardChange: handleBoardChange,
+    boardFilter: boardName || undefined,
+    enabled: !!boardName,
+  });
+
   useEffect(() => {
     if (boardName) {
       refresh();
@@ -59,6 +132,9 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
 
   const moveCard = useCallback(async (cardId: string, newColumn: string, position?: number) => {
     if (!boardName || !board) return;
+
+    // Mark card as having pending changes to prevent WebSocket overwrites
+    pendingChangesRef.current.add(cardId);
 
     // Optimistic update: move card in local state immediately
     setCards((prevCards) => {
@@ -99,19 +175,38 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
       // Revert on error by refreshing from server
       await refresh();
       throw e;
+    } finally {
+      pendingChangesRef.current.delete(cardId);
     }
   }, [boardName, board, refresh]);
 
-  const createCard = useCallback(async (input: CreateCardInput) => {
+  const createCard = useCallback(async (input: CreateCardInput): Promise<CreateCardResponse | undefined> => {
     if (!boardName) return;
 
-    const newCard = await apiCreateCard(boardName, input);
-    setCards((prev) => [...prev, newCard]);
-    return newCard;
+    const response = await apiCreateCard(boardName, input);
+    setCards((prev) => [...prev, response.card]);
+
+    // Log hook results if any ran
+    if (response.hook_results && response.hook_results.length > 0) {
+      for (const hook of response.hook_results) {
+        if (hook.success) {
+          if (hook.output) {
+            console.log(`[hook: ${hook.name}]`, hook.output);
+          }
+        } else {
+          console.warn(`[hook: ${hook.name}] failed:`, hook.error);
+        }
+      }
+    }
+
+    return response;
   }, [boardName]);
 
   const updateCard = useCallback(async (cardId: string, updates: UpdateCardInput) => {
     if (!boardName) return;
+
+    // Mark card as having pending changes to prevent WebSocket overwrites
+    pendingChangesRef.current.add(cardId);
 
     // Optimistic update (basic fields only; custom fields come from server response)
     setCards((prev) =>
@@ -138,11 +233,16 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
       // Revert on error
       refresh();
       throw e;
+    } finally {
+      pendingChangesRef.current.delete(cardId);
     }
   }, [boardName, refresh]);
 
   const deleteCard = useCallback(async (cardId: string) => {
     if (!boardName) return;
+
+    // Mark card as having pending changes to prevent WebSocket overwrites
+    pendingChangesRef.current.add(cardId);
 
     // Optimistic update: remove from local state immediately
     setCards((prev) => prev.filter((card) => card.id !== cardId));
@@ -153,6 +253,8 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
       // Revert on error
       refresh();
       throw e;
+    } finally {
+      pendingChangesRef.current.delete(cardId);
     }
   }, [boardName, refresh]);
 
@@ -258,5 +360,8 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
     updateColumn,
     reorderColumns,
     refresh,
+    fileSyncConnected,
+    fileSyncReconnecting,
+    fileSyncFailed,
   };
 }

@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { Card, Comment, CreateCardInput, UpdateCardInput } from './types';
+import type { Card, Comment, CreateCardInput, CreateCardResponse, UpdateCardInput } from './types';
 
 export async function listCards(board: string, column?: string): Promise<Card[]> {
   const params = column ? `?column=${encodeURIComponent(column)}` : '';
@@ -11,8 +11,8 @@ export async function getCard(board: string, id: string): Promise<Card> {
   return api.get<Card>(`/boards/${encodeURIComponent(board)}/cards/${encodeURIComponent(id)}`);
 }
 
-export async function createCard(board: string, input: CreateCardInput): Promise<Card> {
-  return api.post<Card>(`/boards/${encodeURIComponent(board)}/cards`, input);
+export async function createCard(board: string, input: CreateCardInput): Promise<CreateCardResponse> {
+  return api.post<CreateCardResponse>(`/boards/${encodeURIComponent(board)}/cards`, input);
 }
 
 export async function updateCard(board: string, id: string, input: UpdateCardInput): Promise<Card> {

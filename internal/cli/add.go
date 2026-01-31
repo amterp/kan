@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/amterp/kan/internal/service"
 	"github.com/amterp/ra"
@@ -96,10 +97,36 @@ func runAdd(title, description, board, column string, parentCard string, fields 
 		CustomFields: customFields,
 	}
 
-	card, err := app.CardService.Add(input)
+	card, hookResults, err := app.CardService.Add(input)
 	if err != nil {
 		Fatal(err)
 	}
 
 	fmt.Printf("Created card %s (%s)\n", card.ID, card.Alias)
+
+	// Display hook results
+	for _, result := range hookResults {
+		if result.Success {
+			if result.Stdout != "" {
+				// Show hook output with clear prefix
+				fmt.Printf("[hook: %s] %s\n", result.HookName, result.Stdout)
+			} else {
+				// Show feedback even for quiet successful hooks
+				fmt.Printf("[hook: %s] completed\n", result.HookName)
+			}
+		} else {
+			// Show warning with actionable details
+			fmt.Fprintf(os.Stderr, "Warning: hook '%s' failed", result.HookName)
+			if result.ExitCode > 0 {
+				fmt.Fprintf(os.Stderr, " (exit code %d)", result.ExitCode)
+			}
+			fmt.Fprintln(os.Stderr)
+			if result.Stderr != "" {
+				fmt.Fprintf(os.Stderr, "  stderr: %s\n", result.Stderr)
+			}
+			if result.Error != nil {
+				fmt.Fprintf(os.Stderr, "  error: %v\n", result.Error)
+			}
+		}
+	}
 }

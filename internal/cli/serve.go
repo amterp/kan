@@ -62,7 +62,7 @@ func runServe(port int, noOpen bool) {
 	// Find an available port starting from the requested one
 	actualPort := findAvailablePort(port)
 
-	server := api.NewServer(handler, actualPort)
+	server := api.NewServer(handler, actualPort, app.ProjectRoot)
 
 	url := fmt.Sprintf("http://localhost:%d", actualPort)
 	fmt.Printf("Kan web server running at %s\n", url)

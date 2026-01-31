@@ -310,16 +310,45 @@ func (s *MigrateService) migrateBoardConfig(plan *BoardMigration) error {
 
 	// v0 or missing → v1: just prepend schema
 	// v1 → v2: convert labels to custom fields
+	// v2 → v3: just update schema (pattern_hooks is optional, no structural changes)
 	if fromVersion == 0 && version.CurrentBoardVersion == 1 {
 		return s.prependTOMLField(plan.ConfigPath, "kan_schema", plan.ToSchema)
 	}
 
-	if fromVersion <= 1 && version.CurrentBoardVersion == 2 {
-		return s.migrateBoardV1ToV2(plan.ConfigPath)
+	if fromVersion <= 1 && version.CurrentBoardVersion >= 2 {
+		if err := s.migrateBoardV1ToV2(plan.ConfigPath); err != nil {
+			return err
+		}
+		// If target is v3+, continue to update schema
+		if version.CurrentBoardVersion >= 3 {
+			return s.updateBoardSchema(plan.ConfigPath, plan.ToSchema)
+		}
+		return nil
+	}
+
+	// v2 → v3: just update schema version (pattern_hooks is optional)
+	if fromVersion == 2 && version.CurrentBoardVersion == 3 {
+		return s.updateBoardSchema(plan.ConfigPath, plan.ToSchema)
 	}
 
 	// Fallback for unknown versions: just update the schema
-	return s.prependTOMLField(plan.ConfigPath, "kan_schema", plan.ToSchema)
+	return s.updateBoardSchema(plan.ConfigPath, plan.ToSchema)
+}
+
+// updateBoardSchema updates only the kan_schema field in a board config file.
+func (s *MigrateService) updateBoardSchema(path, newSchema string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var raw map[string]any
+	if _, err := toml.Decode(string(data), &raw); err != nil {
+		return fmt.Errorf("invalid TOML: %w", err)
+	}
+
+	raw["kan_schema"] = newSchema
+	return s.writeTOML(path, raw)
 }
 
 // migrateBoardV1ToV2 converts a v1 board config to v2 format.

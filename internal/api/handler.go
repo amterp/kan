@@ -110,9 +110,10 @@ func (h *Handler) populateCardColumn(boardName string, card *model.Card) {
 // Lifecycle: globalStore is read fresh on each ListAllBoards/SwitchProject call (never
 // cached), so external changes to ~/.config/kan/config.toml are picked up immediately.
 type Handler struct {
-	globalStore store.GlobalStore
-	mu          sync.RWMutex
-	current     *ProjectContext
+	globalStore     store.GlobalStore
+	mu              sync.RWMutex
+	current         *ProjectContext
+	onProjectSwitch func(newProjectRoot string) // Called when project is switched
 }
 
 // NewHandler creates a new handler with the given dependencies.
@@ -121,6 +122,12 @@ func NewHandler(globalStore store.GlobalStore, ctx *ProjectContext) *Handler {
 		globalStore: globalStore,
 		current:     ctx,
 	}
+}
+
+// SetOnProjectSwitch sets a callback that's called when the active project changes.
+// Used by Server to update the file watcher when projects are switched.
+func (h *Handler) SetOnProjectSwitch(fn func(newProjectRoot string)) {
+	h.onProjectSwitch = fn
 }
 
 // ctx returns the current ProjectContext under read lock.
@@ -260,6 +267,20 @@ type CreateCardRequest struct {
 	CustomFields map[string]string `json:"custom_fields,omitempty"`
 }
 
+// CreateCardResponse is the JSON response for creating a card.
+type CreateCardResponse struct {
+	Card        CardResponse `json:"card"`
+	HookResults []HookInfo   `json:"hook_results,omitempty"`
+}
+
+// HookInfo contains information about a hook execution for API response.
+type HookInfo struct {
+	Name    string `json:"name"`
+	Success bool   `json:"success"`
+	Output  string `json:"output,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
 // CreateCard creates a new card.
 func (h *Handler) CreateCard(w http.ResponseWriter, r *http.Request) {
 	boardName := r.PathValue("board")
@@ -285,7 +306,7 @@ func (h *Handler) CreateCard(w http.ResponseWriter, r *http.Request) {
 		CustomFields: req.CustomFields,
 	}
 
-	card, err := h.ctx().CardService.Add(input)
+	card, hookResults, err := h.ctx().CardService.Add(input)
 	if err != nil {
 		Error(w, err)
 		return
@@ -293,7 +314,25 @@ func (h *Handler) CreateCard(w http.ResponseWriter, r *http.Request) {
 
 	// Populate Column from board config for API response
 	h.populateCardColumn(boardName, card)
-	JSON(w, http.StatusCreated, toCardResponse(card))
+
+	// Build response - always use consistent shape
+	var hookInfos []HookInfo
+	for _, result := range hookResults {
+		info := HookInfo{
+			Name:    result.HookName,
+			Success: result.Success,
+			Output:  result.Stdout,
+		}
+		if result.Error != nil {
+			info.Error = result.Error.Error()
+		}
+		hookInfos = append(hookInfos, info)
+	}
+
+	JSON(w, http.StatusCreated, CreateCardResponse{
+		Card:        toCardResponse(card),
+		HookResults: hookInfos,
+	})
 }
 
 // GetCard returns a single card by ID.
@@ -855,6 +894,11 @@ func (h *Handler) SwitchProject(w http.ResponseWriter, r *http.Request) {
 	h.mu.Lock()
 	h.current = newCtx
 	h.mu.Unlock()
+
+	// Notify server to update file watcher
+	if h.onProjectSwitch != nil {
+		h.onProjectSwitch(newCtx.ProjectRoot)
+	}
 
 	JSON(w, http.StatusOK, SwitchProjectResponse{
 		ProjectName: projectName,

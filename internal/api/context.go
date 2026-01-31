@@ -48,6 +48,10 @@ func BuildProjectContext(projectRoot, dataLocation, creator string) (*ProjectCon
 	boardService := service.NewBoardService(boardStore, cardStore)
 	cardService := service.NewCardService(cardStore, boardStore, aliasService)
 
+	// Set up hook service for pattern hooks
+	hookService := service.NewHookService(projectRoot)
+	cardService.SetHookService(hookService)
+
 	return &ProjectContext{
 		Paths:        paths,
 		BoardStore:   boardStore,

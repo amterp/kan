@@ -14,7 +14,7 @@ A board's `config.toml` defines its structure, columns, custom fields, and displ
 ### Minimal Example
 
 ```toml
-kan_schema = "board/2"
+kan_schema = "board/3"
 id = "k7xQ2m"
 name = "main"
 
@@ -34,7 +34,7 @@ color = "#10b981"
 ### Full Example
 
 ```toml
-kan_schema = "board/2"
+kan_schema = "board/3"
 id = "k7xQ2m"
 name = "main"
 default_column = "backlog"
@@ -70,9 +70,15 @@ options = [
 type_indicator = "type"
 badges = ["labels"]
 
-[link_rules]
-JIRA = "https://jira.example.com/browse/$1"
-GH = "https://github.com/org/repo/issues/$1"
+[[link_rules]]
+name = "JIRA"
+pattern = "([A-Z]+-\\d+)"
+url = "https://jira.example.com/browse/{1}"
+
+[[link_rules]]
+name = "GitHub"
+pattern = "#(\\d+)"
+url = "https://github.com/org/repo/issues/{1}"
 ```
 
 ## Fields Reference
@@ -81,7 +87,7 @@ GH = "https://github.com/org/repo/issues/$1"
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `kan_schema` | Yes | Schema version (e.g., `"board/2"`) |
+| `kan_schema` | Yes | Schema version (e.g., `"board/3"`) |
 | `id` | Yes | Unique board identifier (auto-generated) |
 | `name` | Yes | Board name (also used as directory name) |
 | `default_column` | No | Column for new cards via `kan add` (defaults to first column) |
@@ -134,12 +140,73 @@ See [Custom Fields](/docs/custom-fields#card-display) for details on display slo
 Auto-link patterns for references like ticket IDs:
 
 ```toml
-[link_rules]
-JIRA = "https://jira.example.com/browse/$1"
-GH = "https://github.com/org/repo/issues/$1"
+[[link_rules]]
+name = "JIRA"
+pattern = "([A-Z]+-\\d+)"
+url = "https://jira.example.com/browse/{1}"
+
+[[link_rules]]
+name = "GitHub"
+pattern = "#(\\d+)"
+url = "https://github.com/org/repo/issues/{1}"
 ```
 
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Human-readable name for the rule |
+| `pattern` | Yes | Regex pattern with capture groups |
+| `url` | Yes | URL template using `{0}` for full match, `{1}`, `{2}`, etc. for groups |
+
 See [Link Rules](/docs/link-rules) for full documentation.
+
+### Pattern Hooks
+
+Pattern hooks run commands when cards are created with titles matching specified patterns. This is useful for integrating with external systems.
+
+```toml
+[[pattern_hooks]]
+name = "jira-sync"
+pattern_title = "^[A-Z]+-\\d+$"  # Matches JIRA-123, PROJ-456
+command = "~/.kan/hooks/jira-sync.sh"
+timeout = 60  # Optional, defaults to 30s
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Human-readable hook name (for logs/errors) |
+| `pattern_title` | Yes | Regex pattern to match card titles |
+| `command` | Yes | Path to executable (see note below) |
+| `timeout` | No | Timeout in seconds (default: 30) |
+
+**Important:** The `command` field must be a **path to an executable file**, not a shell command with arguments. For example:
+- ✅ `"~/.kan/hooks/my-hook.sh"` — direct path to script with shebang
+- ✅ `"/usr/local/bin/my-tool"` — absolute path to binary
+- ❌ `"python script.py"` — won't work (not a shell command)
+- ❌ `"./hook.sh --verbose"` — won't work (arguments not parsed)
+
+The `~` prefix is expanded to your home directory. If you need to pass arguments or use shell features, create a wrapper script.
+
+**Execution details:**
+- Hooks run **after** the card is fully created and saved
+- Multiple matching hooks run sequentially in config order
+- Hook receives `<card_id> <board_name>` as command-line arguments
+- Hooks can use `kan` CLI commands to modify the card
+- Hook stdout is shown to the user
+- Non-zero exit code shows a warning but doesn't roll back card creation
+
+**Example hook script** (`~/.kan/hooks/jira-sync.sh`):
+```bash
+#!/bin/bash
+CARD_ID="$1"
+BOARD="$2"
+
+# Fetch JIRA ticket description and update the card
+TITLE=$(kan show "$CARD_ID" -b "$BOARD" --format '{{.Title}}')
+DESCRIPTION=$(curl -s "https://jira.example.com/rest/api/2/issue/$TITLE" | jq -r '.fields.description')
+
+kan edit "$CARD_ID" -b "$BOARD" -d "$DESCRIPTION"
+echo "Synced description from JIRA"
+```
 
 ## Global User Configuration
 

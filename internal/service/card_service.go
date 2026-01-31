@@ -17,6 +17,7 @@ type CardService struct {
 	cardStore    store.CardStore
 	boardStore   store.BoardStore
 	aliasService *AliasService
+	hookService  *HookService
 }
 
 // NewCardService creates a new card service.
@@ -26,6 +27,12 @@ func NewCardService(cardStore store.CardStore, boardStore store.BoardStore, alia
 		boardStore:   boardStore,
 		aliasService: aliasService,
 	}
+}
+
+// SetHookService sets the hook service for executing pattern hooks.
+// When set, hooks matching card titles will be executed after card creation.
+func (s *CardService) SetHookService(hookService *HookService) {
+	s.hookService = hookService
 }
 
 // AddCardInput contains the input for adding a card.
@@ -53,11 +60,14 @@ type EditCardInput struct {
 }
 
 // Add creates a new card.
-func (s *CardService) Add(input AddCardInput) (*model.Card, error) {
+// Returns the created card, any hook results (may be nil), and an error.
+// Hooks are executed after the card is fully persisted. Hook failures are non-fatal
+// and reported in the results rather than as errors.
+func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error) {
 	// Get board config
 	boardCfg, err := s.boardStore.Get(input.BoardName)
 	if err != nil {
-		return nil, err // Already wrapped with proper error type by store
+		return nil, nil, err // Already wrapped with proper error type by store
 	}
 
 	// Determine column
@@ -66,14 +76,14 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, error) {
 		column = boardCfg.GetDefaultColumn()
 	}
 	if !boardCfg.HasColumn(column) {
-		return nil, kanerr.ColumnNotFound(column, input.BoardName)
+		return nil, nil, kanerr.ColumnNotFound(column, input.BoardName)
 	}
 
 	// Generate ID and alias
 	cardID := id.Generate(id.Card)
 	alias, err := s.aliasService.GenerateAlias(input.BoardName, input.Title)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	now := util.NowMillis()
@@ -92,12 +102,12 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, error) {
 	// Apply custom fields if provided
 	if len(input.CustomFields) > 0 {
 		if err := s.validateAndApplyCustomFields(card, boardCfg, input.CustomFields); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
 	if err := s.cardStore.Create(input.BoardName, card); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Add card to column's card list and save board config
@@ -105,12 +115,22 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, error) {
 	if err := s.boardStore.Update(boardCfg); err != nil {
 		// Card was created but board config update failed - log but don't fail
 		card.Column = column // Populate for return (not persisted)
-		return card, nil
+		return card, nil, nil
 	}
 
 	// Populate Column for return (computed, not persisted)
 	card.Column = column
-	return card, nil
+
+	// Execute pattern hooks if configured
+	var hookResults []*HookResult
+	if s.hookService != nil && len(boardCfg.PatternHooks) > 0 {
+		matchingHooks := s.hookService.FindMatchingHooks(boardCfg.PatternHooks, input.Title)
+		if len(matchingHooks) > 0 {
+			hookResults = s.hookService.ExecuteHooks(matchingHooks, cardID, input.BoardName)
+		}
+	}
+
+	return card, hookResults, nil
 }
 
 // Get retrieves a card by ID.

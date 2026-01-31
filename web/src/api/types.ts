@@ -89,6 +89,20 @@ export interface UpdateCardInput {
   custom_fields?: Record<string, unknown>;
 }
 
+// Hook execution result from pattern hooks
+export interface HookInfo {
+  name: string;
+  success: boolean;
+  output?: string;
+  error?: string;
+}
+
+// Response from creating a card (includes hook results)
+export interface CreateCardResponse {
+  card: Card;
+  hook_results?: HookInfo[];
+}
+
 export interface CreateColumnInput {
   name: string;
   color?: string;

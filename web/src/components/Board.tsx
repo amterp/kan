@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent, DragOverEvent, CollisionDetection, DroppableContainer } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import type { BoardConfig, Card, Column as ColumnType, CreateCardInput, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
+import type { BoardConfig, Card, Column as ColumnType, CreateCardInput, CreateCardResponse, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
 import { cardMatchesQuery } from '../utils/fuzzyMatch';
 import { toApiFieldValue } from '../utils/customFields';
 import { BoardConfigProvider } from '../contexts/BoardConfigContext';
@@ -25,7 +25,7 @@ interface BoardProps {
   filterQuery?: string;
   highlightedCardId?: string | null;
   onMoveCard: (cardId: string, column: string, position?: number) => Promise<void>;
-  onCreateCard: (input: CreateCardInput) => Promise<Card | undefined>;
+  onCreateCard: (input: CreateCardInput) => Promise<CreateCardResponse | undefined>;
   onUpdateCard: (id: string, updates: UpdateCardInput) => Promise<void>;
   onDeleteCard: (id: string) => Promise<void>;
   onCreateColumn?: (input: CreateColumnInput) => Promise<unknown>;
@@ -339,7 +339,8 @@ export default function Board({
 
   const handleAddCard = async (column: string, title: string, openModal: boolean, keepFormOpen?: boolean, showPanel?: boolean) => {
     try {
-      const newCard = await onCreateCard({ title, column });
+      const response = await onCreateCard({ title, column });
+      const newCard = response?.card;
 
       // Close the form if not keeping it open
       if (!keepFormOpen) {

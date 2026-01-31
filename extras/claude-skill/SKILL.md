@@ -144,6 +144,35 @@ kan migrate --dry-run    # Preview changes without applying
 |------|-------------|
 | `-I, --non-interactive` | Fail instead of prompting for input |
 
+## Board Configuration
+
+Board configuration is stored in `.kan/boards/<boardname>/config.toml`. Key features:
+
+### Pattern Hooks
+
+Run commands when cards are created with matching titles:
+
+```toml
+[[pattern_hooks]]
+name = "jira-sync"
+pattern_title = "^[A-Z]+-\\d+$"  # Matches JIRA-123, PROJ-456
+command = "~/.kan/hooks/jira-sync.sh"
+timeout = 60  # Optional, defaults to 30s
+```
+
+Hooks receive `<card_id> <board_name>` as arguments and run after card creation. The `command` must be a path to an executable (not a shell command with arguments). Use `~` for home directory.
+
+### Link Rules
+
+Auto-link patterns in card descriptions:
+
+```toml
+[[link_rules]]
+name = "jira"
+pattern = "([A-Z]+-\\d+)"
+url = "https://jira.example.com/browse/{1}"
+```
+
 ## Tips
 
 - Cards are identified by flexible IDs: numeric ID, alias, or partial match

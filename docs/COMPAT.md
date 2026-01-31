@@ -121,11 +121,41 @@ letter = "M"
 **Decision**: Version 0 is implicit (legacy/unversioned), version 1 is the first explicit schema.
 
 - **v0 (implicit)**: Missing `_v` in card or `kan_schema` in config. This represents legacy data from before versioning was implemented. Cards at v0 may have a `column` field which is no longer used.
-- **v1 (current)**: First versioned schema. Cards have `_v: 1`, no `column` field. Board configs have `kan_schema = "board/1"`.
+- **v1**: First versioned schema. Cards have `_v: 1`, no `column` field. Board configs have `kan_schema = "board/1"`.
+- **board/2**: Converts labels from first-class `[[labels]]` to custom fields with type `"tags"`. Adds `card_display.badges` for label visibility.
+- **board/3 (current)**: Adds optional `[[pattern_hooks]]` for running commands when cards are created with matching titles.
 
-Running `kan migrate` upgrades v0 → v1: adds version stamps and removes the `column` field from cards.
+Running `kan migrate` upgrades data to the current version. The migration is incremental—v0 → v1 → v2 → v3.
 
 **Rationale**: Strict versioning—Kan refuses to read files without version stamps (or with incompatible versions). This catches schema drift early and forces explicit migration.
+
+### Pattern Hooks (board/3)
+
+**Added in**: board/3
+
+Pattern hooks allow running external commands when cards are created with titles matching specified patterns. This is useful for integrations like:
+
+- Syncing with external issue trackers (Jira, GitHub Issues)
+- Auto-populating card descriptions from external sources
+- Triggering notifications or webhooks
+
+```toml
+[[pattern_hooks]]
+name = "jira-sync"
+pattern_title = "^[A-Z]+-\\d+$"  # Matches JIRA-123, PROJ-456, etc.
+command = "~/.kan/hooks/jira-sync.sh"
+timeout = 60  # Optional, defaults to 30s
+```
+
+**Execution model**:
+1. Card is fully created and persisted
+2. Matching hooks run sequentially (in config order)
+3. Hook receives `<card_id> <board_name>` as arguments
+4. Hooks can use `kan` CLI to modify the card
+5. Hook stdout is shown to user
+6. Non-zero exit shows warning but doesn't roll back card creation
+
+**Design rationale**: Hooks run after persistence to ensure the card exists before modification. Sequential execution prevents race conditions. Non-fatal failures ensure card creation succeeds even if external services are unavailable.
 
 ## Reserved Field Prefixes
 
