@@ -4,7 +4,7 @@ assets/**/*_sip_backup.png
 releases
 
 # Build output
-/kan
+bin/
 
 # Frontend
 web/node_modules/

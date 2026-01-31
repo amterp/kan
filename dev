@@ -20,7 +20,8 @@ if format:
 if build or validate or push or re_serve or release:
     // Build frontend first (required for go:embed)
     $`cd web && npm run build`
-    $`go build ./cmd/kan`
+    $`mkdir -p bin`
+    $`go build -o bin/kan ./cmd/kan`
 
 if validate or push or re_serve or release:
     stdout = quiet $`gofmt -l .`
@@ -41,7 +42,7 @@ if push:
     $`git push origin {branch}`
 
 if re_serve:
-    $`./kan serve`
+    $`bin/kan serve`
 
 if release:
     // Ensure we're on main branch
