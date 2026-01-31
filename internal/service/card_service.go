@@ -202,9 +202,9 @@ func (s *CardService) List(boardName string, columnFilter string) ([]*model.Card
 	return result, nil
 }
 
-// MoveCard moves a card to a different column at the end.
+// MoveCard moves a card to a different column at the top.
 func (s *CardService) MoveCard(boardName, cardID, targetColumn string) error {
-	return s.MoveCardAt(boardName, cardID, targetColumn, -1)
+	return s.MoveCardAt(boardName, cardID, targetColumn, 0)
 }
 
 // MoveCardAt moves a card to a different column at a specific position.
