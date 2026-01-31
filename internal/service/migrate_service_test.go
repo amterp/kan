@@ -624,7 +624,7 @@ func TestMigrateService_Plan_V2_NeedsMigration(t *testing.T) {
 	}
 }
 
-func TestMigrateService_V2ToV3_UpdatesSchema(t *testing.T) {
+func TestMigrateService_V2ToCurrent_UpdatesSchema(t *testing.T) {
 	service, tempDir, cleanup := setupMigrationTest(t, "v2")
 	defer cleanup()
 
@@ -646,9 +646,9 @@ func TestMigrateService_V2ToV3_UpdatesSchema(t *testing.T) {
 		t.Fatalf("BoardStore.Get failed after migration: %v", err)
 	}
 
-	// Verify schema was updated to board/3
-	if boardCfg.KanSchema != "board/3" {
-		t.Errorf("Expected KanSchema 'board/3', got %q", boardCfg.KanSchema)
+	// Verify schema was updated to current version
+	if boardCfg.KanSchema != version.CurrentBoardSchema() {
+		t.Errorf("Expected KanSchema %q, got %q", version.CurrentBoardSchema(), boardCfg.KanSchema)
 	}
 
 	// Existing fields should be preserved
@@ -687,10 +687,10 @@ func TestMigrateService_V2ToV3_Idempotent(t *testing.T) {
 }
 
 // ============================================================================
-// V3 Tests (Current schema - no migration needed)
+// V3 -> V4 Migration Tests (wanted fields addition)
 // ============================================================================
 
-func TestMigrateService_Plan_V3_NoChanges(t *testing.T) {
+func TestMigrateService_Plan_V3_NeedsMigration(t *testing.T) {
 	service, _, cleanup := setupMigrationTest(t, "v3")
 	defer cleanup()
 
@@ -698,16 +698,115 @@ func TestMigrateService_Plan_V3_NoChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Plan failed: %v", err)
 	}
-	if plan.HasChanges() {
-		t.Error("Current schema (v3) data should not need migration")
+
+	// V3 should need migration to V4
+	if !plan.HasChanges() {
+		t.Error("V3 data should need migration to V4")
+	}
+
+	if len(plan.Boards) != 1 {
+		t.Fatalf("Expected 1 board, got %d", len(plan.Boards))
+	}
+
+	board := plan.Boards[0]
+	if !board.NeedsMigration {
+		t.Error("Board config should need migration")
+	}
+	if board.FromSchema != "board/3" {
+		t.Errorf("Expected FromSchema 'board/3', got %q", board.FromSchema)
+	}
+	if board.ToSchema != version.CurrentBoardSchema() {
+		t.Errorf("Expected ToSchema %q, got %q", version.CurrentBoardSchema(), board.ToSchema)
 	}
 }
 
-func TestMigrateService_V3_ReadableByStores(t *testing.T) {
-	_, tempDir, cleanup := setupMigrationTest(t, "v3")
+func TestMigrateService_V3ToV4_UpdatesSchema(t *testing.T) {
+	service, tempDir, cleanup := setupMigrationTest(t, "v3")
 	defer cleanup()
 
-	// V3 fixtures should be directly readable by stores without migration
+	// Migrate
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if err := service.Execute(plan, false); err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	// Verify stores can read the migrated data
+	paths := config.NewPaths(tempDir, "")
+	boardStore := store.NewBoardStore(paths)
+
+	boardCfg, err := boardStore.Get("main")
+	if err != nil {
+		t.Fatalf("BoardStore.Get failed after migration: %v", err)
+	}
+
+	// Verify schema was updated to board/4
+	if boardCfg.KanSchema != "board/4" {
+		t.Errorf("Expected KanSchema 'board/4', got %q", boardCfg.KanSchema)
+	}
+
+	// Existing fields should be preserved
+	if boardCfg.Name != "main" {
+		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
+	}
+	if len(boardCfg.CustomFields) == 0 {
+		t.Error("CustomFields should be preserved")
+	}
+	if len(boardCfg.PatternHooks) != 1 {
+		t.Error("PatternHooks should be preserved")
+	}
+}
+
+func TestMigrateService_V3ToV4_Idempotent(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v3")
+	defer cleanup()
+
+	// First migration
+	plan1, err := service.Plan()
+	if err != nil {
+		t.Fatalf("First Plan failed: %v", err)
+	}
+	if !plan1.HasChanges() {
+		t.Fatal("First plan should have changes")
+	}
+	if err := service.Execute(plan1, false); err != nil {
+		t.Fatalf("First Execute failed: %v", err)
+	}
+
+	// Second migration should be no-op
+	plan2, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Second Plan failed: %v", err)
+	}
+	if plan2.HasChanges() {
+		t.Error("Second plan should have no changes (migration is idempotent)")
+	}
+}
+
+// ============================================================================
+// V4 Tests (Current schema - no migration needed)
+// ============================================================================
+
+func TestMigrateService_Plan_V4_NoChanges(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v4")
+	defer cleanup()
+
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if plan.HasChanges() {
+		t.Error("Current schema (v4) data should not need migration")
+	}
+}
+
+func TestMigrateService_V4_ReadableByStores(t *testing.T) {
+	_, tempDir, cleanup := setupMigrationTest(t, "v4")
+	defer cleanup()
+
+	// V4 fixtures should be directly readable by stores without migration
 	paths := config.NewPaths(tempDir, "")
 	cardStore := store.NewCardStore(paths)
 	boardStore := store.NewBoardStore(paths)
@@ -715,7 +814,7 @@ func TestMigrateService_V3_ReadableByStores(t *testing.T) {
 	// Board store should read without error
 	boardCfg, err := boardStore.Get("main")
 	if err != nil {
-		t.Fatalf("BoardStore.Get failed on v3 fixtures: %v", err)
+		t.Fatalf("BoardStore.Get failed on v4 fixtures: %v", err)
 	}
 	if boardCfg.Name != "main" {
 		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
@@ -737,10 +836,18 @@ func TestMigrateService_V3_ReadableByStores(t *testing.T) {
 		}
 	}
 
+	// Wanted field should be present
+	typeSchema, ok := boardCfg.CustomFields["type"]
+	if !ok {
+		t.Error("Expected 'type' custom field")
+	} else if !typeSchema.Wanted {
+		t.Error("Expected 'type' field to have wanted=true")
+	}
+
 	// Card store should read without error
 	card, err := cardStore.Get("main", "card-abc")
 	if err != nil {
-		t.Fatalf("CardStore.Get failed on v3 fixtures: %v", err)
+		t.Fatalf("CardStore.Get failed on v4 fixtures: %v", err)
 	}
 	if card.ID != "card-abc" {
 		t.Errorf("Card ID = %q, want 'card-abc'", card.ID)

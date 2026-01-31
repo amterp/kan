@@ -33,6 +33,7 @@ type CommandContext struct {
 	AddColumn      *string
 	AddParent      *string
 	AddFields      *[]string
+	AddStrict      *bool
 
 	// show command
 	ShowUsed  *bool
@@ -54,6 +55,7 @@ type CommandContext struct {
 	EditParent      *string
 	EditAlias       *string
 	EditFields      *[]string
+	EditStrict      *bool
 
 	// serve command
 	ServeUsed   *bool
@@ -216,7 +218,7 @@ func executeCommand(ctx *CommandContext) {
 		runBoardList(*ctx.Json)
 
 	case *ctx.AddUsed:
-		runAdd(*ctx.AddTitle, *ctx.AddDescription, *ctx.AddBoard, *ctx.AddColumn, *ctx.AddParent, *ctx.AddFields, *ctx.NonInteractive, *ctx.Json)
+		runAdd(*ctx.AddTitle, *ctx.AddDescription, *ctx.AddBoard, *ctx.AddColumn, *ctx.AddParent, *ctx.AddFields, *ctx.AddStrict, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.ShowUsed:
 		runShow(*ctx.ShowCard, *ctx.ShowBoard, *ctx.Json)
@@ -227,7 +229,7 @@ func executeCommand(ctx *CommandContext) {
 	case *ctx.EditUsed:
 		runEdit(*ctx.EditCard, *ctx.EditBoard, *ctx.EditTitle, *ctx.EditDescription,
 			*ctx.EditColumn, *ctx.EditParent, *ctx.EditAlias,
-			*ctx.EditFields, *ctx.NonInteractive, *ctx.Json)
+			*ctx.EditFields, *ctx.EditStrict, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.ServeUsed:
 		runServe(*ctx.ServePort, *ctx.ServeNoOpen)

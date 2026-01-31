@@ -52,6 +52,7 @@ kan add "Task" -f priority=high -f type=bug     # Add with custom fields
 | `-c, --column` | Target column |
 | `-p, --parent` | Parent card ID or alias |
 | `-f, --field` | Custom field (key=value, repeatable) |
+| `--strict` | Error if wanted fields are missing (default: warn) |
 
 ## Listing Cards
 
@@ -88,6 +89,7 @@ kan edit fix -f priority=low             # Update custom field
 | `-p, --parent` | Set parent card |
 | `-a, --alias` | Set explicit alias |
 | `-f, --field` | Set custom field (key=value, repeatable) |
+| `--strict` | Error if wanted fields are missing (default: warn) |
 
 ## Board Management
 

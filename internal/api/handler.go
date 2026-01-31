@@ -17,18 +17,19 @@ import (
 // which is computed (from board config) and not persisted to card files.
 // Custom fields are flattened into the top level to match the card JSON storage format.
 type CardResponse struct {
-	ID              string          `json:"id"`
-	Alias           string          `json:"alias"`
-	AliasExplicit   bool            `json:"alias_explicit"`
-	Title           string          `json:"title"`
-	Description     string          `json:"description,omitempty"`
-	Column          string          `json:"column"`
-	Parent          string          `json:"parent,omitempty"`
-	Creator         string          `json:"creator"`
-	CreatedAtMillis int64           `json:"created_at_millis"`
-	UpdatedAtMillis int64           `json:"updated_at_millis"`
-	Comments        []model.Comment `json:"comments,omitempty"`
-	CustomFields    map[string]any  `json:"-"` // Flattened into top level by MarshalJSON
+	ID                  string                   `json:"id"`
+	Alias               string                   `json:"alias"`
+	AliasExplicit       bool                     `json:"alias_explicit"`
+	Title               string                   `json:"title"`
+	Description         string                   `json:"description,omitempty"`
+	Column              string                   `json:"column"`
+	Parent              string                   `json:"parent,omitempty"`
+	Creator             string                   `json:"creator"`
+	CreatedAtMillis     int64                    `json:"created_at_millis"`
+	UpdatedAtMillis     int64                    `json:"updated_at_millis"`
+	Comments            []model.Comment          `json:"comments,omitempty"`
+	CustomFields        map[string]any           `json:"-"` // Flattened into top level by MarshalJSON
+	MissingWantedFields []MissingWantedFieldInfo `json:"missing_wanted_fields,omitempty"`
 }
 
 // MarshalJSON flattens custom fields into the top level of the JSON output.
@@ -54,6 +55,9 @@ func (c CardResponse) MarshalJSON() ([]byte, error) {
 	}
 	if len(c.Comments) > 0 {
 		m["comments"] = c.Comments
+	}
+	if len(c.MissingWantedFields) > 0 {
+		m["missing_wanted_fields"] = c.MissingWantedFields
 	}
 
 	// Flatten custom fields into top level
@@ -82,11 +86,26 @@ func toCardResponse(card *model.Card) CardResponse {
 	}
 }
 
+// toCardResponseWithWanted converts a model.Card to a CardResponse including wanted fields check.
+func toCardResponseWithWanted(card *model.Card, boardCfg *model.BoardConfig) CardResponse {
+	resp := toCardResponse(card)
+	if boardCfg != nil {
+		for _, mf := range service.CheckWantedFields(card, boardCfg) {
+			resp.MissingWantedFields = append(resp.MissingWantedFields, MissingWantedFieldInfo{
+				Name:    mf.FieldName,
+				Type:    mf.FieldType,
+				Options: mf.Options,
+			})
+		}
+	}
+	return resp
+}
+
 // toCardResponses converts a slice of model.Card to CardResponses.
-func toCardResponses(cards []*model.Card) []CardResponse {
+func toCardResponses(cards []*model.Card, boardCfg *model.BoardConfig) []CardResponse {
 	responses := make([]CardResponse, len(cards))
 	for i, card := range cards {
-		responses[i] = toCardResponse(card)
+		responses[i] = toCardResponseWithWanted(card, boardCfg)
 	}
 	return responses
 }
@@ -255,7 +274,10 @@ func (h *Handler) ListCards(w http.ResponseWriter, r *http.Request) {
 		Error(w, err)
 		return
 	}
-	JSON(w, http.StatusOK, map[string]any{"cards": toCardResponses(cards)})
+
+	// Get board config for wanted fields check
+	boardCfg, _ := h.ctx().BoardStore.Get(boardName)
+	JSON(w, http.StatusOK, map[string]any{"cards": toCardResponses(cards, boardCfg)})
 }
 
 // CreateCardRequest is the JSON body for creating a card.
@@ -267,10 +289,18 @@ type CreateCardRequest struct {
 	CustomFields map[string]string `json:"custom_fields,omitempty"`
 }
 
+// MissingWantedFieldInfo describes a wanted field that is missing from a card.
+type MissingWantedFieldInfo struct {
+	Name    string   `json:"name"`
+	Type    string   `json:"type"`
+	Options []string `json:"options,omitempty"`
+}
+
 // CreateCardResponse is the JSON response for creating a card.
 type CreateCardResponse struct {
-	Card        CardResponse `json:"card"`
-	HookResults []HookInfo   `json:"hook_results,omitempty"`
+	Card                CardResponse             `json:"card"`
+	HookResults         []HookInfo               `json:"hook_results,omitempty"`
+	MissingWantedFields []MissingWantedFieldInfo `json:"missing_wanted_fields,omitempty"`
 }
 
 // HookInfo contains information about a hook execution for API response.
@@ -315,7 +345,10 @@ func (h *Handler) CreateCard(w http.ResponseWriter, r *http.Request) {
 	// Populate Column from board config for API response
 	h.populateCardColumn(boardName, card)
 
-	// Build response - always use consistent shape
+	// Get board config for wanted fields check
+	boardCfg, _ := h.ctx().BoardStore.Get(boardName)
+
+	// Build hook info response
 	var hookInfos []HookInfo
 	for _, result := range hookResults {
 		info := HookInfo{
@@ -329,9 +362,13 @@ func (h *Handler) CreateCard(w http.ResponseWriter, r *http.Request) {
 		hookInfos = append(hookInfos, info)
 	}
 
+	// Build card response with wanted fields check
+	cardResp := toCardResponseWithWanted(card, boardCfg)
+
 	JSON(w, http.StatusCreated, CreateCardResponse{
-		Card:        toCardResponse(card),
-		HookResults: hookInfos,
+		Card:                cardResp,
+		HookResults:         hookInfos,
+		MissingWantedFields: cardResp.MissingWantedFields, // Same data at both levels for compatibility
 	})
 }
 
@@ -348,7 +385,10 @@ func (h *Handler) GetCard(w http.ResponseWriter, r *http.Request) {
 
 	// Populate Column from board config for API response
 	h.populateCardColumn(boardName, card)
-	JSON(w, http.StatusOK, toCardResponse(card))
+
+	// Get board config for wanted fields check
+	boardCfg, _ := h.ctx().BoardStore.Get(boardName)
+	JSON(w, http.StatusOK, toCardResponseWithWanted(card, boardCfg))
 }
 
 // UpdateCardRequest is the JSON body for updating a card.
@@ -408,7 +448,9 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 		h.populateCardColumn(boardName, card)
 	}
 
-	JSON(w, http.StatusOK, toCardResponse(card))
+	// Get board config for wanted fields check
+	boardCfg, _ := h.ctx().BoardStore.Get(boardName)
+	JSON(w, http.StatusOK, toCardResponseWithWanted(card, boardCfg))
 }
 
 // DeleteCard deletes a card.
@@ -474,7 +516,10 @@ func (h *Handler) MoveCard(w http.ResponseWriter, r *http.Request) {
 
 	// Set Column to the target column for response
 	card.Column = req.Column
-	JSON(w, http.StatusOK, toCardResponse(card))
+
+	// Get board config for wanted fields check
+	boardCfg, _ := h.ctx().BoardStore.Get(boardName)
+	JSON(w, http.StatusOK, toCardResponseWithWanted(card, boardCfg))
 }
 
 // --- Column Handlers ---

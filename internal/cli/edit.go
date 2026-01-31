@@ -67,11 +67,17 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Set custom field (key=value format, repeatable)").
 		Register(cmd)
 
+	ctx.EditStrict, _ = ra.NewBool("strict").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Error if wanted fields are missing (default: warn)").
+		Register(cmd)
+
 	ctx.EditUsed, _ = parent.RegisterCmd(cmd)
 }
 
 func runEdit(idOrAlias, board string, title, description, column string,
-	parent, alias string, fields []string, nonInteractive, jsonOutput bool) {
+	parent, alias string, fields []string, strict, nonInteractive, jsonOutput bool) {
 
 	// Check if any flags were provided
 	hasFlags := title != "" || description != "" || column != "" ||
@@ -110,8 +116,8 @@ func runEdit(idOrAlias, board string, title, description, column string,
 
 	if hasFlags {
 		// Non-interactive path: apply flags directly
-		runEditNonInteractive(app, boardName, card, title, description, column,
-			parent, alias, fields, jsonOutput)
+		runEditNonInteractive(app, boardName, card, boardCfg, title, description, column,
+			parent, alias, fields, strict, jsonOutput)
 	} else {
 		// Interactive path: existing menu-based editing
 		runEditInteractive(app, boardName, card, boardCfg)
@@ -119,9 +125,27 @@ func runEdit(idOrAlias, board string, title, description, column string,
 }
 
 // runEditNonInteractive applies CLI flag changes to the card.
-func runEditNonInteractive(app *App, boardName string, card *model.Card,
+func runEditNonInteractive(app *App, boardName string, card *model.Card, boardCfg *model.BoardConfig,
 	title, description, column string,
-	parent, alias string, fields []string, jsonOutput bool) {
+	parent, alias string, fields []string, strict, jsonOutput bool) {
+
+	// Parse custom fields early for validation
+	var parsedFields map[string]string
+	if len(fields) > 0 {
+		var err error
+		parsedFields, err = parseCustomFields(fields)
+		if err != nil {
+			Fatal(err)
+		}
+	}
+
+	// In strict mode, check wanted fields BEFORE applying changes
+	if strict {
+		missingWanted := service.CheckWantedFieldsForProposal(card.CustomFields, parsedFields, boardCfg)
+		if len(missingWanted) > 0 {
+			Fatal(fmt.Errorf("edit rejected: would leave card missing wanted fields: %s", formatMissingWantedFields(missingWanted)))
+		}
+	}
 
 	input := service.EditCardInput{
 		BoardName:     boardName,
@@ -143,12 +167,8 @@ func runEditNonInteractive(app *App, boardName string, card *model.Card,
 	if alias != "" {
 		input.Alias = &alias
 	}
-	if len(fields) > 0 {
-		parsed, err := parseCustomFields(fields)
-		if err != nil {
-			Fatal(err)
-		}
-		input.CustomFields = parsed
+	if parsedFields != nil {
+		input.CustomFields = parsedFields
 	}
 
 	updatedCard, err := app.CardService.Edit(input)
@@ -156,12 +176,10 @@ func runEditNonInteractive(app *App, boardName string, card *model.Card,
 		Fatal(err)
 	}
 
-	// Get column from board config for output
-	boardCfg, err := app.BoardService.Get(boardName)
-	if err != nil {
-		Fatal(err)
-	}
 	updatedCard.Column = boardCfg.GetCardColumn(updatedCard.ID)
+
+	// Check for missing wanted fields (for warnings in non-strict mode)
+	missingWanted := service.CheckWantedFields(updatedCard, boardCfg)
 
 	if jsonOutput {
 		if err := printJson(NewCardOutput(updatedCard)); err != nil {
@@ -171,6 +189,9 @@ func runEditNonInteractive(app *App, boardName string, card *model.Card,
 	}
 
 	PrintSuccess("Updated card %s", RenderID(updatedCard.ID))
+
+	// Warn about missing wanted fields
+	printMissingWantedWarnings(missingWanted)
 }
 
 // parseCustomFields converts ["key=value", ...] to map[string]string.

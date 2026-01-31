@@ -445,4 +445,3 @@ func (s *MigrateService) migrateCard(plan *CardMigration) error {
 
 	return writeJSONMap(plan.Path, raw)
 }
-

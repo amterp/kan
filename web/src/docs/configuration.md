@@ -14,7 +14,7 @@ A board's `config.toml` defines its structure, columns, custom fields, and displ
 ### Minimal Example
 
 ```toml
-kan_schema = "board/3"
+kan_schema = "board/4"
 id = "k7xQ2m"
 name = "main"
 
@@ -34,7 +34,7 @@ color = "#10b981"
 ### Full Example
 
 ```toml
-kan_schema = "board/3"
+kan_schema = "board/4"
 id = "k7xQ2m"
 name = "main"
 default_column = "backlog"
@@ -117,10 +117,22 @@ See [Custom Fields](/docs/custom-fields) for full documentation.
 ```toml
 [custom_fields.<field-name>]
 type = "enum"  # or "tags", "string", "date"
+wanted = true  # optional: warn if field is missing
 options = [    # required for enum/tags
   { value = "...", color = "#..." },
 ]
 ```
+
+#### Wanted Fields
+
+Mark a field as `wanted = true` to encourage its use without strict enforcement:
+
+- `kan add` and `kan edit` print warnings when wanted fields are missing
+- Use `--strict` flag to convert warnings to errors
+- `kan doctor` reports cards missing wanted fields
+- Frontend shows asterisk on wanted field labels and warning icon on cards
+
+This is useful for fields like "type" that should ideally be set on every card but shouldn't block quick card creation.
 
 ### Card Display
 

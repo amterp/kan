@@ -140,6 +140,7 @@ kan add "Update docs" "Description goes here"
 | `-c, --column` | Target column                                 |
 | `-p, --parent` | Parent card ID or alias                       |
 | `-f, --field`  | Custom field in key=value format (repeatable) |
+| `--strict`     | Error if wanted fields are missing (default: warn) |
 
 **Examples:**
 
@@ -193,6 +194,7 @@ kan edit fix-login-bug -t "New title" -c done
 | `-p, --parent`      | Set parent card ID or alias                       |
 | `-a, --alias`       | Set explicit alias                                |
 | `-f, --field`       | Set custom field in key=value format (repeatable) |
+| `--strict`          | Error if wanted fields are missing (default: warn) |
 
 ### serve
 
@@ -301,6 +303,7 @@ kan doctor --json
   - `INVALID_PATTERN_HOOK`: Regex doesn't compile
   - `MISSING_HOOK_FILE`: Pattern hook references non-existent file
   - `INVALID_PARENT_REF`: Parent points to non-existent card (fixable)
+  - `MISSING_WANTED_FIELDS`: Card is missing fields marked as `wanted`
   - `MALFORMED_GLOBAL_CONFIG`: Global config.toml fails to parse
   - `GLOBAL_SCHEMA_OUTDATED`: Global config needs migration
 

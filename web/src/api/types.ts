@@ -1,3 +1,10 @@
+// Missing wanted field info returned by API
+export interface MissingWantedField {
+  name: string;
+  type: string;
+  options?: string[];
+}
+
 export interface Card {
   id: string;
   alias: string;
@@ -10,6 +17,7 @@ export interface Card {
   created_at_millis: number;
   updated_at_millis: number;
   comments?: Comment[];
+  missing_wanted_fields?: MissingWantedField[];
   [key: string]: unknown; // custom fields
 }
 
@@ -50,6 +58,7 @@ export type FieldType = (typeof VALID_FIELD_TYPES)[number];
 export interface CustomFieldSchema {
   type: FieldType;
   options?: CustomFieldOption[];
+  wanted?: boolean;
 }
 
 export interface CardDisplayConfig {
@@ -101,6 +110,7 @@ export interface HookInfo {
 export interface CreateCardResponse {
   card: Card;
   hook_results?: HookInfo[];
+  missing_wanted_fields?: MissingWantedField[];
 }
 
 export interface CreateColumnInput {

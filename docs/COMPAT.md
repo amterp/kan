@@ -123,11 +123,37 @@ letter = "M"
 - **v0 (implicit)**: Missing `_v` in card or `kan_schema` in config. This represents legacy data from before versioning was implemented. Cards at v0 may have a `column` field which is no longer used.
 - **v1**: First versioned schema. Cards have `_v: 1`, no `column` field. Board configs have `kan_schema = "board/1"`.
 - **board/2**: Converts labels from first-class `[[labels]]` to custom fields with type `"tags"`. Adds `card_display.badges` for label visibility.
-- **board/3 (current)**: Adds optional `[[pattern_hooks]]` for running commands when cards are created with matching titles.
+- **board/3**: Adds optional `[[pattern_hooks]]` for running commands when cards are created with matching titles.
+- **board/4 (current)**: Adds optional `wanted` field to custom field schemas. Wanted fields emit warnings when missing from cards.
 
-Running `kan migrate` upgrades data to the current version. The migration is incremental—v0 → v1 → v2 → v3.
+Running `kan migrate` upgrades data to the current version. The migration is incremental—v0 → v1 → v2 → v3 → v4.
 
 **Rationale**: Strict versioning—Kan refuses to read files without version stamps (or with incompatible versions). This catches schema drift early and forces explicit migration.
+
+### Wanted Fields (board/4)
+
+**Added in**: board/4
+
+Wanted fields are custom fields that should ideally be set on every card. When a card is missing a wanted field:
+
+- CLI commands (`kan add`, `kan edit`) print warnings
+- `--strict` flag converts warnings to errors (blocking the operation)
+- `kan doctor` reports cards missing wanted fields
+- Frontend shows asterisk on wanted field labels and warning icon on cards
+
+```toml
+[custom_fields.type]
+type = "enum"
+wanted = true  # NEW in board/4
+options = [
+  { value = "bug", color = "#dc2626" },
+  { value = "feature", color = "#22c55e" },
+]
+```
+
+**Design rationale**: Wanted fields encourage data quality without enforcing rigid schemas. The `--strict` flag is opt-in for workflows that need hard enforcement, while the default warning behavior is forgiving for quick card creation.
+
+**Migration**: board/3 → board/4 only updates the schema version. Existing custom fields gain an implicit `wanted = false` (the default).
 
 ### Pattern Hooks (board/3)
 

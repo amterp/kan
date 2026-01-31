@@ -62,6 +62,7 @@ type CustomFieldOption struct {
 type CustomFieldSchema struct {
 	Type    string              `toml:"type" json:"type"`                           // "string", "enum", "tags", "date"
 	Options []CustomFieldOption `toml:"options,omitempty" json:"options,omitempty"` // For enum/tags types
+	Wanted  bool                `toml:"wanted,omitempty" json:"wanted,omitempty"`   // Warn if field is missing
 }
 
 // CardDisplayConfig controls how custom fields render on cards in the board view.

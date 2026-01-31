@@ -32,17 +32,20 @@ const (
 	CodeDuplicateCardID      = "DUPLICATE_CARD_ID"
 
 	// Priority 2: Config issues (warnings)
-	CodeSchemaOutdated      = "SCHEMA_OUTDATED"
-	CodeInvalidDefaultCol   = "INVALID_DEFAULT_COLUMN"
-	CodeInvalidCardDisplay  = "INVALID_CARD_DISPLAY"
-	CodeInvalidLinkRule     = "INVALID_LINK_RULE"
-	CodeInvalidPatternHook  = "INVALID_PATTERN_HOOK"
-	CodeMissingHookFile     = "MISSING_HOOK_FILE"
+	CodeSchemaOutdated     = "SCHEMA_OUTDATED"
+	CodeInvalidDefaultCol  = "INVALID_DEFAULT_COLUMN"
+	CodeInvalidCardDisplay = "INVALID_CARD_DISPLAY"
+	CodeInvalidLinkRule    = "INVALID_LINK_RULE"
+	CodeInvalidPatternHook = "INVALID_PATTERN_HOOK"
+	CodeMissingHookFile    = "MISSING_HOOK_FILE"
 
 	// Priority 3: Referential integrity (warnings)
 	CodeInvalidParentRef = "INVALID_PARENT_REF"
 
-	// Priority 4: Global config (warnings)
+	// Priority 4: Data quality (warnings)
+	CodeMissingWantedFields = "MISSING_WANTED_FIELDS"
+
+	// Priority 5: Global config (warnings)
 	CodeMalformedGlobalConfig = "MALFORMED_GLOBAL_CONFIG"
 	CodeGlobalSchemaOutdated  = "GLOBAL_SCHEMA_OUTDATED"
 )
@@ -62,18 +65,18 @@ type Issue struct {
 
 // BoardDiagnostic contains stats for a single board.
 type BoardDiagnostic struct {
-	Name           string `json:"name"`
-	CardFiles      int    `json:"card_files"`
-	CardsReferenced int   `json:"cards_referenced"`
-	Columns        int    `json:"columns"`
+	Name            string `json:"name"`
+	CardFiles       int    `json:"card_files"`
+	CardsReferenced int    `json:"cards_referenced"`
+	Columns         int    `json:"columns"`
 }
 
 // ReportSummary summarizes the diagnostic results.
 type ReportSummary struct {
-	Errors      int `json:"errors"`
-	Warnings    int `json:"warnings"`
-	Fixed       int `json:"fixed"`
-	FixFailed   int `json:"fix_failed,omitempty"`
+	Errors    int `json:"errors"`
+	Warnings  int `json:"warnings"`
+	Fixed     int `json:"fixed"`
+	FixFailed int `json:"fix_failed,omitempty"`
 }
 
 // DiagnosticReport contains all diagnostic results.
@@ -209,10 +212,10 @@ func (s *DoctorService) checkGlobalConfig(report *DiagnosticReport) {
 			return // No global config is fine
 		}
 		report.Issues = append(report.Issues, Issue{
-			Severity:  SeverityWarning,
-			Code:      CodeMalformedGlobalConfig,
-			Message:   fmt.Sprintf("Cannot read global config: %v", err),
-			Fixable:   false,
+			Severity: SeverityWarning,
+			Code:     CodeMalformedGlobalConfig,
+			Message:  fmt.Sprintf("Cannot read global config: %v", err),
+			Fixable:  false,
 		})
 		return
 	}
@@ -220,10 +223,10 @@ func (s *DoctorService) checkGlobalConfig(report *DiagnosticReport) {
 	var raw map[string]any
 	if _, err := toml.Decode(string(data), &raw); err != nil {
 		report.Issues = append(report.Issues, Issue{
-			Severity:  SeverityWarning,
-			Code:      CodeMalformedGlobalConfig,
-			Message:   fmt.Sprintf("Invalid TOML in global config: %v", err),
-			Fixable:   false,
+			Severity: SeverityWarning,
+			Code:     CodeMalformedGlobalConfig,
+			Message:  fmt.Sprintf("Invalid TOML in global config: %v", err),
+			Fixable:  false,
 		})
 		return
 	}
@@ -389,6 +392,9 @@ func (s *DoctorService) checkBoard(report *DiagnosticReport, boardName string) {
 	// Check parent references
 	s.checkParentRefs(report, boardName, cardFiles)
 
+	// Check wanted fields
+	s.checkWantedFields(report, boardName, &boardConfig, cardFiles)
+
 	report.Boards = append(report.Boards, diag)
 }
 
@@ -470,11 +476,11 @@ func (s *DoctorService) checkLinkRules(report *DiagnosticReport, boardName strin
 	for _, rule := range cfg.LinkRules {
 		if _, err := regexp.Compile(rule.Pattern); err != nil {
 			report.Issues = append(report.Issues, Issue{
-				Severity:  SeverityWarning,
-				Code:      CodeInvalidLinkRule,
-				Board:     boardName,
-				Message:   fmt.Sprintf("Link rule '%s' has invalid regex: %v", rule.Name, err),
-				Fixable:   false,
+				Severity: SeverityWarning,
+				Code:     CodeInvalidLinkRule,
+				Board:    boardName,
+				Message:  fmt.Sprintf("Link rule '%s' has invalid regex: %v", rule.Name, err),
+				Fixable:  false,
 			})
 		}
 	}
@@ -485,11 +491,11 @@ func (s *DoctorService) checkPatternHooks(report *DiagnosticReport, boardName st
 		// Check regex
 		if _, err := regexp.Compile(hook.PatternTitle); err != nil {
 			report.Issues = append(report.Issues, Issue{
-				Severity:  SeverityWarning,
-				Code:      CodeInvalidPatternHook,
-				Board:     boardName,
-				Message:   fmt.Sprintf("Pattern hook '%s' has invalid regex: %v", hook.Name, err),
-				Fixable:   false,
+				Severity: SeverityWarning,
+				Code:     CodeInvalidPatternHook,
+				Board:    boardName,
+				Message:  fmt.Sprintf("Pattern hook '%s' has invalid regex: %v", hook.Name, err),
+				Fixable:  false,
 			})
 		}
 
@@ -515,11 +521,11 @@ func (s *DoctorService) checkPatternHooks(report *DiagnosticReport, boardName st
 				execPath := parts[0]
 				if _, err := os.Stat(execPath); os.IsNotExist(err) {
 					report.Issues = append(report.Issues, Issue{
-						Severity:  SeverityWarning,
-						Code:      CodeMissingHookFile,
-						Board:     boardName,
-						Message:   fmt.Sprintf("Pattern hook '%s' references non-existent file: %s", hook.Name, execPath),
-						Fixable:   false,
+						Severity: SeverityWarning,
+						Code:     CodeMissingHookFile,
+						Board:    boardName,
+						Message:  fmt.Sprintf("Pattern hook '%s' references non-existent file: %s", hook.Name, execPath),
+						Fixable:  false,
 					})
 				}
 			}
@@ -577,6 +583,49 @@ func (s *DoctorService) checkParentRefs(report *DiagnosticReport, boardName stri
 				Message:   fmt.Sprintf("Parent '%s' does not exist", card.Parent),
 				Fixable:   true,
 				FixAction: "Clear parent field",
+			})
+		}
+	}
+}
+
+func (s *DoctorService) checkWantedFields(report *DiagnosticReport, boardName string, boardCfg *model.BoardConfig, cardFiles map[string]bool) {
+	// Skip if no wanted fields configured
+	hasWanted := false
+	for _, schema := range boardCfg.CustomFields {
+		if schema.Wanted {
+			hasWanted = true
+			break
+		}
+	}
+	if !hasWanted {
+		return
+	}
+
+	for cardID := range cardFiles {
+		cardPath := s.paths.CardPath(boardName, cardID)
+		data, err := os.ReadFile(cardPath)
+		if err != nil {
+			continue // Already reported in checkCardFile
+		}
+
+		var card model.Card
+		if err := json.Unmarshal(data, &card); err != nil {
+			continue // Already reported in checkCardFile
+		}
+
+		missing := CheckWantedFields(&card, boardCfg)
+		if len(missing) > 0 {
+			fieldNames := make([]string, len(missing))
+			for i, mf := range missing {
+				fieldNames[i] = mf.FieldName
+			}
+			report.Issues = append(report.Issues, Issue{
+				Severity: SeverityWarning,
+				Code:     CodeMissingWantedFields,
+				Board:    boardName,
+				CardID:   cardID,
+				Message:  fmt.Sprintf("Missing wanted fields: %s", strings.Join(fieldNames, ", ")),
+				Fixable:  false,
 			})
 		}
 	}
@@ -741,4 +790,3 @@ func (s *DoctorService) fixInvalidParentRef(boardName, cardID string) error {
 
 	return writeJSONMap(cardPath, raw)
 }
-

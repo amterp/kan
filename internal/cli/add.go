@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/amterp/kan/internal/service"
 	"github.com/amterp/ra"
@@ -49,10 +50,16 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Set custom field (key=value format, repeatable)").
 		Register(cmd)
 
+	ctx.AddStrict, _ = ra.NewBool("strict").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Error if wanted fields are missing (default: warn)").
+		Register(cmd)
+
 	ctx.AddUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runAdd(title, description, board, column string, parentCard string, fields []string, nonInteractive, jsonOutput bool) {
+func runAdd(title, description, board, column string, parentCard string, fields []string, strict, nonInteractive, jsonOutput bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -82,6 +89,20 @@ func runAdd(title, description, board, column string, parentCard string, fields 
 		Fatal(err)
 	}
 
+	// Get board config for validation and output
+	boardCfg, err := app.BoardService.Get(boardName)
+	if err != nil {
+		Fatal(err)
+	}
+
+	// In strict mode, check wanted fields BEFORE creating the card
+	if strict {
+		missingWanted := service.CheckWantedFieldsForProposal(nil, customFields, boardCfg)
+		if len(missingWanted) > 0 {
+			Fatal(fmt.Errorf("card not created: missing wanted fields: %s", formatMissingWantedFields(missingWanted)))
+		}
+	}
+
 	creatorName, err := app.GetAuthor()
 	if err != nil {
 		Fatal(err)
@@ -102,12 +123,10 @@ func runAdd(title, description, board, column string, parentCard string, fields 
 		Fatal(err)
 	}
 
-	// Get column from board config for output
-	boardCfg, err := app.BoardService.Get(boardName)
-	if err != nil {
-		Fatal(err)
-	}
 	card.Column = boardCfg.GetCardColumn(card.ID)
+
+	// Check for missing wanted fields (for warnings in non-strict mode)
+	missingWanted := service.CheckWantedFields(card, boardCfg)
 
 	if jsonOutput {
 		if err := printJson(NewAddOutput(card, hookResults)); err != nil {
@@ -120,6 +139,9 @@ func runAdd(title, description, board, column string, parentCard string, fields 
 
 	// Display hook results
 	printHookResults(hookResults)
+
+	// Warn about missing wanted fields
+	printMissingWantedWarnings(missingWanted)
 }
 
 // printHookResults displays hook results with appropriate styling.
@@ -147,4 +169,29 @@ func printHookResults(results []*service.HookResult) {
 			}
 		}
 	}
+}
+
+// printMissingWantedWarnings displays warnings for missing wanted fields.
+func printMissingWantedWarnings(missing []service.MissingWantedField) {
+	if len(missing) == 0 {
+		return
+	}
+	PrintWarning("Card is missing wanted fields:")
+	for _, mf := range missing {
+		if len(mf.Options) > 0 {
+			fmt.Fprintf(os.Stderr, "  - %s (%s): valid values are %s\n",
+				mf.FieldName, mf.FieldType, strings.Join(mf.Options, ", "))
+		} else {
+			fmt.Fprintf(os.Stderr, "  - %s (%s)\n", mf.FieldName, mf.FieldType)
+		}
+	}
+}
+
+// formatMissingWantedFields formats missing wanted fields for error messages.
+func formatMissingWantedFields(missing []service.MissingWantedField) string {
+	names := make([]string, len(missing))
+	for i, mf := range missing {
+		names[i] = mf.FieldName
+	}
+	return strings.Join(names, ", ")
 }

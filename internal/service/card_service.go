@@ -456,6 +456,105 @@ func parseTagsValue(value string) []string {
 	return tags
 }
 
+// MissingWantedField describes a wanted field that is missing from a card.
+type MissingWantedField struct {
+	FieldName string   // Name of the custom field
+	FieldType string   // Type of the field (enum, tags, string, date)
+	Options   []string // For enum/tags, the valid values
+}
+
+// CheckWantedFieldsForProposal checks wanted fields for a proposed set of custom fields.
+// Use this to validate input BEFORE creating/editing a card.
+// For add operations, pass nil for existingFields.
+// For edit operations, pass the current card's custom fields as existingFields.
+func CheckWantedFieldsForProposal(existingFields map[string]any, proposedFields map[string]string, boardCfg *model.BoardConfig) []MissingWantedField {
+	if boardCfg.CustomFields == nil {
+		return nil
+	}
+
+	// Build merged fields
+	merged := make(map[string]any)
+	for k, v := range existingFields {
+		merged[k] = v
+	}
+
+	// Apply proposed changes (with type conversion based on schema)
+	for fieldName, value := range proposedFields {
+		schema, exists := boardCfg.CustomFields[fieldName]
+		if !exists {
+			continue // Unknown field, skip (validation happens elsewhere)
+		}
+
+		switch schema.Type {
+		case model.FieldTypeTags:
+			// Parse comma-separated values
+			merged[fieldName] = parseTagsValue(value)
+		default:
+			// String, enum, date - store as string
+			merged[fieldName] = value
+		}
+	}
+
+	tmpCard := &model.Card{CustomFields: merged}
+	return CheckWantedFields(tmpCard, boardCfg)
+}
+
+// CheckWantedFields returns a list of wanted fields that are missing or empty on the card.
+func CheckWantedFields(card *model.Card, boardCfg *model.BoardConfig) []MissingWantedField {
+	var missing []MissingWantedField
+
+	if boardCfg.CustomFields == nil {
+		return missing
+	}
+
+	for name, schema := range boardCfg.CustomFields {
+		if !schema.Wanted {
+			continue
+		}
+
+		value, exists := card.CustomFields[name]
+		if !exists || isEmpty(value, schema.Type) {
+			mf := MissingWantedField{
+				FieldName: name,
+				FieldType: schema.Type,
+			}
+			if schema.Type == model.FieldTypeEnum || schema.Type == model.FieldTypeTags {
+				mf.Options = make([]string, len(schema.Options))
+				for i, opt := range schema.Options {
+					mf.Options[i] = opt.Value
+				}
+			}
+			missing = append(missing, mf)
+		}
+	}
+
+	return missing
+}
+
+// isEmpty checks if a custom field value is empty for its type.
+func isEmpty(value any, fieldType string) bool {
+	if value == nil {
+		return true
+	}
+
+	switch fieldType {
+	case model.FieldTypeString, model.FieldTypeEnum, model.FieldTypeDate:
+		s, ok := value.(string)
+		return !ok || s == ""
+	case model.FieldTypeTags:
+		switch v := value.(type) {
+		case []string:
+			return len(v) == 0
+		case []any:
+			return len(v) == 0
+		default:
+			return true
+		}
+	default:
+		return true
+	}
+}
+
 // AddComment adds a new comment to a card.
 func (s *CardService) AddComment(boardName, cardIDOrAlias, body, author string) (*model.Comment, error) {
 	// Resolve card

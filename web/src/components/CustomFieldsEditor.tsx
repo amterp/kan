@@ -34,12 +34,22 @@ export default function CustomFieldsEditor({
     const currentValue = values[fieldName];
     const marginClass = compact ? 'mb-2' : 'mb-4';
 
+    // Render wanted indicator
+    const wantedIndicator = schema.wanted ? (
+      <span
+        className="text-amber-500 ml-1"
+        title="This field is wanted by the board configuration"
+      >
+        *
+      </span>
+    ) : null;
+
     switch (schema.type) {
       case FIELD_TYPE_ENUM:
         return (
           <div className={marginClass} key={fieldName}>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
-              {fieldName}
+              {fieldName}{wantedIndicator}
             </label>
             <select
               value={(currentValue as string) || ''}
@@ -61,7 +71,7 @@ export default function CustomFieldsEditor({
         return (
           <div className={marginClass} key={fieldName}>
             <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 capitalize ${compact ? 'mb-1' : 'mb-2'}`}>
-              {fieldName}
+              {fieldName}{wantedIndicator}
             </label>
             <div className="flex flex-wrap gap-2">
               {schema.options?.map((opt) => {
@@ -96,7 +106,7 @@ export default function CustomFieldsEditor({
         return (
           <div className={marginClass} key={fieldName}>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
-              {fieldName}
+              {fieldName}{wantedIndicator}
             </label>
             <input
               type="text"
@@ -112,7 +122,7 @@ export default function CustomFieldsEditor({
         return (
           <div className={marginClass} key={fieldName}>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
-              {fieldName}
+              {fieldName}{wantedIndicator}
             </label>
             <input
               type="date"

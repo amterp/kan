@@ -38,6 +38,28 @@ type = "string"
 type = "date"
 ```
 
+### Wanted Fields
+
+Mark a field as `wanted` to get warnings when cards are missing it:
+
+```toml
+[custom_fields.type]
+type = "enum"
+wanted = true
+options = [
+  { value = "feature", color = "#16a34a" },
+  { value = "bug", color = "#dc2626" },
+]
+```
+
+When a card is missing a wanted field:
+- CLI commands (`kan add`, `kan edit`) print warnings
+- Use `--strict` flag to block operations instead of warning
+- `kan doctor` reports cards missing wanted fields
+- Web UI shows an asterisk on wanted field labels and a warning icon on cards
+
+This is useful for enforcing workflow standards without making fields strictly required.
+
 ### Enum and Tags
 
 For `enum` and `tags` fields, you must define the allowed options. Each option can have a color for visual display:
