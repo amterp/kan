@@ -143,6 +143,7 @@ kan migrate --dry-run    # Preview changes without applying
 | Flag | Description |
 |------|-------------|
 | `-I, --non-interactive` | Fail instead of prompting for input |
+| `--json` | Output results as JSON (supported by: show, list, add, edit, board list, column list, comment add) |
 
 ## Board Configuration
 
@@ -173,7 +174,21 @@ pattern = "([A-Z]+-\\d+)"
 url = "https://jira.example.com/browse/{1}"
 ```
 
+## JSON Output
+
+Use `--json` for programmatic access to Kan data:
+
+```bash
+kan show fix-login --json | jq .card.title
+kan list --json | jq '.cards | length'
+kan add "New task" --json | jq .card.id
+kan board list --json | jq .boards
+kan column list --json | jq '.columns[].name'
+kan comment add fix-login "Note" --json | jq .comment.id
+```
+
 ## Tips
 
 - Cards are identified by flexible IDs: numeric ID, alias, or partial match
 - Use `-I` for scripting to ensure commands fail rather than prompt
+- Use `--json` for programmatic access to card data

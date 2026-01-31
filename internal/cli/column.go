@@ -293,7 +293,7 @@ func runColumnEdit(name, color, board string, nonInteractive bool) {
 	fmt.Printf("Updated column %q in board %q\n", name, boardName)
 }
 
-func runColumnList(board string, nonInteractive bool) {
+func runColumnList(board string, nonInteractive, jsonOutput bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -311,6 +311,21 @@ func runColumnList(board string, nonInteractive bool) {
 	boardCfg, err := app.BoardService.Get(boardName)
 	if err != nil {
 		Fatal(err)
+	}
+
+	if jsonOutput {
+		columns := make([]ColumnInfo, len(boardCfg.Columns))
+		for i, col := range boardCfg.Columns {
+			columns[i] = ColumnInfo{
+				Name:      col.Name,
+				Color:     col.Color,
+				CardCount: len(col.CardIDs),
+			}
+		}
+		if err := printJson(NewColumnsOutput(columns)); err != nil {
+			Fatal(err)
+		}
+		return
 	}
 
 	if len(boardCfg.Columns) == 0 {

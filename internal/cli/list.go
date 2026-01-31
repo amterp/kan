@@ -29,7 +29,7 @@ func registerList(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.ListUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runList(board, column string) {
+func runList(board, column string, jsonOutput bool) {
 	app, err := NewApp(true)
 	if err != nil {
 		Fatal(err)
@@ -57,11 +57,6 @@ func runList(board, column string) {
 		Fatal(err)
 	}
 
-	if len(cards) == 0 {
-		fmt.Println("No cards found")
-		return
-	}
-
 	// Sort cards by column order, then by created_at
 	columnOrder := make(map[string]int)
 	for i, col := range boardCfg.Columns {
@@ -75,6 +70,18 @@ func runList(board, column string) {
 		}
 		return ci.CreatedAtMillis < cj.CreatedAtMillis
 	})
+
+	if jsonOutput {
+		if err := printJson(NewListOutput(cards)); err != nil {
+			Fatal(err)
+		}
+		return
+	}
+
+	if len(cards) == 0 {
+		fmt.Println("No cards found")
+		return
+	}
 
 	// Group by column if not filtering by column
 	if column == "" {

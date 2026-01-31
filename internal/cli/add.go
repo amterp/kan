@@ -52,7 +52,7 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.AddUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runAdd(title, description, board, column string, parentCard string, fields []string, nonInteractive bool) {
+func runAdd(title, description, board, column string, parentCard string, fields []string, nonInteractive, jsonOutput bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -100,6 +100,20 @@ func runAdd(title, description, board, column string, parentCard string, fields 
 	card, hookResults, err := app.CardService.Add(input)
 	if err != nil {
 		Fatal(err)
+	}
+
+	// Get column from board config for output
+	boardCfg, err := app.BoardService.Get(boardName)
+	if err != nil {
+		Fatal(err)
+	}
+	card.Column = boardCfg.GetCardColumn(card.ID)
+
+	if jsonOutput {
+		if err := printJson(NewAddOutput(card, hookResults)); err != nil {
+			Fatal(err)
+		}
+		return
 	}
 
 	fmt.Printf("Created card %s (%s)\n", card.ID, card.Alias)

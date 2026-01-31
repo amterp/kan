@@ -10,6 +10,7 @@ import (
 type CommandContext struct {
 	// Global flags
 	NonInteractive *bool
+	Json           *bool
 
 	// init command
 	InitUsed        *bool
@@ -138,6 +139,13 @@ func Run() {
 		SetUsage("Fail instead of prompting for missing input").
 		Register(cmd, ra.WithGlobal(true))
 
+	// Global flag for JSON output
+	ctx.Json, _ = ra.NewBool("json").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Output results as JSON").
+		Register(cmd, ra.WithGlobal(true))
+
 	// Register all subcommands
 	registerInit(cmd, ctx)
 	registerBoard(cmd, ctx)
@@ -158,6 +166,38 @@ func Run() {
 }
 
 func executeCommand(ctx *CommandContext) {
+	// Warn about --json on unsupported commands
+	if *ctx.Json {
+		unsupportedCommand := ""
+		switch {
+		case *ctx.InitUsed:
+			unsupportedCommand = "init"
+		case *ctx.BoardCreateUsed:
+			unsupportedCommand = "board create"
+		case *ctx.ServeUsed:
+			unsupportedCommand = "serve"
+		case *ctx.MigrateUsed:
+			unsupportedCommand = "migrate"
+		case *ctx.ColumnAddUsed:
+			unsupportedCommand = "column add"
+		case *ctx.ColumnDeleteUsed:
+			unsupportedCommand = "column delete"
+		case *ctx.ColumnRenameUsed:
+			unsupportedCommand = "column rename"
+		case *ctx.ColumnEditUsed:
+			unsupportedCommand = "column edit"
+		case *ctx.ColumnMoveUsed:
+			unsupportedCommand = "column move"
+		case *ctx.CommentEditUsed:
+			unsupportedCommand = "comment edit"
+		case *ctx.CommentDeleteUsed:
+			unsupportedCommand = "comment delete"
+		}
+		if unsupportedCommand != "" {
+			warnJsonNotSupported(unsupportedCommand)
+		}
+	}
+
 	switch {
 	case *ctx.InitUsed:
 		runInit(*ctx.InitLocation, *ctx.InitName, *ctx.InitColumns, *ctx.InitProjectName)
@@ -166,21 +206,21 @@ func executeCommand(ctx *CommandContext) {
 		runBoardCreate(*ctx.BoardCreateName)
 
 	case *ctx.BoardListUsed:
-		runBoardList()
+		runBoardList(*ctx.Json)
 
 	case *ctx.AddUsed:
-		runAdd(*ctx.AddTitle, *ctx.AddDescription, *ctx.AddBoard, *ctx.AddColumn, *ctx.AddParent, *ctx.AddFields, *ctx.NonInteractive)
+		runAdd(*ctx.AddTitle, *ctx.AddDescription, *ctx.AddBoard, *ctx.AddColumn, *ctx.AddParent, *ctx.AddFields, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.ShowUsed:
-		runShow(*ctx.ShowCard, *ctx.ShowBoard)
+		runShow(*ctx.ShowCard, *ctx.ShowBoard, *ctx.Json)
 
 	case *ctx.ListUsed:
-		runList(*ctx.ListBoard, *ctx.ListColumn)
+		runList(*ctx.ListBoard, *ctx.ListColumn, *ctx.Json)
 
 	case *ctx.EditUsed:
 		runEdit(*ctx.EditCard, *ctx.EditBoard, *ctx.EditTitle, *ctx.EditDescription,
 			*ctx.EditColumn, *ctx.EditParent, *ctx.EditAlias,
-			*ctx.EditFields, *ctx.NonInteractive)
+			*ctx.EditFields, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.ServeUsed:
 		runServe(*ctx.ServePort, *ctx.ServeNoOpen)
@@ -201,13 +241,13 @@ func executeCommand(ctx *CommandContext) {
 		runColumnEdit(*ctx.ColumnEditName, *ctx.ColumnEditColor, *ctx.ColumnEditBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnListUsed:
-		runColumnList(*ctx.ColumnListBoard, *ctx.NonInteractive)
+		runColumnList(*ctx.ColumnListBoard, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.ColumnMoveUsed:
 		runColumnMove(*ctx.ColumnMoveName, *ctx.ColumnMoveBoard, *ctx.ColumnMovePosition, *ctx.ColumnMoveAfter, *ctx.NonInteractive)
 
 	case *ctx.CommentAddUsed:
-		runCommentAdd(*ctx.CommentAddCard, *ctx.CommentAddBody, *ctx.CommentAddBoard, *ctx.NonInteractive)
+		runCommentAdd(*ctx.CommentAddCard, *ctx.CommentAddBody, *ctx.CommentAddBoard, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.CommentEditUsed:
 		runCommentEdit(*ctx.CommentEditID, *ctx.CommentEditBody, *ctx.CommentEditBoard, *ctx.NonInteractive)

@@ -46,7 +46,7 @@ func runBoardCreate(name string) {
 	fmt.Printf("Created board %q\n", name)
 }
 
-func runBoardList() {
+func runBoardList(jsonOutput bool) {
 	app, err := NewApp(true)
 	if err != nil {
 		Fatal(err)
@@ -59,6 +59,13 @@ func runBoardList() {
 	boards, err := app.BoardService.List()
 	if err != nil {
 		Fatal(err)
+	}
+
+	if jsonOutput {
+		if err := printJson(NewBoardsOutput(boards)); err != nil {
+			Fatal(err)
+		}
+		return
 	}
 
 	if len(boards) == 0 {

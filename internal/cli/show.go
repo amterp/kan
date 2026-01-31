@@ -27,7 +27,7 @@ func registerShow(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.ShowUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runShow(idOrAlias, board string) {
+func runShow(idOrAlias, board string, jsonOutput bool) {
 	app, err := NewApp(true)
 	if err != nil {
 		Fatal(err)
@@ -55,6 +55,13 @@ func runShow(idOrAlias, board string) {
 		Fatal(err)
 	}
 	card.Column = boardCfg.GetCardColumn(card.ID)
+
+	if jsonOutput {
+		if err := printJson(NewCardOutput(card)); err != nil {
+			Fatal(err)
+		}
+		return
+	}
 
 	printCard(card)
 }

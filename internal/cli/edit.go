@@ -71,7 +71,7 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 }
 
 func runEdit(idOrAlias, board string, title, description, column string,
-	parent, alias string, fields []string, nonInteractive bool) {
+	parent, alias string, fields []string, nonInteractive, jsonOutput bool) {
 
 	// Check if any flags were provided
 	hasFlags := title != "" || description != "" || column != "" ||
@@ -111,7 +111,7 @@ func runEdit(idOrAlias, board string, title, description, column string,
 	if hasFlags {
 		// Non-interactive path: apply flags directly
 		runEditNonInteractive(app, boardName, card, title, description, column,
-			parent, alias, fields)
+			parent, alias, fields, jsonOutput)
 	} else {
 		// Interactive path: existing menu-based editing
 		runEditInteractive(app, boardName, card, boardCfg)
@@ -121,7 +121,7 @@ func runEdit(idOrAlias, board string, title, description, column string,
 // runEditNonInteractive applies CLI flag changes to the card.
 func runEditNonInteractive(app *App, boardName string, card *model.Card,
 	title, description, column string,
-	parent, alias string, fields []string) {
+	parent, alias string, fields []string, jsonOutput bool) {
 
 	input := service.EditCardInput{
 		BoardName:     boardName,
@@ -154,6 +154,20 @@ func runEditNonInteractive(app *App, boardName string, card *model.Card,
 	updatedCard, err := app.CardService.Edit(input)
 	if err != nil {
 		Fatal(err)
+	}
+
+	// Get column from board config for output
+	boardCfg, err := app.BoardService.Get(boardName)
+	if err != nil {
+		Fatal(err)
+	}
+	updatedCard.Column = boardCfg.GetCardColumn(updatedCard.ID)
+
+	if jsonOutput {
+		if err := printJson(NewCardOutput(updatedCard)); err != nil {
+			Fatal(err)
+		}
+		return
 	}
 
 	fmt.Printf("Updated card %s\n", updatedCard.ID)

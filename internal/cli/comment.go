@@ -76,7 +76,7 @@ func registerComment(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.CommentUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runCommentAdd(card, body, board string, nonInteractive bool) {
+func runCommentAdd(card, body, board string, nonInteractive, jsonOutput bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -124,6 +124,13 @@ func runCommentAdd(card, body, board string, nonInteractive bool) {
 	comment, err := app.CardService.AddComment(boardName, card, commentBody, author)
 	if err != nil {
 		Fatal(err)
+	}
+
+	if jsonOutput {
+		if err := printJson(CommentOutput{Comment: comment}); err != nil {
+			Fatal(err)
+		}
+		return
 	}
 
 	fmt.Printf("Added comment %s\n", comment.ID)

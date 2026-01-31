@@ -263,6 +263,50 @@ kan migrate --dry-run
 
 ## Global Flags
 
-| Flag                    | Description                                 |
-|-------------------------|---------------------------------------------|
-| `-I, --non-interactive` | Fail instead of prompting for missing input |
+| Flag                    | Description                                                                              |
+|-------------------------|------------------------------------------------------------------------------------------|
+| `-I, --non-interactive` | Fail instead of prompting for missing input                                              |
+| `--json`                | Output results as JSON (supported by: show, list, add, edit, board list, column list, comment add) |
+
+## JSON Output
+
+Use the `--json` flag for programmatic access to Kan data. Output is structured with wrapper objects for
+forward-compatibility:
+
+```bash
+# Get card details as JSON
+kan show fix-login --json
+# Output: {"card": {...}}
+
+# List all cards as JSON
+kan list --json
+# Output: {"cards": [...]}
+
+# Create a card and get the result as JSON
+kan add "New task" --json
+# Output: {"card": {...}}
+
+# Edit a card and get the updated result as JSON
+kan edit fix-login -t "New title" --json
+# Output: {"card": {...}}
+
+# List boards as JSON
+kan board list --json
+# Output: {"boards": ["main", "features"]}
+
+# List columns as JSON
+kan column list --json
+# Output: {"columns": [{"name": "backlog", "color": "#...", "card_count": 5}, ...]}
+
+# Add a comment and get the result as JSON
+kan comment add fix-login "Found the issue" --json
+# Output: {"comment": {...}}
+```
+
+**Example with jq:**
+
+```bash
+kan show fix-login --json | jq .card.title
+kan list --json | jq '.cards | length'
+kan list --json | jq '.cards[] | select(.column == "in-progress") | .title'
+```
