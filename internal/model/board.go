@@ -372,6 +372,20 @@ func (b *BoardConfig) MoveColumn(name string, newPosition int) bool {
 	return true
 }
 
+// GetOptionColor returns the color for an enum option value, or empty string if not found.
+func (b *BoardConfig) GetOptionColor(fieldName, value string) string {
+	schema, exists := b.CustomFields[fieldName]
+	if !exists {
+		return ""
+	}
+	for _, opt := range schema.Options {
+		if opt.Value == value {
+			return opt.Color
+		}
+	}
+	return ""
+}
+
 // ValidateCardDisplay validates that CardDisplayConfig references valid custom fields.
 // Returns a list of warning messages for invalid references (non-fatal).
 func (b *BoardConfig) ValidateCardDisplay() []string {

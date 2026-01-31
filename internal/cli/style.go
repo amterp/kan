@@ -96,6 +96,15 @@ func RenderColumnColor(text, hexColor string) string {
 	return lipgloss.NewStyle().Foreground(lipgloss.Color(hexColor)).Render(text)
 }
 
+// RenderTypeIndicator renders a type indicator value in brackets with its color.
+// Returns empty string if value is empty.
+func RenderTypeIndicator(value, hexColor string) string {
+	if value == "" {
+		return ""
+	}
+	return RenderColumnColor("["+value+"]", hexColor)
+}
+
 // ColorSwatch renders a small color swatch block in the given hex color.
 func ColorSwatch(hexColor string) string {
 	if hexColor == "" {
