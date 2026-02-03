@@ -5,6 +5,7 @@ releases
 
 # Build output
 bin/
+kan
 
 # Frontend
 web/node_modules/
