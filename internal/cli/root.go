@@ -65,6 +65,7 @@ type CommandContext struct {
 	// migrate command
 	MigrateUsed   *bool
 	MigrateDryRun *bool
+	MigrateAll    *bool
 
 	// column command
 	ColumnUsed *bool
@@ -235,7 +236,11 @@ func executeCommand(ctx *CommandContext) {
 		runServe(*ctx.ServePort, *ctx.ServeNoOpen)
 
 	case *ctx.MigrateUsed:
-		runMigrate(*ctx.MigrateDryRun)
+		if *ctx.MigrateAll {
+			runMigrateAll(*ctx.MigrateDryRun, *ctx.NonInteractive)
+		} else {
+			runMigrate(*ctx.MigrateDryRun)
+		}
 
 	case *ctx.ColumnAddUsed:
 		runColumnAdd(*ctx.ColumnAddName, *ctx.ColumnAddColor, *ctx.ColumnAddPosition, *ctx.ColumnAddBoard, *ctx.NonInteractive)

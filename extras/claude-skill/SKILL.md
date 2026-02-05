@@ -138,7 +138,14 @@ kan serve --no-open      # Don't auto-open browser
 ```bash
 kan migrate              # Migrate data to current schema
 kan migrate --dry-run    # Preview changes without applying
+kan migrate --all        # Migrate all projects in global config
+kan migrate --all --dry-run  # Preview changes for all projects
 ```
+
+| Flag        | Description                                        |
+|-------------|----------------------------------------------------|
+| `--dry-run` | Show what would be changed without modifying files |
+| `--all`     | Migrate all projects registered in global config   |
 
 ## Health Checks
 

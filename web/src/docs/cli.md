@@ -257,11 +257,14 @@ Migrate board data to current schema version.
 ```bash
 kan migrate
 kan migrate --dry-run
+kan migrate --all
+kan migrate --all --dry-run
 ```
 
 | Flag        | Description                                        |
 |-------------|----------------------------------------------------|
 | `--dry-run` | Show what would be changed without modifying files |
+| `--all`     | Migrate all projects registered in global config (prompts per project) |
 
 ### doctor
 

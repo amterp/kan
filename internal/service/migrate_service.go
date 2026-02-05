@@ -61,25 +61,18 @@ func (s *MigrateService) Plan() (*MigrationPlan, error) {
 	plan := &MigrationPlan{}
 
 	// Plan global config migration
-	globalPlan, err := s.planGlobalMigration()
+	globalPlan, err := s.PlanGlobalMigration()
 	if err != nil {
 		return nil, fmt.Errorf("failed to plan global config migration: %w", err)
 	}
 	plan.GlobalConfig = globalPlan
 
 	// Plan board migrations
-	boards, err := listBoards(s.paths)
+	boardsPlan, err := s.PlanBoardsOnly()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list boards: %w", err)
+		return nil, err
 	}
-
-	for _, boardName := range boards {
-		boardPlan, err := s.planBoardMigration(boardName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to plan migration for board %q: %w", boardName, err)
-		}
-		plan.Boards = append(plan.Boards, *boardPlan)
-	}
+	plan.Boards = boardsPlan.Boards
 
 	return plan, nil
 }
@@ -166,6 +159,33 @@ func (p *MigrationPlan) HasChanges() bool {
 		}
 	}
 	return false
+}
+
+// PlanGlobalMigration analyzes the global config and returns a migration plan.
+// Exported for use by --all, which handles global config separately from boards.
+func (s *MigrateService) PlanGlobalMigration() (*GlobalMigration, error) {
+	return s.planGlobalMigration()
+}
+
+// PlanBoardsOnly returns a migration plan with only board migrations (no global config).
+// Used by --all to plan each project's boards independently.
+func (s *MigrateService) PlanBoardsOnly() (*MigrationPlan, error) {
+	plan := &MigrationPlan{}
+
+	boards, err := listBoards(s.paths)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list boards: %w", err)
+	}
+
+	for _, boardName := range boards {
+		boardPlan, err := s.planBoardMigration(boardName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to plan migration for board %q: %w", boardName, err)
+		}
+		plan.Boards = append(plan.Boards, *boardPlan)
+	}
+
+	return plan, nil
 }
 
 func (s *MigrateService) planGlobalMigration() (*GlobalMigration, error) {
