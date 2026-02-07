@@ -105,45 +105,33 @@ Unless the user explicitly doesn't want one, recommend a `type` field (`enum`, w
 
 The user can customize these - add, remove, rename, or change descriptions to fit their project.
 
-#### Labels Field (Suggested)
+#### Other Fields
 
-Suggest a `labels` field (`enum-set`) for flexible tagging. Offer these as starting options:
+The `type` field alone is often enough, especially for new boards. Lean toward simplicity. But if the user asks about other fields, or if their project clearly calls for one based on what you learned in Step 1, here are some examples to get their thinking going:
 
-| Value | Description |
-|-------|-------------|
-| ai-hi | Well-suited for autonomous AI work - low complexity, little judgment needed, AI can handle it independently |
-| ai-lo | Likely suitable for AI but less certain - may need some human oversight or review |
-
-Cards without either AI label are implicitly not suitable for autonomous AI work - they likely require human judgment and involvement.
-
-The user can add more label values to suit their needs.
-
-#### Additional Ideas
-
-Suggest these lightly to spark the user's thinking. Don't push them:
-
+- **labels** (`enum-set`) - Flexible tagging. Example values: `ai-hi` (well-suited for autonomous AI work - low complexity, little judgment needed), `ai-lo` (likely suitable for AI but less certain). Cards without an AI label are implicitly not suitable for autonomous AI work.
 - **effort** (`enum`) - T-shirt sizing for rough estimation: xs, s, m, l, xl
 - **area** (`enum-set`) - What part of the project a card touches, e.g. backend, frontend, infra, docs
 
-Based on what you learned about the user's project in Step 1, suggest any project-specific fields that might be valuable.
+Don't actively suggest these - just mention that additional fields are possible and offer examples if the user is interested.
 
 ### Step 4: Card Display
 
-Configure how fields appear on cards in the web UI and CLI output. Walk the user through these display roles:
+Configure how fields appear on cards in the web UI and CLI output. Apply sensible defaults without overwhelming the user with implementation details:
 
-- **type_indicator**: Shows a colored badge identifying the card type. If the user has a `type` enum field, default to using it here.
-- **badges**: Shows chip-style labels on cards. Default to showing any `enum-set` or `free-set` fields (like `labels`) as badges.
-- **metadata**: Shows small text below the card. Useful for fields like dates or effort.
+- If the user has a `type` field, set it as the `type_indicator` (colored badge on each card).
+- Any `enum-set` or `free-set` fields (like `labels`) should go in `badges` (chip-style labels on cards).
+- Other fields like dates or effort can go in `metadata` (small text below the card).
 
-If the user is new, briefly explain what each display role looks like.
+For new users, just set these defaults and briefly mention that their type will show as a colored badge on cards and any tags will show as labels. Don't expose config key names like `type_indicator` or `badges` unless the user asks for details.
 
 ### Step 5: Pattern Hooks (Optional)
 
 Pattern hooks automate actions when cards are created with titles matching a pattern. This is entirely optional - offer it, but don't push it.
 
-If the user set up a `type` field, suggest the **type shortcut hook**: when creating a card in the web UI with a title like `!bug Fix login crash`, the hook automatically strips the `!bug` prefix and sets the type field to `bug`. It also supports aliases like `!feat` for `feature` and `!enh` for `enhancement`.
+If the user set up a `type` field, suggest the **type shortcut hook**: when creating a card in the web UI with `!bug` anywhere in the title (e.g. `!bug Fix login crash` or `Fix login crash !bug`), the hook automatically strips the `!bug` and sets the type field to `bug`. It also supports aliases like `!feat` for `feature` and `!enh` for `enhancement`.
 
-For newcomers, keep the explanation focused on what it does rather than how: "This is a convenience shortcut. Instead of setting the type field manually after creating a card, you can just prefix your title with `!bug`, `!feat`, `!chore`, etc. and it gets set for you automatically."
+For newcomers, keep the explanation focused on what it does rather than how: "This is a convenience shortcut. Instead of setting the type field manually after creating a card, you can just include `!bug`, `!feat`, `!chore`, etc. anywhere in your title and it gets set for you automatically."
 
 If the user wants this hook:
 
