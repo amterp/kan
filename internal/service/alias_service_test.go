@@ -89,6 +89,7 @@ func TestAliasService_GenerateAlias_Collision(t *testing.T) {
 		t.Fatalf("GenerateAlias failed: %v", err)
 	}
 
+	// "Fix Bug" has only 2 words, no more to expand, falls back to -2
 	if alias != "fix-bug-2" {
 		t.Errorf("Expected 'fix-bug-2', got %q", alias)
 	}
@@ -185,5 +186,135 @@ func TestAliasService_DifferentBoards(t *testing.T) {
 
 	if alias != "fix-bug" {
 		t.Errorf("Expected 'fix-bug' (available in different board), got %q", alias)
+	}
+}
+
+func TestAliasService_GenerateAlias_ProgressiveExpansion(t *testing.T) {
+	mockStore := newMockCardStore()
+
+	// "update-authentication" is 21 chars (exceeds threshold) but gets used
+	// because minSlugWords=2 is always enforced. Collide with it to test expansion.
+	mockStore.addCard("main", &model.Card{ID: "1", Alias: "update-authentication"})
+
+	service := NewAliasService(mockStore)
+
+	// Should expand to include the next word rather than going to -2
+	alias, err := service.GenerateAlias("main", "Update authentication middleware")
+	if err != nil {
+		t.Fatalf("GenerateAlias failed: %v", err)
+	}
+
+	if alias != "update-authentication-middleware" {
+		t.Errorf("Expected 'update-authentication-middleware', got %q", alias)
+	}
+}
+
+func TestAliasService_GenerateAlias_ProgressiveExpansionMultipleSteps(t *testing.T) {
+	mockStore := newMockCardStore()
+
+	// Collide both the base and the first expansion
+	mockStore.addCard("main", &model.Card{ID: "1", Alias: "update-authentication"})
+	mockStore.addCard("main", &model.Card{ID: "2", Alias: "update-authentication-middleware"})
+
+	service := NewAliasService(mockStore)
+
+	alias, err := service.GenerateAlias("main", "Update authentication middleware layer")
+	if err != nil {
+		t.Fatalf("GenerateAlias failed: %v", err)
+	}
+
+	if alias != "update-authentication-middleware-layer" {
+		t.Errorf("Expected 'update-authentication-middleware-layer', got %q", alias)
+	}
+}
+
+func TestAliasService_GenerateAlias_WordExhaustion(t *testing.T) {
+	mockStore := newMockCardStore()
+
+	// Collide the base and the only expansion available
+	mockStore.addCard("main", &model.Card{ID: "1", Alias: "update-authentication"})
+	mockStore.addCard("main", &model.Card{ID: "2", Alias: "update-authentication-middleware"})
+
+	service := NewAliasService(mockStore)
+
+	// Title only has 3 words, all expansions collide, should fall back to -2
+	alias, err := service.GenerateAlias("main", "Update authentication middleware")
+	if err != nil {
+		t.Fatalf("GenerateAlias failed: %v", err)
+	}
+
+	if alias != "update-authentication-2" {
+		t.Errorf("Expected 'update-authentication-2', got %q", alias)
+	}
+}
+
+func TestAliasService_GenerateAlias_LongTitleTruncated(t *testing.T) {
+	mockStore := newMockCardStore()
+	service := NewAliasService(mockStore)
+
+	// Long title should be truncated to threshold
+	alias, err := service.GenerateAlias("main", "This is a very long title that exceeds the limit")
+	if err != nil {
+		t.Fatalf("GenerateAlias failed: %v", err)
+	}
+
+	// "this-is-a-very-long" = 19 chars, adding "title" would be 25 > 20
+	if alias != "this-is-a-very-long" {
+		t.Errorf("Expected 'this-is-a-very-long', got %q", alias)
+	}
+}
+
+func TestAliasService_GenerateAlias_LongTitleCollisionExpands(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "1", Alias: "this-is-a-very-long"})
+
+	service := NewAliasService(mockStore)
+
+	alias, err := service.GenerateAlias("main", "This is a very long title that exceeds the limit")
+	if err != nil {
+		t.Fatalf("GenerateAlias failed: %v", err)
+	}
+
+	// On collision, next word "title" is added
+	if alias != "this-is-a-very-long-title" {
+		t.Errorf("Expected 'this-is-a-very-long-title', got %q", alias)
+	}
+}
+
+func TestAliasService_GenerateAlias_SingleWord(t *testing.T) {
+	mockStore := newMockCardStore()
+	service := NewAliasService(mockStore)
+
+	alias, err := service.GenerateAlias("main", "Bug")
+	if err != nil {
+		t.Fatalf("GenerateAlias failed: %v", err)
+	}
+
+	if alias != "bug" {
+		t.Errorf("Expected 'bug', got %q", alias)
+	}
+}
+
+func TestWordsForThreshold(t *testing.T) {
+	tests := []struct {
+		name     string
+		words    []string
+		expected int
+	}{
+		{"short two words", []string{"fix", "bug"}, 2},
+		{"three short words", []string{"fix", "login", "bug"}, 3},
+		{"min words enforced", []string{"update", "authentication", "middleware"}, 2},
+		{"single word", []string{"bug"}, 1},
+		{"many short words", []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"}, 10},
+		{"threshold boundary", []string{"this", "is", "a", "very", "long"}, 5}, // "this-is-a-very-long" = 19
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := wordsForThreshold(tt.words)
+			if result != tt.expected {
+				t.Errorf("wordsForThreshold(%v) = %d, want %d", tt.words, result, tt.expected)
+			}
+		})
 	}
 }

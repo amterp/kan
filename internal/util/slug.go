@@ -15,34 +15,24 @@ var (
 	trimHyphens = regexp.MustCompile(`^-+|-+$`)
 )
 
-const maxSlugLength = 30
-
-// Slugify converts a string to a URL-friendly slug.
-// - Converts to lowercase
-// - Normalizes unicode (removes accents)
-// - Replaces spaces and special characters with hyphens
-// - Removes leading/trailing hyphens
-// - Truncates to maxSlugLength chars without cutting mid-word
-func Slugify(s string) string {
-	// Normalize unicode and convert to lowercase
+// SlugWords converts a string to normalized slug words.
+//   - Converts to lowercase
+//   - Normalizes unicode (removes accents)
+//   - Replaces spaces and special characters with hyphens
+//   - Splits on hyphens into individual words
+//
+// The caller is responsible for joining/truncating as needed.
+func SlugWords(s string) []string {
 	s = strings.ToLower(s)
 	s = removeAccents(s)
-
-	// Replace non-alphanumeric with hyphens
 	s = nonAlphanumeric.ReplaceAllString(s, "-")
-
-	// Trim leading/trailing hyphens
 	s = trimHyphens.ReplaceAllString(s, "")
 
-	// Truncate to max length without cutting mid-word
-	if len(s) > maxSlugLength {
-		s = s[:maxSlugLength]
-		if idx := strings.LastIndex(s, "-"); idx > 0 {
-			s = s[:idx]
-		}
+	if s == "" {
+		return nil
 	}
 
-	return s
+	return strings.Split(s, "-")
 }
 
 // removeAccents removes diacritical marks from unicode characters.
