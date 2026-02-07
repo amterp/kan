@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "give-fields-descriptions-2",
+  "alias_explicit": false,
+  "created_at_millis": 1770485072138,
+  "creator": "Alexander Terp",
+  "description": "The use case here is you might have a enum set field, for example, and you want to make the field wanted, so it needs to be specified, or like it needs to be populated it and you might have to find some tags or some values which are not self-explanatory. Sorry. It would be nice. we currently have this mechanism which is when you create a card without that is missing a wanted field, if you create that card via the CLI, it will actually warn you to please specify that field Go and edit the field. field. And this is useful for agents because agents would generally be adding cards via the CLI and and they might not be aware that they need to set this field. and then the automatic error kind of helps guide them, or the warning rather. However, if they're told, \"Hey, you gotta set this field, here are the valid values,\" those values might not be self-explanatory and it can't really make an informed decision on how to correctly set them. It would be nice to allow allow specifying descriptions for the different enum values, perhaps in your board.tomo file, And then this can be printed alongside every value type or every value in the enum set so that the LLM can make an informed decision. This also applies to humans. Humans can also make more informed decisions that way. it's a little bit more documenting but it's primarily for this use case.",
+  "id": "a_M3dl6TO8",
+  "title": "give fields descriptions",
+  "type": "feature",
+  "updated_at_millis": 1770485185340
+}

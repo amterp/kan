@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "make-slugs-shorter-2",
+  "alias_explicit": false,
+  "created_at_millis": 1770485370440,
+  "creator": "Alexander Terp",
+  "description": "in practice I think collisions are rare, and we already handle it with the -N suffix.\nMaking them shorter would make them easier to write out when you're doing like a KAN show or something like that.",
+  "id": "a_M3lWFtkU",
+  "title": "make slugs shorter",
+  "type": "enhancement",
+  "updated_at_millis": 1770485412483
+}

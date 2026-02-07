@@ -1,12 +1,12 @@
 {
   "_v": 1,
-  "alias": "column-descriptions",
+  "alias": "max-cards",
   "alias_explicit": false,
   "created_at_millis": 1767586052927,
   "creator": "Alexander Terp",
-  "description": "Display list description next to ticket count on the board. Short descriptions provide concise context (e.g., what the list is for, constraints like 'max 10 tickets').",
+  "description": "I sometimes have workflows where I want to cap the number of cards in a given column. it would be nice to be able to configure like, this column can have max 10 cards, and it will just like refuse. If I try to add a card to it, it will just refuse.",
   "id": "2RF1gl2S",
-  "title": "Column descriptions",
+  "title": "max cards",
   "type": "feature",
-  "updated_at_millis": 1767846198769
+  "updated_at_millis": 1770496527981
 }

@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "new-cards-sometimes-appear",
+  "alias_explicit": false,
+  "created_at_millis": 1770485225138,
+  "creator": "Alexander Terp",
+  "description": "It seems related to the pattern hooks. so if I create a card using like to say exclamation point bug and there's a hook which detects this and assigns the type of car to Bug. It just appears like it runs and we end up seeing the same card twice. It is legitimately the same card instance, So it seems to be somewhat of a front-end bug, perhaps. because if I delete one of the cards, they both disappear. So it is legitimately the same card. card, it may or may not also be related to another outstanding ticket, which which I've observed, which is If I make a change to a ticket that does not affect the title, it seems like sometimes the slug gets changed to append a suffix like -2, which is how we resolve conflicts for the same slug. so it seems like we're trying to like almost add the updated card as if it's a new card we're adding that card first and then deleting the old one almost is maybe Yeah, what I'm guessing is happening. But anyway, it could be unrelated to this ticket here, but it is maybe related",
+  "id": "a_M3hjtzpG",
+  "title": "new cards sometimes appear twice",
+  "type": "bug",
+  "updated_at_millis": 1770485346749
+}

@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "skill-md-wizard-2",
+  "alias_explicit": false,
+  "created_at_millis": 1770485510506,
+  "creator": "Alexander Terp",
+  "description": "Right now, the skill doesn't really guide the user much in terms of... Like, you would tell it, \"Hey, make a new board,\" and it will just do it. it doesn't really ask what do you want the board to look like, What kind of columns do you want? What sort of fields do you want? do you want any enum set fields etc I think we could I think we should encourage or make it like a more of a process to use the skill to create a new board that kind of walks you through some of choices you can make and set up all the things you want up front. We can also include some templates. For example, I think for really simple boards, you do just want like a backlog next in progress done kind of board. I I think another one that I like is to have the backlog split into two, a low prio at a high prio. and then sometimes I also even like having a column which is like uncommitted So these are like even more to the left of the backlog columns. They're tickets I'm not committed to doing, but just they're a thought. I need to think more about them. And then in addition to most of these, we want to have a type a wanted type field in a lot of cases. So what do you actually want to have be have the enums values be for this type? like do you want enhancement do you want bugs what kind of values do you actually you want there. maybe what's their descriptions as well I think we should be having descriptions for all these values for self-documentation and also to help guide LLMs through using the CLI. and then another field that is probably an opt-in for like a template kind of situation Is this concept of. How amenable the task is to be given to an AI. I won't put the details here. when we tackle the ticket, we'll work it out. but basically AI - low for example versus AI - high These are basically just two tags which would be used in an enum set that indicate \"Hey, hey, this ticket is good for AI, and you're either low confidence about that or high confidence about that.  Just some thoughts.",
+  "id": "a_M3pA7DaC",
+  "title": "SKILL.md wizard",
+  "type": "enhancement",
+  "updated_at_millis": 1770485680598
+}

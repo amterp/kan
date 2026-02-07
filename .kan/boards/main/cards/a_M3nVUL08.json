@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "cmd-enter-for-new-cards",
+  "alias_explicit": false,
+  "created_at_millis": 1770485446865,
+  "creator": "Alexander Terp",
+  "description": "If I make a new card with \"slat\" or exclamation point bug for example, and there's a pattern hook which acts on that, If I am adding the card with a command enter, it brings up the editing modal immediately, seemingly before the pattern hooks have run. and the result is that the type or the action of that hook has not been applied so the title remains in this example unchanged and the type remains unchanged.",
+  "id": "a_M3nVUL08",
+  "title": "cmd+enter for new cards brings up modal, but dont reflect pattern hook modifications",
+  "type": "bug",
+  "updated_at_millis": 1770485487691
+}
