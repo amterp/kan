@@ -55,15 +55,17 @@ type Column struct {
 
 // CustomFieldOption represents a single option for enum/enum-set fields.
 type CustomFieldOption struct {
-	Value string `toml:"value" json:"value"`
-	Color string `toml:"color,omitempty" json:"color,omitempty"`
+	Value       string `toml:"value" json:"value"`
+	Color       string `toml:"color,omitempty" json:"color,omitempty"`
+	Description string `toml:"description,omitempty" json:"description,omitempty"`
 }
 
 // CustomFieldSchema defines the schema for a custom field.
 type CustomFieldSchema struct {
-	Type    string              `toml:"type" json:"type"`                           // "string", "enum", "enum-set", "free-set", "date"
-	Options []CustomFieldOption `toml:"options,omitempty" json:"options,omitempty"` // For enum/enum-set types
-	Wanted  bool                `toml:"wanted,omitempty" json:"wanted,omitempty"`   // Warn if field is missing
+	Type        string              `toml:"type" json:"type"`                           // "string", "enum", "enum-set", "free-set", "date"
+	Options     []CustomFieldOption `toml:"options,omitempty" json:"options,omitempty"` // For enum/enum-set types
+	Wanted      bool                `toml:"wanted,omitempty" json:"wanted,omitempty"`   // Warn if field is missing
+	Description string              `toml:"description,omitempty" json:"description,omitempty"`
 }
 
 // CardDisplayConfig controls how custom fields render on cards in the board view.

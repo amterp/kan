@@ -99,7 +99,8 @@ func runAdd(title, description, board, column string, parentCard string, fields 
 	if strict {
 		missingWanted := service.CheckWantedFieldsForProposal(nil, customFields, boardCfg)
 		if len(missingWanted) > 0 {
-			Fatal(fmt.Errorf("card not created: missing wanted fields: %s", formatMissingWantedFields(missingWanted)))
+			printMissingWantedWarnings(missingWanted)
+			Fatal(fmt.Errorf("card not created (strict mode): missing wanted fields: %s", formatMissingWantedFields(missingWanted)))
 		}
 	}
 
@@ -178,11 +179,50 @@ func printMissingWantedWarnings(missing []service.MissingWantedField) {
 	}
 	PrintWarning("Card is missing wanted fields:")
 	for _, mf := range missing {
-		if len(mf.Options) > 0 {
-			fmt.Fprintf(os.Stderr, "  - %s (%s): valid values are %s\n",
-				mf.FieldName, mf.FieldType, strings.Join(mf.Options, ", "))
+		// Check if any option has a description
+		hasOptionDescriptions := false
+		for _, opt := range mf.Options {
+			if opt.Description != "" {
+				hasOptionDescriptions = true
+				break
+			}
+		}
+
+		if len(mf.Options) > 0 && hasOptionDescriptions {
+			// Expanded multi-line format when any option has a description
+			if mf.Description != "" {
+				fmt.Fprintf(os.Stderr, "  - %s (%s): %s\n", mf.FieldName, mf.FieldType, mf.Description)
+			} else {
+				fmt.Fprintf(os.Stderr, "  - %s (%s)\n", mf.FieldName, mf.FieldType)
+			}
+			fmt.Fprintf(os.Stderr, "    valid values:\n")
+			for _, opt := range mf.Options {
+				if opt.Description != "" {
+					fmt.Fprintf(os.Stderr, "      - %s: %s\n", opt.Value, opt.Description)
+				} else {
+					fmt.Fprintf(os.Stderr, "      - %s\n", opt.Value)
+				}
+			}
+		} else if len(mf.Options) > 0 {
+			// Compact single-line format (no option descriptions)
+			values := make([]string, len(mf.Options))
+			for i, opt := range mf.Options {
+				values[i] = opt.Value
+			}
+			if mf.Description != "" {
+				fmt.Fprintf(os.Stderr, "  - %s (%s): %s\n", mf.FieldName, mf.FieldType, mf.Description)
+				fmt.Fprintf(os.Stderr, "    valid values: %s\n", strings.Join(values, ", "))
+			} else {
+				fmt.Fprintf(os.Stderr, "  - %s (%s): valid values are %s\n",
+					mf.FieldName, mf.FieldType, strings.Join(values, ", "))
+			}
 		} else {
-			fmt.Fprintf(os.Stderr, "  - %s (%s)\n", mf.FieldName, mf.FieldType)
+			// No options (string, date, free-set)
+			if mf.Description != "" {
+				fmt.Fprintf(os.Stderr, "  - %s (%s): %s\n", mf.FieldName, mf.FieldType, mf.Description)
+			} else {
+				fmt.Fprintf(os.Stderr, "  - %s (%s)\n", mf.FieldName, mf.FieldType)
+			}
 		}
 	}
 }

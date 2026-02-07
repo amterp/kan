@@ -23,6 +23,7 @@ function FreeSetField({
   wantedIndicator,
   marginClass,
   compact,
+  description,
 }: {
   fieldName: string;
   values: string[];
@@ -30,6 +31,7 @@ function FreeSetField({
   wantedIndicator: React.ReactNode;
   marginClass: string;
   compact?: boolean;
+  description?: string;
 }) {
   const [inputValue, setInputValue] = useState('');
   const [shake, setShake] = useState(false);
@@ -66,6 +68,9 @@ function FreeSetField({
         {fieldName}{wantedIndicator}
         <span className="text-xs font-normal text-gray-400 dark:text-gray-500 ml-2">{values.length}/{MAX_SET_ITEMS}</span>
       </label>
+      {description && (
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{description}</p>
+      )}
       {values.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
           {values.map((val) => (
@@ -157,6 +162,9 @@ export default function CustomFieldsEditor({
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
               {fieldName}{wantedIndicator}
             </label>
+            {schema.description && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{schema.description}</p>
+            )}
             <select
               value={(currentValue as string) || ''}
               onChange={(e) => onChange(fieldName, e.target.value)}
@@ -165,7 +173,7 @@ export default function CustomFieldsEditor({
               <option value="">None</option>
               {schema.options?.map((opt) => (
                 <option key={opt.value} value={opt.value}>
-                  {opt.value}
+                  {opt.description ? `${opt.value} - ${opt.description}` : opt.value}
                 </option>
               ))}
             </select>
@@ -179,6 +187,9 @@ export default function CustomFieldsEditor({
             <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 capitalize ${compact ? 'mb-1' : 'mb-2'}`}>
               {fieldName}{wantedIndicator}
             </label>
+            {schema.description && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{schema.description}</p>
+            )}
             <div className="flex flex-wrap gap-2">
               {schema.options?.map((opt) => {
                 const isSelected = selectedValues.includes(opt.value);
@@ -187,6 +198,7 @@ export default function CustomFieldsEditor({
                     key={opt.value}
                     type="button"
                     onClick={() => toggleTagValue(fieldName, opt.value)}
+                    title={opt.description || undefined}
                     className={`px-2 py-0.5 text-xs rounded-full transition-all ${
                       isSelected
                         ? 'text-white ring-2 ring-offset-1'
@@ -219,6 +231,7 @@ export default function CustomFieldsEditor({
             wantedIndicator={wantedIndicator}
             marginClass={marginClass}
             compact={compact}
+            description={schema.description}
           />
         );
       }
@@ -229,6 +242,9 @@ export default function CustomFieldsEditor({
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
               {fieldName}{wantedIndicator}
             </label>
+            {schema.description && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{schema.description}</p>
+            )}
             <input
               type="text"
               value={(currentValue as string) || ''}
@@ -245,6 +261,9 @@ export default function CustomFieldsEditor({
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
               {fieldName}{wantedIndicator}
             </label>
+            {schema.description && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{schema.description}</p>
+            )}
             <input
               type="date"
               value={(currentValue as string) || ''}

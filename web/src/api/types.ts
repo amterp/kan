@@ -1,8 +1,15 @@
+// Missing wanted field option returned by API
+export interface MissingWantedFieldOption {
+  value: string;
+  description?: string;
+}
+
 // Missing wanted field info returned by API
 export interface MissingWantedField {
   name: string;
   type: string;
-  options?: string[];
+  description?: string;
+  options?: MissingWantedFieldOption[];
 }
 
 export interface Card {
@@ -38,6 +45,7 @@ export interface Column {
 export interface CustomFieldOption {
   value: string;
   color?: string;
+  description?: string;
 }
 
 // Custom field type constants - keep in sync with internal/model/board.go
@@ -61,6 +69,7 @@ export interface CustomFieldSchema {
   type: FieldType;
   options?: CustomFieldOption[];
   wanted?: boolean;
+  description?: string;
 }
 
 export interface CardDisplayConfig {

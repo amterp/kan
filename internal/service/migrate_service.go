@@ -378,6 +378,14 @@ func (s *MigrateService) migrateBoardConfig(plan *BoardMigration) error {
 		if err := s.migrateBoardV4ToV5(plan.ConfigPath); err != nil {
 			return err
 		}
+		fromVersion = 5
+	}
+
+	// v5 → v6: schema-only (adds optional description fields to custom fields/options)
+	if fromVersion == 5 && version.CurrentBoardVersion >= 6 {
+		if err := s.updateBoardSchema(plan.ConfigPath, version.FormatBoardSchema(6)); err != nil {
+			return err
+		}
 		return nil
 	}
 
@@ -478,8 +486,8 @@ func (s *MigrateService) migrateBoardV4ToV5(path string) error {
 		return fmt.Errorf("invalid TOML: %w", err)
 	}
 
-	// Update schema version
-	raw["kan_schema"] = version.CurrentBoardSchema()
+	// Update schema version to v5 (not CurrentBoardSchema - each step writes its own target)
+	raw["kan_schema"] = version.FormatBoardSchema(5)
 
 	// Rename type = "tags" to type = "enum-set" in custom_fields
 	if customFields, ok := raw["custom_fields"].(map[string]any); ok {

@@ -91,11 +91,18 @@ func toCardResponseWithWanted(card *model.Card, boardCfg *model.BoardConfig) Car
 	resp := toCardResponse(card)
 	if boardCfg != nil {
 		for _, mf := range service.CheckWantedFields(card, boardCfg) {
-			resp.MissingWantedFields = append(resp.MissingWantedFields, MissingWantedFieldInfo{
-				Name:    mf.FieldName,
-				Type:    mf.FieldType,
-				Options: mf.Options,
-			})
+			info := MissingWantedFieldInfo{
+				Name:        mf.FieldName,
+				Type:        mf.FieldType,
+				Description: mf.Description,
+			}
+			for _, opt := range mf.Options {
+				info.Options = append(info.Options, MissingWantedOptionInfo{
+					Value:       opt.Value,
+					Description: opt.Description,
+				})
+			}
+			resp.MissingWantedFields = append(resp.MissingWantedFields, info)
 		}
 	}
 	return resp
@@ -289,11 +296,18 @@ type CreateCardRequest struct {
 	CustomFields map[string]string `json:"custom_fields,omitempty"`
 }
 
+// MissingWantedOptionInfo describes a valid option for a missing wanted field.
+type MissingWantedOptionInfo struct {
+	Value       string `json:"value"`
+	Description string `json:"description,omitempty"`
+}
+
 // MissingWantedFieldInfo describes a wanted field that is missing from a card.
 type MissingWantedFieldInfo struct {
-	Name    string   `json:"name"`
-	Type    string   `json:"type"`
-	Options []string `json:"options,omitempty"`
+	Name        string                    `json:"name"`
+	Type        string                    `json:"type"`
+	Description string                    `json:"description,omitempty"`
+	Options     []MissingWantedOptionInfo `json:"options,omitempty"`
 }
 
 // CreateCardResponse is the JSON response for creating a card.

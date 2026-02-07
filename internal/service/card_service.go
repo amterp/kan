@@ -479,11 +479,18 @@ func dedup(vals []string) []string {
 	return result
 }
 
+// MissingWantedFieldOption describes a valid option for a missing wanted field.
+type MissingWantedFieldOption struct {
+	Value       string
+	Description string
+}
+
 // MissingWantedField describes a wanted field that is missing from a card.
 type MissingWantedField struct {
-	FieldName string   // Name of the custom field
-	FieldType string   // Type of the field (enum, enum-set, free-set, string, date)
-	Options   []string // For enum/enum-set, the valid values
+	FieldName   string                     // Name of the custom field
+	FieldType   string                     // Type of the field (enum, enum-set, free-set, string, date)
+	Description string                     // Field-level description
+	Options     []MissingWantedFieldOption // For enum/enum-set, the valid options
 }
 
 // CheckWantedFieldsForProposal checks wanted fields for a proposed set of custom fields.
@@ -538,13 +545,17 @@ func CheckWantedFields(card *model.Card, boardCfg *model.BoardConfig) []MissingW
 		value, exists := card.CustomFields[name]
 		if !exists || isEmpty(value, schema.Type) {
 			mf := MissingWantedField{
-				FieldName: name,
-				FieldType: schema.Type,
+				FieldName:   name,
+				FieldType:   schema.Type,
+				Description: schema.Description,
 			}
 			if schema.Type == model.FieldTypeEnum || schema.Type == model.FieldTypeEnumSet {
-				mf.Options = make([]string, len(schema.Options))
+				mf.Options = make([]MissingWantedFieldOption, len(schema.Options))
 				for i, opt := range schema.Options {
-					mf.Options[i] = opt.Value
+					mf.Options[i] = MissingWantedFieldOption{
+						Value:       opt.Value,
+						Description: opt.Description,
+					}
 				}
 			}
 			missing = append(missing, mf)

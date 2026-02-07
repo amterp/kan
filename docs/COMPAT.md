@@ -125,9 +125,10 @@ letter = "M"
 - **board/2**: Converts labels from first-class `[[labels]]` to custom fields with type `"tags"`. Adds `card_display.badges` for label visibility.
 - **board/3**: Adds optional `[[pattern_hooks]]` for running commands when cards are created with matching titles.
 - **board/4**: Adds optional `wanted` field to custom field schemas. Wanted fields emit warnings when missing from cards.
-- **board/5 (current)**: Renames custom field type `tags` to `enum-set` for clearer terminology. Adds new `free-set` type for freeform multi-value fields.
+- **board/5**: Renames custom field type `tags` to `enum-set` for clearer terminology. Adds new `free-set` type for freeform multi-value fields.
+- **board/6 (current)**: Adds optional `description` field to custom field schemas and individual options. Descriptions are surfaced in CLI warnings, API responses, and the web UI to help users and agents understand field semantics.
 
-Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5.
+Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6.
 
 **Rationale**: Strict versioning—Kan refuses to read files without version stamps (or with incompatible versions). This catches schema drift early and forces explicit migration.
 
@@ -178,6 +179,36 @@ The full type system is now:
 Both set types enforce deduplication and a maximum of 10 values per field.
 
 **Migration**: board/4 -> board/5 rewrites `type = "tags"` to `type = "enum-set"` in custom field definitions. No card data changes needed since the stored values (JSON arrays) are unchanged.
+
+### Field and Option Descriptions (board/6)
+
+**Added in**: board/6
+
+Custom fields and their options can now carry optional `description` strings. These help humans and agents understand what each field and option means, improving decision-making when creating or editing cards.
+
+```toml
+[custom_fields.type]
+type = "enum"
+wanted = true
+description = "The category of work this card represents"
+
+[[custom_fields.type.options]]
+  value = "bug"
+  color = "#dc2626"
+  description = "A defect in existing functionality"
+
+[[custom_fields.type.options]]
+  value = "feature"
+  color = "#16a34a"
+  description = "New functionality to be added"
+```
+
+Descriptions are surfaced in:
+- CLI warnings when wanted fields are missing (expanded multi-line format when any option has a description)
+- API responses for missing wanted fields
+- Web UI field editors (helper text and option tooltips/hints)
+
+**Migration**: board/5 -> board/6 only updates the schema version. Both `description` fields are optional with zero-value defaults (empty string = no description).
 
 ### Pattern Hooks (board/3)
 
