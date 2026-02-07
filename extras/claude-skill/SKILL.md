@@ -7,6 +7,8 @@ description: Manage kanban boards using the Kan CLI. Use when working with tasks
 
 [Kan](https://github.com/amterp/kan) is a file-based kanban board CLI. All data lives in `.kan/` as plain files.
 
+Full documentation is available at [amterp.github.io/kan/docs](https://amterp.github.io/kan/docs).
+
 ## Getting Help
 
 Every command supports `--help` for detailed usage:

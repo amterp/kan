@@ -3,6 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Card as CardType, BoardConfig, CustomFieldOption } from '../api/types';
 import { parseTextWithLinks } from '../utils/linkParser';
+import { stringToColor } from '../utils/badgeColors';
 
 interface CardProps {
   card: CardType;
@@ -102,7 +103,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
 
   const cardStyle = {
     ...style,
-    ...(typeOption?.color ? { borderLeftWidth: '3px', borderLeftStyle: 'solid' as const, borderLeftColor: typeOption.color } : {}),
+    ...(typeOption ? { borderLeftWidth: '3px', borderLeftStyle: 'solid' as const, borderLeftColor: typeOption.color || stringToColor(typeValue!) } : {}),
   };
 
   return (
@@ -161,7 +162,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
           allBadges.push({
             key: `type-${typeValue}`,
             value: typeValue,
-            color: typeOption.color || '#6b7280',
+            color: typeOption.color || stringToColor(typeValue),
           });
         }
 
@@ -173,7 +174,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
             allBadges.push({
               key: `${fieldName}-${value}`,
               value,
-              color: option?.color || '#6b7280',
+              color: option?.color || stringToColor(value),
             });
           }
         }

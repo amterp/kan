@@ -64,9 +64,19 @@ When a card is missing a wanted field:
 
 This is useful for enforcing workflow standards without making fields strictly required.
 
+### Badge Colors
+
+When badges or chips are shown on cards, each value gets a color:
+
+- **Enum / enum-set options with a `color`** - the specified color is used as-is.
+- **Enum / enum-set options without a `color`** - a color is automatically assigned based on the value's text.
+- **Free-set values** - always auto-colored (no predefined options to attach colors to).
+
+Auto-assigned colors are deterministic and case-insensitive - "Bug" and "bug" will always get the same color. If you want to override an auto-assigned color for an enum or enum-set field, add an explicit `color` to the option in your board config.
+
 ### Enum and Enum-set
 
-For `enum` and `enum-set` fields, you must define the allowed options. Each option can have a color for visual display:
+For `enum` and `enum-set` fields, you must define the allowed options. Each option can optionally have a color for visual display:
 
 ```toml
 [custom_fields.priority]

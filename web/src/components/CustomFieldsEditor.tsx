@@ -1,6 +1,7 @@
 import type { BoardConfig, CustomFieldSchema } from '../api/types';
 import { useState } from 'react';
 import { FIELD_TYPE_ENUM, FIELD_TYPE_ENUM_SET, FIELD_TYPE_FREE_SET, FIELD_TYPE_STRING, FIELD_TYPE_DATE } from '../api/types';
+import { stringToColor } from '../utils/badgeColors';
 
 interface CustomFieldsEditorProps {
   board: BoardConfig;
@@ -70,14 +71,15 @@ function FreeSetField({
           {values.map((val) => (
             <span
               key={val}
-              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200"
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full text-white"
+              style={{ backgroundColor: stringToColor(val) }}
             >
               {val}
               <button
                 type="button"
                 onClick={() => removeValue(val)}
                 aria-label={`Remove ${val}`}
-                className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                className="text-white/80 hover:text-white"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -188,12 +190,12 @@ export default function CustomFieldsEditor({
                     className={`px-2 py-0.5 text-xs rounded-full transition-all ${
                       isSelected
                         ? 'text-white ring-2 ring-offset-1'
-                        : 'text-white opacity-50 hover:opacity-75'
+                        : 'text-white opacity-60 hover:opacity-80'
                     }`}
                     style={{
-                      backgroundColor: opt.color || '#6b7280',
+                      backgroundColor: opt.color || stringToColor(opt.value),
                       boxShadow: isSelected
-                        ? `0 0 0 2px white, 0 0 0 4px ${opt.color || '#6b7280'}`
+                        ? `0 0 0 2px white, 0 0 0 4px ${opt.color || stringToColor(opt.value)}`
                         : undefined,
                     }}
                   >
