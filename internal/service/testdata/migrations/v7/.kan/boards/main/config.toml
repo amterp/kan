@@ -1,0 +1,49 @@
+kan_schema = "board/7"
+id = "board-test-123"
+name = "main"
+default_column = "Backlog"
+
+[[columns]]
+name = "Backlog"
+color = "#6b7280"
+description = "Cards that are planned but not yet started"
+card_ids = ["card-abc"]
+
+[[columns]]
+name = "Done"
+color = "#10b981"
+card_ids = []
+
+[custom_fields.type]
+type = "enum"
+wanted = true
+description = "The category of work this card represents"
+
+[[custom_fields.type.options]]
+  value = "bug"
+  color = "#ef4444"
+  description = "A defect in existing functionality"
+
+[[custom_fields.type.options]]
+  value = "feature"
+  color = "#22c55e"
+  description = "New functionality to be added"
+
+[custom_fields.labels]
+type = "enum-set"
+options = [
+  { value = "urgent", color = "#ef4444" },
+]
+
+[custom_fields.topics]
+type = "free-set"
+
+[card_display]
+type_indicator = "type"
+badges = ["labels", "topics"]
+
+[[pattern_hooks]]
+name = "jira-sync"
+pattern_title = "^[A-Z]+-\\d+$"
+command = "~/.kan/hooks/jira-sync.sh"
+timeout = 60

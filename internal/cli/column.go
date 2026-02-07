@@ -32,6 +32,13 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Insert position (0-indexed). Appends to end if not specified.").
 		Register(addCmd)
 
+	ctx.ColumnAddDescription, _ = ra.NewString("description").
+		SetShort("d").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Description of the column's purpose").
+		Register(addCmd)
+
 	ctx.ColumnAddBoard, _ = ra.NewString("board").
 		SetShort("b").
 		SetOptional(true).
@@ -101,6 +108,13 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("New hex color (e.g., '#9333ea')").
 		Register(editCmd)
 
+	ctx.ColumnEditDescription, _ = ra.NewString("description").
+		SetShort("d").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("New description for the column").
+		Register(editCmd)
+
 	ctx.ColumnEditBoard, _ = ra.NewString("board").
 		SetShort("b").
 		SetOptional(true).
@@ -157,7 +171,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.ColumnUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runColumnAdd(name, color string, position int, board string, nonInteractive bool) {
+func runColumnAdd(name, color, description string, position int, board string, nonInteractive bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -178,7 +192,7 @@ func runColumnAdd(name, color string, position int, board string, nonInteractive
 		pos = position
 	}
 
-	if err := app.BoardService.AddColumn(boardName, name, color, pos); err != nil {
+	if err := app.BoardService.AddColumn(boardName, name, color, description, pos); err != nil {
 		Fatal(err)
 	}
 
@@ -267,7 +281,7 @@ func runColumnRename(oldName, newName, board string, nonInteractive bool) {
 	PrintSuccess("Renamed column %q to %q in board %q", oldName, newName, boardName)
 }
 
-func runColumnEdit(name, color, board string, nonInteractive bool) {
+func runColumnEdit(name, color, description, board string, nonInteractive bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -282,12 +296,20 @@ func runColumnEdit(name, color, board string, nonInteractive bool) {
 		Fatal(err)
 	}
 
-	if color == "" {
-		Fatal(fmt.Errorf("no changes specified; use --color to change the column color"))
+	if color == "" && description == "" {
+		Fatal(fmt.Errorf("no changes specified; use --color or --description"))
 	}
 
-	if err := app.BoardService.UpdateColumnColor(boardName, name, color); err != nil {
-		Fatal(err)
+	if color != "" {
+		if err := app.BoardService.UpdateColumnColor(boardName, name, color); err != nil {
+			Fatal(err)
+		}
+	}
+
+	if description != "" {
+		if err := app.BoardService.UpdateColumnDescription(boardName, name, description); err != nil {
+			Fatal(err)
+		}
 	}
 
 	PrintSuccess("Updated column %q in board %q", name, boardName)
@@ -317,9 +339,10 @@ func runColumnList(board string, nonInteractive, jsonOutput bool) {
 		columns := make([]ColumnInfo, len(boardCfg.Columns))
 		for i, col := range boardCfg.Columns {
 			columns[i] = ColumnInfo{
-				Name:      col.Name,
-				Color:     col.Color,
-				CardCount: len(col.CardIDs),
+				Name:        col.Name,
+				Color:       col.Color,
+				Description: col.Description,
+				CardCount:   len(col.CardIDs),
 			}
 		}
 		if err := printJson(NewColumnsOutput(columns)); err != nil {
@@ -341,6 +364,9 @@ func runColumnList(board string, nonInteractive, jsonOutput bool) {
 		swatch := ColorSwatch(col.Color)
 		count := RenderMuted(fmt.Sprintf("(%d %s)", len(col.CardIDs), cardWord))
 		fmt.Printf("%-15s %s %s\n", col.Name, swatch, count)
+		if col.Description != "" {
+			fmt.Printf("  %s\n", RenderMuted(col.Description))
+		}
 	}
 }
 

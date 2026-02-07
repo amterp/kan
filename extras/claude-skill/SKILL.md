@@ -98,17 +98,21 @@ kan edit fix -f priority=low             # Update custom field
 ```bash
 kan board create features    # Create a new board
 kan board list               # List all boards
+kan board describe           # Show board documentation (columns, fields, settings)
+kan board describe --json    # Machine-readable board docs
 ```
 
 ## Column Management
 
 ```bash
-kan column add review                    # Add column to end
-kan column add review --color "#9333ea"  # With custom color
-kan column add review --position 2       # Insert at position
+kan column add review                                    # Add column to end
+kan column add review --color "#9333ea"                  # With custom color
+kan column add review --position 2                       # Insert at position
+kan column add review --description "Cards under review" # With description
 kan column delete review                 # Delete column
 kan column rename review code-review     # Rename column
 kan column edit review --color "#ec4899" # Change column color
+kan column edit review --description "Updated purpose"   # Change description
 kan column list                          # List columns
 kan column move review --position 1      # Reorder column
 kan column move review --after backlog   # Insert after another

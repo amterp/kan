@@ -340,7 +340,10 @@ func (s *MigrateService) migrateGlobalConfig(plan *GlobalMigration) error {
 }
 
 func (s *MigrateService) migrateBoardConfig(plan *BoardMigration) error {
-	// Determine which migration path to use based on source version
+	// Determine which migration path to use based on source version.
+	// Each step MUST update fromVersion after success to allow chaining
+	// to the next migration. Using "return nil" instead will silently
+	// break migration for any version before the current one.
 	fromVersion := 0
 	if plan.FromSchema != "" {
 		v, err := version.ParseBoardVersion(plan.FromSchema)
@@ -386,7 +389,15 @@ func (s *MigrateService) migrateBoardConfig(plan *BoardMigration) error {
 		if err := s.updateBoardSchema(plan.ConfigPath, version.FormatBoardSchema(6)); err != nil {
 			return err
 		}
-		return nil
+		fromVersion = 6
+	}
+
+	// v6 → v7: schema-only (adds optional description field to columns)
+	if fromVersion == 6 && version.CurrentBoardVersion >= 7 {
+		if err := s.updateBoardSchema(plan.ConfigPath, version.FormatBoardSchema(7)); err != nil {
+			return err
+		}
+		fromVersion = 7
 	}
 
 	// Fallback for unknown versions: just update the schema

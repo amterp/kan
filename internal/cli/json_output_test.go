@@ -161,6 +161,71 @@ func TestCardToJsonCopiesAllFields(t *testing.T) {
 	}
 }
 
+// TestBoardDescribeFieldSync ensures BoardDescribeInfo stays in sync with model.BoardConfig.
+// If this test fails, you probably added a field to model.BoardConfig but forgot
+// to add it to BoardDescribeInfo in json_output.go.
+func TestBoardDescribeFieldSync(t *testing.T) {
+	boardType := reflect.TypeOf(model.BoardConfig{})
+	describeType := reflect.TypeOf(BoardDescribeInfo{})
+
+	// BoardConfig fields that are intentionally excluded or transformed in BoardDescribeInfo.
+	// Every BoardConfig field must appear here or have a matching field in BoardDescribeInfo.
+	excluded := map[string]string{
+		"ID":            "Internal board ID, not useful in describe output",
+		"KanSchema":     "Exposed as 'Schema' (renamed for cleaner output)",
+		"Columns":       "Transformed to BoardDescribeColumnInfo (adds CardCount, IsDefault; omits CardIDs)",
+		"DefaultColumn": "Surfaced as IsDefault flag on individual columns instead",
+	}
+
+	// Fields that exist in BoardDescribeInfo but not in BoardConfig
+	describeOnly := map[string]bool{
+		"Name":          true, // Same name but verified separately since it's on BoardConfig too
+		"Schema":        true, // Renamed from KanSchema
+		"DefaultColumn": true, // Also kept at top level in describe output
+		"Columns":       true, // Different type (BoardDescribeColumnInfo vs model.Column)
+	}
+
+	// Check that all BoardConfig fields are either in BoardDescribeInfo or explicitly excluded
+	for i := 0; i < boardType.NumField(); i++ {
+		field := boardType.Field(i)
+		fieldName := field.Name
+
+		if _, isExcluded := excluded[fieldName]; isExcluded {
+			continue
+		}
+
+		descField, found := describeType.FieldByName(fieldName)
+		if !found {
+			t.Errorf("model.BoardConfig has field %q but BoardDescribeInfo does not. "+
+				"Either add it to BoardDescribeInfo and printBoardDescribeJson(), "+
+				"or add it to the excluded map with a reason.",
+				fieldName)
+			continue
+		}
+
+		if !typesCompatible(field.Type, descField.Type) {
+			t.Errorf("Field %q has type %v in model.BoardConfig but %v in BoardDescribeInfo",
+				fieldName, field.Type, descField.Type)
+		}
+	}
+
+	// Check for unexpected extra fields in BoardDescribeInfo
+	for i := 0; i < describeType.NumField(); i++ {
+		field := describeType.Field(i)
+		fieldName := field.Name
+
+		if describeOnly[fieldName] {
+			continue
+		}
+
+		if _, found := boardType.FieldByName(fieldName); !found {
+			t.Errorf("BoardDescribeInfo has field %q that doesn't exist in model.BoardConfig. "+
+				"If this is intentional, add it to describeOnly map.",
+				fieldName)
+		}
+	}
+}
+
 // TestEmptySlicesNotNull ensures empty slices serialize as [] not null.
 func TestEmptySlicesNotNull(t *testing.T) {
 	tests := []struct {

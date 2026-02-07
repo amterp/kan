@@ -540,9 +540,10 @@ func (h *Handler) MoveCard(w http.ResponseWriter, r *http.Request) {
 
 // CreateColumnRequest is the JSON body for creating a column.
 type CreateColumnRequest struct {
-	Name     string `json:"name"`
-	Color    string `json:"color,omitempty"`
-	Position *int   `json:"position,omitempty"` // Optional: insert position (-1 or omit for end)
+	Name        string `json:"name"`
+	Color       string `json:"color,omitempty"`
+	Description string `json:"description,omitempty"`
+	Position    *int   `json:"position,omitempty"` // Optional: insert position (-1 or omit for end)
 }
 
 // CreateColumn creates a new column on a board.
@@ -566,7 +567,7 @@ func (h *Handler) CreateColumn(w http.ResponseWriter, r *http.Request) {
 		position = *req.Position
 	}
 
-	if err := h.ctx().BoardService.AddColumn(boardName, req.Name, req.Color, position); err != nil {
+	if err := h.ctx().BoardService.AddColumn(boardName, req.Name, req.Color, req.Description, position); err != nil {
 		Error(w, err)
 		return
 	}
@@ -603,8 +604,9 @@ func (h *Handler) DeleteColumn(w http.ResponseWriter, r *http.Request) {
 
 // UpdateColumnRequest is the JSON body for updating a column.
 type UpdateColumnRequest struct {
-	Name  *string `json:"name,omitempty"`  // New name (rename)
-	Color *string `json:"color,omitempty"` // New color
+	Name        *string `json:"name,omitempty"`        // New name (rename)
+	Color       *string `json:"color,omitempty"`       // New color
+	Description *string `json:"description,omitempty"` // New description
 }
 
 // UpdateColumn updates a column's properties (rename, color).
@@ -630,6 +632,14 @@ func (h *Handler) UpdateColumn(w http.ResponseWriter, r *http.Request) {
 	// Handle color change
 	if req.Color != nil {
 		if err := h.ctx().BoardService.UpdateColumnColor(boardName, columnName, *req.Color); err != nil {
+			Error(w, err)
+			return
+		}
+	}
+
+	// Handle description change
+	if req.Description != nil {
+		if err := h.ctx().BoardService.UpdateColumnDescription(boardName, columnName, *req.Description); err != nil {
 			Error(w, err)
 			return
 		}

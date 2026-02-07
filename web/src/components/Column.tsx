@@ -348,6 +348,17 @@ export default function Column({
             >
               {column.name}
             </h2>
+            {column.description && (
+              <span
+                className="text-gray-400 dark:text-gray-500 flex-shrink-0 cursor-help"
+                title={column.description}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </span>
+            )}
             {/* Spacer to push card count and menu to the right - this area remains draggable */}
             <div className="flex-1" />
           </>

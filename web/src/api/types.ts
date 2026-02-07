@@ -39,6 +39,7 @@ export interface Comment {
 export interface Column {
   name: string;
   color: string;
+  description?: string;
   card_ids?: string[];
 }
 
@@ -127,12 +128,14 @@ export interface CreateCardResponse {
 export interface CreateColumnInput {
   name: string;
   color?: string;
+  description?: string;
   position?: number;
 }
 
 export interface UpdateColumnInput {
   name?: string;
   color?: string;
+  description?: string;
 }
 
 export interface FaviconConfig {

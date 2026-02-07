@@ -155,9 +155,10 @@ func NewColumnsOutput(columns []ColumnInfo) ColumnsOutput {
 
 // ColumnInfo represents column data for JSON output.
 type ColumnInfo struct {
-	Name      string `json:"name"`
-	Color     string `json:"color"`
-	CardCount int    `json:"card_count"`
+	Name        string `json:"name"`
+	Color       string `json:"color"`
+	Description string `json:"description,omitempty"`
+	CardCount   int    `json:"card_count"`
 }
 
 // BoardsOutput wraps a list of board names for JSON output.
@@ -177,6 +178,33 @@ func NewBoardsOutput(boards []string) BoardsOutput {
 // CommentOutput wraps a single comment for JSON output.
 type CommentOutput struct {
 	Comment *model.Comment `json:"comment"`
+}
+
+// BoardDescribeOutput wraps board describe data for JSON output.
+type BoardDescribeOutput struct {
+	Board BoardDescribeInfo `json:"board"`
+}
+
+// BoardDescribeInfo contains full board documentation for JSON output.
+// Kept in sync with model.BoardConfig by TestBoardDescribeFieldSync.
+type BoardDescribeInfo struct {
+	Name          string                             `json:"name"`
+	Schema        string                             `json:"schema"`
+	DefaultColumn string                             `json:"default_column"`
+	Columns       []BoardDescribeColumnInfo          `json:"columns"`
+	CustomFields  map[string]model.CustomFieldSchema `json:"custom_fields,omitempty"`
+	CardDisplay   model.CardDisplayConfig            `json:"card_display,omitempty"`
+	LinkRules     []model.LinkRule                   `json:"link_rules,omitempty"`
+	PatternHooks  []model.PatternHook                `json:"pattern_hooks,omitempty"`
+}
+
+// BoardDescribeColumnInfo contains column data for board describe JSON output.
+type BoardDescribeColumnInfo struct {
+	Name        string `json:"name"`
+	Color       string `json:"color"`
+	Description string `json:"description,omitempty"`
+	CardCount   int    `json:"card_count"`
+	IsDefault   bool   `json:"is_default"`
 }
 
 // printJson marshals the value as indented JSON and prints it to stdout.

@@ -51,6 +51,21 @@ kan board create "features"
 kan board list
 ```
 
+**Describe a board:**
+
+Show full board documentation including columns, custom fields, card display settings, link rules, and pattern hooks.
+
+```bash
+kan board describe
+kan board describe features
+kan board describe --json
+```
+
+| Flag       | Description            |
+|------------|------------------------|
+| `-b, --board` | Target board       |
+| `--json`   | Machine-readable output |
+
 ### column
 
 Manage columns within a board.
@@ -60,13 +75,15 @@ Manage columns within a board.
 ```bash
 kan column add review
 kan column add review --color "#9333ea" --position 2
+kan column add review --description "Cards under code review"
 ```
 
-| Flag             | Description                               |
-|------------------|-------------------------------------------|
-| `-b, --board`    | Target board                              |
-| `-C, --color`    | Hex color (default: auto from palette)    |
-| `-p, --position` | Insert position (0-indexed, default: end) |
+| Flag                | Description                               |
+|---------------------|-------------------------------------------|
+| `-b, --board`       | Target board                              |
+| `-C, --color`       | Hex color (default: auto from palette)    |
+| `-d, --description` | Description of the column's purpose       |
+| `-p, --position`    | Insert position (0-indexed, default: end) |
 
 **Delete a column:**
 
@@ -94,12 +111,14 @@ kan column rename review code-review
 
 ```bash
 kan column edit review --color "#ec4899"
+kan column edit review --description "Updated purpose"
 ```
 
-| Flag          | Description   |
-|---------------|---------------|
-| `-b, --board` | Target board  |
-| `-C, --color` | New hex color |
+| Flag                | Description                    |
+|---------------------|--------------------------------|
+| `-b, --board`       | Target board                   |
+| `-C, --color`       | New hex color                  |
+| `-d, --description` | New description for the column |
 
 **List columns:**
 

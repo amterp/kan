@@ -126,9 +126,10 @@ letter = "M"
 - **board/3**: Adds optional `[[pattern_hooks]]` for running commands when cards are created with matching titles.
 - **board/4**: Adds optional `wanted` field to custom field schemas. Wanted fields emit warnings when missing from cards.
 - **board/5**: Renames custom field type `tags` to `enum-set` for clearer terminology. Adds new `free-set` type for freeform multi-value fields.
-- **board/6 (current)**: Adds optional `description` field to custom field schemas and individual options. Descriptions are surfaced in CLI warnings, API responses, and the web UI to help users and agents understand field semantics.
+- **board/6**: Adds optional `description` field to custom field schemas and individual options. Descriptions are surfaced in CLI warnings, API responses, and the web UI to help users and agents understand field semantics.
+- **board/7 (current)**: Adds optional `description` field to columns. Column descriptions document what each workflow stage means, surfaced via `kan column list`, `kan board describe`, column info tooltips in the web UI, and the API.
 
-Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6.
+Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7.
 
 **Rationale**: Strict versioning—Kan refuses to read files without version stamps (or with incompatible versions). This catches schema drift early and forces explicit migration.
 
@@ -209,6 +210,28 @@ Descriptions are surfaced in:
 - Web UI field editors (helper text and option tooltips/hints)
 
 **Migration**: board/5 -> board/6 only updates the schema version. Both `description` fields are optional with zero-value defaults (empty string = no description).
+
+### Column Descriptions (board/7)
+
+**Added in**: board/7
+
+Columns can now carry optional `description` strings to document the purpose of each workflow stage. This helps new team members and AI agents understand board semantics.
+
+```toml
+[[columns]]
+name = "backlog"
+color = "#6b7280"
+description = "Cards that are planned but not yet started"
+card_ids = ["card-123"]
+```
+
+Column descriptions are surfaced in:
+- `kan column list` (indented under column name)
+- `kan board describe` (full board documentation command)
+- Web UI (info icon tooltip on column headers)
+- API responses (included in board config and column endpoints)
+
+**Migration**: board/6 -> board/7 only updates the schema version. The `description` field is optional with a zero-value default (empty string = no description).
 
 ### Pattern Hooks (board/3)
 

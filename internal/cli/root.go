@@ -25,6 +25,11 @@ type CommandContext struct {
 	BoardCreateName *string
 	BoardListUsed   *bool
 
+	// board describe
+	BoardDescribeUsed  *bool
+	BoardDescribeName  *string
+	BoardDescribeBoard *string
+
 	// add command
 	AddUsed        *bool
 	AddTitle       *string
@@ -71,11 +76,12 @@ type CommandContext struct {
 	ColumnUsed *bool
 
 	// column add
-	ColumnAddUsed     *bool
-	ColumnAddName     *string
-	ColumnAddColor    *string
-	ColumnAddPosition *int
-	ColumnAddBoard    *string
+	ColumnAddUsed        *bool
+	ColumnAddName        *string
+	ColumnAddColor       *string
+	ColumnAddDescription *string
+	ColumnAddPosition    *int
+	ColumnAddBoard       *string
 
 	// column delete
 	ColumnDeleteUsed  *bool
@@ -90,10 +96,11 @@ type CommandContext struct {
 	ColumnRenameBoard *string
 
 	// column edit
-	ColumnEditUsed  *bool
-	ColumnEditName  *string
-	ColumnEditColor *string
-	ColumnEditBoard *string
+	ColumnEditUsed        *bool
+	ColumnEditName        *string
+	ColumnEditColor       *string
+	ColumnEditDescription *string
+	ColumnEditBoard       *string
 
 	// column list
 	ColumnListUsed  *bool
@@ -215,6 +222,9 @@ func executeCommand(ctx *CommandContext) {
 	case *ctx.BoardCreateUsed:
 		runBoardCreate(*ctx.BoardCreateName)
 
+	case *ctx.BoardDescribeUsed:
+		runBoardDescribe(*ctx.BoardDescribeName, *ctx.BoardDescribeBoard, *ctx.NonInteractive, *ctx.Json)
+
 	case *ctx.BoardListUsed:
 		runBoardList(*ctx.Json)
 
@@ -243,7 +253,7 @@ func executeCommand(ctx *CommandContext) {
 		}
 
 	case *ctx.ColumnAddUsed:
-		runColumnAdd(*ctx.ColumnAddName, *ctx.ColumnAddColor, *ctx.ColumnAddPosition, *ctx.ColumnAddBoard, *ctx.NonInteractive)
+		runColumnAdd(*ctx.ColumnAddName, *ctx.ColumnAddColor, *ctx.ColumnAddDescription, *ctx.ColumnAddPosition, *ctx.ColumnAddBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnDeleteUsed:
 		runColumnDelete(*ctx.ColumnDeleteName, *ctx.ColumnDeleteBoard, *ctx.ColumnDeleteForce, *ctx.NonInteractive)
@@ -252,7 +262,7 @@ func executeCommand(ctx *CommandContext) {
 		runColumnRename(*ctx.ColumnRenameOld, *ctx.ColumnRenameNew, *ctx.ColumnRenameBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnEditUsed:
-		runColumnEdit(*ctx.ColumnEditName, *ctx.ColumnEditColor, *ctx.ColumnEditBoard, *ctx.NonInteractive)
+		runColumnEdit(*ctx.ColumnEditName, *ctx.ColumnEditColor, *ctx.ColumnEditDescription, *ctx.ColumnEditBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnListUsed:
 		runColumnList(*ctx.ColumnListBoard, *ctx.NonInteractive, *ctx.Json)

@@ -59,7 +59,7 @@ func (s *BoardService) Exists(name string) bool {
 // AddColumn adds a new column to a board.
 // If color is empty, auto-assigns from the color palette.
 // If position is -1, appends to end.
-func (s *BoardService) AddColumn(boardName, columnName, color string, position int) error {
+func (s *BoardService) AddColumn(boardName, columnName, color, description string, position int) error {
 	// Validate column name format
 	if !columnNameRegex.MatchString(columnName) {
 		return kanerr.InvalidField("column name", "must be lowercase alphanumeric with hyphens (e.g., 'in-progress')")
@@ -77,6 +77,10 @@ func (s *BoardService) AddColumn(boardName, columnName, color string, position i
 
 	if !cfg.AddColumn(columnName, color, position) {
 		return kanerr.ColumnAlreadyExists(columnName, boardName)
+	}
+
+	if description != "" {
+		cfg.SetColumnDescription(columnName, description)
 	}
 
 	return s.boardStore.Update(cfg)
@@ -157,6 +161,20 @@ func (s *BoardService) UpdateColumnColor(boardName, columnName, color string) er
 	}
 
 	if !cfg.SetColumnColor(columnName, color) {
+		return kanerr.ColumnNotFound(columnName, boardName)
+	}
+
+	return s.boardStore.Update(cfg)
+}
+
+// UpdateColumnDescription updates a column's description.
+func (s *BoardService) UpdateColumnDescription(boardName, columnName, description string) error {
+	cfg, err := s.boardStore.Get(boardName)
+	if err != nil {
+		return err
+	}
+
+	if !cfg.SetColumnDescription(columnName, description) {
 		return kanerr.ColumnNotFound(columnName, boardName)
 	}
 

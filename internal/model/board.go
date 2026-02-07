@@ -48,9 +48,10 @@ type BoardConfig struct {
 
 // Column represents a kanban column.
 type Column struct {
-	Name    string   `toml:"name" json:"name"`
-	Color   string   `toml:"color" json:"color"`
-	CardIDs []string `toml:"card_ids,omitempty" json:"card_ids,omitempty"`
+	Name        string   `toml:"name" json:"name"`
+	Color       string   `toml:"color" json:"color"`
+	Description string   `toml:"description,omitempty" json:"description,omitempty"`
+	CardIDs     []string `toml:"card_ids,omitempty" json:"card_ids,omitempty"`
 }
 
 // CustomFieldOption represents a single option for enum/enum-set fields.
@@ -347,6 +348,17 @@ func (b *BoardConfig) SetColumnColor(name, color string) bool {
 		return false
 	}
 	col.Color = color
+	return true
+}
+
+// SetColumnDescription updates a column's description.
+// Returns false if the column doesn't exist.
+func (b *BoardConfig) SetColumnDescription(name, description string) bool {
+	col := b.GetColumn(name)
+	if col == nil {
+		return false
+	}
+	col.Description = description
 	return true
 }
 

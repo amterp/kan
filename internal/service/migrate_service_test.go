@@ -1042,10 +1042,10 @@ func TestMigrateService_V5ToV6_Idempotent(t *testing.T) {
 }
 
 // ============================================================================
-// V6 Tests (Current schema - no migration needed)
+// V6 -> V7 Migration Tests (column descriptions added)
 // ============================================================================
 
-func TestMigrateService_Plan_V6_NoChanges(t *testing.T) {
+func TestMigrateService_Plan_V6_NeedsMigration(t *testing.T) {
 	service, _, cleanup := setupMigrationTest(t, "v6")
 	defer cleanup()
 
@@ -1053,16 +1053,123 @@ func TestMigrateService_Plan_V6_NoChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Plan failed: %v", err)
 	}
-	if plan.HasChanges() {
-		t.Error("Current schema (v6) data should not need migration")
+
+	// V6 should need migration to V7
+	if !plan.HasChanges() {
+		t.Error("V6 data should need migration to V7")
+	}
+
+	if len(plan.Boards) != 1 {
+		t.Fatalf("Expected 1 board, got %d", len(plan.Boards))
+	}
+
+	board := plan.Boards[0]
+	if !board.NeedsMigration {
+		t.Error("Board config should need migration")
+	}
+	if board.FromSchema != "board/6" {
+		t.Errorf("Expected FromSchema 'board/6', got %q", board.FromSchema)
+	}
+	if board.ToSchema != version.CurrentBoardSchema() {
+		t.Errorf("Expected ToSchema %q, got %q", version.CurrentBoardSchema(), board.ToSchema)
 	}
 }
 
-func TestMigrateService_V6_ReadableByStores(t *testing.T) {
-	_, tempDir, cleanup := setupMigrationTest(t, "v6")
+func TestMigrateService_V6ToV7_UpdatesSchema(t *testing.T) {
+	service, tempDir, cleanup := setupMigrationTest(t, "v6")
 	defer cleanup()
 
-	// V6 fixtures should be directly readable by stores without migration
+	// Migrate
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if err := service.Execute(plan, false); err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	// Verify stores can read the migrated data
+	paths := config.NewPaths(tempDir, "")
+	boardStore := store.NewBoardStore(paths)
+
+	boardCfg, err := boardStore.Get("main")
+	if err != nil {
+		t.Fatalf("BoardStore.Get failed after migration: %v", err)
+	}
+
+	// Verify schema was updated
+	if boardCfg.KanSchema != version.CurrentBoardSchema() {
+		t.Errorf("Expected KanSchema %q, got %q", version.CurrentBoardSchema(), boardCfg.KanSchema)
+	}
+
+	// Existing fields should be preserved
+	if boardCfg.Name != "main" {
+		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
+	}
+	if len(boardCfg.CustomFields) == 0 {
+		t.Error("CustomFields should be preserved")
+	}
+	if len(boardCfg.PatternHooks) != 1 {
+		t.Error("PatternHooks should be preserved")
+	}
+
+	// Field descriptions should be preserved
+	typeSchema, ok := boardCfg.CustomFields["type"]
+	if !ok {
+		t.Error("Expected 'type' custom field")
+	} else if typeSchema.Description != "The category of work this card represents" {
+		t.Errorf("Expected type description preserved, got %q", typeSchema.Description)
+	}
+}
+
+func TestMigrateService_V6ToV7_Idempotent(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v6")
+	defer cleanup()
+
+	// First migration
+	plan1, err := service.Plan()
+	if err != nil {
+		t.Fatalf("First Plan failed: %v", err)
+	}
+	if !plan1.HasChanges() {
+		t.Fatal("First plan should have changes")
+	}
+	if err := service.Execute(plan1, false); err != nil {
+		t.Fatalf("First Execute failed: %v", err)
+	}
+
+	// Second migration should be no-op
+	plan2, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Second Plan failed: %v", err)
+	}
+	if plan2.HasChanges() {
+		t.Error("Second plan should have no changes (migration is idempotent)")
+	}
+}
+
+// ============================================================================
+// V7 Tests (Current schema - no migration needed)
+// ============================================================================
+
+func TestMigrateService_Plan_V7_NoChanges(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v7")
+	defer cleanup()
+
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if plan.HasChanges() {
+		t.Error("Current schema (v7) data should not need migration")
+	}
+}
+
+func TestMigrateService_V7_ReadableByStores(t *testing.T) {
+	_, tempDir, cleanup := setupMigrationTest(t, "v7")
+	defer cleanup()
+
+	// V7 fixtures should be directly readable by stores without migration
 	paths := config.NewPaths(tempDir, "")
 	cardStore := store.NewCardStore(paths)
 	boardStore := store.NewBoardStore(paths)
@@ -1070,13 +1177,22 @@ func TestMigrateService_V6_ReadableByStores(t *testing.T) {
 	// Board store should read without error
 	boardCfg, err := boardStore.Get("main")
 	if err != nil {
-		t.Fatalf("BoardStore.Get failed on v6 fixtures: %v", err)
+		t.Fatalf("BoardStore.Get failed on v7 fixtures: %v", err)
 	}
 	if boardCfg.Name != "main" {
 		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
 	}
 	if boardCfg.KanSchema != version.CurrentBoardSchema() {
 		t.Errorf("Board KanSchema = %q, want %q", boardCfg.KanSchema, version.CurrentBoardSchema())
+	}
+
+	// Column description should be present
+	backlog := boardCfg.GetColumn("Backlog")
+	if backlog == nil {
+		t.Fatal("Expected 'Backlog' column")
+	}
+	if backlog.Description != "Cards that are planned but not yet started" {
+		t.Errorf("Expected Backlog description, got %q", backlog.Description)
 	}
 
 	// Pattern hooks should be present
@@ -1100,11 +1216,9 @@ func TestMigrateService_V6_ReadableByStores(t *testing.T) {
 		if !typeSchema.Wanted {
 			t.Error("Expected 'type' field to have wanted=true")
 		}
-		// Description should be present in v6 fixtures
 		if typeSchema.Description != "The category of work this card represents" {
 			t.Errorf("Expected type description, got %q", typeSchema.Description)
 		}
-		// Option descriptions should be present
 		if len(typeSchema.Options) < 2 {
 			t.Fatalf("Expected at least 2 type options, got %d", len(typeSchema.Options))
 		}
@@ -1132,7 +1246,7 @@ func TestMigrateService_V6_ReadableByStores(t *testing.T) {
 	// Card store should read without error
 	card, err := cardStore.Get("main", "card-abc")
 	if err != nil {
-		t.Fatalf("CardStore.Get failed on v6 fixtures: %v", err)
+		t.Fatalf("CardStore.Get failed on v7 fixtures: %v", err)
 	}
 	if card.ID != "card-abc" {
 		t.Errorf("Card ID = %q, want 'card-abc'", card.ID)
