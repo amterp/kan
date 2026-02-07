@@ -240,7 +240,7 @@ func TestFileBoardStore_WithCustomFieldsAndCardDisplay(t *testing.T) {
 				{Value: "feature", Color: "#16a34a"},
 				{Value: "bug", Color: "#dc2626"},
 			}},
-			"labels": {Type: "tags", Options: []model.CustomFieldOption{
+			"labels": {Type: "enum-set", Options: []model.CustomFieldOption{
 				{Value: "blocked", Color: "#dc2626"},
 				{Value: "needs-review", Color: "#f59e0b"},
 			}},
@@ -267,7 +267,7 @@ func TestFileBoardStore_WithCustomFieldsAndCardDisplay(t *testing.T) {
 	if retrieved.CustomFields["type"].Type != "enum" {
 		t.Errorf("CustomField type not preserved: got %q", retrieved.CustomFields["type"].Type)
 	}
-	if retrieved.CustomFields["labels"].Type != "tags" {
+	if retrieved.CustomFields["labels"].Type != "enum-set" {
 		t.Errorf("CustomField labels type not preserved: got %q", retrieved.CustomFields["labels"].Type)
 	}
 	if retrieved.CardDisplay.TypeIndicator != "type" {

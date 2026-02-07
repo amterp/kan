@@ -1,11 +1,114 @@
 import type { BoardConfig, CustomFieldSchema } from '../api/types';
-import { FIELD_TYPE_ENUM, FIELD_TYPE_TAGS, FIELD_TYPE_STRING, FIELD_TYPE_DATE } from '../api/types';
+import { useState } from 'react';
+import { FIELD_TYPE_ENUM, FIELD_TYPE_ENUM_SET, FIELD_TYPE_FREE_SET, FIELD_TYPE_STRING, FIELD_TYPE_DATE } from '../api/types';
 
 interface CustomFieldsEditorProps {
   board: BoardConfig;
   values: Record<string, unknown>;
   onChange: (fieldName: string, value: unknown) => void;
   compact?: boolean; // Tighter spacing for floating panel
+}
+
+const MAX_SET_ITEMS = 10;
+
+/**
+ * Chip-based input for free-set fields. Enter to add, X to remove,
+ * Backspace on empty input to remove the last chip.
+ */
+function FreeSetField({
+  fieldName,
+  values,
+  onChange,
+  wantedIndicator,
+  marginClass,
+  compact,
+}: {
+  fieldName: string;
+  values: string[];
+  onChange: (fieldName: string, value: unknown) => void;
+  wantedIndicator: React.ReactNode;
+  marginClass: string;
+  compact?: boolean;
+}) {
+  const [inputValue, setInputValue] = useState('');
+  const [shake, setShake] = useState(false);
+
+  const rejectInput = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 400);
+    setInputValue('');
+  };
+
+  const addValue = (val: string) => {
+    const trimmed = val.trim();
+    if (!trimmed) {
+      setInputValue('');
+      return;
+    }
+    if (values.includes(trimmed) || values.length >= MAX_SET_ITEMS) {
+      rejectInput();
+      return;
+    }
+    onChange(fieldName, [...values, trimmed]);
+    setInputValue('');
+  };
+
+  const removeValue = (val: string) => {
+    onChange(fieldName, values.filter((v) => v !== val));
+  };
+
+  const atLimit = values.length >= MAX_SET_ITEMS;
+
+  return (
+    <div className={marginClass}>
+      <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 capitalize ${compact ? 'mb-1' : 'mb-2'}`}>
+        {fieldName}{wantedIndicator}
+        <span className="text-xs font-normal text-gray-400 dark:text-gray-500 ml-2">{values.length}/{MAX_SET_ITEMS}</span>
+      </label>
+      {values.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {values.map((val) => (
+            <span
+              key={val}
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200"
+            >
+              {val}
+              <button
+                type="button"
+                onClick={() => removeValue(val)}
+                aria-label={`Remove ${val}`}
+                className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input
+        type="text"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            addValue(inputValue);
+          } else if (e.key === 'Backspace' && inputValue === '' && values.length > 0) {
+            removeValue(values[values.length - 1]);
+          }
+        }}
+        disabled={atLimit}
+        className={`w-full border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+          atLimit
+            ? 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+            : 'border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white'
+        } ${shake ? 'animate-shake border-red-400 dark:border-red-500' : ''}`}
+        placeholder={atLimit ? `Limit reached (${MAX_SET_ITEMS})` : `Add ${fieldName}...`}
+      />
+    </div>
+  );
 }
 
 /**
@@ -24,10 +127,11 @@ export default function CustomFieldsEditor({
 
   const toggleTagValue = (fieldName: string, tagValue: string) => {
     const current = Array.isArray(values[fieldName]) ? (values[fieldName] as string[]) : [];
-    const newValues = current.includes(tagValue)
-      ? current.filter((v) => v !== tagValue)
-      : [...current, tagValue];
-    onChange(fieldName, newValues);
+    if (current.includes(tagValue)) {
+      onChange(fieldName, current.filter((v) => v !== tagValue));
+    } else if (current.length < MAX_SET_ITEMS) {
+      onChange(fieldName, [...current, tagValue]);
+    }
   };
 
   const renderField = (fieldName: string, schema: CustomFieldSchema) => {
@@ -66,8 +170,8 @@ export default function CustomFieldsEditor({
           </div>
         );
 
-      case FIELD_TYPE_TAGS: {
-        const selectedTags = Array.isArray(currentValue) ? (currentValue as string[]) : [];
+      case FIELD_TYPE_ENUM_SET: {
+        const selectedValues = Array.isArray(currentValue) ? (currentValue as string[]) : [];
         return (
           <div className={marginClass} key={fieldName}>
             <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 capitalize ${compact ? 'mb-1' : 'mb-2'}`}>
@@ -75,7 +179,7 @@ export default function CustomFieldsEditor({
             </label>
             <div className="flex flex-wrap gap-2">
               {schema.options?.map((opt) => {
-                const isSelected = selectedTags.includes(opt.value);
+                const isSelected = selectedValues.includes(opt.value);
                 return (
                   <button
                     key={opt.value}
@@ -99,6 +203,21 @@ export default function CustomFieldsEditor({
               })}
             </div>
           </div>
+        );
+      }
+
+      case FIELD_TYPE_FREE_SET: {
+        const selectedValues = Array.isArray(currentValue) ? (currentValue as string[]) : [];
+        return (
+          <FreeSetField
+            key={fieldName}
+            fieldName={fieldName}
+            values={selectedValues}
+            onChange={onChange}
+            wantedIndicator={wantedIndicator}
+            marginClass={marginClass}
+            compact={compact}
+          />
         );
       }
 

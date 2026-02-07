@@ -14,7 +14,7 @@ A board's `config.toml` defines its structure, columns, custom fields, and displ
 ### Minimal Example
 
 ```toml
-kan_schema = "board/4"
+kan_schema = "board/5"
 id = "k7xQ2m"
 name = "main"
 
@@ -34,7 +34,7 @@ color = "#10b981"
 ### Full Example
 
 ```toml
-kan_schema = "board/4"
+kan_schema = "board/5"
 id = "k7xQ2m"
 name = "main"
 default_column = "backlog"
@@ -60,11 +60,14 @@ options = [
 ]
 
 [custom_fields.labels]
-type = "tags"
+type = "enum-set"
 options = [
   { value = "blocked", color = "#dc2626" },
   { value = "urgent", color = "#f59e0b" },
 ]
+
+[custom_fields.topics]
+type = "free-set"
 
 [card_display]
 type_indicator = "type"
@@ -87,7 +90,7 @@ url = "https://github.com/org/repo/issues/{1}"
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `kan_schema` | Yes | Schema version (e.g., `"board/3"`) |
+| `kan_schema` | Yes | Schema version (e.g., `"board/5"`) |
 | `id` | Yes | Unique board identifier (auto-generated) |
 | `name` | Yes | Board name (also used as directory name) |
 | `default_column` | No | Column for new cards via `kan add` (defaults to first column) |
@@ -116,9 +119,9 @@ See [Custom Fields](/docs/custom-fields) for full documentation.
 
 ```toml
 [custom_fields.<field-name>]
-type = "enum"  # or "tags", "string", "date"
+type = "enum"  # or "enum-set", "free-set", "string", "date"
 wanted = true  # optional: warn if field is missing
-options = [    # required for enum/tags
+options = [    # required for enum/enum-set
   { value = "...", color = "#..." },
 ]
 ```
@@ -141,7 +144,7 @@ Controls how custom fields appear on cards in the board view:
 ```toml
 [card_display]
 type_indicator = "type"      # enum field shown as badge
-badges = ["labels"]          # tags fields shown as chips
+badges = ["labels"]          # set fields shown as chips
 metadata = ["assignee"]      # any fields shown as text
 ```
 

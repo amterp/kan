@@ -7,7 +7,8 @@ Kan supports custom fields on cards to track whatever metadata matters to your w
 | Type | Description | Example Values |
 |------|-------------|----------------|
 | `enum` | Single-select from defined options | `"bug"`, `"feature"` |
-| `tags` | Multi-select from defined options | `["blocked", "urgent"]` |
+| `enum-set` | Multi-select from defined options | `["blocked", "urgent"]` |
+| `free-set` | Multi-value freeform text | `["backend", "auth"]` |
 | `string` | Free-form text | `"John Doe"`, `"https://..."` |
 | `date` | Date value | `"2024-03-15"` |
 
@@ -25,11 +26,14 @@ options = [
 ]
 
 [custom_fields.labels]
-type = "tags"
+type = "enum-set"
 options = [
   { value = "blocked", color = "#dc2626" },
   { value = "needs-review", color = "#f59e0b" },
 ]
+
+[custom_fields.topics]
+type = "free-set"
 
 [custom_fields.assignee]
 type = "string"
@@ -60,9 +64,9 @@ When a card is missing a wanted field:
 
 This is useful for enforcing workflow standards without making fields strictly required.
 
-### Enum and Tags
+### Enum and Enum-set
 
-For `enum` and `tags` fields, you must define the allowed options. Each option can have a color for visual display:
+For `enum` and `enum-set` fields, you must define the allowed options. Each option can have a color for visual display:
 
 ```toml
 [custom_fields.priority]
@@ -74,9 +78,20 @@ options = [
 ]
 ```
 
-The difference between `enum` and `tags`:
+The difference between `enum` and `enum-set`:
 - **Enum** is single-select - a card can only have one value (e.g., a card is either a bug OR a feature)
-- **Tags** is multi-select - a card can have multiple values (e.g., a card can be both "blocked" AND "urgent")
+- **Enum-set** is multi-select - a card can have multiple values from the defined options (e.g., a card can be both "blocked" AND "urgent")
+
+### Free-set
+
+`free-set` fields accept any text values without predefined options - useful for ad-hoc labels, topics, or tags:
+
+```toml
+[custom_fields.topics]
+type = "free-set"
+```
+
+Values are deduplicated and limited to 10 per field. In the web UI, values are added by typing and pressing Enter, and removed by clicking the X on each chip.
 
 ### String and Date
 
@@ -106,7 +121,7 @@ metadata = ["assignee"]           # Shown as small text
 | Slot | Field Types | Rendering |
 |------|-------------|-----------|
 | `type_indicator` | `enum` only | Colored badge (single value) |
-| `badges` | `tags` only | Colored chips (multiple values) |
+| `badges` | `enum-set`, `free-set` | Colored chips (multiple values) |
 | `metadata` | Any | Small text in card footer |
 
 Fields not assigned to a display slot are only visible in the card detail view.
@@ -134,8 +149,9 @@ kan add "Fix bug" -f type=bug
 # Set multiple fields
 kan add "New feature" -f type=feature -f priority=high
 
-# Set tags (comma-separated)
+# Set multi-value fields (comma-separated)
 kan edit abc123 -f labels=blocked,urgent
+kan edit abc123 -f topics=backend,auth
 
 # Clear a field
 kan edit abc123 -f assignee=

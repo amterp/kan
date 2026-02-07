@@ -378,18 +378,28 @@ func (s *CardService) validateAndApplyCustomFields(card *model.Card, boardCfg *m
 			}
 			card.CustomFields[key] = value
 
-		case model.FieldTypeTags:
-			// Parse comma-separated values
-			tags := parseTagsValue(value)
-			if len(tags) > model.MaxTagsPerField {
-				return kanerr.InvalidField(key, fmt.Sprintf("too many tags (max %d)", model.MaxTagsPerField))
+		case model.FieldTypeEnumSet:
+			// Parse comma-separated values, validate against options
+			vals := parseSetValues(value)
+			vals = dedup(vals)
+			if len(vals) > model.MaxSetItems {
+				return kanerr.InvalidField(key, fmt.Sprintf("too many values (max %d)", model.MaxSetItems))
 			}
-			for _, tag := range tags {
-				if !isValidOption(schema.Options, tag) {
-					return kanerr.InvalidField(key, fmt.Sprintf("%q is not a valid option; must be one of: %s", tag, formatOptions(schema.Options)))
+			for _, v := range vals {
+				if !isValidOption(schema.Options, v) {
+					return kanerr.InvalidField(key, fmt.Sprintf("%q is not a valid option; must be one of: %s", v, formatOptions(schema.Options)))
 				}
 			}
-			card.CustomFields[key] = tags
+			card.CustomFields[key] = vals
+
+		case model.FieldTypeFreeSet:
+			// Parse comma-separated values, no option validation
+			vals := parseSetValues(value)
+			vals = dedup(vals)
+			if len(vals) > model.MaxSetItems {
+				return kanerr.InvalidField(key, fmt.Sprintf("too many values (max %d)", model.MaxSetItems))
+			}
+			card.CustomFields[key] = vals
 
 		case model.FieldTypeString, model.FieldTypeDate:
 			card.CustomFields[key] = value
@@ -439,28 +449,41 @@ func formatOptions(options []model.CustomFieldOption) string {
 	return strings.Join(values, ", ")
 }
 
-// parseTagsValue parses a comma-separated string into a slice of tags.
+// parseSetValues parses a comma-separated string into a slice of values.
 // Empty values are filtered out and values are trimmed.
-func parseTagsValue(value string) []string {
+func parseSetValues(value string) []string {
 	if value == "" {
 		return []string{}
 	}
 	parts := strings.Split(value, ",")
-	tags := make([]string, 0, len(parts))
+	result := make([]string, 0, len(parts))
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
 		if p != "" {
-			tags = append(tags, p)
+			result = append(result, p)
 		}
 	}
-	return tags
+	return result
+}
+
+// dedup removes duplicate strings, preserving order.
+func dedup(vals []string) []string {
+	seen := make(map[string]bool, len(vals))
+	result := make([]string, 0, len(vals))
+	for _, v := range vals {
+		if !seen[v] {
+			seen[v] = true
+			result = append(result, v)
+		}
+	}
+	return result
 }
 
 // MissingWantedField describes a wanted field that is missing from a card.
 type MissingWantedField struct {
 	FieldName string   // Name of the custom field
-	FieldType string   // Type of the field (enum, tags, string, date)
-	Options   []string // For enum/tags, the valid values
+	FieldType string   // Type of the field (enum, enum-set, free-set, string, date)
+	Options   []string // For enum/enum-set, the valid values
 }
 
 // CheckWantedFieldsForProposal checks wanted fields for a proposed set of custom fields.
@@ -486,9 +509,9 @@ func CheckWantedFieldsForProposal(existingFields map[string]any, proposedFields 
 		}
 
 		switch schema.Type {
-		case model.FieldTypeTags:
+		case model.FieldTypeEnumSet, model.FieldTypeFreeSet:
 			// Parse comma-separated values
-			merged[fieldName] = parseTagsValue(value)
+			merged[fieldName] = parseSetValues(value)
 		default:
 			// String, enum, date - store as string
 			merged[fieldName] = value
@@ -518,7 +541,7 @@ func CheckWantedFields(card *model.Card, boardCfg *model.BoardConfig) []MissingW
 				FieldName: name,
 				FieldType: schema.Type,
 			}
-			if schema.Type == model.FieldTypeEnum || schema.Type == model.FieldTypeTags {
+			if schema.Type == model.FieldTypeEnum || schema.Type == model.FieldTypeEnumSet {
 				mf.Options = make([]string, len(schema.Options))
 				for i, opt := range schema.Options {
 					mf.Options[i] = opt.Value
@@ -541,7 +564,7 @@ func isEmpty(value any, fieldType string) bool {
 	case model.FieldTypeString, model.FieldTypeEnum, model.FieldTypeDate:
 		s, ok := value.(string)
 		return !ok || s == ""
-	case model.FieldTypeTags:
+	case model.FieldTypeEnumSet, model.FieldTypeFreeSet:
 		switch v := value.(type) {
 		case []string:
 			return len(v) == 0

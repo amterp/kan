@@ -47,6 +47,27 @@ type BoardMigration struct {
 	Cards          []CardMigration
 }
 
+// FromVersion returns the numeric board version from FromSchema, or 0 if missing/unparseable.
+func (b *BoardMigration) FromVersion() int {
+	if b.FromSchema == "" {
+		return 0
+	}
+	v, err := version.ParseBoardVersion(b.FromSchema)
+	if err != nil {
+		return 0
+	}
+	return v
+}
+
+// ToVersion returns the numeric board version from ToSchema, or 0 if unparseable.
+func (b *BoardMigration) ToVersion() int {
+	v, err := version.ParseBoardVersion(b.ToSchema)
+	if err != nil {
+		return 0
+	}
+	return v
+}
+
 // CardMigration describes changes to a card.
 type CardMigration struct {
 	CardID       string
@@ -331,6 +352,8 @@ func (s *MigrateService) migrateBoardConfig(plan *BoardMigration) error {
 	// v0 or missing → v1: just prepend schema
 	// v1 → v2: convert labels to custom fields
 	// v2 → v3: just update schema (pattern_hooks is optional, no structural changes)
+	// v3 → v4: just update schema (wanted fields are optional)
+	// v4 → v5: rename tags to enum-set
 	if fromVersion == 0 && version.CurrentBoardVersion == 1 {
 		return s.prependTOMLField(plan.ConfigPath, "kan_schema", plan.ToSchema)
 	}
@@ -339,20 +362,31 @@ func (s *MigrateService) migrateBoardConfig(plan *BoardMigration) error {
 		if err := s.migrateBoardV1ToV2(plan.ConfigPath); err != nil {
 			return err
 		}
-		// If target is v3+, continue to update schema
-		if version.CurrentBoardVersion >= 3 {
-			return s.updateBoardSchema(plan.ConfigPath, plan.ToSchema)
+		fromVersion = 2
+	}
+
+	// v2/v3 → v4: schema-only update
+	if fromVersion >= 2 && fromVersion <= 3 && version.CurrentBoardVersion >= 4 {
+		if err := s.updateBoardSchema(plan.ConfigPath, version.FormatBoardSchema(4)); err != nil {
+			return err
+		}
+		fromVersion = 4
+	}
+
+	// v4 → v5: rename tags to enum-set
+	if fromVersion == 4 && version.CurrentBoardVersion >= 5 {
+		if err := s.migrateBoardV4ToV5(plan.ConfigPath); err != nil {
+			return err
 		}
 		return nil
 	}
 
-	// v2 → v3: just update schema version (pattern_hooks is optional)
-	if fromVersion == 2 && version.CurrentBoardVersion == 3 {
+	// Fallback for unknown versions: just update the schema
+	if fromVersion < version.CurrentBoardVersion {
 		return s.updateBoardSchema(plan.ConfigPath, plan.ToSchema)
 	}
 
-	// Fallback for unknown versions: just update the schema
-	return s.updateBoardSchema(plan.ConfigPath, plan.ToSchema)
+	return nil
 }
 
 // updateBoardSchema updates only the kan_schema field in a board config file.
@@ -374,6 +408,8 @@ func (s *MigrateService) updateBoardSchema(path, newSchema string) error {
 // migrateBoardV1ToV2 converts a v1 board config to v2 format.
 // This involves converting [[labels]] to [custom_fields.labels] with type="tags"
 // and adding a [card_display] section.
+// Note: "tags" is the historical v2 type name. Later migrations (v4->v5)
+// rename it to "enum-set".
 func (s *MigrateService) migrateBoardV1ToV2(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -385,8 +421,8 @@ func (s *MigrateService) migrateBoardV1ToV2(path string) error {
 		return fmt.Errorf("invalid TOML: %w", err)
 	}
 
-	// Update schema version
-	raw["kan_schema"] = version.CurrentBoardSchema()
+	// Set to v2 - subsequent migrations will bump further
+	raw["kan_schema"] = version.FormatBoardSchema(2)
 
 	// Convert labels to custom field
 	hasLabels := false
@@ -423,6 +459,35 @@ func (s *MigrateService) migrateBoardV1ToV2(path string) error {
 		if _, ok := raw["card_display"]; !ok {
 			raw["card_display"] = map[string]any{
 				"badges": []string{"labels"},
+			}
+		}
+	}
+
+	return writeTOMLMap(path, raw)
+}
+
+// migrateBoardV4ToV5 renames custom field type "tags" to "enum-set".
+func (s *MigrateService) migrateBoardV4ToV5(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var raw map[string]any
+	if _, err := toml.Decode(string(data), &raw); err != nil {
+		return fmt.Errorf("invalid TOML: %w", err)
+	}
+
+	// Update schema version
+	raw["kan_schema"] = version.CurrentBoardSchema()
+
+	// Rename type = "tags" to type = "enum-set" in custom_fields
+	if customFields, ok := raw["custom_fields"].(map[string]any); ok {
+		for _, fieldDef := range customFields {
+			if fieldMap, ok := fieldDef.(map[string]any); ok {
+				if fieldMap["type"] == "tags" {
+					fieldMap["type"] = "enum-set"
+				}
 			}
 		}
 	}

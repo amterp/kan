@@ -415,7 +415,7 @@ Core fields have dedicated schema, validation, and (where applicable) CLI flags.
 
 Everything else is a custom field defined in the board's configuration:
 
-- **What the current `labels` field does** becomes a custom field with type `tags`
+- **What the current `labels` field does** becomes a custom field with type `enum-set`
 - **Type distinction** (bug/feature/task) becomes a custom field with type `enum`
 - **Any user-defined fields** (priority, assignee, due date, etc.) use the same system
 
@@ -431,14 +431,15 @@ Custom fields are:
 |------|-------------|----------------|
 | `string` | Free-form text | `"John Doe"`, `"https://..."` |
 | `enum` | Single-select from defined options | `"bug"`, `"feature"` |
-| `tags` | Multi-select from defined options | `["blocked", "urgent"]` |
+| `enum-set` | Multi-select from defined options | `["blocked", "urgent"]` |
+| `free-set` | Multi-value freeform text | `["backend", "auth"]` |
 | `date` | Date value | `"2024-03-15"` |
 
-The `tags` type replaces what `labels` currently does. The name is more intuitive than "multi-select-enum" and users immediately understand it.
+The `enum-set` type replaces what `labels` currently does. The naming convention (`enum-set` / `free-set`) makes the constrained vs unconstrained distinction explicit and uses "set" to convey no-duplicates semantics.
 
 ### Custom Field Schema
 
-Custom fields are defined in board config with type, options (for enum/tags), and per-value colors:
+Custom fields are defined in board config with type, options (for enum/enum-set), and per-value colors:
 
 ```toml
 [custom_fields.type]
@@ -451,7 +452,7 @@ options = [
 ]
 
 [custom_fields.labels]
-type = "tags"
+type = "enum-set"
 options = [
   { value = "blocked", color = "#dc2626" },
   { value = "needs-review", color = "#f59e0b" },
@@ -469,8 +470,8 @@ type = "date"
 
 ```go
 type CustomFieldSchema struct {
-    Type    string              `toml:"type"`              // "string", "enum", "tags", "date"
-    Options []CustomFieldOption `toml:"options,omitempty"` // for enum/tags types
+    Type    string              `toml:"type"`              // "string", "enum", "enum-set", "free-set", "date"
+    Options []CustomFieldOption `toml:"options,omitempty"` // for enum/enum-set types
 }
 
 type CustomFieldOption struct {
@@ -481,7 +482,7 @@ type CustomFieldOption struct {
 ```
 
 **Validation rules:**
-- `enum` and `tags` fields require `options` to be defined
+- `enum` and `enum-set` fields require `options` to be defined
 - Values set on cards must exist in the field's `options` list
 - Field names cannot start with `_` (reserved for internal use) or `kan_` (reserved for Kan)
 - The `x_` prefix is available as an escape hatch for user-defined fields that would otherwise conflict
@@ -498,7 +499,7 @@ How cards render in the board view is configured at the **board level**, not per
 ```toml
 [card_display]
 type_indicator = "type"           # Single enum field shown as colored badge
-badges = ["labels"]               # Array of tags fields shown as colored chips
+badges = ["labels"]               # Array of set fields shown as colored chips
 metadata = ["assignee"]           # Array of fields shown as small text
 ```
 
@@ -507,7 +508,7 @@ metadata = ["assignee"]           # Array of fields shown as small text
 ```go
 type CardDisplayConfig struct {
     TypeIndicator string   `toml:"type_indicator,omitempty"` // single enum field
-    Badges        []string `toml:"badges,omitempty"`         // array of tags fields
+    Badges        []string `toml:"badges,omitempty"`         // array of set fields (enum-set, free-set)
     Metadata      []string `toml:"metadata,omitempty"`       // array of any fields
 }
 ```
@@ -521,7 +522,7 @@ Card display slots determine where custom field values appear on cards in the bo
 | Slot | Cardinality | Field Type | Rendering |
 |------|-------------|------------|-----------|
 | `type_indicator` | Single field | `enum` | Small colored badge (e.g., "bug" pill) |
-| `badges` | Array of fields | `tags` | Colored chips, displayed in config order |
+| `badges` | Array of fields | `enum-set`, `free-set` | Colored chips, displayed in config order |
 | `metadata` | Array of fields | Any | Small text in card footer |
 
 Fields not assigned to any display slot are only visible in the card detail/edit view.
@@ -570,13 +571,13 @@ These are hardcoded to core fields and cannot be reassigned. They indicate *pres
 
 **Board config validation:**
 - `type_indicator` must reference an existing `enum` custom field
-- Each entry in `badges` must reference an existing `tags` custom field
+- Each entry in `badges` must reference an existing `enum-set` or `free-set` custom field
 - Each entry in `metadata` must reference an existing custom field (any type)
 - References to non-existent fields produce a validation error on board load
 
 **Card validation:**
 - Custom field values must be defined in board schema (unknown fields rejected)
-- Enum/tags values must exist in the field's `options` list
+- Enum/enum-set values must exist in the field's `options` list
 - Field names cannot use reserved prefixes (`_`, `kan_`)
 
 ### Default Board Configuration
@@ -609,7 +610,7 @@ options = [
 ]
 
 [custom_fields.labels]
-type = "tags"
+type = "enum-set"
 options = [
   { value = "blocked", color = "#dc2626" },
   { value = "needs-review", color = "#f59e0b" },
@@ -627,7 +628,7 @@ Users see the pattern immediately and can modify, remove, or add fields as neede
 
 Existing boards with `[[labels]]` sections require migration:
 
-1. **Board config**: `[[labels]]` entries convert to `[custom_fields.labels]` with `type = "tags"` and corresponding `options` array
+1. **Board config**: `[[labels]]` entries convert to `[custom_fields.labels]` with `type = "enum-set"` and corresponding `options` array
 2. **Card data**: No changes needed—`labels` array on cards remains the same, just sourced from a custom field now
 3. **Card display**: Auto-generated `[card_display]` with `badges = ["labels"]` to preserve current rendering
 

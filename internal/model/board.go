@@ -7,18 +7,19 @@ import (
 
 // Custom field type constants.
 const (
-	FieldTypeString = "string"
-	FieldTypeEnum   = "enum"
-	FieldTypeTags   = "tags"
-	FieldTypeDate   = "date"
+	FieldTypeString  = "string"
+	FieldTypeEnum    = "enum"
+	FieldTypeEnumSet = "enum-set"
+	FieldTypeFreeSet = "free-set"
+	FieldTypeDate    = "date"
 )
 
-// MaxTagsPerField is the maximum number of tags allowed per tags field.
+// MaxSetItems is the maximum number of values allowed per set field (enum-set, free-set).
 // This prevents accidental abuse and keeps the UI manageable.
-const MaxTagsPerField = 10
+const MaxSetItems = 10
 
 // ValidFieldTypes lists all supported custom field types.
-var ValidFieldTypes = []string{FieldTypeString, FieldTypeEnum, FieldTypeTags, FieldTypeDate}
+var ValidFieldTypes = []string{FieldTypeString, FieldTypeEnum, FieldTypeEnumSet, FieldTypeFreeSet, FieldTypeDate}
 
 // IsValidFieldType returns true if the given type is a valid custom field type.
 func IsValidFieldType(t string) bool {
@@ -52,7 +53,7 @@ type Column struct {
 	CardIDs []string `toml:"card_ids,omitempty" json:"card_ids,omitempty"`
 }
 
-// CustomFieldOption represents a single option for enum/tags fields.
+// CustomFieldOption represents a single option for enum/enum-set fields.
 type CustomFieldOption struct {
 	Value string `toml:"value" json:"value"`
 	Color string `toml:"color,omitempty" json:"color,omitempty"`
@@ -60,15 +61,15 @@ type CustomFieldOption struct {
 
 // CustomFieldSchema defines the schema for a custom field.
 type CustomFieldSchema struct {
-	Type    string              `toml:"type" json:"type"`                           // "string", "enum", "tags", "date"
-	Options []CustomFieldOption `toml:"options,omitempty" json:"options,omitempty"` // For enum/tags types
+	Type    string              `toml:"type" json:"type"`                           // "string", "enum", "enum-set", "free-set", "date"
+	Options []CustomFieldOption `toml:"options,omitempty" json:"options,omitempty"` // For enum/enum-set types
 	Wanted  bool                `toml:"wanted,omitempty" json:"wanted,omitempty"`   // Warn if field is missing
 }
 
 // CardDisplayConfig controls how custom fields render on cards in the board view.
 type CardDisplayConfig struct {
 	TypeIndicator string   `toml:"type_indicator,omitempty" json:"type_indicator,omitempty"` // enum field shown as badge
-	Badges        []string `toml:"badges,omitempty" json:"badges,omitempty"`                 // tags fields shown as chips
+	Badges        []string `toml:"badges,omitempty" json:"badges,omitempty"`                 // set fields shown as chips
 	Metadata      []string `toml:"metadata,omitempty" json:"metadata,omitempty"`             // fields shown as small text
 }
 
@@ -407,13 +408,13 @@ func (b *BoardConfig) ValidateCardDisplay() []string {
 		}
 	}
 
-	// Validate badges reference tags fields
+	// Validate badges reference set fields (enum-set or free-set)
 	for _, fieldName := range cd.Badges {
 		schema, exists := b.CustomFields[fieldName]
 		if !exists {
 			warnings = append(warnings, "card_display.badges references non-existent field: "+fieldName)
-		} else if schema.Type != FieldTypeTags {
-			warnings = append(warnings, "card_display.badges should reference tags fields, but '"+fieldName+"' is type '"+schema.Type+"'")
+		} else if schema.Type != FieldTypeEnumSet && schema.Type != FieldTypeFreeSet {
+			warnings = append(warnings, "card_display.badges should reference set fields (enum-set or free-set), but '"+fieldName+"' is type '"+schema.Type+"'")
 		}
 	}
 

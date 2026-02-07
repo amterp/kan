@@ -43,13 +43,15 @@ export interface CustomFieldOption {
 // Custom field type constants - keep in sync with internal/model/board.go
 export const FIELD_TYPE_STRING = 'string' as const;
 export const FIELD_TYPE_ENUM = 'enum' as const;
-export const FIELD_TYPE_TAGS = 'tags' as const;
+export const FIELD_TYPE_ENUM_SET = 'enum-set' as const;
+export const FIELD_TYPE_FREE_SET = 'free-set' as const;
 export const FIELD_TYPE_DATE = 'date' as const;
 
 export const VALID_FIELD_TYPES = [
   FIELD_TYPE_STRING,
   FIELD_TYPE_ENUM,
-  FIELD_TYPE_TAGS,
+  FIELD_TYPE_ENUM_SET,
+  FIELD_TYPE_FREE_SET,
   FIELD_TYPE_DATE,
 ] as const;
 

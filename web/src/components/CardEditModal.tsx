@@ -105,7 +105,8 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose, 
         const originalValue = getFieldValue(card, fieldName);
         const currentValue = customFieldValues[fieldName];
 
-        if (board.custom_fields[fieldName].type === 'tags') {
+        const fieldType = board.custom_fields[fieldName].type;
+        if (fieldType === 'enum-set' || fieldType === 'free-set') {
           const orig = Array.isArray(originalValue) ? originalValue : [];
           const curr = Array.isArray(currentValue) ? currentValue : [];
           if (JSON.stringify(orig.sort()) !== JSON.stringify(curr.sort())) return true;

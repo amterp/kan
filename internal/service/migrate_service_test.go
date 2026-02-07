@@ -435,10 +435,15 @@ func TestMigrationPlan_HasChanges(t *testing.T) {
 //  2. Add tests that verify vN data doesn't need migration
 //  3. See the header comment in this file for details
 func TestMigrationFixturesComplete(t *testing.T) {
-	// Fixtures should exist for v0 through current version.
-	// All schema versions (card, board, global) are currently in sync.
-	// If they diverge, use max(CardVersion, BoardVersion, GlobalVersion).
+	// Fixtures should exist for v0 through the highest schema version.
+	// Card, board, and global versions may diverge.
 	maxVersion := version.CurrentCardVersion
+	if version.CurrentBoardVersion > maxVersion {
+		maxVersion = version.CurrentBoardVersion
+	}
+	if version.CurrentGlobalVersion > maxVersion {
+		maxVersion = version.CurrentGlobalVersion
+	}
 
 	for v := 0; v <= maxVersion; v++ {
 		fixturePath := filepath.Join("testdata", "migrations", fmt.Sprintf("v%d", v))
@@ -539,12 +544,13 @@ func TestMigrateService_V1ToCurrent_ConvertsLabels(t *testing.T) {
 	}
 
 	// Verify labels custom field exists with correct type
+	// After full migration chain (v1 -> v2 creates tags, v4 -> v5 renames to enum-set)
 	labelsSchema, ok := boardCfg.CustomFields["labels"]
 	if !ok {
 		t.Fatal("Migrated board should have 'labels' custom field")
 	}
-	if labelsSchema.Type != "tags" {
-		t.Errorf("labels custom field should be type 'tags', got %q", labelsSchema.Type)
+	if labelsSchema.Type != "enum-set" {
+		t.Errorf("labels custom field should be type 'enum-set', got %q", labelsSchema.Type)
 	}
 
 	// Verify the label value was preserved
@@ -742,9 +748,9 @@ func TestMigrateService_V3ToV4_UpdatesSchema(t *testing.T) {
 		t.Fatalf("BoardStore.Get failed after migration: %v", err)
 	}
 
-	// Verify schema was updated to board/4
-	if boardCfg.KanSchema != "board/4" {
-		t.Errorf("Expected KanSchema 'board/4', got %q", boardCfg.KanSchema)
+	// Verify schema was updated to current
+	if boardCfg.KanSchema != version.CurrentBoardSchema() {
+		t.Errorf("Expected KanSchema %q, got %q", version.CurrentBoardSchema(), boardCfg.KanSchema)
 	}
 
 	// Existing fields should be preserved
@@ -786,10 +792,10 @@ func TestMigrateService_V3ToV4_Idempotent(t *testing.T) {
 }
 
 // ============================================================================
-// V4 Tests (Current schema - no migration needed)
+// V4 -> V5 Migration Tests (tags renamed to enum-set)
 // ============================================================================
 
-func TestMigrateService_Plan_V4_NoChanges(t *testing.T) {
+func TestMigrateService_Plan_V4_NeedsMigration(t *testing.T) {
 	service, _, cleanup := setupMigrationTest(t, "v4")
 	defer cleanup()
 
@@ -797,16 +803,137 @@ func TestMigrateService_Plan_V4_NoChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Plan failed: %v", err)
 	}
-	if plan.HasChanges() {
-		t.Error("Current schema (v4) data should not need migration")
+
+	// V4 should need migration to V5
+	if !plan.HasChanges() {
+		t.Error("V4 data should need migration to V5")
+	}
+
+	if len(plan.Boards) != 1 {
+		t.Fatalf("Expected 1 board, got %d", len(plan.Boards))
+	}
+
+	board := plan.Boards[0]
+	if !board.NeedsMigration {
+		t.Error("Board config should need migration")
+	}
+	if board.FromSchema != "board/4" {
+		t.Errorf("Expected FromSchema 'board/4', got %q", board.FromSchema)
+	}
+	if board.ToSchema != version.CurrentBoardSchema() {
+		t.Errorf("Expected ToSchema %q, got %q", version.CurrentBoardSchema(), board.ToSchema)
 	}
 }
 
-func TestMigrateService_V4_ReadableByStores(t *testing.T) {
-	_, tempDir, cleanup := setupMigrationTest(t, "v4")
+func TestMigrateService_V4ToV5_RenamesTagsToEnumSet(t *testing.T) {
+	service, tempDir, cleanup := setupMigrationTest(t, "v4")
 	defer cleanup()
 
-	// V4 fixtures should be directly readable by stores without migration
+	// Migrate
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if err := service.Execute(plan, false); err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	// Verify stores can read the migrated data
+	paths := config.NewPaths(tempDir, "")
+	boardStore := store.NewBoardStore(paths)
+
+	boardCfg, err := boardStore.Get("main")
+	if err != nil {
+		t.Fatalf("BoardStore.Get failed after migration: %v", err)
+	}
+
+	// Verify schema was updated
+	if boardCfg.KanSchema != version.CurrentBoardSchema() {
+		t.Errorf("Expected KanSchema %q, got %q", version.CurrentBoardSchema(), boardCfg.KanSchema)
+	}
+
+	// Verify labels custom field type was renamed from "tags" to "enum-set"
+	labelsSchema, ok := boardCfg.CustomFields["labels"]
+	if !ok {
+		t.Fatal("Migrated board should have 'labels' custom field")
+	}
+	if labelsSchema.Type != "enum-set" {
+		t.Errorf("labels custom field should be type 'enum-set', got %q", labelsSchema.Type)
+	}
+
+	// Verify options were preserved
+	if len(labelsSchema.Options) != 1 {
+		t.Fatalf("Expected 1 label option, got %d", len(labelsSchema.Options))
+	}
+	if labelsSchema.Options[0].Value != "urgent" {
+		t.Errorf("Expected label value 'urgent', got %q", labelsSchema.Options[0].Value)
+	}
+
+	// Verify other fields preserved
+	if boardCfg.Name != "main" {
+		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
+	}
+	typeSchema, ok := boardCfg.CustomFields["type"]
+	if !ok {
+		t.Error("Expected 'type' custom field")
+	} else if !typeSchema.Wanted {
+		t.Error("Expected 'type' field to have wanted=true")
+	}
+
+	// Pattern hooks should be preserved
+	if len(boardCfg.PatternHooks) != 1 {
+		t.Errorf("Expected 1 pattern hook, got %d", len(boardCfg.PatternHooks))
+	}
+}
+
+func TestMigrateService_V4ToV5_Idempotent(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v4")
+	defer cleanup()
+
+	// First migration
+	plan1, err := service.Plan()
+	if err != nil {
+		t.Fatalf("First Plan failed: %v", err)
+	}
+	if !plan1.HasChanges() {
+		t.Fatal("First plan should have changes")
+	}
+	if err := service.Execute(plan1, false); err != nil {
+		t.Fatalf("First Execute failed: %v", err)
+	}
+
+	// Second migration should be no-op
+	plan2, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Second Plan failed: %v", err)
+	}
+	if plan2.HasChanges() {
+		t.Error("Second plan should have no changes (migration is idempotent)")
+	}
+}
+
+// ============================================================================
+// V5 Tests (Current schema - no migration needed)
+// ============================================================================
+
+func TestMigrateService_Plan_V5_NoChanges(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v5")
+	defer cleanup()
+
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if plan.HasChanges() {
+		t.Error("Current schema (v5) data should not need migration")
+	}
+}
+
+func TestMigrateService_V5_ReadableByStores(t *testing.T) {
+	_, tempDir, cleanup := setupMigrationTest(t, "v5")
+	defer cleanup()
+
+	// V5 fixtures should be directly readable by stores without migration
 	paths := config.NewPaths(tempDir, "")
 	cardStore := store.NewCardStore(paths)
 	boardStore := store.NewBoardStore(paths)
@@ -814,7 +941,7 @@ func TestMigrateService_V4_ReadableByStores(t *testing.T) {
 	// Board store should read without error
 	boardCfg, err := boardStore.Get("main")
 	if err != nil {
-		t.Fatalf("BoardStore.Get failed on v4 fixtures: %v", err)
+		t.Fatalf("BoardStore.Get failed on v5 fixtures: %v", err)
 	}
 	if boardCfg.Name != "main" {
 		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
@@ -844,10 +971,26 @@ func TestMigrateService_V4_ReadableByStores(t *testing.T) {
 		t.Error("Expected 'type' field to have wanted=true")
 	}
 
+	// enum-set field should be present
+	labelsSchema, ok := boardCfg.CustomFields["labels"]
+	if !ok {
+		t.Error("Expected 'labels' custom field")
+	} else if labelsSchema.Type != "enum-set" {
+		t.Errorf("Expected labels type 'enum-set', got %q", labelsSchema.Type)
+	}
+
+	// free-set field should be present
+	topicsSchema, ok := boardCfg.CustomFields["topics"]
+	if !ok {
+		t.Error("Expected 'topics' custom field")
+	} else if topicsSchema.Type != "free-set" {
+		t.Errorf("Expected topics type 'free-set', got %q", topicsSchema.Type)
+	}
+
 	// Card store should read without error
 	card, err := cardStore.Get("main", "card-abc")
 	if err != nil {
-		t.Fatalf("CardStore.Get failed on v4 fixtures: %v", err)
+		t.Fatalf("CardStore.Get failed on v5 fixtures: %v", err)
 	}
 	if card.ID != "card-abc" {
 		t.Errorf("Card ID = %q, want 'card-abc'", card.ID)

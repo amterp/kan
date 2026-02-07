@@ -21,8 +21,8 @@ function getFieldOption(board: BoardConfig, fieldName: string, value: string): C
   return schema.options.find(opt => opt.value === value);
 }
 
-// Helper to get array of values from a tags field
-function getTagsValues(card: CardType, fieldName: string): string[] {
+// Helper to get array of values from a set field (enum-set or free-set)
+function getSetValues(card: CardType, fieldName: string): string[] {
   const value = card[fieldName];
   if (!value) return [];
   if (Array.isArray(value)) return value as string[];
@@ -167,7 +167,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
 
         // Add badge field values
         for (const fieldName of badgeFields) {
-          const values = getTagsValues(card, fieldName);
+          const values = getSetValues(card, fieldName);
           for (const value of values) {
             const option = getFieldOption(board, fieldName, value);
             allBadges.push({

@@ -220,7 +220,7 @@ func TestBoardConfig_ValidateCardDisplay(t *testing.T) {
 			cfg: &BoardConfig{
 				CustomFields: map[string]CustomFieldSchema{
 					"type":   {Type: "enum"},
-					"labels": {Type: "tags"},
+					"labels": {Type: "enum-set"},
 					"notes":  {Type: "string"},
 				},
 				CardDisplay: CardDisplayConfig{
@@ -274,7 +274,7 @@ func TestBoardConfig_ValidateCardDisplay(t *testing.T) {
 			wantWarnings: 1,
 		},
 		{
-			name: "badges references non-tags field",
+			name: "badges references non-set field",
 			cfg: &BoardConfig{
 				CustomFields: map[string]CustomFieldSchema{
 					"labels": {Type: "enum"},

@@ -124,9 +124,10 @@ letter = "M"
 - **v1**: First versioned schema. Cards have `_v: 1`, no `column` field. Board configs have `kan_schema = "board/1"`.
 - **board/2**: Converts labels from first-class `[[labels]]` to custom fields with type `"tags"`. Adds `card_display.badges` for label visibility.
 - **board/3**: Adds optional `[[pattern_hooks]]` for running commands when cards are created with matching titles.
-- **board/4 (current)**: Adds optional `wanted` field to custom field schemas. Wanted fields emit warnings when missing from cards.
+- **board/4**: Adds optional `wanted` field to custom field schemas. Wanted fields emit warnings when missing from cards.
+- **board/5 (current)**: Renames custom field type `tags` to `enum-set` for clearer terminology. Adds new `free-set` type for freeform multi-value fields.
 
-Running `kan migrate` upgrades data to the current version. The migration is incremental—v0 → v1 → v2 → v3 → v4.
+Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5.
 
 **Rationale**: Strict versioning—Kan refuses to read files without version stamps (or with incompatible versions). This catches schema drift early and forces explicit migration.
 
@@ -154,6 +155,29 @@ options = [
 **Design rationale**: Wanted fields encourage data quality without enforcing rigid schemas. The `--strict` flag is opt-in for workflows that need hard enforcement, while the default warning behavior is forgiving for quick card creation.
 
 **Migration**: board/3 → board/4 only updates the schema version. Existing custom fields gain an implicit `wanted = false` (the default).
+
+### Enum-set and Free-set Types (board/5)
+
+**Added in**: board/5
+
+This version makes two changes to custom field types:
+
+1. **Rename**: `tags` type is renamed to `enum-set` for clearer terminology. The naming convention (`enum`/`enum-set`) makes the single-vs-multiple distinction explicit.
+2. **New type**: `free-set` is a freeform multi-value field - like `enum-set` but without predefined options.
+
+The full type system is now:
+
+| Type | Cardinality | Constraint |
+|------|-------------|------------|
+| `string` | single | freeform |
+| `date` | single | date format |
+| `enum` | single | predefined options |
+| `enum-set` | multiple | predefined options (was `tags`) |
+| `free-set` | multiple | freeform |
+
+Both set types enforce deduplication and a maximum of 10 values per field.
+
+**Migration**: board/4 -> board/5 rewrites `type = "tags"` to `type = "enum-set"` in custom field definitions. No card data changes needed since the stored values (JSON arrays) are unchanged.
 
 ### Pattern Hooks (board/3)
 

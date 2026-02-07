@@ -349,6 +349,16 @@ body {
   background-image: radial-gradient(circle, #374151 0.5px, transparent 0.5px);
 }
 
+/* Shake animation for rejected input */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+.animate-shake { animation: shake 0.4s ease-out; }
+
 /* Card entrance animation */
 @keyframes card-enter {
   from { opacity: 0; transform: translateY(4px); }

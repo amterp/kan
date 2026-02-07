@@ -155,7 +155,7 @@ func testBoardConfig(name string) *model.BoardConfig {
 				},
 			},
 			"labels": {
-				Type: "tags",
+				Type: "enum-set",
 				Options: []model.CustomFieldOption{
 					{Value: "blocked", Color: "#dc2626"},
 					{Value: "needs-review", Color: "#f59e0b"},
@@ -908,7 +908,7 @@ func TestCardService_Edit_Column_Invalid(t *testing.T) {
 	}
 }
 
-func TestCardService_Edit_CustomFields_Tags(t *testing.T) {
+func TestCardService_Edit_CustomFields_EnumSet(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
@@ -932,7 +932,7 @@ func TestCardService_Edit_CustomFields_Tags(t *testing.T) {
 	}
 }
 
-func TestCardService_Edit_CustomFields_Tags_Clear(t *testing.T) {
+func TestCardService_Edit_CustomFields_EnumSet_Clear(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
@@ -961,7 +961,7 @@ func TestCardService_Edit_CustomFields_Tags_Clear(t *testing.T) {
 	}
 }
 
-func TestCardService_Edit_CustomFields_Tags_Invalid(t *testing.T) {
+func TestCardService_Edit_CustomFields_EnumSet_Invalid(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
@@ -977,6 +977,130 @@ func TestCardService_Edit_CustomFields_Tags_Invalid(t *testing.T) {
 	}
 	if !kanerr.IsValidationError(err) {
 		t.Errorf("Expected ValidationError, got %v", err)
+	}
+}
+
+// ============================================================================
+// Free-set Tests
+// ============================================================================
+
+func testBoardConfigWithFreeSet(name string) *model.BoardConfig {
+	cfg := testBoardConfig(name)
+	cfg.CustomFields["topics"] = model.CustomFieldSchema{Type: "free-set"}
+	return cfg
+}
+
+func TestCardService_Add_WithFreeSet(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithFreeSet("main"))
+
+	card, _, err := service.Add(AddCardInput{
+		BoardName:    "main",
+		Title:        "Test card",
+		Column:       "backlog",
+		CustomFields: map[string]string{"topics": "backend,auth,api"},
+	})
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	topics, ok := card.CustomFields["topics"].([]string)
+	if !ok {
+		t.Fatalf("Expected topics to be []string, got %T", card.CustomFields["topics"])
+	}
+	if len(topics) != 3 {
+		t.Errorf("Expected 3 topics, got %d", len(topics))
+	}
+}
+
+func TestCardService_Edit_FreeSet_AcceptsAnyValues(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithFreeSet("main"))
+
+	card, _, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		CustomFields:  map[string]string{"topics": "anything,goes,here"},
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	topics, ok := updated.CustomFields["topics"].([]string)
+	if !ok {
+		t.Fatalf("Expected topics to be []string, got %T", updated.CustomFields["topics"])
+	}
+	if len(topics) != 3 {
+		t.Errorf("Expected 3 topics, got %d", len(topics))
+	}
+}
+
+func TestCardService_Edit_FreeSet_Deduplicates(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithFreeSet("main"))
+
+	card, _, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		CustomFields:  map[string]string{"topics": "foo,bar,foo,baz,bar"},
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	topics, ok := updated.CustomFields["topics"].([]string)
+	if !ok {
+		t.Fatalf("Expected topics to be []string, got %T", updated.CustomFields["topics"])
+	}
+	if len(topics) != 3 {
+		t.Errorf("Expected 3 unique topics, got %d: %v", len(topics), topics)
+	}
+}
+
+func TestCardService_Edit_FreeSet_EnforcesMax(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithFreeSet("main"))
+
+	card, _, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	_, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		CustomFields:  map[string]string{"topics": "a,b,c,d,e,f,g,h,i,j,k"},
+	})
+	if err == nil {
+		t.Fatal("Expected error for too many values")
+	}
+	if !kanerr.IsValidationError(err) {
+		t.Errorf("Expected ValidationError, got %v", err)
+	}
+}
+
+func TestCardService_Edit_EnumSet_Deduplicates(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card, _, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		CustomFields:  map[string]string{"labels": "blocked,needs-review,blocked"},
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	labels, ok := updated.CustomFields["labels"].([]string)
+	if !ok {
+		t.Fatalf("Expected labels to be []string, got %T", updated.CustomFields["labels"])
+	}
+	if len(labels) != 2 {
+		t.Errorf("Expected 2 unique labels (deduped), got %d: %v", len(labels), labels)
 	}
 }
 

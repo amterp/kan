@@ -3,12 +3,12 @@ import type { BoardConfig } from '../api/types';
 /**
  * Convert custom field values from UI format to API format.
  *
- * The main transformation is tags: the UI uses string[] but the API
+ * The main transformation is set types: the UI uses string[] but the API
  * expects comma-separated strings.
  *
- * @param values - Field values in UI format (tags as string[])
+ * @param values - Field values in UI format (sets as string[])
  * @param boardFields - Board's custom field schemas (optional, for type-aware conversion)
- * @returns Field values in API format (tags as comma-separated strings)
+ * @returns Field values in API format (sets as comma-separated strings)
  */
 export function toApiFieldValues(
   values: Record<string, unknown>,
@@ -19,10 +19,11 @@ export function toApiFieldValues(
   for (const [fieldName, value] of Object.entries(values)) {
     if (value === undefined) continue;
 
-    // Check if this is a tags field (array → comma-separated string)
-    const isTags = boardFields?.[fieldName]?.type === 'tags' || Array.isArray(value);
+    // Check if this is a set field (array -> comma-separated string)
+    const fieldType = boardFields?.[fieldName]?.type;
+    const isSet = fieldType === 'enum-set' || fieldType === 'free-set' || Array.isArray(value);
 
-    if (isTags && Array.isArray(value)) {
+    if (isSet && Array.isArray(value)) {
       apiFields[fieldName] = (value as string[]).join(',');
     } else {
       apiFields[fieldName] = value;

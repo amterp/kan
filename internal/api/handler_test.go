@@ -90,7 +90,7 @@ func (api *testAPI) createBoard(t *testing.T, name string) {
 				},
 			},
 			"labels": {
-				Type: "tags",
+				Type: "enum-set",
 				Options: []model.CustomFieldOption{
 					{Value: "blocked", Color: "#dc2626"},
 					{Value: "needs-review", Color: "#f59e0b"},

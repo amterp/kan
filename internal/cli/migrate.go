@@ -289,6 +289,20 @@ func migrateProject(proj projectEntry, dryRun bool, nonInteractive bool, prompte
 	return outcomeMigrated
 }
 
+// boardMigrationNotes returns human-readable descriptions of what
+// a specific board version upgrade entails. Helps users understand
+// what the migration will do to their data.
+func boardMigrationNotes(fromVersion, toVersion int) []string {
+	var notes []string
+	if fromVersion < 2 && toVersion >= 2 {
+		notes = append(notes, "convert labels to custom fields")
+	}
+	if fromVersion < 5 && toVersion >= 5 {
+		notes = append(notes, "rename field type 'tags' to 'enum-set'")
+	}
+	return notes
+}
+
 // printBoardSummary prints a concise summary of board migrations
 // in a plan.
 func printBoardSummary(plan *service.MigrationPlan) {
@@ -327,5 +341,12 @@ func printBoardSummary(plan *service.MigrationPlan) {
 			detail += p
 		}
 		fmt.Printf("  Board %q: %s\n", board.BoardName, detail)
+
+		if board.NeedsMigration {
+			notes := boardMigrationNotes(board.FromVersion(), board.ToVersion())
+			for _, note := range notes {
+				fmt.Printf("    - %s\n", note)
+			}
+		}
 	}
 }
