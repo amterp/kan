@@ -1,0 +1,13 @@
+{
+  "_v": 1,
+  "alias": "web-ui-support-for-string",
+  "alias_explicit": false,
+  "created_at_millis": 1770434145643,
+  "creator": "Alexander Terp",
+  "description": "Render string-list fields in the web UI - display as chips/badges on cards, and provide an input mechanism for adding/removing values when editing a card. Consider typeahead suggestions from existing values across the board.",
+  "id": "a_LiGvcqcw",
+  "parent": "a_LiGhaUrK",
+  "title": "Web UI support for string-list fields",
+  "type": "feature",
+  "updated_at_millis": 1770434145643
+}

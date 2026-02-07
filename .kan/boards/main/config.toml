@@ -1,4 +1,4 @@
-kan_schema = "board/4"
+kan_schema = "board/5"
 id = "2R9nzEvz"
 name = "main"
 default_column = "backlog-hi"
@@ -25,7 +25,7 @@ default_column = "backlog-hi"
 [[columns]]
   name = "done"
   color = "#10b981"
-  card_ids = ["32odHmOO", "a_GRVDsj80", "a_HdaxCfGq", "a_EYZAQKps", "a_6NBw2rbK", "a_HdqWkJY6", "2RERa5et", "2REB6NLa", "3c900E57", "48O31Ctb", "a_DnJXCAIr", "a_6NrXm5Ky", "a_6NqOp49M", "a_6NpX7nrE", "4CP22Hzt", "a_6Nfme0TU", "2RFKjwYX", "a_8o62zhUu", "a_8o1jyZN8", "5utsN5st", "3cKIYh0p", "3d1MfWZS", "3d58C4UJ", "48P2Qpfg", "48OWoX57", "2RESD2LM", "48NdHhpT", "2REATGIR", "32uFMcPs", "2RdBBLnA", "2RF195UV", "2RERulDq", "2REA5mCQ", "2RFLL8mC", "2RFLeA3b", "2RFLw7h8", "2RFL3u0o", "31FtC9Qq", "31jSrye7", "a_HcRaa5km", "a_HcSky7NT", "a_HcTff7zy", "a_HcVuee8R", "a_HcWHa2M3", "a_HcWPkRkK", "a_HcU8XfXs"]
+  card_ids = ["a_LiGvcqcw", "a_LiGp4vb9", "a_LiGhaUrK", "32odHmOO", "a_GRVDsj80", "a_HdaxCfGq", "a_EYZAQKps", "a_6NBw2rbK", "a_HdqWkJY6", "2RERa5et", "2REB6NLa", "3c900E57", "48O31Ctb", "a_DnJXCAIr", "a_6NrXm5Ky", "a_6NqOp49M", "a_6NpX7nrE", "4CP22Hzt", "a_6Nfme0TU", "2RFKjwYX", "a_8o62zhUu", "a_8o1jyZN8", "5utsN5st", "3cKIYh0p", "3d1MfWZS", "3d58C4UJ", "48P2Qpfg", "48OWoX57", "2RESD2LM", "48NdHhpT", "2REATGIR", "32uFMcPs", "2RdBBLnA", "2RF195UV", "2RERulDq", "2REA5mCQ", "2RFLL8mC", "2RFLeA3b", "2RFLw7h8", "2RFL3u0o", "31FtC9Qq", "31jSrye7", "a_HcRaa5km", "a_HcSky7NT", "a_HcTff7zy", "a_HcVuee8R", "a_HcWHa2M3", "a_HcWPkRkK", "a_HcU8XfXs"]
 
 [custom_fields]
   [custom_fields.type]

@@ -1,0 +1,13 @@
+{
+  "_v": 1,
+  "alias": "cli-support-for-string-list",
+  "alias_explicit": false,
+  "created_at_millis": 1770434141585,
+  "creator": "Alexander Terp",
+  "description": "Support setting string-list fields via -f flag. Need to decide on syntax for multi-value input, e.g. -f labels=foo,bar or repeated -f labels=foo -f labels=bar. Should also support adding/removing individual values without replacing the whole list (e.g. -f labels+=new or -f labels-=old).",
+  "id": "a_LiGp4vb9",
+  "parent": "a_LiGhaUrK",
+  "title": "CLI support for string-list fields",
+  "type": "feature",
+  "updated_at_millis": 1770434141585
+}

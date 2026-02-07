@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "add-string-list-custom-field",
+  "alias_explicit": false,
+  "created_at_millis": 1770434136948,
+  "creator": "Alexander Terp",
+  "description": "Implement a new custom field type 'string-list' that allows freeform multi-value strings on cards. Unlike 'tags' which requires predefined options, string-list accepts arbitrary strings. This enables ad-hoc tagging/labeling without needing to pre-define valid values in board config. Referenced in SPEC.md as a planned future field type.",
+  "id": "a_LiGhaUrK",
+  "title": "Add string-list custom field type",
+  "type": "feature",
+  "updated_at_millis": 1770434136948
+}
