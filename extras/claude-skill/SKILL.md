@@ -19,6 +19,248 @@ kan add --help
 kan column --help
 ```
 
+## Board Setup Wizard
+
+When a user asks to create a new board (`kan board create`) or initialize a new Kan project (`kan init`), run this interactive setup process rather than creating a board with defaults. This applies to both new projects and additional boards.
+
+Before writing any config, consult the [Kan documentation](https://amterp.github.io/kan/docs) to double-check available options and TOML structure.
+
+### Step 1: Understand the Project and User
+
+Before suggesting anything, learn about what the user is building:
+- What kind of project is this? (software, personal, team, open source, etc.)
+- What workflow are they trying to track?
+- Is this their first board or are they adding to an existing setup?
+
+This context lets you make relevant, project-specific suggestions in later steps.
+
+Also gauge whether the user is already familiar with Kan. If it's unclear, ask. If they're new, explain concepts (like wanted fields, card display roles, enum-set types) as they come up during the wizard. If they're experienced, keep it snappy.
+
+### Step 2: Columns
+
+Ask the user what columns they want. Offer these templates as inspiration - they are not rigid. The user can mix, match, rename, add, or remove columns freely.
+
+**Simple** - Good default for most projects:
+
+| Column | Description |
+|--------|-------------|
+| backlog | Planned work not yet started |
+| next | Ready to be picked up next |
+| in-progress | Currently being worked on |
+| done | Completed work |
+
+**Prioritized Backlog** - Splits the backlog for triage:
+
+| Column | Description |
+|--------|-------------|
+| backlog-lo | Low priority planned work |
+| backlog-hi | High priority planned work |
+| next | Ready to be picked up next |
+| in-progress | Currently being worked on |
+| done | Completed work |
+
+**With Ideas** - Adds a staging area for uncommitted thoughts:
+
+| Column | Description |
+|--------|-------------|
+| uncommitted | Ideas and thoughts not yet committed to |
+| backlog | Planned work not yet started |
+| next | Ready to be picked up next |
+| in-progress | Currently being worked on |
+| done | Completed work |
+
+**Full** - Prioritized backlog with ideas column:
+
+| Column | Description |
+|--------|-------------|
+| uncommitted | Ideas and thoughts not yet committed to |
+| backlog-lo | Low priority planned work |
+| backlog-hi | High priority planned work |
+| next | Ready to be picked up next |
+| in-progress | Currently being worked on |
+| done | Completed work |
+
+**Important**: Every column should have a description. Descriptions serve as self-documentation and help guide AI agents using the board. Suggest descriptions if the user doesn't provide them.
+
+The first column in the list becomes the default column for new cards.
+
+### Step 3: Custom Fields
+
+Walk the user through what fields they want on their cards. For each field, discuss:
+- What type? (`string`, `enum`, `enum-set`, `free-set`, `date`)
+- What are the options/values? (for `enum` and `enum-set` types)
+- Descriptions for the field itself and each of its options
+- Should this field be **wanted**? (If the user is new, explain: wanted fields generate a warning when a card is created without them, encouraging consistent metadata across cards)
+
+#### Type Field (Strongly Recommended)
+
+Unless the user explicitly doesn't want one, recommend a `type` field (`enum`, wanted). This categorizes what kind of work a card represents. Suggest these default values:
+
+| Value | Color | Description |
+|-------|-------|-------------|
+| bug | #dc2626 | A defect in existing functionality |
+| enhancement | #2563eb | An improvement to existing functionality |
+| feature | #16a34a | New functionality to be added |
+| chore | #4b5563 | Maintenance, refactoring, or housekeeping |
+
+The user can customize these - add, remove, rename, or change descriptions to fit their project.
+
+#### Labels Field (Suggested)
+
+Suggest a `labels` field (`enum-set`) for flexible tagging. Offer these as starting options:
+
+| Value | Description |
+|-------|-------------|
+| ai-hi | Well-suited for autonomous AI work - low complexity, little judgment needed, AI can handle it independently |
+| ai-lo | Likely suitable for AI but less certain - may need some human oversight or review |
+
+Cards without either AI label are implicitly not suitable for autonomous AI work - they likely require human judgment and involvement.
+
+The user can add more label values to suit their needs.
+
+#### Additional Ideas
+
+Suggest these lightly to spark the user's thinking. Don't push them:
+
+- **effort** (`enum`) - T-shirt sizing for rough estimation: xs, s, m, l, xl
+- **area** (`enum-set`) - What part of the project a card touches, e.g. backend, frontend, infra, docs
+
+Based on what you learned about the user's project in Step 1, suggest any project-specific fields that might be valuable.
+
+### Step 4: Card Display
+
+Configure how fields appear on cards in the web UI and CLI output. Walk the user through these display roles:
+
+- **type_indicator**: Shows a colored badge identifying the card type. If the user has a `type` enum field, default to using it here.
+- **badges**: Shows chip-style labels on cards. Default to showing any `enum-set` or `free-set` fields (like `labels`) as badges.
+- **metadata**: Shows small text below the card. Useful for fields like dates or effort.
+
+If the user is new, briefly explain what each display role looks like.
+
+### Step 5: Pattern Hooks (Optional)
+
+Pattern hooks automate actions when cards are created with titles matching a pattern. This is entirely optional - offer it, but don't push it.
+
+If the user set up a `type` field, suggest the **type shortcut hook**: when creating a card in the web UI with a title like `!bug Fix login crash`, the hook automatically strips the `!bug` prefix and sets the type field to `bug`. It also supports aliases like `!feat` for `feature` and `!enh` for `enhancement`.
+
+For newcomers, keep the explanation focused on what it does rather than how: "This is a convenience shortcut. Instead of setting the type field manually after creating a card, you can just prefix your title with `!bug`, `!feat`, `!chore`, etc. and it gets set for you automatically."
+
+If the user wants this hook:
+
+1. **Detect Rad**: Silently run `rad -v`. If Rad is installed, ask whether they'd prefer the hook written in Rad or Bash. If not installed, silently default to Bash.
+
+2. **Create the hook script** at `.kan/hooks/type-shortcut.rad` (or `.sh` if writing Bash). Here's the Rad version - translate to Bash if needed:
+
+```rad
+#!/usr/bin/env rad
+---
+Pattern hook for setting card type from title shortcuts like !bug, !feat, !chore.
+Receives card_id and board_name as arguments from Kan pattern hooks.
+---
+args:
+    card_id str
+    board_name str
+
+type_aliases = {
+    "feat": "feature",
+    "enh": "enhancement",
+}
+
+code, stdout = quiet $`kan show {card_id} -b {board_name} --json`
+if code != 0:
+    exit(1)
+
+card_data = parse_json(stdout)
+title = card_data["card"]["title"]
+
+if not matches(title, "![a-zA-Z]+", partial=true):
+    exit(0)
+
+match_result = replace(title, "(?i).*!([a-z]+).*", "$1")
+type_keyword = lower(match_result)
+
+card_type = type_keyword
+if type_keyword in type_aliases:
+    card_type = type_aliases[type_keyword]
+
+new_title = replace(title, "(?i)\\s*![a-z]+\\s*", " ")
+new_title = trim(new_title)
+new_title = replace(new_title, "\\s+", " ")
+
+quiet $`kan edit {card_id} -b {board_name} -t "{new_title}" -f type={card_type}`
+
+print("Set type to '{card_type}'")
+```
+
+3. **Make executable**: `chmod +x .kan/hooks/type-shortcut.rad` (or `.sh`)
+
+4. **Add the hook** to the board config:
+
+```toml
+[[pattern_hooks]]
+name = "type-shortcut"
+pattern_title = "![a-zA-Z]+"
+command = ".kan/hooks/type-shortcut.rad"  # or .sh for bash
+```
+
+### Step 6: Execute and Verify
+
+1. **Create the board**:
+   - New project: `kan init -c <columns> -n <board-name> -p <project-name>`
+   - Additional board: `kan board create <board-name>`, then edit the TOML to set up columns
+
+2. **Edit the board config** at `.kan/boards/<name>/config.toml` to add:
+   - Column descriptions (and column definitions if using `kan board create`)
+   - Custom fields with types, options, descriptions, colors, and wanted flags
+   - Card display configuration
+
+3. **Verify** the result: `kan board describe`
+
+Reference TOML format for custom fields and card display:
+
+```toml
+[custom_fields.type]
+type = "enum"
+wanted = true
+description = "The category of work this card represents"
+
+[[custom_fields.type.options]]
+value = "bug"
+color = "#dc2626"
+description = "A defect in existing functionality"
+
+[[custom_fields.type.options]]
+value = "enhancement"
+color = "#2563eb"
+description = "An improvement to existing functionality"
+
+[custom_fields.labels]
+type = "enum-set"
+description = "Flexible tags for categorization"
+
+[[custom_fields.labels.options]]
+value = "ai-hi"
+description = "Well-suited for autonomous AI work"
+
+[[custom_fields.labels.options]]
+value = "ai-lo"
+description = "Likely suitable for AI but less certain"
+
+[card_display]
+type_indicator = "type"
+badges = ["labels"]
+```
+
+Column descriptions are added to the `[[columns]]` entries:
+
+```toml
+[[columns]]
+name = "backlog"
+color = "#6b7280"
+description = "Planned work not yet started"
+card_ids = []
+```
+
 ## Initialize
 
 ```bash
@@ -221,3 +463,7 @@ kan comment add fix-login "Note" --json | jq .comment.id
 - Cards are identified by flexible IDs: numeric ID, alias, or partial match
 - Use `-I` for scripting to ensure commands fail rather than prompt
 - Use `--json` for programmatic access to card data
+
+## Documentation
+
+Full documentation is available at [amterp.github.io/kan/docs](https://amterp.github.io/kan/docs). Consult the docs when setting up boards or editing config files to verify available options and TOML structure.
