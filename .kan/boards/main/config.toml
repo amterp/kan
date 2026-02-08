@@ -8,27 +8,27 @@ default_column = "backlog-hi"
   color = "#9333ea"
   description = "Lower priority backlog items"
   limit = 0
-  card_ids = ["2REAnxC6", "2RESVvds", "2RF0aoHq", "2RR0gW1U", "2RMKzF8A", "32mUefF1", "a_6OLXA9WA", "a_EX5Arv9h", "a_M40WdBIG"]
+  card_ids = ["2REAnxC6", "2RESVvds", "2RF0aoHq", "2RR0gW1U", "2RMKzF8A", "32mUefF1", "a_6OLXA9WA", "a_EX5Arv9h", "a_M40WdBIG", "4CXN7HhS", "4CWvz4xq"]
 
 [[columns]]
   name = "backlog-hi"
   color = "#6b7280"
   description = "Higher priority items ready to be picked up soon"
-  limit = 0
-  card_ids = ["3cIruBkr", "3cJmN0qU", "2RF2RcyA", "48AVDad4", "2REBgzSK", "2RESoTin", "2RET9h3a", "2RF25n0b", "4CWvz4xq", "a_6NPbhW3o", "a_BlWLznge", "4CXN7HhS"]
+  limit = 10
+  card_ids = ["3cIruBkr", "3cJmN0qU", "2RF2RcyA", "48AVDad4", "2REBgzSK", "2RESoTin", "2RET9h3a", "2RF25n0b", "a_6NPbhW3o", "a_BlWLznge"]
 
 [[columns]]
   name = "next"
   color = "#3b82f6"
   description = "This is a much longer description that might wrap across multiple lines and we need to see how it renders in the terminal output to ensure it doesn't cause formatting issues"
-  limit = 0
+  limit = 5
   card_ids = ["a_M3hjtzpG", "a_M3nVUL08", "a_M3pA7DaC", "2RF1gl2S"]
 
 [[columns]]
   name = "in-progress"
   color = "#f59e0b"
   description = "Currently being worked on"
-  limit = 3
+  limit = 5
   card_ids = ["a_6NhrwFOp", "4CUbhFTJ", "3dav9GZU"]
 
 [[columns]]
@@ -41,28 +41,28 @@ default_column = "backlog-hi"
 [custom_fields]
   [custom_fields.type]
     type = "enum"
-    description = "The category of work this card represents"
     wanted = true
+    description = "The category of work this card represents"
 
     [[custom_fields.type.options]]
       value = "bug"
-      description = "Something that's broken and needs fixing"
       color = "#dc2626"
+      description = "Something that's broken and needs fixing"
 
     [[custom_fields.type.options]]
       value = "enhancement"
-      description = "Improvement to existing functionality"
       color = "#2563eb"
+      description = "Improvement to existing functionality"
 
     [[custom_fields.type.options]]
       value = "feature"
-      description = "New functionality or capability"
       color = "#16a34a"
+      description = "New functionality or capability"
 
     [[custom_fields.type.options]]
       value = "chore"
-      description = "Maintenance, refactoring, or tooling work"
       color = "#4b5563"
+      description = "Maintenance, refactoring, or tooling work"
 
 [card_display]
   type_indicator = "type"

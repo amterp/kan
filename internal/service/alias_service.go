@@ -30,7 +30,9 @@ func NewAliasService(cardStore store.CardStore) *AliasService {
 // GenerateAlias creates a unique alias from a title.
 // It builds a short slug progressively: start with a threshold-limited set of
 // words, then on collision add more title words before falling back to -N.
-func (s *AliasService) GenerateAlias(boardName, title string) (string, error) {
+// excludeCardID allows excluding a specific card from collision detection,
+// useful when regenerating alias for an existing card.
+func (s *AliasService) GenerateAlias(boardName, title, excludeCardID string) (string, error) {
 	words := util.SlugWords(title)
 	if len(words) == 0 {
 		words = []string{"card"}
@@ -39,14 +41,14 @@ func (s *AliasService) GenerateAlias(boardName, title string) (string, error) {
 	initialCount := wordsForThreshold(words)
 	base := strings.Join(words[:initialCount], "-")
 
-	if s.IsAliasAvailable(boardName, base) {
+	if s.IsAliasAvailable(boardName, base, excludeCardID) {
 		return base, nil
 	}
 
 	// Collision: try adding one more title word at a time
 	for i := initialCount; i < len(words); i++ {
 		candidate := strings.Join(words[:i+1], "-")
-		if s.IsAliasAvailable(boardName, candidate) {
+		if s.IsAliasAvailable(boardName, candidate, excludeCardID) {
 			return candidate, nil
 		}
 	}
@@ -54,7 +56,7 @@ func (s *AliasService) GenerateAlias(boardName, title string) (string, error) {
 	// All title words exhausted: fall back to numeric suffix on the base slug
 	for i := 2; i <= 1000; i++ {
 		candidate := fmt.Sprintf("%s-%d", base, i)
-		if s.IsAliasAvailable(boardName, candidate) {
+		if s.IsAliasAvailable(boardName, candidate, excludeCardID) {
 			return candidate, nil
 		}
 	}
@@ -94,7 +96,16 @@ func joinedLen(words []string) int {
 }
 
 // IsAliasAvailable returns true if the alias is not in use.
-func (s *AliasService) IsAliasAvailable(boardName, alias string) bool {
-	_, err := s.cardStore.FindByAlias(boardName, alias)
-	return kanerr.IsNotFound(err)
+// excludeCardID allows excluding a specific card from the check - useful when
+// regenerating alias for an existing card to avoid self-collision.
+func (s *AliasService) IsAliasAvailable(boardName, alias, excludeCardID string) bool {
+	card, err := s.cardStore.FindByAlias(boardName, alias)
+	if kanerr.IsNotFound(err) {
+		return true
+	}
+	if err != nil {
+		return false
+	}
+	// If we found a card, check if it's the one we're excluding
+	return excludeCardID != "" && card.ID == excludeCardID
 }

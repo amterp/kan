@@ -66,7 +66,7 @@ func TestAliasService_GenerateAlias_Basic(t *testing.T) {
 	mockStore := newMockCardStore()
 	service := NewAliasService(mockStore)
 
-	alias, err := service.GenerateAlias("main", "Fix login bug")
+	alias, err := service.GenerateAlias("main", "Fix login bug", "")
 	if err != nil {
 		t.Fatalf("GenerateAlias failed: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestAliasService_GenerateAlias_Collision(t *testing.T) {
 
 	service := NewAliasService(mockStore)
 
-	alias, err := service.GenerateAlias("main", "Fix Bug")
+	alias, err := service.GenerateAlias("main", "Fix Bug", "")
 	if err != nil {
 		t.Fatalf("GenerateAlias failed: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestAliasService_GenerateAlias_MultipleCollisions(t *testing.T) {
 
 	service := NewAliasService(mockStore)
 
-	alias, err := service.GenerateAlias("main", "Fix Bug")
+	alias, err := service.GenerateAlias("main", "Fix Bug", "")
 	if err != nil {
 		t.Fatalf("GenerateAlias failed: %v", err)
 	}
@@ -119,7 +119,7 @@ func TestAliasService_GenerateAlias_EmptyTitle(t *testing.T) {
 	mockStore := newMockCardStore()
 	service := NewAliasService(mockStore)
 
-	alias, err := service.GenerateAlias("main", "")
+	alias, err := service.GenerateAlias("main", "", "")
 	if err != nil {
 		t.Fatalf("GenerateAlias failed: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestAliasService_GenerateAlias_SpecialChars(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		alias, err := service.GenerateAlias("main", tt.title)
+		alias, err := service.GenerateAlias("main", tt.title, "")
 		if err != nil {
 			t.Fatalf("GenerateAlias(%q) failed: %v", tt.title, err)
 		}
@@ -157,16 +157,28 @@ func TestAliasService_GenerateAlias_SpecialChars(t *testing.T) {
 
 func TestAliasService_IsAliasAvailable(t *testing.T) {
 	mockStore := newMockCardStore()
-	mockStore.addCard("main", &model.Card{ID: "1", Alias: "taken-alias"})
+	mockStore.addCard("main", &model.Card{ID: "card-1", Alias: "taken-alias"})
 
 	service := NewAliasService(mockStore)
 
-	if service.IsAliasAvailable("main", "taken-alias") {
+	// Without exclusion, alias should not be available
+	if service.IsAliasAvailable("main", "taken-alias", "") {
 		t.Error("Alias should not be available")
 	}
 
-	if !service.IsAliasAvailable("main", "available-alias") {
+	// Available alias should be available
+	if !service.IsAliasAvailable("main", "available-alias", "") {
 		t.Error("Alias should be available")
+	}
+
+	// Excluding the card that owns the alias makes it available
+	if !service.IsAliasAvailable("main", "taken-alias", "card-1") {
+		t.Error("Alias should be available when excluding the card that owns it")
+	}
+
+	// Excluding a different card doesn't make it available
+	if service.IsAliasAvailable("main", "taken-alias", "card-2") {
+		t.Error("Alias should not be available when excluding a different card")
 	}
 }
 
@@ -179,7 +191,7 @@ func TestAliasService_DifferentBoards(t *testing.T) {
 	service := NewAliasService(mockStore)
 
 	// Should be available in board2
-	alias, err := service.GenerateAlias("board2", "Fix Bug")
+	alias, err := service.GenerateAlias("board2", "Fix Bug", "")
 	if err != nil {
 		t.Fatalf("GenerateAlias failed: %v", err)
 	}
@@ -199,7 +211,7 @@ func TestAliasService_GenerateAlias_ProgressiveExpansion(t *testing.T) {
 	service := NewAliasService(mockStore)
 
 	// Should expand to include the next word rather than going to -2
-	alias, err := service.GenerateAlias("main", "Update authentication middleware")
+	alias, err := service.GenerateAlias("main", "Update authentication middleware", "")
 	if err != nil {
 		t.Fatalf("GenerateAlias failed: %v", err)
 	}
@@ -218,7 +230,7 @@ func TestAliasService_GenerateAlias_ProgressiveExpansionMultipleSteps(t *testing
 
 	service := NewAliasService(mockStore)
 
-	alias, err := service.GenerateAlias("main", "Update authentication middleware layer")
+	alias, err := service.GenerateAlias("main", "Update authentication middleware layer", "")
 	if err != nil {
 		t.Fatalf("GenerateAlias failed: %v", err)
 	}
@@ -238,7 +250,7 @@ func TestAliasService_GenerateAlias_WordExhaustion(t *testing.T) {
 	service := NewAliasService(mockStore)
 
 	// Title only has 3 words, all expansions collide, should fall back to -2
-	alias, err := service.GenerateAlias("main", "Update authentication middleware")
+	alias, err := service.GenerateAlias("main", "Update authentication middleware", "")
 	if err != nil {
 		t.Fatalf("GenerateAlias failed: %v", err)
 	}
@@ -253,7 +265,7 @@ func TestAliasService_GenerateAlias_LongTitleTruncated(t *testing.T) {
 	service := NewAliasService(mockStore)
 
 	// Long title should be truncated to threshold
-	alias, err := service.GenerateAlias("main", "This is a very long title that exceeds the limit")
+	alias, err := service.GenerateAlias("main", "This is a very long title that exceeds the limit", "")
 	if err != nil {
 		t.Fatalf("GenerateAlias failed: %v", err)
 	}
@@ -270,7 +282,7 @@ func TestAliasService_GenerateAlias_LongTitleCollisionExpands(t *testing.T) {
 
 	service := NewAliasService(mockStore)
 
-	alias, err := service.GenerateAlias("main", "This is a very long title that exceeds the limit")
+	alias, err := service.GenerateAlias("main", "This is a very long title that exceeds the limit", "")
 	if err != nil {
 		t.Fatalf("GenerateAlias failed: %v", err)
 	}
@@ -285,7 +297,7 @@ func TestAliasService_GenerateAlias_SingleWord(t *testing.T) {
 	mockStore := newMockCardStore()
 	service := NewAliasService(mockStore)
 
-	alias, err := service.GenerateAlias("main", "Bug")
+	alias, err := service.GenerateAlias("main", "Bug", "")
 	if err != nil {
 		t.Fatalf("GenerateAlias failed: %v", err)
 	}
@@ -316,5 +328,49 @@ func TestWordsForThreshold(t *testing.T) {
 				t.Errorf("wordsForThreshold(%v) = %d, want %d", tt.words, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestAliasService_GenerateAlias_ExcludesCurrentCard(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "card-1", Alias: "fix-bug"})
+
+	service := NewAliasService(mockStore)
+
+	// When regenerating alias for the same card, it should get the same alias back
+	alias, err := service.GenerateAlias("main", "Fix Bug", "card-1")
+	if err != nil {
+		t.Fatalf("GenerateAlias failed: %v", err)
+	}
+
+	if alias != "fix-bug" {
+		t.Errorf("Expected 'fix-bug' (excluding current card), got %q", alias)
+	}
+}
+
+func TestAliasService_GenerateAlias_DoesNotExcludeOtherCards(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "card-1", Alias: "fix-bug"})
+
+	service := NewAliasService(mockStore)
+
+	// When generating alias without exclusion, should get suffixed version
+	alias, err := service.GenerateAlias("main", "Fix Bug", "")
+	if err != nil {
+		t.Fatalf("GenerateAlias failed: %v", err)
+	}
+
+	if alias != "fix-bug-2" {
+		t.Errorf("Expected 'fix-bug-2' (no exclusion), got %q", alias)
+	}
+
+	// When excluding a different card, should still get suffixed version
+	alias, err = service.GenerateAlias("main", "Fix Bug", "card-2")
+	if err != nil {
+		t.Fatalf("GenerateAlias failed: %v", err)
+	}
+
+	if alias != "fix-bug-2" {
+		t.Errorf("Expected 'fix-bug-2' (excluding different card), got %q", alias)
 	}
 }

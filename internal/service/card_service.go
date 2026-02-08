@@ -87,7 +87,7 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 
 	// Generate ID and alias
 	cardID := id.Generate(id.Card)
-	alias, err := s.aliasService.GenerateAlias(input.BoardName, input.Title)
+	alias, err := s.aliasService.GenerateAlias(input.BoardName, input.Title, "")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -274,7 +274,7 @@ func (s *CardService) UpdateTitle(boardName string, card *model.Card, newTitle s
 	card.Title = newTitle
 
 	if !card.AliasExplicit {
-		alias, err := s.aliasService.GenerateAlias(boardName, newTitle)
+		alias, err := s.aliasService.GenerateAlias(boardName, newTitle, card.ID)
 		if err != nil {
 			return err
 		}
