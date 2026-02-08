@@ -127,6 +127,16 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 		matchingHooks := s.hookService.FindMatchingHooks(boardCfg.PatternHooks, input.Title)
 		if len(matchingHooks) > 0 {
 			hookResults = s.hookService.ExecuteHooks(matchingHooks, cardID, input.BoardName)
+
+			// Re-fetch card after hooks to capture any modifications they made
+			// Hooks can modify cards via commands like `kan edit`, so we need
+			// to return the card's state AFTER hook execution, not before.
+			if updatedCard, err := s.cardStore.Get(input.BoardName, cardID); err == nil {
+				card = updatedCard
+				// Re-populate column field (it's computed, not persisted)
+				card.Column = column
+			}
+			// If re-fetch fails, we still return the original card (non-fatal)
 		}
 	}
 
