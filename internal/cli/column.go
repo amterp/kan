@@ -372,7 +372,7 @@ func runColumnList(board string, nonInteractive, jsonOutput bool) {
 				Name:        col.Name,
 				Color:       col.Color,
 				Description: col.Description,
-				Limit:    col.Limit,
+				Limit:       col.Limit,
 				CardCount:   len(col.CardIDs),
 			}
 		}

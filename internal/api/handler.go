@@ -543,8 +543,8 @@ type CreateColumnRequest struct {
 	Name        string `json:"name"`
 	Color       string `json:"color,omitempty"`
 	Description string `json:"description,omitempty"`
-	Limit       *int   `json:"limit,omitempty"` // Column limit (0 = no limit)
-	Position    *int   `json:"position,omitempty"`   // Optional: insert position (-1 or omit for end)
+	Limit       *int   `json:"limit,omitempty"`    // Column limit (0 = no limit)
+	Position    *int   `json:"position,omitempty"` // Optional: insert position (-1 or omit for end)
 }
 
 // CreateColumn creates a new column on a board.

@@ -45,7 +45,7 @@ function displayLabel(entry: BoardEntry, allBoards: BoardEntry[]): string {
   if (projectBoards.length === 1) {
     return entry.project_name;
   }
-  return `${entry.project_name} / ${entry.board_name}`;
+  return `${entry.project_name} - ${entry.board_name}`;
 }
 
 interface UseBoardSwitcherReturn {

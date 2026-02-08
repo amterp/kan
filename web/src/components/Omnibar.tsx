@@ -72,6 +72,8 @@ function BoardsList({
             ref={isHighlighted ? highlightedRef : undefined}
             onClick={() => onSelect(idx)}
             className={`px-4 py-2 cursor-pointer flex items-center gap-2 transition-colors ${
+              isCurrent ? 'border-l-4 border-blue-500 dark:border-blue-400 pl-3' : 'border-l-4 border-transparent'
+            } ${
               isHighlighted
                 ? 'bg-blue-50 dark:bg-blue-900/30'
                 : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
@@ -84,11 +86,9 @@ function BoardsList({
             }`}>
               {displayLabel(entry)}
             </span>
-            {isCurrent && (
-              <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">
-                current
-              </span>
-            )}
+            <span className="text-xs text-gray-400 dark:text-gray-500 overflow-hidden text-ellipsis whitespace-nowrap max-w-md">
+              {entry.project_path}
+            </span>
           </div>
         );
       })}
@@ -233,7 +233,7 @@ export default function Omnibar({
               skipped={boardSkipped}
               loading={boardLoading}
               error={boardError}
-              displayLabel={boardDisplayLabel || ((e) => `${e.project_name} / ${e.board_name}`)}
+              displayLabel={boardDisplayLabel || ((e) => `${e.project_name} - ${e.board_name}`)}
               onSelect={(idx) => onBoardSelect?.(idx)}
             />
           </div>
