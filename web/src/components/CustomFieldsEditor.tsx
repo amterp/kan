@@ -2,6 +2,7 @@ import type { BoardConfig, CustomFieldSchema } from '../api/types';
 import { useState } from 'react';
 import { FIELD_TYPE_ENUM, FIELD_TYPE_ENUM_SET, FIELD_TYPE_FREE_SET, FIELD_TYPE_STRING, FIELD_TYPE_DATE } from '../api/types';
 import { stringToColor } from '../utils/badgeColors';
+import FieldDescriptionTooltip from './FieldDescriptionTooltip';
 
 interface CustomFieldsEditorProps {
   board: BoardConfig;
@@ -64,13 +65,12 @@ function FreeSetField({
 
   return (
     <div className={marginClass}>
-      <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 capitalize ${compact ? 'mb-1' : 'mb-2'}`}>
-        {fieldName}{wantedIndicator}
+      <label className={`flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 capitalize ${compact ? 'mb-1' : 'mb-2'}`}>
+        <span>{fieldName}</span>
+        <FieldDescriptionTooltip description={description} />
+        {wantedIndicator}
         <span className="text-xs font-normal text-gray-400 dark:text-gray-500 ml-2">{values.length}/{MAX_SET_ITEMS}</span>
       </label>
-      {description && (
-        <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{description}</p>
-      )}
       {values.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
           {values.map((val) => (
@@ -159,12 +159,11 @@ export default function CustomFieldsEditor({
       case FIELD_TYPE_ENUM:
         return (
           <div className={marginClass} key={fieldName}>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
-              {fieldName}{wantedIndicator}
+            <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
+              <span>{fieldName}</span>
+              <FieldDescriptionTooltip description={schema.description} />
+              {wantedIndicator}
             </label>
-            {schema.description && (
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{schema.description}</p>
-            )}
             <select
               value={(currentValue as string) || ''}
               onChange={(e) => onChange(fieldName, e.target.value)}
@@ -184,12 +183,11 @@ export default function CustomFieldsEditor({
         const selectedValues = Array.isArray(currentValue) ? (currentValue as string[]) : [];
         return (
           <div className={marginClass} key={fieldName}>
-            <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 capitalize ${compact ? 'mb-1' : 'mb-2'}`}>
-              {fieldName}{wantedIndicator}
+            <label className={`flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 capitalize ${compact ? 'mb-1' : 'mb-2'}`}>
+              <span>{fieldName}</span>
+              <FieldDescriptionTooltip description={schema.description} />
+              {wantedIndicator}
             </label>
-            {schema.description && (
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{schema.description}</p>
-            )}
             <div className="flex flex-wrap gap-2">
               {schema.options?.map((opt) => {
                 const isSelected = selectedValues.includes(opt.value);
@@ -239,12 +237,11 @@ export default function CustomFieldsEditor({
       case FIELD_TYPE_STRING:
         return (
           <div className={marginClass} key={fieldName}>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
-              {fieldName}{wantedIndicator}
+            <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
+              <span>{fieldName}</span>
+              <FieldDescriptionTooltip description={schema.description} />
+              {wantedIndicator}
             </label>
-            {schema.description && (
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{schema.description}</p>
-            )}
             <input
               type="text"
               value={(currentValue as string) || ''}
@@ -258,12 +255,11 @@ export default function CustomFieldsEditor({
       case FIELD_TYPE_DATE:
         return (
           <div className={marginClass} key={fieldName}>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
-              {fieldName}{wantedIndicator}
+            <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
+              <span>{fieldName}</span>
+              <FieldDescriptionTooltip description={schema.description} />
+              {wantedIndicator}
             </label>
-            {schema.description && (
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{schema.description}</p>
-            )}
             <input
               type="date"
               value={(currentValue as string) || ''}
