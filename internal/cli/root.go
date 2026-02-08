@@ -81,6 +81,7 @@ type CommandContext struct {
 	ColumnAddColor       *string
 	ColumnAddDescription *string
 	ColumnAddPosition    *int
+	ColumnAddLimit       *int
 	ColumnAddBoard       *string
 
 	// column delete
@@ -100,6 +101,7 @@ type CommandContext struct {
 	ColumnEditName        *string
 	ColumnEditColor       *string
 	ColumnEditDescription *string
+	ColumnEditLimit       *int
 	ColumnEditBoard       *string
 
 	// column list
@@ -253,7 +255,7 @@ func executeCommand(ctx *CommandContext) {
 		}
 
 	case *ctx.ColumnAddUsed:
-		runColumnAdd(*ctx.ColumnAddName, *ctx.ColumnAddColor, *ctx.ColumnAddDescription, *ctx.ColumnAddPosition, *ctx.ColumnAddBoard, *ctx.NonInteractive)
+		runColumnAdd(*ctx.ColumnAddName, *ctx.ColumnAddColor, *ctx.ColumnAddDescription, *ctx.ColumnAddPosition, *ctx.ColumnAddLimit, *ctx.ColumnAddBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnDeleteUsed:
 		runColumnDelete(*ctx.ColumnDeleteName, *ctx.ColumnDeleteBoard, *ctx.ColumnDeleteForce, *ctx.NonInteractive)
@@ -262,7 +264,7 @@ func executeCommand(ctx *CommandContext) {
 		runColumnRename(*ctx.ColumnRenameOld, *ctx.ColumnRenameNew, *ctx.ColumnRenameBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnEditUsed:
-		runColumnEdit(*ctx.ColumnEditName, *ctx.ColumnEditColor, *ctx.ColumnEditDescription, *ctx.ColumnEditBoard, *ctx.NonInteractive)
+		runColumnEdit(*ctx.ColumnEditName, *ctx.ColumnEditColor, *ctx.ColumnEditDescription, *ctx.ColumnEditLimit, *ctx.ColumnEditBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnListUsed:
 		runColumnList(*ctx.ColumnListBoard, *ctx.NonInteractive, *ctx.Json)

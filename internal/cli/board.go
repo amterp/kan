@@ -141,6 +141,7 @@ func printBoardDescribeJson(cfg *model.BoardConfig) {
 			Name:        col.Name,
 			Color:       col.Color,
 			Description: col.Description,
+			Limit:    col.Limit,
 			CardCount:   len(col.CardIDs),
 			IsDefault:   col.Name == cfg.DefaultColumn,
 		}
@@ -182,7 +183,11 @@ func printBoardDescribeHuman(cfg *model.BoardConfig) {
 		if col.Name == cfg.DefaultColumn {
 			defaultTag = ", default"
 		}
-		count := RenderMuted(fmt.Sprintf("(%d %s%s)", len(col.CardIDs), cardWord, defaultTag))
+		limitStr := ""
+		if col.Limit > 0 {
+			limitStr = fmt.Sprintf("/%d", col.Limit)
+		}
+		count := RenderMuted(fmt.Sprintf("(%d%s %s%s)", len(col.CardIDs), limitStr, cardWord, defaultTag))
 		fmt.Printf("  %-17s %s %s\n", col.Name, swatch, count)
 		if col.Description != "" {
 			fmt.Printf("    %s\n", col.Description)

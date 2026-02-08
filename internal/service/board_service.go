@@ -181,6 +181,25 @@ func (s *BoardService) UpdateColumnDescription(boardName, columnName, descriptio
 	return s.boardStore.Update(cfg)
 }
 
+// UpdateColumnLimit updates a column's card limit.
+// A limit of 0 clears the limit. Negative values are rejected.
+func (s *BoardService) UpdateColumnLimit(boardName, columnName string, limit int) error {
+	if limit < 0 {
+		return kanerr.InvalidField("limit", "must be 0 (no limit) or a positive integer")
+	}
+
+	cfg, err := s.boardStore.Get(boardName)
+	if err != nil {
+		return err
+	}
+
+	if !cfg.SetColumnLimit(columnName, limit) {
+		return kanerr.ColumnNotFound(columnName, boardName)
+	}
+
+	return s.boardStore.Update(cfg)
+}
+
 // ReorderColumn moves a column to a new position (0-indexed).
 func (s *BoardService) ReorderColumn(boardName, columnName string, newPosition int) error {
 	cfg, err := s.boardStore.Get(boardName)

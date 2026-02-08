@@ -79,6 +79,12 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 		return nil, nil, kanerr.ColumnNotFound(column, input.BoardName)
 	}
 
+	// Check column limit
+	col := boardCfg.GetColumn(column)
+	if col.IsAtLimit() {
+		return nil, nil, kanerr.ColumnLimitExceeded(column, col.Limit)
+	}
+
 	// Generate ID and alias
 	cardID := id.Generate(id.Card)
 	alias, err := s.aliasService.GenerateAlias(input.BoardName, input.Title)
@@ -229,6 +235,15 @@ func (s *CardService) MoveCardAt(boardName, cardID, targetColumn string, positio
 	// Validate target column exists
 	if !boardCfg.HasColumn(targetColumn) {
 		return kanerr.ColumnNotFound(targetColumn, boardName)
+	}
+
+	// Check column limit for cross-column moves (reordering within same column is always OK)
+	currentColumn := boardCfg.GetCardColumn(cardID)
+	if currentColumn != targetColumn {
+		col := boardCfg.GetColumn(targetColumn)
+		if col.IsAtLimit() {
+			return kanerr.ColumnLimitExceeded(targetColumn, col.Limit)
+		}
 	}
 
 	// Verify the card exists

@@ -158,6 +158,7 @@ type ColumnInfo struct {
 	Name        string `json:"name"`
 	Color       string `json:"color"`
 	Description string `json:"description,omitempty"`
+	Limit       int    `json:"limit,omitempty"`
 	CardCount   int    `json:"card_count"`
 }
 
@@ -203,6 +204,7 @@ type BoardDescribeColumnInfo struct {
 	Name        string `json:"name"`
 	Color       string `json:"color"`
 	Description string `json:"description,omitempty"`
+	Limit       int    `json:"limit,omitempty"`
 	CardCount   int    `json:"card_count"`
 	IsDefault   bool   `json:"is_default"`
 }

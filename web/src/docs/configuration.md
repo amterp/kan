@@ -14,7 +14,7 @@ A board's `config.toml` defines its structure, columns, custom fields, and displ
 ### Minimal Example
 
 ```toml
-kan_schema = "board/5"
+kan_schema = "board/8"
 id = "k7xQ2m"
 name = "main"
 
@@ -34,7 +34,7 @@ color = "#10b981"
 ### Full Example
 
 ```toml
-kan_schema = "board/5"
+kan_schema = "board/8"
 id = "k7xQ2m"
 name = "main"
 default_column = "backlog"
@@ -42,14 +42,18 @@ default_column = "backlog"
 [[columns]]
 name = "backlog"
 color = "#6b7280"
+description = "Planned work not yet started"
 
 [[columns]]
 name = "in-progress"
 color = "#f59e0b"
+description = "Currently being worked on"
+limit = 5
 
 [[columns]]
 name = "done"
 color = "#10b981"
+description = "Completed work"
 
 [custom_fields.type]
 type = "enum"
@@ -101,17 +105,23 @@ Columns are defined as an ordered array:
 
 ```toml
 [[columns]]
-name = "backlog"
-color = "#6b7280"
+name = "in-progress"
+color = "#f59e0b"
+description = "Currently being worked on"
+limit = 5
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `name` | Yes | Column name (must be unique within board) |
 | `color` | Yes | Hex color for column header |
+| `description` | No | Purpose of this workflow stage |
+| `limit` | No | Max cards allowed (0 or omitted = no limit) |
 | `card_ids` | No | Ordered list of card IDs (managed by Kan) |
 
 **Default columns** when creating a new board: `backlog`, `next`, `in-progress`, `done`.
+
+**Column Limits**: When a column has a `limit`, adding or moving cards into it is refused once the limit is reached. Column headers show the count as `(X/Y)` when a limit is set. This is a core kanban practice for controlling flow.
 
 ### Custom Fields
 
@@ -249,12 +259,16 @@ default_board = "features"
 # Add a column
 kan column add review
 kan column add review --color "#9333ea" --position 2
+kan column add review --limit 5
 
 # Rename a column
 kan column rename review code-review
 
-# Change column color
+# Edit column properties
 kan column edit review --color "#ec4899"
+kan column edit review --description "Cards under review"
+kan column edit review --limit 3
+kan column edit review --limit 0    # Clear limit
 
 # Reorder columns
 kan column move review --position 1

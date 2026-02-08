@@ -127,9 +127,10 @@ letter = "M"
 - **board/4**: Adds optional `wanted` field to custom field schemas. Wanted fields emit warnings when missing from cards.
 - **board/5**: Renames custom field type `tags` to `enum-set` for clearer terminology. Adds new `free-set` type for freeform multi-value fields.
 - **board/6**: Adds optional `description` field to custom field schemas and individual options. Descriptions are surfaced in CLI warnings, API responses, and the web UI to help users and agents understand field semantics.
-- **board/7 (current)**: Adds optional `description` field to columns. Column descriptions document what each workflow stage means, surfaced via `kan column list`, `kan board describe`, column info tooltips in the web UI, and the API.
+- **board/7**: Adds optional `description` field to columns. Column descriptions document what each workflow stage means, surfaced via `kan column list`, `kan board describe`, column info tooltips in the web UI, and the API.
+- **board/8 (current)**: Adds optional `limit` field to columns. Column limits cap the number of cards in a column. Adding or moving cards to a full column is refused. Column headers show `(X/Y)` when a limit is set.
 
-Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7.
+Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8.
 
 **Rationale**: Strict versioning—Kan refuses to read files without version stamps (or with incompatible versions). This catches schema drift early and forces explicit migration.
 
@@ -232,6 +233,37 @@ Column descriptions are surfaced in:
 - API responses (included in board config and column endpoints)
 
 **Migration**: board/6 -> board/7 only updates the schema version. The `description` field is optional with a zero-value default (empty string = no description).
+
+### Column Limits (board/8)
+
+**Added in**: board/8
+
+Columns can now carry an optional `limit` integer to cap the number of cards they hold. When a column limit is set and the column is full, adding or moving cards into that column is refused with a clear error.
+
+```toml
+[[columns]]
+name = "in-progress"
+color = "#f59e0b"
+limit = 3
+card_ids = ["card-123", "card-456"]
+```
+
+Column limits are surfaced in:
+- `kan list` (column header shows `(2/3)` instead of `(2)`)
+- `kan column list` (shows `(2/3 cards)` instead of `(2 cards)`)
+- `kan board describe` (shows `(2/3 cards)` format)
+- Web UI (card count with red styling when at limit)
+- API responses (included in column data)
+
+Column limits are enforced at:
+- `kan add --column <full-column>` (refused)
+- `kan edit <card> --column <full-column>` (refused)
+- API card create/move endpoints (returns HTTP 400)
+- Web UI drag-and-drop and card creation (shows toast error)
+
+Reordering within the same column always succeeds regardless of column limits.
+
+**Migration**: board/7 -> board/8 only updates the schema version. The `limit` field is optional with a zero-value default (0 = no limit).
 
 ### Pattern Hooks (board/3)
 

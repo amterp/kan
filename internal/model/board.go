@@ -51,7 +51,13 @@ type Column struct {
 	Name        string   `toml:"name" json:"name"`
 	Color       string   `toml:"color" json:"color"`
 	Description string   `toml:"description,omitempty" json:"description,omitempty"`
+	Limit       int      `toml:"limit,omitempty" json:"limit,omitempty"`
 	CardIDs     []string `toml:"card_ids,omitempty" json:"card_ids,omitempty"`
+}
+
+// IsAtLimit returns true if the column has a limit and has reached it.
+func (c *Column) IsAtLimit() bool {
+	return c.Limit > 0 && len(c.CardIDs) >= c.Limit
 }
 
 // CustomFieldOption represents a single option for enum/enum-set fields.
@@ -348,6 +354,17 @@ func (b *BoardConfig) SetColumnColor(name, color string) bool {
 		return false
 	}
 	col.Color = color
+	return true
+}
+
+// SetColumnLimit updates a column's card limit.
+// A limit of 0 clears the limit. Returns false if the column doesn't exist.
+func (b *BoardConfig) SetColumnLimit(name string, limit int) bool {
+	col := b.GetColumn(name)
+	if col == nil {
+		return false
+	}
+	col.Limit = limit
 	return true
 }
 

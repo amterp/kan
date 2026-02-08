@@ -40,6 +40,7 @@ export interface Column {
   name: string;
   color: string;
   description?: string;
+  limit?: number;
   card_ids?: string[];
 }
 
@@ -129,6 +130,7 @@ export interface CreateColumnInput {
   name: string;
   color?: string;
   description?: string;
+  limit?: number;
   position?: number;
 }
 
@@ -136,6 +138,7 @@ export interface UpdateColumnInput {
   name?: string;
   color?: string;
   description?: string;
+  limit?: number;
 }
 
 export interface FaviconConfig {

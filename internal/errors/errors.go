@@ -104,6 +104,12 @@ func InvalidField(field, message string) error {
 	return &ValidationError{Field: field, Message: message}
 }
 
+func ColumnLimitExceeded(columnName string, limit int) error {
+	return &ValidationError{
+		Message: fmt.Sprintf("column %q is full (limit: %d)", columnName, limit),
+	}
+}
+
 // IsNotFound checks if an error is a not-found error.
 func IsNotFound(err error) bool {
 	return errors.Is(err, ErrNotFound)

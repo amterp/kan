@@ -423,7 +423,14 @@ export default function Column({
             <div className="flex-1" />
           </>
         )}
-        <span className="text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">{cards.length}</span>
+        <span className="text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
+          {column.limit
+            ? <span className={cards.length >= column.limit ? 'text-red-500 font-semibold' : ''}>
+                {cards.length}/{column.limit}
+              </span>
+            : cards.length
+          }
+        </span>
 
         {/* Column Menu */}
         {(onDeleteColumn || onUpdateColumn) && (

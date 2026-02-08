@@ -76,14 +76,16 @@ Manage columns within a board.
 kan column add review
 kan column add review --color "#9333ea" --position 2
 kan column add review --description "Cards under code review"
+kan column add review --limit 5
 ```
 
-| Flag                | Description                               |
-|---------------------|-------------------------------------------|
-| `-b, --board`       | Target board                              |
-| `-C, --color`       | Hex color (default: auto from palette)    |
-| `-d, --description` | Description of the column's purpose       |
-| `-p, --position`    | Insert position (0-indexed, default: end) |
+| Flag                | Description                                       |
+|---------------------|---------------------------------------------------|
+| `-b, --board`       | Target board                                      |
+| `-C, --color`       | Hex color (default: auto from palette)            |
+| `-d, --description` | Description of the column's purpose               |
+| `-l, --limit`       | Max cards allowed in column (0 = no limit)        |
+| `-p, --position`    | Insert position (0-indexed, default: end)         |
 
 **Delete a column:**
 
@@ -112,13 +114,16 @@ kan column rename review code-review
 ```bash
 kan column edit review --color "#ec4899"
 kan column edit review --description "Updated purpose"
+kan column edit review --limit 3
+kan column edit review --limit 0    # Clear limit
 ```
 
-| Flag                | Description                    |
-|---------------------|--------------------------------|
-| `-b, --board`       | Target board                   |
-| `-C, --color`       | New hex color                  |
-| `-d, --description` | New description for the column |
+| Flag                | Description                                       |
+|---------------------|---------------------------------------------------|
+| `-b, --board`       | Target board                                      |
+| `-C, --color`       | New hex color                                     |
+| `-d, --description` | New description for the column                    |
+| `-l, --limit`       | Column limit (0 = clear, >0 = set max cards)      |
 
 **List columns:**
 

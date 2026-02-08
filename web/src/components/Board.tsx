@@ -6,6 +6,7 @@ import type { BoardConfig, Card, Column as ColumnType, CreateCardInput, CreateCa
 import { cardMatchesQuery } from '../utils/fuzzyMatch';
 import { toApiFieldValue } from '../utils/customFields';
 import { BoardConfigProvider } from '../contexts/BoardConfigContext';
+import { useToast } from '../contexts/ToastContext';
 import Column from './Column';
 import CardComponent from './Card';
 import CardEditModal from './CardEditModal';
@@ -48,6 +49,7 @@ export default function Board({
   onUpdateColumn,
   onReorderColumns,
 }: BoardProps) {
+  const { showToast } = useToast();
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [activeColumn, setActiveColumn] = useState<ColumnType | null>(null);
   const [addingToColumn, setAddingToColumn] = useState<string | null>(null);
@@ -327,10 +329,23 @@ export default function Board({
     // Skip if same column and no position (no real move)
     if (draggedCard.column === targetColumn && position === undefined) return;
 
+    // Client-side column limit check to avoid the jarring optimistic-then-revert UX
+    if (draggedCard.column !== targetColumn) {
+      const col = board.columns.find((c) => c.name === targetColumn);
+      if (col?.limit) {
+        const colCards = cardsByColumn[targetColumn] || [];
+        if (colCards.length >= col.limit) {
+          showToast('error', `Column "${targetColumn}" is full (limit: ${col.limit})`);
+          return;
+        }
+      }
+    }
+
     try {
       await onMoveCard(activeId, targetColumn, position);
     } catch (e) {
-      console.error('Failed to move card:', e);
+      const message = e instanceof Error ? e.message : 'Failed to move card';
+      showToast('error', message);
     }
   };
 
@@ -372,7 +387,8 @@ export default function Board({
         setPanelTarget(null);
       }
     } catch (e) {
-      console.error('Failed to create card:', e);
+      const message = e instanceof Error ? e.message : 'Failed to create card';
+      showToast('error', message);
     }
   };
 

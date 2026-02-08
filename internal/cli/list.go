@@ -112,7 +112,12 @@ func printCardsByColumn(cards []*model.Card, boardCfg *model.BoardConfig) {
 
 		// Column header with color from board config
 		colHeader := RenderColumnColor(col.Name, col.Color)
-		countStr := RenderMuted(fmt.Sprintf("(%d)", len(colCards)))
+		var countStr string
+		if col.Limit > 0 {
+			countStr = RenderMuted(fmt.Sprintf("(%d/%d)", len(colCards), col.Limit))
+		} else {
+			countStr = RenderMuted(fmt.Sprintf("(%d)", len(colCards)))
+		}
 		fmt.Printf("\n%s %s\n", colHeader, countStr)
 
 		// Calculate column widths for alignment within this column

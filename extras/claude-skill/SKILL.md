@@ -42,45 +42,47 @@ Ask the user what columns they want. Offer these templates as inspiration - they
 
 **Simple** - Good default for most projects:
 
-| Column | Description |
-|--------|-------------|
-| backlog | Planned work not yet started |
-| next | Ready to be picked up next |
-| in-progress | Currently being worked on |
-| done | Completed work |
+| Column | Description | Limit |
+|--------|-------------|-----------|
+| backlog | Planned work not yet started | |
+| next | Ready to be picked up next | 5 |
+| in-progress | Currently being worked on | 5 |
+| done | Completed work | |
 
 **Prioritized Backlog** - Splits the backlog for triage:
 
-| Column | Description |
-|--------|-------------|
-| backlog-lo | Low priority planned work |
-| backlog-hi | High priority planned work |
-| next | Ready to be picked up next |
-| in-progress | Currently being worked on |
-| done | Completed work |
+| Column | Description | Limit |
+|--------|-------------|-----------|
+| backlog-lo | Low priority planned work | |
+| backlog-hi | High priority planned work | 10 |
+| next | Ready to be picked up next | 5 |
+| in-progress | Currently being worked on | 5 |
+| done | Completed work | |
 
 **With Ideas** - Adds a staging area for uncommitted thoughts:
 
-| Column | Description |
-|--------|-------------|
-| uncommitted | Ideas and thoughts not yet committed to |
-| backlog | Planned work not yet started |
-| next | Ready to be picked up next |
-| in-progress | Currently being worked on |
-| done | Completed work |
+| Column | Description | Limit |
+|--------|-------------|-----------|
+| uncommitted | Ideas and thoughts not yet committed to | |
+| backlog | Planned work not yet started | |
+| next | Ready to be picked up next | 5 |
+| in-progress | Currently being worked on | 5 |
+| done | Completed work | |
 
 **Full** - Prioritized backlog with ideas column:
 
-| Column | Description |
-|--------|-------------|
-| uncommitted | Ideas and thoughts not yet committed to |
-| backlog-lo | Low priority planned work |
-| backlog-hi | High priority planned work |
-| next | Ready to be picked up next |
-| in-progress | Currently being worked on |
-| done | Completed work |
+| Column | Description | Limit |
+|--------|-------------|-----------|
+| uncommitted | Ideas and thoughts not yet committed to | |
+| backlog-lo | Low priority planned work | |
+| backlog-hi | High priority planned work | 10 |
+| next | Ready to be picked up next | 5 |
+| in-progress | Currently being worked on | 5 |
+| done | Completed work | |
 
 **Important**: Every column should have a description. Descriptions serve as self-documentation and help guide AI agents using the board. Suggest descriptions if the user doesn't provide them.
+
+**Column Limits**: Columns can have an optional limit that caps how many cards they hold. When a column is full, adding or moving cards into it is refused. This is a core kanban practice for controlling flow. Suggest limits for active workflow columns (like `next` and `in-progress`) - leave unbounded columns (like `backlog` and `done`) without limits. The defaults in the templates above are good starting points; adjust based on preference.
 
 The first column in the list becomes the default column for new cards.
 
@@ -239,13 +241,20 @@ type_indicator = "type"
 badges = ["labels"]
 ```
 
-Column descriptions are added to the `[[columns]]` entries:
+Column descriptions and limits are added to the `[[columns]]` entries:
 
 ```toml
 [[columns]]
 name = "backlog"
 color = "#6b7280"
 description = "Planned work not yet started"
+card_ids = []
+
+[[columns]]
+name = "in-progress"
+color = "#f59e0b"
+description = "Currently being worked on"
+limit = 5
 card_ids = []
 ```
 
@@ -339,10 +348,13 @@ kan column add review                                    # Add column to end
 kan column add review --color "#9333ea"                  # With custom color
 kan column add review --position 2                       # Insert at position
 kan column add review --description "Cards under review" # With description
+kan column add review --limit 5                          # With column limit
 kan column delete review                 # Delete column
 kan column rename review code-review     # Rename column
 kan column edit review --color "#ec4899" # Change column color
 kan column edit review --description "Updated purpose"   # Change description
+kan column edit review --limit 3         # Set column limit
+kan column edit review --limit 0         # Clear column limit
 kan column list                          # List columns
 kan column move review --position 1      # Reorder column
 kan column move review --after backlog   # Insert after another

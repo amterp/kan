@@ -1,4 +1,4 @@
-kan_schema = "board/7"
+kan_schema = "board/8"
 id = "2R9nzEvz"
 name = "main"
 default_column = "backlog-hi"
@@ -7,31 +7,36 @@ default_column = "backlog-hi"
   name = "backlog-lo"
   color = "#9333ea"
   description = "Lower priority backlog items"
+  limit = 0
   card_ids = ["2REAnxC6", "2RESVvds", "2RF0aoHq", "2RR0gW1U", "2RMKzF8A", "32mUefF1", "a_6OLXA9WA", "a_EX5Arv9h", "a_M40WdBIG"]
 
 [[columns]]
   name = "backlog-hi"
   color = "#6b7280"
   description = "Higher priority items ready to be picked up soon"
+  limit = 0
   card_ids = ["3cIruBkr", "3cJmN0qU", "2RF2RcyA", "48AVDad4", "2REBgzSK", "2RESoTin", "2RET9h3a", "2RF25n0b", "4CWvz4xq", "a_6NPbhW3o", "a_BlWLznge", "4CXN7HhS"]
 
 [[columns]]
   name = "next"
   color = "#3b82f6"
   description = "This is a much longer description that might wrap across multiple lines and we need to see how it renders in the terminal output to ensure it doesn't cause formatting issues"
-  card_ids = ["a_6NhrwFOp", "4CUbhFTJ", "3dav9GZU", "a_MAL2NMNK", "a_MD7bGqtQ"]
+  limit = 0
+  card_ids = ["a_M3hjtzpG", "a_M3nVUL08", "a_M3pA7DaC", "2RF1gl2S"]
 
 [[columns]]
   name = "in-progress"
   color = "#f59e0b"
   description = "Currently being worked on"
-  card_ids = ["2RF1gl2S", "a_MAK2MK3r"]
+  limit = 3
+  card_ids = ["a_6NhrwFOp", "4CUbhFTJ", "3dav9GZU"]
 
 [[columns]]
   name = "done"
   color = "#10b981"
   description = "Completed and shipped"
-  card_ids = ["a_M3nVUL08", "a_MAJa1MSM", "a_M3hjtzpG", "a_M3pA7DaC", "a_M3dl6TO8", "a_M3lWFtkU", "a_LiGvcqcw", "a_LiGp4vb9", "a_LiGhaUrK", "32odHmOO", "a_GRVDsj80", "a_HdaxCfGq", "a_EYZAQKps", "a_6NBw2rbK", "a_HdqWkJY6", "2RERa5et", "2REB6NLa", "3c900E57", "48O31Ctb", "a_DnJXCAIr", "a_6NrXm5Ky", "a_6NqOp49M", "a_6NpX7nrE", "4CP22Hzt", "a_6Nfme0TU", "2RFKjwYX", "a_8o62zhUu", "a_8o1jyZN8", "5utsN5st", "3cKIYh0p", "3d1MfWZS", "3d58C4UJ", "48P2Qpfg", "48OWoX57", "2RESD2LM", "48NdHhpT", "2REATGIR", "32uFMcPs", "2RdBBLnA", "2RF195UV", "2RERulDq", "2REA5mCQ", "2RFLL8mC", "2RFLeA3b", "2RFLw7h8", "2RFL3u0o", "31FtC9Qq", "31jSrye7", "a_HcRaa5km", "a_HcSky7NT", "a_HcTff7zy", "a_HcVuee8R", "a_HcWHa2M3", "a_HcWPkRkK", "a_HcU8XfXs"]
+  limit = 0
+  card_ids = ["a_M3dl6TO8", "a_M3lWFtkU", "a_LiGvcqcw", "a_LiGp4vb9", "a_LiGhaUrK", "32odHmOO", "a_GRVDsj80", "a_HdaxCfGq", "a_EYZAQKps", "a_6NBw2rbK", "a_HdqWkJY6", "2RERa5et", "2REB6NLa", "3c900E57", "48O31Ctb", "a_DnJXCAIr", "a_6NrXm5Ky", "a_6NqOp49M", "a_6NpX7nrE", "4CP22Hzt", "a_6Nfme0TU", "2RFKjwYX", "a_8o62zhUu", "a_8o1jyZN8", "5utsN5st", "3cKIYh0p", "3d1MfWZS", "3d58C4UJ", "48P2Qpfg", "48OWoX57", "2RESD2LM", "48NdHhpT", "2REATGIR", "32uFMcPs", "2RdBBLnA", "2RF195UV", "2RERulDq", "2REA5mCQ", "2RFLL8mC", "2RFLeA3b", "2RFLw7h8", "2RFL3u0o", "31FtC9Qq", "31jSrye7", "a_HcRaa5km", "a_HcSky7NT", "a_HcTff7zy", "a_HcVuee8R", "a_HcWHa2M3", "a_HcWPkRkK", "a_HcU8XfXs"]
 
 [custom_fields]
   [custom_fields.type]

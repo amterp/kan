@@ -543,7 +543,8 @@ type CreateColumnRequest struct {
 	Name        string `json:"name"`
 	Color       string `json:"color,omitempty"`
 	Description string `json:"description,omitempty"`
-	Position    *int   `json:"position,omitempty"` // Optional: insert position (-1 or omit for end)
+	Limit       *int   `json:"limit,omitempty"` // Column limit (0 = no limit)
+	Position    *int   `json:"position,omitempty"`   // Optional: insert position (-1 or omit for end)
 }
 
 // CreateColumn creates a new column on a board.
@@ -570,6 +571,14 @@ func (h *Handler) CreateColumn(w http.ResponseWriter, r *http.Request) {
 	if err := h.ctx().BoardService.AddColumn(boardName, req.Name, req.Color, req.Description, position); err != nil {
 		Error(w, err)
 		return
+	}
+
+	// Set column limit if specified
+	if req.Limit != nil && *req.Limit > 0 {
+		if err := h.ctx().BoardService.UpdateColumnLimit(boardName, req.Name, *req.Limit); err != nil {
+			Error(w, err)
+			return
+		}
 	}
 
 	// Get the updated board to return the new column
@@ -607,6 +616,7 @@ type UpdateColumnRequest struct {
 	Name        *string `json:"name,omitempty"`        // New name (rename)
 	Color       *string `json:"color,omitempty"`       // New color
 	Description *string `json:"description,omitempty"` // New description
+	Limit       *int    `json:"limit,omitempty"`       // Column limit (0 = clear)
 }
 
 // UpdateColumn updates a column's properties (rename, color).
@@ -640,6 +650,14 @@ func (h *Handler) UpdateColumn(w http.ResponseWriter, r *http.Request) {
 	// Handle description change
 	if req.Description != nil {
 		if err := h.ctx().BoardService.UpdateColumnDescription(boardName, columnName, *req.Description); err != nil {
+			Error(w, err)
+			return
+		}
+	}
+
+	// Handle column limit change
+	if req.Limit != nil {
+		if err := h.ctx().BoardService.UpdateColumnLimit(boardName, columnName, *req.Limit); err != nil {
 			Error(w, err)
 			return
 		}

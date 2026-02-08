@@ -39,6 +39,14 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Description of the column's purpose").
 		Register(addCmd)
 
+	ctx.ColumnAddLimit, _ = ra.NewInt("limit").
+		SetShort("l").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetDefault(-1).
+		SetUsage("Maximum number of cards allowed in this column (0 = no limit)").
+		Register(addCmd)
+
 	ctx.ColumnAddBoard, _ = ra.NewString("board").
 		SetShort("b").
 		SetOptional(true).
@@ -115,6 +123,14 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("New description for the column").
 		Register(editCmd)
 
+	ctx.ColumnEditLimit, _ = ra.NewInt("limit").
+		SetShort("l").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetDefault(-1).
+		SetUsage("Column limit (0 = clear limit, >0 = set limit)").
+		Register(editCmd)
+
 	ctx.ColumnEditBoard, _ = ra.NewString("board").
 		SetShort("b").
 		SetOptional(true).
@@ -171,7 +187,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.ColumnUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runColumnAdd(name, color, description string, position int, board string, nonInteractive bool) {
+func runColumnAdd(name, color, description string, position, limit int, board string, nonInteractive bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -194,6 +210,13 @@ func runColumnAdd(name, color, description string, position int, board string, n
 
 	if err := app.BoardService.AddColumn(boardName, name, color, description, pos); err != nil {
 		Fatal(err)
+	}
+
+	// limit: -1 = not specified, 0 = clear limit, >0 = set limit
+	if limit >= 0 {
+		if err := app.BoardService.UpdateColumnLimit(boardName, name, limit); err != nil {
+			Fatal(err)
+		}
 	}
 
 	PrintSuccess("Added column %q to board %q", name, boardName)
@@ -281,7 +304,7 @@ func runColumnRename(oldName, newName, board string, nonInteractive bool) {
 	PrintSuccess("Renamed column %q to %q in board %q", oldName, newName, boardName)
 }
 
-func runColumnEdit(name, color, description, board string, nonInteractive bool) {
+func runColumnEdit(name, color, description string, limit int, board string, nonInteractive bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -296,8 +319,8 @@ func runColumnEdit(name, color, description, board string, nonInteractive bool) 
 		Fatal(err)
 	}
 
-	if color == "" && description == "" {
-		Fatal(fmt.Errorf("no changes specified; use --color or --description"))
+	if color == "" && description == "" && limit < 0 {
+		Fatal(fmt.Errorf("no changes specified; use --color, --description, or --limit"))
 	}
 
 	if color != "" {
@@ -308,6 +331,13 @@ func runColumnEdit(name, color, description, board string, nonInteractive bool) 
 
 	if description != "" {
 		if err := app.BoardService.UpdateColumnDescription(boardName, name, description); err != nil {
+			Fatal(err)
+		}
+	}
+
+	// limit: -1 = not specified, 0 = clear limit, >0 = set limit
+	if limit >= 0 {
+		if err := app.BoardService.UpdateColumnLimit(boardName, name, limit); err != nil {
 			Fatal(err)
 		}
 	}
@@ -342,6 +372,7 @@ func runColumnList(board string, nonInteractive, jsonOutput bool) {
 				Name:        col.Name,
 				Color:       col.Color,
 				Description: col.Description,
+				Limit:    col.Limit,
 				CardCount:   len(col.CardIDs),
 			}
 		}
@@ -362,7 +393,12 @@ func runColumnList(board string, nonInteractive, jsonOutput bool) {
 			cardWord = "card"
 		}
 		swatch := ColorSwatch(col.Color)
-		count := RenderMuted(fmt.Sprintf("(%d %s)", len(col.CardIDs), cardWord))
+		var count string
+		if col.Limit > 0 {
+			count = RenderMuted(fmt.Sprintf("(%d/%d %s)", len(col.CardIDs), col.Limit, cardWord))
+		} else {
+			count = RenderMuted(fmt.Sprintf("(%d %s)", len(col.CardIDs), cardWord))
+		}
 		fmt.Printf("%-15s %s %s\n", col.Name, swatch, count)
 		if col.Description != "" {
 			fmt.Printf("  %s\n", RenderMuted(col.Description))
