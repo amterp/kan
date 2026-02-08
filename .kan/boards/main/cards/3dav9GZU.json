@@ -4,8 +4,9 @@
   "alias_explicit": false,
   "created_at_millis": 1767763257283,
   "creator": "Alexander Terp",
+  "description": "test",
   "id": "3dav9GZU",
   "title": "parents/epics",
   "type": "feature",
-  "updated_at_millis": 1767763266791
+  "updated_at_millis": 1770519259854
 }
