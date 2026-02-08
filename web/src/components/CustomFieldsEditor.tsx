@@ -67,7 +67,7 @@ function FreeSetField({
     <div className={marginClass}>
       <label className={`flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 capitalize ${compact ? 'mb-1' : 'mb-2'}`}>
         <span>{fieldName}</span>
-        <FieldDescriptionTooltip description={description} />
+        {description && <FieldDescriptionTooltip description={description!} />}
         {wantedIndicator}
         <span className="text-xs font-normal text-gray-400 dark:text-gray-500 ml-2">{values.length}/{MAX_SET_ITEMS}</span>
       </label>
@@ -161,7 +161,7 @@ export default function CustomFieldsEditor({
           <div className={marginClass} key={fieldName}>
             <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
               <span>{fieldName}</span>
-              <FieldDescriptionTooltip description={schema.description} />
+              {schema.description && <FieldDescriptionTooltip description={schema.description!} />}
               {wantedIndicator}
             </label>
             <select
@@ -185,7 +185,7 @@ export default function CustomFieldsEditor({
           <div className={marginClass} key={fieldName}>
             <label className={`flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 capitalize ${compact ? 'mb-1' : 'mb-2'}`}>
               <span>{fieldName}</span>
-              <FieldDescriptionTooltip description={schema.description} />
+              {schema.description && <FieldDescriptionTooltip description={schema.description!} />}
               {wantedIndicator}
             </label>
             <div className="flex flex-wrap gap-2">
@@ -239,7 +239,7 @@ export default function CustomFieldsEditor({
           <div className={marginClass} key={fieldName}>
             <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
               <span>{fieldName}</span>
-              <FieldDescriptionTooltip description={schema.description} />
+              {schema.description && <FieldDescriptionTooltip description={schema.description!} />}
               {wantedIndicator}
             </label>
             <input
@@ -257,7 +257,7 @@ export default function CustomFieldsEditor({
           <div className={marginClass} key={fieldName}>
             <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
               <span>{fieldName}</span>
-              <FieldDescriptionTooltip description={schema.description} />
+              {schema.description && <FieldDescriptionTooltip description={schema.description!} />}
               {wantedIndicator}
             </label>
             <input

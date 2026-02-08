@@ -1,17 +1,13 @@
 import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 // Smart tooltip that flips position based on available space
-export default function FieldDescriptionTooltip({ description }: { description?: string }) {
+export default function FieldDescriptionTooltip({ description }: { description: string }) {
   const iconRef = useRef<HTMLSpanElement>(null);
   const [showBelow, setShowBelow] = useState(false);
   const [showLeft, setShowLeft] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0, right: 0 });
-
-  // Guard clause - don't render if no description
-  if (!description) {
-    return null;
-  }
 
   const updatePosition = () => {
     if (iconRef.current) {
@@ -55,7 +51,7 @@ export default function FieldDescriptionTooltip({ description }: { description?:
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </span>
-      {isVisible && (
+      {isVisible && createPortal(
         <span
           style={{
             top: showBelow ? position.top : 'auto',
@@ -63,10 +59,11 @@ export default function FieldDescriptionTooltip({ description }: { description?:
             left: showLeft ? 'auto' : position.left,
             right: showLeft ? position.right : 'auto',
           }}
-          className="fixed px-2 py-1 text-xs text-white bg-gray-800 dark:bg-gray-900 rounded shadow-lg whitespace-pre-wrap pointer-events-none z-50 max-w-64"
+          className="fixed px-2 py-1 text-xs text-white bg-gray-800 dark:bg-gray-900 rounded shadow-lg whitespace-pre-wrap pointer-events-none z-[100] max-w-64"
         >
           {description}
-        </span>
+        </span>,
+        document.body
       )}
     </>
   );
