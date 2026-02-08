@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "improve-adhoc-ephemeral",
+  "alias_explicit": false,
+  "created_at_millis": 1770507668758,
+  "creator": "Alexander Terp",
+  "description": "What I mean here is that sometimes I found that KAN is a really good just general tool for Kanban boards and and sometimes you don't have a board which is tied to any specific repository. For example, at work, I have a general work to do Kanban board, but that doesn't belong in any specific repository or anything. It's just like a user level thing. I don't have concrete suggestions here, but it feels like it should be easier to... Or we should create some sort of accepted conventional workflow flow for this sort of user use case. what I'm imagining, like just spitballing a couple of options. One of them is that you actually store boards inside your.kan config or like.kan userspace folder The downside of that is that it's a little bit hidden away, but maybe that's okay. like this is for a use case where you don't really want to think about where your board lives. You just want to have a board. So maybe that's the downside, though, is that it's not checked in. There's no version history. there's no version history, there's just like no backup, right? it could just get lost which is pretty dangerous the other one that's maybe a bit more realistic is that we create a expected convention where you do create a git repository, story. but it's just dedicated to all your boards and we make it very easy to basically just create new boards in that repository. repository, like maybe we tell KAN, hey, this is my catchall repository or something like that and then from the CLI, regardless of where you are or from the front end even, you can just create a new board and it will go into that predefined space in that git. and then maybe even the git itself is like committed and kept up to date automatically by KAN. that actually tangent, I've been thinking about having having just a commit.kan file updates button in the front end, but that's a tangent. but I'm kind of thinking that maybe we do something like this where you have like a KAN managed repository almost of all your boards that are like not project specific necessarily or don't have like a natural home",
+  "id": "a_MD7bGqtQ",
+  "title": "improve adhoc/ephemeral boards",
+  "type": "feature",
+  "updated_at_millis": 1770507895911
+}

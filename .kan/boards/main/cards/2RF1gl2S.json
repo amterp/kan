@@ -1,12 +1,12 @@
 {
   "_v": 1,
-  "alias": "max-cards",
+  "alias": "max-cards-2",
   "alias_explicit": false,
   "created_at_millis": 1767586052927,
   "creator": "Alexander Terp",
-  "description": "I sometimes have workflows where I want to cap the number of cards in a given column. it would be nice to be able to configure like, this column can have max 10 cards, and it will just like refuse. If I try to add a card to it, it will just refuse.",
+  "description": "I sometimes have workflows where I want to cap the number of cards in a given column. it would be nice to be able to configure like, this column can have max 10 cards, and it will just like refuse. If I try to add a card to it, it will just refuse. It should show a (X/Y) indicator in the column header if specified",
   "id": "2RF1gl2S",
   "title": "max cards",
   "type": "feature",
-  "updated_at_millis": 1770496527981
+  "updated_at_millis": 1770513672503
 }

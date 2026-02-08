@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "do-not-show-enum-set",
+  "alias_explicit": false,
+  "created_at_millis": 1770501035443,
+  "creator": "Alexander Terp",
+  "id": "a_MAL2NMNK",
+  "title": "do not show enum-set/value descriptions in card edit modal dropdown. its too busy, instead, maybe include in the field description",
+  "type": "enhancement",
+  "updated_at_millis": 1770501035514
+}
