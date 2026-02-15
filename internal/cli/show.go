@@ -15,6 +15,7 @@ func registerShow(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.ShowCard, _ = ra.NewString("card").
 		SetUsage("Card ID or alias").
+		SetCompletionFunc(completeCards).
 		Register(cmd)
 
 	ctx.ShowBoard, _ = ra.NewString("board").
@@ -22,6 +23,7 @@ func registerShow(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Board name").
+		SetCompletionFunc(completeBoards).
 		Register(cmd)
 
 	ctx.ShowUsed, _ = parent.RegisterCmd(cmd)

@@ -12,6 +12,11 @@ type CommandContext struct {
 	NonInteractive *bool
 	Json           *bool
 
+	// completion command
+	CompletionUsed  *bool
+	CompletionShell *string
+	RootCmd         *ra.Cmd
+
 	// init command
 	InitUsed        *bool
 	InitLocation    *string
@@ -148,6 +153,8 @@ func Run() {
 
 	cmd := ra.NewCmd("kan")
 	cmd.SetDescription("File-based kanban boards")
+	cmd.EnableCompletion()
+	ctx.RootCmd = cmd
 
 	// Global flag for non-interactive mode
 	ctx.NonInteractive, _ = ra.NewBool("non-interactive").
@@ -176,6 +183,7 @@ func Run() {
 	registerServe(cmd, ctx)
 	registerMigrate(cmd, ctx)
 	registerDoctor(cmd, ctx)
+	registerCompletion(cmd, ctx)
 
 	// Parse command line
 	cmd.ParseOrExit(os.Args[1:])
@@ -283,5 +291,8 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.DoctorUsed:
 		runDoctor(*ctx.DoctorBoard, *ctx.DoctorFix, *ctx.DoctorDryRun, *ctx.Json)
+
+	case *ctx.CompletionUsed:
+		runCompletion(*ctx.CompletionShell, ctx.RootCmd)
 	}
 }

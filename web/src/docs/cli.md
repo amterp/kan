@@ -334,6 +334,22 @@ kan doctor --json
   - `MALFORMED_GLOBAL_CONFIG`: Global config.toml fails to parse
   - `GLOBAL_SCHEMA_OUTDATED`: Global config needs migration
 
+### completion
+
+Output shell completion scripts for TAB completion of commands, flags, board names, card IDs/aliases, and column names.
+
+```bash
+kan completion bash
+kan completion zsh
+```
+
+To enable, add one of these to your shell profile (e.g. `~/.zshrc` or `~/.bashrc`):
+
+```bash
+eval "$(kan completion zsh)"
+eval "$(kan completion bash)"
+```
+
 ## Global Flags
 
 | Flag                    | Description                                                                              |

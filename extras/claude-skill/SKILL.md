@@ -409,6 +409,19 @@ kan doctor --json        # Machine-readable output
 
 **Fixable issues:** orphaned cards, missing card references, duplicate IDs, invalid default column, invalid parent refs.
 
+## Shell Completion
+
+```bash
+kan completion bash   # Output bash completion script
+kan completion zsh    # Output zsh completion script
+
+# Enable (add to shell profile):
+eval "$(kan completion zsh)"
+eval "$(kan completion bash)"
+```
+
+Completion supports commands, flags, board names, card IDs/aliases, and column names.
+
 ## Global Flags
 
 | Flag | Description |

@@ -18,6 +18,7 @@ func registerList(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Filter by board").
+		SetCompletionFunc(completeBoards).
 		Register(cmd)
 
 	ctx.ListColumn, _ = ra.NewString("column").
@@ -25,6 +26,7 @@ func registerList(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Filter by column").
+		SetCompletionFunc(completeColumns).
 		Register(cmd)
 
 	ctx.ListUsed, _ = parent.RegisterCmd(cmd)

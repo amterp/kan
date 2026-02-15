@@ -309,3 +309,100 @@ func TestBoardResolver_GetBoardConfig(t *testing.T) {
 		t.Errorf("Expected board name 'main', got %q", cfg.Name)
 	}
 }
+
+// ============================================================================
+// InferBoard Tests
+// ============================================================================
+
+func TestInferBoard_SingleBoard(t *testing.T) {
+	boardStore := newMockBoardStore()
+	boardStore.addBoard("only-board")
+
+	board := InferBoard(boardStore, nil, "")
+	if board != "only-board" {
+		t.Errorf("Expected 'only-board', got %q", board)
+	}
+}
+
+func TestInferBoard_NoBoards(t *testing.T) {
+	boardStore := newMockBoardStore()
+
+	board := InferBoard(boardStore, nil, "")
+	if board != "" {
+		t.Errorf("Expected empty string, got %q", board)
+	}
+}
+
+func TestInferBoard_MultipleBoards_NoConfig(t *testing.T) {
+	boardStore := newMockBoardStore()
+	boardStore.addBoard("main")
+	boardStore.addBoard("feature")
+
+	board := InferBoard(boardStore, nil, "")
+	if board != "" {
+		t.Errorf("Expected empty string for multiple boards without config, got %q", board)
+	}
+}
+
+func TestInferBoard_MultipleBoards_WithDefault(t *testing.T) {
+	boardStore := newMockBoardStore()
+	boardStore.addBoard("main")
+	boardStore.addBoard("feature")
+
+	globalCfg := &model.GlobalConfig{
+		Repos: map[string]model.RepoConfig{
+			"/repo": {DefaultBoard: "feature"},
+		},
+	}
+
+	board := InferBoard(boardStore, globalCfg, "/repo")
+	if board != "feature" {
+		t.Errorf("Expected 'feature', got %q", board)
+	}
+}
+
+func TestInferBoard_MultipleBoards_DefaultForDifferentRepo(t *testing.T) {
+	boardStore := newMockBoardStore()
+	boardStore.addBoard("main")
+	boardStore.addBoard("feature")
+
+	globalCfg := &model.GlobalConfig{
+		Repos: map[string]model.RepoConfig{
+			"/other-repo": {DefaultBoard: "feature"},
+		},
+	}
+
+	board := InferBoard(boardStore, globalCfg, "/repo")
+	if board != "" {
+		t.Errorf("Expected empty string when default is for different repo, got %q", board)
+	}
+}
+
+func TestInferBoard_NilGlobalConfig(t *testing.T) {
+	boardStore := newMockBoardStore()
+	boardStore.addBoard("main")
+	boardStore.addBoard("feature")
+
+	board := InferBoard(boardStore, nil, "/repo")
+	if board != "" {
+		t.Errorf("Expected empty string with nil global config, got %q", board)
+	}
+}
+
+func TestInferBoard_EmptyProjectRoot(t *testing.T) {
+	boardStore := newMockBoardStore()
+	boardStore.addBoard("main")
+	boardStore.addBoard("feature")
+
+	globalCfg := &model.GlobalConfig{
+		Repos: map[string]model.RepoConfig{
+			"/repo": {DefaultBoard: "feature"},
+		},
+	}
+
+	// Empty project root should skip global config lookup
+	board := InferBoard(boardStore, globalCfg, "")
+	if board != "" {
+		t.Errorf("Expected empty string with empty project root, got %q", board)
+	}
+}

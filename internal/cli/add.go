@@ -27,6 +27,7 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Target board").
+		SetCompletionFunc(completeBoards).
 		Register(cmd)
 
 	ctx.AddColumn, _ = ra.NewString("column").
@@ -34,6 +35,7 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Target column").
+		SetCompletionFunc(completeColumns).
 		Register(cmd)
 
 	ctx.AddParent, _ = ra.NewString("parent").
@@ -41,6 +43,7 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Parent card ID or alias").
+		SetCompletionFunc(completeCards).
 		Register(cmd)
 
 	ctx.AddFields, _ = ra.NewStringSlice("field").

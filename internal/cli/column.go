@@ -52,6 +52,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Target board").
+		SetCompletionFunc(completeBoards).
 		Register(addCmd)
 
 	ctx.ColumnAddUsed, _ = cmd.RegisterCmd(addCmd)
@@ -62,6 +63,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.ColumnDeleteName, _ = ra.NewString("name").
 		SetUsage("Name of the column to delete").
+		SetCompletionFunc(completeColumns).
 		Register(deleteCmd)
 
 	ctx.ColumnDeleteForce, _ = ra.NewBool("force").
@@ -76,6 +78,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Target board").
+		SetCompletionFunc(completeBoards).
 		Register(deleteCmd)
 
 	ctx.ColumnDeleteUsed, _ = cmd.RegisterCmd(deleteCmd)
@@ -86,6 +89,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.ColumnRenameOld, _ = ra.NewString("old").
 		SetUsage("Current column name").
+		SetCompletionFunc(completeColumns).
 		Register(renameCmd)
 
 	ctx.ColumnRenameNew, _ = ra.NewString("new").
@@ -97,6 +101,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Target board").
+		SetCompletionFunc(completeBoards).
 		Register(renameCmd)
 
 	ctx.ColumnRenameUsed, _ = cmd.RegisterCmd(renameCmd)
@@ -107,6 +112,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.ColumnEditName, _ = ra.NewString("name").
 		SetUsage("Name of the column to edit").
+		SetCompletionFunc(completeColumns).
 		Register(editCmd)
 
 	ctx.ColumnEditColor, _ = ra.NewString("color").
@@ -136,6 +142,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Target board").
+		SetCompletionFunc(completeBoards).
 		Register(editCmd)
 
 	ctx.ColumnEditUsed, _ = cmd.RegisterCmd(editCmd)
@@ -149,6 +156,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Target board").
+		SetCompletionFunc(completeBoards).
 		Register(listCmd)
 
 	ctx.ColumnListUsed, _ = cmd.RegisterCmd(listCmd)
@@ -159,6 +167,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.ColumnMoveName, _ = ra.NewString("name").
 		SetUsage("Name of the column to move").
+		SetCompletionFunc(completeColumns).
 		Register(moveCmd)
 
 	ctx.ColumnMovePosition, _ = ra.NewInt("position").
@@ -173,6 +182,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Insert after this column").
+		SetCompletionFunc(completeColumns).
 		Register(moveCmd)
 
 	ctx.ColumnMoveBoard, _ = ra.NewString("board").
@@ -180,6 +190,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Target board").
+		SetCompletionFunc(completeBoards).
 		Register(moveCmd)
 
 	ctx.ColumnMoveUsed, _ = cmd.RegisterCmd(moveCmd)

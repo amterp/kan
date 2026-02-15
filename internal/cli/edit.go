@@ -16,6 +16,7 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.EditCard, _ = ra.NewString("card").
 		SetUsage("Card ID or alias").
+		SetCompletionFunc(completeCards).
 		Register(cmd)
 
 	ctx.EditBoard, _ = ra.NewString("board").
@@ -23,6 +24,7 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Board name").
+		SetCompletionFunc(completeBoards).
 		Register(cmd)
 
 	ctx.EditTitle, _ = ra.NewString("title").
@@ -44,6 +46,7 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Move card to column").
+		SetCompletionFunc(completeColumns).
 		Register(cmd)
 
 	ctx.EditParent, _ = ra.NewString("parent").
@@ -51,6 +54,7 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Set parent card ID or alias").
+		SetCompletionFunc(completeCards).
 		Register(cmd)
 
 	ctx.EditAlias, _ = ra.NewString("alias").

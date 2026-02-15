@@ -30,6 +30,7 @@ func registerBoard(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.BoardDescribeName, _ = ra.NewString("name").
 		SetOptional(true).
 		SetUsage("Board name (defaults to resolved board)").
+		SetCompletionFunc(completeBoards).
 		Register(describeCmd)
 
 	ctx.BoardDescribeBoard, _ = ra.NewString("board").
@@ -37,6 +38,7 @@ func registerBoard(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Target board").
+		SetCompletionFunc(completeBoards).
 		Register(describeCmd)
 
 	ctx.BoardDescribeUsed, _ = cmd.RegisterCmd(describeCmd)

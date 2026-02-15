@@ -18,6 +18,7 @@ func registerComment(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.CommentAddCard, _ = ra.NewString("card").
 		SetUsage("Card ID or alias").
+		SetCompletionFunc(completeCards).
 		Register(addCmd)
 
 	ctx.CommentAddBody, _ = ra.NewString("body").
@@ -30,6 +31,7 @@ func registerComment(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Board name").
+		SetCompletionFunc(completeBoards).
 		Register(addCmd)
 
 	ctx.CommentAddUsed, _ = cmd.RegisterCmd(addCmd)
@@ -52,6 +54,7 @@ func registerComment(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Board name").
+		SetCompletionFunc(completeBoards).
 		Register(editCmd)
 
 	ctx.CommentEditUsed, _ = cmd.RegisterCmd(editCmd)
@@ -69,6 +72,7 @@ func registerComment(parent *ra.Cmd, ctx *CommandContext) {
 		SetOptional(true).
 		SetFlagOnly(true).
 		SetUsage("Board name").
+		SetCompletionFunc(completeBoards).
 		Register(deleteCmd)
 
 	ctx.CommentDeleteUsed, _ = cmd.RegisterCmd(deleteCmd)

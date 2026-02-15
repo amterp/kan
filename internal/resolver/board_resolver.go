@@ -31,6 +31,31 @@ func NewBoardResolver(
 	}
 }
 
+// InferBoard resolves which board to use without user interaction.
+// It checks: single-board auto-detect, then default_board from global config.
+// Returns "" if no board can be inferred. Used by both BoardResolver and
+// shell completion (which runs before the full App is available).
+func InferBoard(boardStore store.BoardStore, globalCfg *model.GlobalConfig, projectRoot string) string {
+	boards, err := boardStore.List()
+	if err != nil || len(boards) == 0 {
+		return ""
+	}
+
+	if len(boards) == 1 {
+		return boards[0]
+	}
+
+	if globalCfg != nil && projectRoot != "" {
+		if repoCfg := globalCfg.GetRepoConfig(projectRoot); repoCfg != nil {
+			if repoCfg.DefaultBoard != "" {
+				return repoCfg.DefaultBoard
+			}
+		}
+	}
+
+	return ""
+}
+
 // Resolve determines which board to use based on the spec's rules:
 // 1. If explicit board provided, use it
 // 2. If only one board exists, use it
@@ -46,32 +71,25 @@ func (r *BoardResolver) Resolve(explicitBoard string, interactive bool) (string,
 		return explicitBoard, nil
 	}
 
-	// 2. Get all boards
+	// 2. Get all boards - check for empty first
 	boards, err := r.boardStore.List()
 	if err != nil {
 		return "", err
 	}
-
 	if len(boards) == 0 {
 		return "", fmt.Errorf("no boards found; run 'kan init' first")
 	}
 
-	// 3. Single board - use it
-	if len(boards) == 1 {
-		return boards[0], nil
-	}
-
-	// 4. Check for configured default
+	// 3-4. Try non-interactive inference (single board or default)
 	globalCfg, _ := r.globalStore.Load()
-	if globalCfg != nil {
-		if repoCfg := globalCfg.GetRepoConfig(r.projectPath); repoCfg != nil {
-			if repoCfg.DefaultBoard != "" && r.boardStore.Exists(repoCfg.DefaultBoard) {
-				return repoCfg.DefaultBoard, nil
-			}
+	if board := InferBoard(r.boardStore, globalCfg, r.projectPath); board != "" {
+		// Validate the inferred board still exists (default_board might be stale)
+		if r.boardStore.Exists(board) {
+			return board, nil
 		}
 	}
 
-	// 5. Multiple boards, no default
+	// 5. Multiple boards, no usable default
 	if !interactive {
 		return "", fmt.Errorf("multiple boards exist; specify with -b or set default_board in config")
 	}
