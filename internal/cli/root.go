@@ -35,6 +35,17 @@ type CommandContext struct {
 	BoardDescribeName  *string
 	BoardDescribeBoard *string
 
+	// delete command
+	DeleteUsed  *bool
+	DeleteCard  *string
+	DeleteBoard *string
+	DeleteForce *bool
+
+	// board delete
+	BoardDeleteUsed  *bool
+	BoardDeleteName  *string
+	BoardDeleteForce *bool
+
 	// add command
 	AddUsed        *bool
 	AddTitle       *string
@@ -177,6 +188,7 @@ func Run() {
 	registerColumn(cmd, ctx)
 	registerComment(cmd, ctx)
 	registerAdd(cmd, ctx)
+	registerDelete(cmd, ctx)
 	registerShow(cmd, ctx)
 	registerList(cmd, ctx)
 	registerEdit(cmd, ctx)
@@ -219,6 +231,10 @@ func executeCommand(ctx *CommandContext) {
 			unsupportedCommand = "comment edit"
 		case *ctx.CommentDeleteUsed:
 			unsupportedCommand = "comment delete"
+		case *ctx.DeleteUsed:
+			unsupportedCommand = "delete"
+		case *ctx.BoardDeleteUsed:
+			unsupportedCommand = "board delete"
 		}
 		if unsupportedCommand != "" {
 			warnJsonNotSupported(unsupportedCommand)
@@ -232,6 +248,9 @@ func executeCommand(ctx *CommandContext) {
 	case *ctx.BoardCreateUsed:
 		runBoardCreate(*ctx.BoardCreateName)
 
+	case *ctx.BoardDeleteUsed:
+		runBoardDelete(*ctx.BoardDeleteName, *ctx.BoardDeleteForce, *ctx.NonInteractive)
+
 	case *ctx.BoardDescribeUsed:
 		runBoardDescribe(*ctx.BoardDescribeName, *ctx.BoardDescribeBoard, *ctx.NonInteractive, *ctx.Json)
 
@@ -240,6 +259,9 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.AddUsed:
 		runAdd(*ctx.AddTitle, *ctx.AddDescription, *ctx.AddBoard, *ctx.AddColumn, *ctx.AddParent, *ctx.AddFields, *ctx.AddStrict, *ctx.NonInteractive, *ctx.Json)
+
+	case *ctx.DeleteUsed:
+		runDelete(*ctx.DeleteCard, *ctx.DeleteBoard, *ctx.DeleteForce, *ctx.NonInteractive)
 
 	case *ctx.ShowUsed:
 		runShow(*ctx.ShowCard, *ctx.ShowBoard, *ctx.Json)

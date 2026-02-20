@@ -49,6 +49,24 @@ func registerBoard(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.BoardListUsed, _ = cmd.RegisterCmd(listCmd)
 
+	// board delete
+	deleteCmd := ra.NewCmd("delete")
+	deleteCmd.SetDescription("Delete a board and all its cards")
+
+	ctx.BoardDeleteName, _ = ra.NewString("name").
+		SetUsage("Name of the board to delete").
+		SetCompletionFunc(completeBoards).
+		Register(deleteCmd)
+
+	ctx.BoardDeleteForce, _ = ra.NewBool("force").
+		SetShort("f").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Skip confirmation (required in non-interactive mode)").
+		Register(deleteCmd)
+
+	ctx.BoardDeleteUsed, _ = cmd.RegisterCmd(deleteCmd)
+
 	ctx.BoardUsed, _ = parent.RegisterCmd(cmd)
 }
 
@@ -286,5 +304,78 @@ func printFieldOptions(options []model.CustomFieldOption) {
 			values[i] = opt.Value
 		}
 		fmt.Printf("    Options: %s\n", strings.Join(values, ", "))
+	}
+}
+
+func runBoardDelete(name string, force, nonInteractive bool) {
+	app, err := NewApp(!nonInteractive)
+	if err != nil {
+		Fatal(err)
+	}
+
+	if err := app.RequireKan(); err != nil {
+		Fatal(err)
+	}
+
+	// Best-effort card count for the confirmation message.
+	// This may fail if the board has an outdated schema, but that
+	// shouldn't block deletion.
+	totalCards := 0
+	boardCfg, _ := app.BoardService.Get(name)
+	if boardCfg != nil {
+		for _, col := range boardCfg.Columns {
+			totalCards += len(col.CardIDs)
+		}
+	}
+
+	if !force {
+		if nonInteractive {
+			Fatal(fmt.Errorf("deleting board %q requires --force in non-interactive mode", name))
+		}
+
+		msg := fmt.Sprintf("Delete board %q?", name)
+		if totalCards > 0 {
+			cardWord := "cards"
+			if totalCards == 1 {
+				cardWord = "card"
+			}
+			msg = fmt.Sprintf("Delete board %q and its %d %s?", name, totalCards, cardWord)
+		}
+
+		confirmed, err := app.Prompter.Confirm(msg, false)
+		if err != nil {
+			Fatal(err)
+		}
+		if !confirmed {
+			PrintInfo("Cancelled")
+			return
+		}
+	}
+
+	deletedCards, err := app.BoardService.DeleteBoard(name)
+	if err != nil {
+		Fatal(err)
+	}
+
+	// Best-effort cleanup: clear default_board if it pointed to the deleted board
+	globalCfg, loadErr := app.GlobalStore.Load()
+	if loadErr == nil && app.ProjectRoot != "" {
+		if repoCfg := globalCfg.GetRepoConfig(app.ProjectRoot); repoCfg != nil {
+			if repoCfg.DefaultBoard == name {
+				repoCfg.DefaultBoard = ""
+				globalCfg.SetRepoConfig(app.ProjectRoot, *repoCfg)
+				_ = app.GlobalStore.Save(globalCfg)
+			}
+		}
+	}
+
+	if deletedCards > 0 {
+		cardWord := "cards"
+		if deletedCards == 1 {
+			cardWord = "card"
+		}
+		PrintSuccess("Deleted board %q and %d %s", name, deletedCards, cardWord)
+	} else {
+		PrintSuccess("Deleted board %q", name)
 	}
 }

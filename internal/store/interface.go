@@ -17,6 +17,7 @@ type BoardStore interface {
 	Create(config *model.BoardConfig) error
 	Get(boardName string) (*model.BoardConfig, error)
 	Update(config *model.BoardConfig) error
+	Delete(boardName string) error
 	List() ([]string, error) // Returns board names
 	Exists(boardName string) bool
 }

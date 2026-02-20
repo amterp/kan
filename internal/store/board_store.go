@@ -99,6 +99,18 @@ func (s *FileBoardStore) Update(cfg *model.BoardConfig) error {
 	return nil
 }
 
+// Delete removes a board and all its data (config and cards).
+func (s *FileBoardStore) Delete(boardName string) error {
+	if !s.Exists(boardName) {
+		return kanerr.BoardNotFound(boardName)
+	}
+	boardDir := s.paths.BoardDir(boardName)
+	if err := os.RemoveAll(boardDir); err != nil {
+		return fmt.Errorf("failed to delete board directory: %w", err)
+	}
+	return nil
+}
+
 // List returns the names of all boards.
 func (s *FileBoardStore) List() ([]string, error) {
 	boardsRoot := s.paths.BoardsRoot()

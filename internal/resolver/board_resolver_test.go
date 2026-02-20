@@ -50,6 +50,14 @@ func (m *mockBoardStore) List() ([]string, error) {
 	return names, nil
 }
 
+func (m *mockBoardStore) Delete(boardName string) error {
+	if _, ok := m.boards[boardName]; !ok {
+		return kanerr.BoardNotFound(boardName)
+	}
+	delete(m.boards, boardName)
+	return nil
+}
+
 func (m *mockBoardStore) Exists(boardName string) bool {
 	_, ok := m.boards[boardName]
 	return ok

@@ -127,6 +127,14 @@ func (m *testBoardStore) List() ([]string, error) {
 	return names, nil
 }
 
+func (m *testBoardStore) Delete(boardName string) error {
+	if _, ok := m.boards[boardName]; !ok {
+		return kanerr.BoardNotFound(boardName)
+	}
+	delete(m.boards, boardName)
+	return nil
+}
+
 func (m *testBoardStore) Exists(boardName string) bool {
 	_, ok := m.boards[boardName]
 	return ok

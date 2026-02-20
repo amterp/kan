@@ -167,3 +167,95 @@ func TestBoardService_Create_DefaultColumns(t *testing.T) {
 		}
 	}
 }
+
+func TestBoardService_DeleteBoard(t *testing.T) {
+	boardStore := newTestBoardStore()
+	cardStore := newTestCardStore()
+	svc := NewBoardService(boardStore, cardStore)
+
+	// Need at least two boards so we're not deleting the last one
+	if err := svc.Create("main"); err != nil {
+		t.Fatalf("Create main failed: %v", err)
+	}
+	if err := svc.Create("other"); err != nil {
+		t.Fatalf("Create other failed: %v", err)
+	}
+
+	deletedCards, err := svc.DeleteBoard("main")
+	if err != nil {
+		t.Fatalf("DeleteBoard failed: %v", err)
+	}
+
+	if deletedCards != 0 {
+		t.Errorf("Expected 0 deleted cards, got %d", deletedCards)
+	}
+
+	if svc.Exists("main") {
+		t.Error("Board should not exist after deletion")
+	}
+}
+
+func TestBoardService_DeleteBoard_WithCards(t *testing.T) {
+	boardStore := newTestBoardStore()
+	cardStore := newTestCardStore()
+	svc := NewBoardService(boardStore, cardStore)
+
+	// Create a second board so the target isn't the last one
+	svc.Create("other")
+
+	cfg := testBoardConfig("main")
+	cfg.Columns[0].CardIDs = []string{"c1", "c2"}
+	cfg.Columns[1].CardIDs = []string{"c3"}
+	boardStore.addBoard(cfg)
+
+	deletedCards, err := svc.DeleteBoard("main")
+	if err != nil {
+		t.Fatalf("DeleteBoard failed: %v", err)
+	}
+
+	if deletedCards != 3 {
+		t.Errorf("Expected 3 deleted cards, got %d", deletedCards)
+	}
+}
+
+func TestBoardService_DeleteBoard_NotFound(t *testing.T) {
+	boardStore := newTestBoardStore()
+	cardStore := newTestCardStore()
+	svc := NewBoardService(boardStore, cardStore)
+
+	// Need two existing boards so the "last board" check passes,
+	// then try to delete a nonexistent one
+	svc.Create("main")
+	svc.Create("other")
+
+	_, err := svc.DeleteBoard("nonexistent")
+	if err == nil {
+		t.Fatal("Expected error for nonexistent board")
+	}
+	if !kanerr.IsNotFound(err) {
+		t.Errorf("Expected NotFound error, got %v", err)
+	}
+}
+
+func TestBoardService_DeleteBoard_LastBoard(t *testing.T) {
+	boardStore := newTestBoardStore()
+	cardStore := newTestCardStore()
+	svc := NewBoardService(boardStore, cardStore)
+
+	if err := svc.Create("main"); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	_, err := svc.DeleteBoard("main")
+	if err == nil {
+		t.Fatal("Expected error when deleting the last board")
+	}
+	if !kanerr.IsValidationError(err) {
+		t.Errorf("Expected validation error, got %v", err)
+	}
+
+	// Board should still exist
+	if !svc.Exists("main") {
+		t.Error("Board should still exist after failed deletion")
+	}
+}

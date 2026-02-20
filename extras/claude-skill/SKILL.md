@@ -332,11 +332,27 @@ kan edit fix -f priority=low             # Update custom field
 | `-f, --field` | Set custom field (key=value, repeatable) |
 | `--strict` | Error if wanted fields are missing (default: warn) |
 
+## Deleting Cards
+
+```bash
+kan delete 12                # Delete card by ID (prompts for confirmation)
+kan delete fix-login         # Delete card by alias
+kan delete 12 --force        # Skip confirmation
+kan delete 12 -b myboard    # Specify board
+```
+
+| Flag | Description |
+|------|-------------|
+| `-b, --board` | Board name |
+| `-f, --force` | Skip confirmation (required in non-interactive mode) |
+
 ## Board Management
 
 ```bash
 kan board create features    # Create a new board
 kan board list               # List all boards
+kan board delete features    # Delete board and all its cards (prompts for confirmation)
+kan board delete features -f # Skip confirmation
 kan board describe           # Show board documentation (columns, fields, settings)
 kan board describe --json    # Machine-readable board docs
 ```

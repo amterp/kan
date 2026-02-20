@@ -178,6 +178,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	// Board routes
 	mux.HandleFunc("GET /api/v1/boards", h.ListBoards)
 	mux.HandleFunc("GET /api/v1/boards/{name}", h.GetBoard)
+	mux.HandleFunc("DELETE /api/v1/boards/{name}", h.DeleteBoard)
 
 	// Column routes
 	mux.HandleFunc("POST /api/v1/boards/{board}/columns", h.CreateColumn)
@@ -261,6 +262,24 @@ func (h *Handler) GetBoard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	JSON(w, http.StatusOK, board)
+}
+
+// DeleteBoardResponse is returned when a board is deleted.
+type DeleteBoardResponse struct {
+	DeletedCards int `json:"deleted_cards"`
+}
+
+// DeleteBoard deletes a board and all its cards.
+func (h *Handler) DeleteBoard(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+
+	deletedCards, err := h.ctx().BoardService.DeleteBoard(name)
+	if err != nil {
+		Error(w, err)
+		return
+	}
+
+	JSON(w, http.StatusOK, DeleteBoardResponse{DeletedCards: deletedCards})
 }
 
 // --- Card Handlers ---

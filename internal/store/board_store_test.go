@@ -226,6 +226,75 @@ func TestFileBoardStore_Exists(t *testing.T) {
 	}
 }
 
+func TestFileBoardStore_Delete(t *testing.T) {
+	store, _, cleanup := setupTestBoardStore(t)
+	defer cleanup()
+
+	cfg := &model.BoardConfig{
+		ID:            "board123",
+		Name:          "main",
+		Columns:       model.DefaultColumns(),
+		DefaultColumn: "backlog",
+	}
+
+	if err := store.Create(cfg); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	if err := store.Delete("main"); err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+
+	if store.Exists("main") {
+		t.Error("Board should not exist after deletion")
+	}
+}
+
+func TestFileBoardStore_Delete_NotFound(t *testing.T) {
+	store, _, cleanup := setupTestBoardStore(t)
+	defer cleanup()
+
+	err := store.Delete("nonexistent")
+	if err == nil {
+		t.Fatal("Expected error for nonexistent board")
+	}
+	if !kanerr.IsNotFound(err) {
+		t.Errorf("Expected NotFound error, got: %v", err)
+	}
+}
+
+func TestFileBoardStore_Delete_WithCards(t *testing.T) {
+	store, dir, cleanup := setupTestBoardStore(t)
+	defer cleanup()
+
+	cfg := &model.BoardConfig{
+		ID:            "board123",
+		Name:          "main",
+		Columns:       model.DefaultColumns(),
+		DefaultColumn: "backlog",
+	}
+
+	if err := store.Create(cfg); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	// Write a dummy card file into the cards directory
+	cardsDir := filepath.Join(dir, ".kan", "boards", "main", "cards")
+	if err := os.WriteFile(filepath.Join(cardsDir, "card1.json"), []byte(`{}`), 0644); err != nil {
+		t.Fatalf("Failed to write test card: %v", err)
+	}
+
+	if err := store.Delete("main"); err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+
+	// Entire board directory should be gone
+	boardDir := filepath.Join(dir, ".kan", "boards", "main")
+	if _, err := os.Stat(boardDir); !os.IsNotExist(err) {
+		t.Error("Board directory should be fully removed after deletion")
+	}
+}
+
 func TestFileBoardStore_WithCustomFieldsAndCardDisplay(t *testing.T) {
 	store, _, cleanup := setupTestBoardStore(t)
 	defer cleanup()

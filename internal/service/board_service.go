@@ -56,6 +56,36 @@ func (s *BoardService) Exists(name string) bool {
 	return s.boardStore.Exists(name)
 }
 
+// DeleteBoard deletes a board and all its cards.
+// Returns the total number of cards that were in the board (best-effort count;
+// if the board config can't be read, e.g. due to an outdated schema, deletion
+// proceeds and the count is reported as 0).
+func (s *BoardService) DeleteBoard(boardName string) (int, error) {
+	// Prevent deleting the last board
+	boards, err := s.boardStore.List()
+	if err != nil {
+		return 0, err
+	}
+	if len(boards) <= 1 {
+		return 0, kanerr.InvalidField("board", "cannot delete the last remaining board")
+	}
+
+	// Count cards best-effort; schema errors shouldn't block deletion
+	totalCards := 0
+	cfg, err := s.boardStore.Get(boardName)
+	if err == nil {
+		for _, col := range cfg.Columns {
+			totalCards += len(col.CardIDs)
+		}
+	}
+
+	if err := s.boardStore.Delete(boardName); err != nil {
+		return 0, err
+	}
+
+	return totalCards, nil
+}
+
 // AddColumn adds a new column to a board.
 // If color is empty, auto-assigns from the color palette.
 // If position is -1, appends to end.
