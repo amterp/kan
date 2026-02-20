@@ -254,6 +254,19 @@ kan board create "features"
 kan board list
 \`\`\`
 
+**Delete a board:**
+
+\`\`\`bash
+kan board delete features
+kan board delete features --force
+\`\`\`
+
+| Flag          | Description                                                      |
+|---------------|------------------------------------------------------------------|
+| \`-f, --force\` | Skip confirmation (required in non-interactive mode)             |
+
+Deleting the last remaining board is not allowed. If the deleted board was set as the default, the default is cleared automatically.
+
 **Describe a board:**
 
 Show full board documentation including columns, custom fields, card display settings, link rules, and pattern hooks.
@@ -422,6 +435,20 @@ kan edit fix-login-bug -t "New title" -c done
 | \`-a, --alias\`       | Set explicit alias                                |
 | \`-f, --field\`       | Set custom field in key=value format (repeatable) |
 | \`--strict\`          | Error if wanted fields are missing (default: warn) |
+
+### delete
+
+Delete a card.
+
+\`\`\`bash
+kan delete fix-login-bug
+kan delete fix-login-bug --force
+\`\`\`
+
+| Flag          | Description                                  |
+|---------------|----------------------------------------------|
+| \`-b, --board\` | Board name                                   |
+| \`-f, --force\` | Skip confirmation (required in non-interactive mode) |
 
 ### serve
 
