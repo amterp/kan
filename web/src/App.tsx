@@ -35,8 +35,8 @@ function BoardApp() {
     fileSyncConnected,
     fileSyncReconnecting,
     fileSyncFailed,
-  } = useBoard(boardName || null, refreshKey);
-  const [isNewlyCreated, setIsNewlyCreated] = useState(false);
+  } = useBoard(boardName, refreshKey);
+  const [newlyCreatedCardId, setNewlyCreatedCardId] = useState<string | null>(null);
   const omnibar = useOmnibar();
   const { project } = useProject(refreshKey);
 
@@ -44,7 +44,7 @@ function BoardApp() {
   const boardSwitcher = useBoardSwitcher(omnibar.query, omnibar.isOpen && omnibar.mode === 'boards');
 
   // Set page title and favicon
-  usePageTitle(project?.name, boardName || null);
+  usePageTitle(project?.name, boardName);
   useFavicon();
 
   // Compute filtered cards for navigation
@@ -232,17 +232,10 @@ function BoardApp() {
     if (!board) return;
     const response = await createCard({ title: 'New Card', column: board.default_column });
     if (response?.card) {
-      setIsNewlyCreated(true);
+      setNewlyCreatedCardId(response.card.id);
       openCard(response.card.id);
     }
   }, [board, createCard, openCard]);
-
-  // Clear isNewlyCreated when card modal closes
-  useEffect(() => {
-    if (!cardId) {
-      setIsNewlyCreated(false);
-    }
-  }, [cardId]);
 
   // Auto-select first board if only one exists (replace so no extra history entry)
   useEffect(() => {
@@ -252,7 +245,10 @@ function BoardApp() {
   }, [boardName, boardsLoading, boards, setBoard]);
 
   // Find the card for the modal (from URL ?card= param)
-  const modalCard = cardId ? cards.find((c) => c.id === cardId) : undefined;
+  const modalCard = useMemo(
+    () => (cardId ? cards.find((c) => c.id === cardId) : undefined),
+    [cardId, cards]
+  );
 
   // If cardId is set but card not found (deleted/invalid), silently clear it.
   // Only act once the board has loaded so we don't race the initial fetch.
@@ -267,11 +263,13 @@ function BoardApp() {
   const handleSaveModalCard = useCallback(async (updates: UpdateCardInput) => {
     if (modalCard) {
       await updateCard(modalCard.id, updates);
+      setNewlyCreatedCardId(null);
     }
   }, [modalCard, updateCard]);
 
   const handleDeleteModalCard = useCallback(async () => {
     if (modalCard) {
+      setNewlyCreatedCardId(null);
       await deleteCard(modalCard.id);
     }
   }, [modalCard, deleteCard]);
@@ -310,7 +308,7 @@ function BoardApp() {
     <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900 board-bg">
       <Header
         boards={boards}
-        selectedBoard={boardName || null}
+        selectedBoard={boardName}
         onSelectBoard={setBoard}
         onRefresh={refresh}
         onNewCard={board ? handleNewCard : undefined}
@@ -358,7 +356,7 @@ function BoardApp() {
           onSave={handleSaveModalCard}
           onDelete={handleDeleteModalCard}
           onClose={closeCard}
-          focusDescription={isNewlyCreated}
+          focusDescription={modalCard?.id === newlyCreatedCardId}
         />
       )}
       {omnibar.isOpen && (
@@ -372,7 +370,7 @@ function BoardApp() {
           boardEntries={boardSwitcher.filteredBoards}
           boardHighlightedIndex={boardSwitcher.highlightedIndex}
           boardCurrentProjectPath={boardSwitcher.currentProjectPath}
-          boardCurrentBoardName={boardName || null}
+          boardCurrentBoardName={boardName}
           boardSkipped={boardSwitcher.skipped}
           boardLoading={boardSwitcher.loading}
           boardError={boardSwitcher.fetchError || boardSwitcher.switchError}

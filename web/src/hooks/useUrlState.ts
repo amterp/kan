@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 
 export interface UrlState {
-  boardName: string | undefined;
+  boardName: string | null;
   cardId: string | undefined;
   setBoard: (name: string, options?: { replace?: boolean }) => void;
   openCard: (id: string) => void;
@@ -10,10 +10,11 @@ export interface UrlState {
 }
 
 export function useUrlState(): UrlState {
-  const { boardName } = useParams<{ boardName: string }>();
+  const { boardName: rawBoardName } = useParams<{ boardName: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const boardName = rawBoardName ?? null;
   const cardId = searchParams.get('card') || undefined;
 
   const setBoard = useCallback(
