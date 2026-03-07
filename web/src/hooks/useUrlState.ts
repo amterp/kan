@@ -18,7 +18,7 @@ export function useUrlState(): UrlState {
 
   const setBoard = useCallback(
     (name: string, options?: { replace?: boolean }) => {
-      navigate(`/board/${name}`, { replace: options?.replace });
+      navigate(`/board/${encodeURIComponent(name)}`, { replace: options?.replace });
     },
     [navigate]
   );
@@ -26,7 +26,7 @@ export function useUrlState(): UrlState {
   const openCard = useCallback(
     (id: string) => {
       if (boardName) {
-        navigate(`/board/${boardName}?card=${id}`);
+        navigate(`/board/${encodeURIComponent(boardName)}?card=${encodeURIComponent(id)}`);
       }
     },
     [navigate, boardName]
@@ -35,7 +35,7 @@ export function useUrlState(): UrlState {
   const closeCard = useCallback(
     (options?: { replace?: boolean }) => {
       if (boardName) {
-        navigate(`/board/${boardName}`, { replace: options?.replace });
+        navigate(`/board/${encodeURIComponent(boardName)}`, { replace: options?.replace });
       }
     },
     [navigate, boardName]

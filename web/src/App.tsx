@@ -262,23 +262,19 @@ function BoardApp() {
     }
   }, [cardId, loading, board, modalCard, closeCard]);
 
+  // onSave/onDelete don't navigate - CardEditModal calls onClose() after these
+  // resolve, which handles the URL update via closeCard.
   const handleSaveModalCard = useCallback(async (updates: UpdateCardInput) => {
     if (modalCard) {
       await updateCard(modalCard.id, updates);
-      closeCard();
     }
-  }, [modalCard, updateCard, closeCard]);
+  }, [modalCard, updateCard]);
 
   const handleDeleteModalCard = useCallback(async () => {
     if (modalCard) {
       await deleteCard(modalCard.id);
-      closeCard();
     }
-  }, [modalCard, deleteCard, closeCard]);
-
-  const handleOpenCard = useCallback((cardId: string) => {
-    openCard(cardId);
-  }, [openCard]);
+  }, [modalCard, deleteCard]);
 
   if (boardsLoading) {
     return (
@@ -347,7 +343,7 @@ function BoardApp() {
             onDeleteColumn={deleteColumn}
             onUpdateColumn={updateColumn}
             onReorderColumns={reorderColumns}
-            onOpenCard={handleOpenCard}
+            onOpenCard={openCard}
           />
         ) : (
           <div className="h-full flex items-center justify-center">
@@ -410,6 +406,7 @@ function App() {
           <>
             <Route path="/" element={<BoardApp />} />
             <Route path="/board/:boardName" element={<BoardApp />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </>
         )}
       </Routes>
