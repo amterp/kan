@@ -9,7 +9,6 @@ import { BoardConfigProvider } from '../contexts/BoardConfigContext';
 import { useToast } from '../contexts/ToastContext';
 import Column from './Column';
 import CardComponent from './Card';
-import CardEditModal from './CardEditModal';
 import FloatingFieldPanel from './FloatingFieldPanel';
 
 // Panel target - tracks what the floating field panel is editing
@@ -33,6 +32,7 @@ interface BoardProps {
   onDeleteColumn?: (columnName: string) => Promise<unknown>;
   onUpdateColumn?: (columnName: string, updates: UpdateColumnInput) => Promise<unknown>;
   onReorderColumns?: (columns: string[]) => Promise<void>;
+  onOpenCard: (cardId: string) => void;
 }
 
 export default function Board({
@@ -48,6 +48,7 @@ export default function Board({
   onDeleteColumn,
   onUpdateColumn,
   onReorderColumns,
+  onOpenCard,
 }: BoardProps) {
   const { showToast } = useToast();
   const [activeCard, setActiveCard] = useState<Card | null>(null);
@@ -57,8 +58,6 @@ export default function Board({
   const [newColumnName, setNewColumnName] = useState('');
   const addColumnInputRef = useRef<HTMLInputElement>(null);
   const addColumnFormRef = useRef<HTMLFormElement>(null);
-  const [editingCard, setEditingCard] = useState<Card | null>(null);
-  const [newCardForEdit, setNewCardForEdit] = useState<{ card: Card; column: string } | null>(null);
   // Track which column name is being edited (lifted from Column for stability across re-renders)
   const [editingColumnName, setEditingColumnName] = useState<string | null>(null);
 
@@ -364,7 +363,7 @@ export default function Board({
 
       if (openModal && newCard) {
         setPanelTarget(null);
-        setNewCardForEdit({ card: newCard, column });
+        onOpenCard(newCard.id);
       } else if (showPanel && newCard) {
         // Show panel anchored to the just-created card.
         // NOTE: This relies on Card.tsx rendering with data-card-id={card.id} attribute.
@@ -456,30 +455,8 @@ export default function Board({
 
   const handleCardClick = (card: Card) => {
     setPanelTarget(null); // Dismiss panel when opening card modal
-    setEditingCard(card);
+    onOpenCard(card.id);
   };
-
-  const handleSaveCard = async (updates: UpdateCardInput) => {
-    if (editingCard) {
-      await onUpdateCard(editingCard.id, updates);
-      setEditingCard(null);
-    } else if (newCardForEdit) {
-      await onUpdateCard(newCardForEdit.card.id, updates);
-      setNewCardForEdit(null);
-    }
-  };
-
-  const handleCloseModal = () => {
-    setEditingCard(null);
-    setNewCardForEdit(null);
-  };
-
-  const handleDeleteCard = async (cardId: string) => {
-    await onDeleteCard(cardId);
-    handleCloseModal();
-  };
-
-  const currentEditCard = editingCard || newCardForEdit?.card || null;
 
   // Clear debounce timer when panel target changes (switching cards or dismissing)
   useEffect(() => {
@@ -569,7 +546,7 @@ export default function Board({
                 onCancelAddCard={() => setAddingToColumn(null)}
                 onAddCard={(title, openModal, keepFormOpen, showPanel) => handleAddCard(column.name, title, openModal, keepFormOpen, showPanel)}
                 onCardClick={handleCardClick}
-                onDeleteCard={handleDeleteCard}
+                onDeleteCard={onDeleteCard}
                 onDeleteColumn={onDeleteColumn}
                 onUpdateColumn={onUpdateColumn}
                 isEditingName={editingColumnName === column.name}
@@ -667,16 +644,6 @@ export default function Board({
         />
       )}
 
-      {currentEditCard && (
-        <CardEditModal
-          card={currentEditCard}
-          board={board}
-          onSave={handleSaveCard}
-          onDelete={() => handleDeleteCard(currentEditCard.id)}
-          onClose={handleCloseModal}
-          focusDescription={!!newCardForEdit}
-        />
-      )}
     </BoardConfigProvider>
   );
 }

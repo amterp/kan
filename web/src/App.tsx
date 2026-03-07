@@ -4,6 +4,7 @@ import { useBoards, useBoard } from './hooks/useBoards';
 import { useOmnibar } from './hooks/useOmnibar';
 import { useBoardSwitcher } from './hooks/useBoardSwitcher';
 import { useProject, usePageTitle, useFavicon } from './hooks/useProject';
+import { useUrlState } from './hooks/useUrlState';
 import { cardMatchesQuery } from './utils/fuzzyMatch';
 import Header from './components/Header';
 import Board from './components/Board';
@@ -11,12 +12,12 @@ import CardEditModal from './components/CardEditModal';
 import Omnibar, { type NavigationDirection } from './components/Omnibar';
 import DocsPage from './pages/DocsPage';
 import { switchProject } from './api/projects';
-import type { Card, UpdateCardInput } from './api/types';
+import type { UpdateCardInput } from './api/types';
 
 function BoardApp() {
   const [refreshKey, setRefreshKey] = useState(0);
   const { boards, loading: boardsLoading, error: boardsError } = useBoards(refreshKey);
-  const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
+  const { boardName, cardId, setBoard, openCard, closeCard } = useUrlState();
   const {
     board,
     cards,
@@ -34,9 +35,8 @@ function BoardApp() {
     fileSyncConnected,
     fileSyncReconnecting,
     fileSyncFailed,
-  } = useBoard(selectedBoard, refreshKey);
-  const [newCardForEdit, setNewCardForEdit] = useState<Card | null>(null);
-  const [omnibarSelectedCard, setOmnibarSelectedCard] = useState<Card | null>(null);
+  } = useBoard(boardName || null, refreshKey);
+  const [isNewlyCreated, setIsNewlyCreated] = useState(false);
   const omnibar = useOmnibar();
   const { project } = useProject(refreshKey);
 
@@ -44,7 +44,7 @@ function BoardApp() {
   const boardSwitcher = useBoardSwitcher(omnibar.query, omnibar.isOpen && omnibar.mode === 'boards');
 
   // Set page title and favicon
-  usePageTitle(project?.name, selectedBoard);
+  usePageTitle(project?.name, boardName || null);
   useFavicon();
 
   // Compute filtered cards for navigation
@@ -159,7 +159,7 @@ function BoardApp() {
       const result = await boardSwitcher.selectHighlighted();
       if (result) {
         omnibar.close();
-        setSelectedBoard(result.boardName);
+        setBoard(result.boardName);
         setRefreshKey((k) => k + 1);
         // Force favicon refresh by changing the URL (triggers a new fetch)
         const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
@@ -174,9 +174,10 @@ function BoardApp() {
     if (!omnibar.highlightedCardId) return;
     const card = cards.find((c) => c.id === omnibar.highlightedCardId);
     if (card) {
-      setOmnibarSelectedCard(card);
+      omnibar.close();
+      openCard(card.id);
     }
-  }, [omnibar, boardSwitcher, cards]);
+  }, [omnibar, boardSwitcher, cards, setBoard, openCard]);
 
   // Handle clicking a board entry in the list
   const handleBoardSelect = useCallback(async (index: number) => {
@@ -187,7 +188,7 @@ function BoardApp() {
     try {
       await switchProject(entry.project_path);
       omnibar.close();
-      setSelectedBoard(entry.board_name);
+      setBoard(entry.board_name);
       setRefreshKey((k) => k + 1);
       // Bust favicon cache
       const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
@@ -197,7 +198,7 @@ function BoardApp() {
     } catch {
       // Error is handled by the switcher hook
     }
-  }, [boardSwitcher, omnibar]);
+  }, [boardSwitcher, omnibar, setBoard]);
 
   // Cmd+K keyboard shortcut for omnibar (cards mode)
   // Cmd+P keyboard shortcut for board switcher
@@ -205,7 +206,7 @@ function BoardApp() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        if (newCardForEdit || omnibarSelectedCard) return;
+        if (cardId) return;
         if (omnibar.isOpen) {
           omnibar.close();
         } else {
@@ -214,7 +215,7 @@ function BoardApp() {
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
         e.preventDefault();
-        if (newCardForEdit || omnibarSelectedCard) return;
+        if (cardId) return;
         if (omnibar.isOpen && omnibar.mode === 'boards') {
           omnibar.close();
         } else {
@@ -225,27 +226,59 @@ function BoardApp() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [omnibar, newCardForEdit, omnibarSelectedCard]);
+  }, [omnibar, cardId]);
 
   const handleNewCard = useCallback(async () => {
     if (!board) return;
     const response = await createCard({ title: 'New Card', column: board.default_column });
     if (response?.card) {
-      setNewCardForEdit(response.card);
+      setIsNewlyCreated(true);
+      openCard(response.card.id);
     }
-  }, [board, createCard]);
+  }, [board, createCard, openCard]);
 
-  const handleSaveNewCard = useCallback(async (updates: UpdateCardInput) => {
-    if (newCardForEdit) {
-      await updateCard(newCardForEdit.id, updates);
-      setNewCardForEdit(null);
+  // Clear isNewlyCreated when card modal closes
+  useEffect(() => {
+    if (!cardId) {
+      setIsNewlyCreated(false);
     }
-  }, [newCardForEdit, updateCard]);
+  }, [cardId]);
 
-  // Auto-select first board if only one exists
-  if (!selectedBoard && boards.length === 1) {
-    setSelectedBoard(boards[0]);
-  }
+  // Auto-select first board if only one exists (replace so no extra history entry)
+  useEffect(() => {
+    if (!boardName && !boardsLoading && boards.length === 1) {
+      setBoard(boards[0], { replace: true });
+    }
+  }, [boardName, boardsLoading, boards, setBoard]);
+
+  // Find the card for the modal (from URL ?card= param)
+  const modalCard = cardId ? cards.find((c) => c.id === cardId) : undefined;
+
+  // If cardId is set but card not found (deleted/invalid), silently clear it.
+  // Only act once the board has loaded so we don't race the initial fetch.
+  useEffect(() => {
+    if (cardId && !loading && board && !modalCard) {
+      closeCard({ replace: true });
+    }
+  }, [cardId, loading, board, modalCard, closeCard]);
+
+  const handleSaveModalCard = useCallback(async (updates: UpdateCardInput) => {
+    if (modalCard) {
+      await updateCard(modalCard.id, updates);
+      closeCard();
+    }
+  }, [modalCard, updateCard, closeCard]);
+
+  const handleDeleteModalCard = useCallback(async () => {
+    if (modalCard) {
+      await deleteCard(modalCard.id);
+      closeCard();
+    }
+  }, [modalCard, deleteCard, closeCard]);
+
+  const handleOpenCard = useCallback((cardId: string) => {
+    openCard(cardId);
+  }, [openCard]);
 
   if (boardsLoading) {
     return (
@@ -281,8 +314,8 @@ function BoardApp() {
     <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900 board-bg">
       <Header
         boards={boards}
-        selectedBoard={selectedBoard}
-        onSelectBoard={setSelectedBoard}
+        selectedBoard={boardName || null}
+        onSelectBoard={setBoard}
         onRefresh={refresh}
         onNewCard={board ? handleNewCard : undefined}
         syncStatus={{
@@ -314,6 +347,7 @@ function BoardApp() {
             onDeleteColumn={deleteColumn}
             onUpdateColumn={updateColumn}
             onReorderColumns={reorderColumns}
+            onOpenCard={handleOpenCard}
           />
         ) : (
           <div className="h-full flex items-center justify-center">
@@ -321,31 +355,14 @@ function BoardApp() {
           </div>
         )}
       </main>
-      {newCardForEdit && board && (
+      {modalCard && board && (
         <CardEditModal
-          card={newCardForEdit}
+          card={modalCard}
           board={board}
-          onSave={handleSaveNewCard}
-          onDelete={async () => {
-            await deleteCard(newCardForEdit.id);
-            setNewCardForEdit(null);
-          }}
-          onClose={() => setNewCardForEdit(null)}
-        />
-      )}
-      {omnibarSelectedCard && board && (
-        <CardEditModal
-          card={omnibarSelectedCard}
-          board={board}
-          onSave={async (updates) => {
-            await updateCard(omnibarSelectedCard.id, updates);
-            setOmnibarSelectedCard(null);
-          }}
-          onDelete={async () => {
-            await deleteCard(omnibarSelectedCard.id);
-            setOmnibarSelectedCard(null);
-          }}
-          onClose={() => setOmnibarSelectedCard(null)}
+          onSave={handleSaveModalCard}
+          onDelete={handleDeleteModalCard}
+          onClose={closeCard}
+          focusDescription={isNewlyCreated}
         />
       )}
       {omnibar.isOpen && (
@@ -355,11 +372,11 @@ function BoardApp() {
           matchCount={filteredCards.length}
           totalCount={cards.length}
           hasHighlight={omnibar.highlightedCardId !== null}
-          isModalOpen={omnibarSelectedCard !== null}
+          isModalOpen={!!cardId}
           boardEntries={boardSwitcher.filteredBoards}
           boardHighlightedIndex={boardSwitcher.highlightedIndex}
           boardCurrentProjectPath={boardSwitcher.currentProjectPath}
-          boardCurrentBoardName={selectedBoard}
+          boardCurrentBoardName={boardName || null}
           boardSkipped={boardSwitcher.skipped}
           boardLoading={boardSwitcher.loading}
           boardError={boardSwitcher.fetchError || boardSwitcher.switchError}
@@ -390,7 +407,10 @@ function App() {
         {isDocsOnly ? (
           <Route path="/*" element={<Navigate to="/docs" replace />} />
         ) : (
-          <Route path="/*" element={<BoardApp />} />
+          <>
+            <Route path="/" element={<BoardApp />} />
+            <Route path="/board/:boardName" element={<BoardApp />} />
+          </>
         )}
       </Routes>
     </BrowserRouter>
