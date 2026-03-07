@@ -90,10 +90,13 @@ export default function Board({
     return cards.filter((card) => cardMatchesQuery(card, filterQuery.trim(), board));
   }, [cards, filterQuery, board]);
 
-  const cardsByColumn = board.columns.reduce<Record<string, Card[]>>((acc, column) => {
-    acc[column.name] = filteredCards.filter((card) => card.column === column.name);
-    return acc;
-  }, {});
+  const cardsByColumn = useMemo(() =>
+    board.columns.reduce<Record<string, Card[]>>((acc, column) => {
+      acc[column.name] = filteredCards.filter((card) => card.column === column.name);
+      return acc;
+    }, {}),
+    [board.columns, filteredCards]
+  );
 
   // Always show all columns (even when filtering, so cards can be moved into empty columns)
   const visibleColumns = useMemo(() => board.columns, [board.columns]);
@@ -436,8 +439,8 @@ export default function Board({
     }
   }, [panelTarget, onUpdateCard, board.custom_fields]);
 
-  // Get field values for the panel
-  const getPanelFieldValues = useCallback((): Record<string, unknown> => {
+  // Compute field values for the panel
+  const panelFieldValues = useMemo((): Record<string, unknown> => {
     if (!panelTarget || panelTarget.type !== 'created') return {};
 
     // Merge card data with local edits (local edits take precedence)
@@ -637,7 +640,7 @@ export default function Board({
       {panelTarget && (
         <FloatingFieldPanel
           board={board}
-          values={getPanelFieldValues()}
+          values={panelFieldValues}
           onChange={handlePanelFieldChange}
           anchorEl={panelTarget.anchorEl}
           onDismiss={handlePanelHide}
