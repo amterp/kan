@@ -1,0 +1,12 @@
+{
+  "_v": 1,
+  "alias": "pinned-view",
+  "alias_explicit": false,
+  "created_at_millis": 1772925759327,
+  "creator": "Alexander Terp",
+  "description": "some way to pin the Kanban board into a small area of your screen. So, for example, one way you might envision this is you pin it to a very slim section on your screen and what the Kanban board will look like is actually putting all the columns vertically. The left one's at the top and the right one's at the bottom. and you can just scroll through all of them. Probably need to generate some more ideas here though. That also sounds a little bit painful if you have really like several hundred lists... Columns.",
+  "id": "a_cZjBKkSX",
+  "title": "pinned view",
+  "type": "feature",
+  "updated_at_millis": 1772935358194
+}

@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "kan-cli-delete-ops",
+  "alias_explicit": false,
+  "created_at_millis": 1772916484844,
+  "creator": "Alexander Terp",
+  "id": "a_cVpuVMOk",
+  "title": "kan cli delete ops should not require TTY",
+  "type": "bug",
+  "updated_at_millis": 1772916484927
+}

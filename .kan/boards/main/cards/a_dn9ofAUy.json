@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "allow-non-tty-kan",
+  "alias_explicit": false,
+  "created_at_millis": 1773105529147,
+  "creator": "Alexander Terp",
+  "id": "a_dn9ofAUy",
+  "title": "allow non-tty kan delete",
+  "type": "bug",
+  "updated_at_millis": 1773105534913
+}
