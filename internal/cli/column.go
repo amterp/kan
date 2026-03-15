@@ -66,13 +66,6 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetCompletionFunc(completeColumns).
 		Register(deleteCmd)
 
-	ctx.ColumnDeleteForce, _ = ra.NewBool("force").
-		SetShort("f").
-		SetOptional(true).
-		SetFlagOnly(true).
-		SetUsage("Skip confirmation when column has cards").
-		Register(deleteCmd)
-
 	ctx.ColumnDeleteBoard, _ = ra.NewString("board").
 		SetShort("b").
 		SetOptional(true).
@@ -233,7 +226,7 @@ func runColumnAdd(name, color, description string, position, limit int, board st
 	PrintSuccess("Added column %q to board %q", name, boardName)
 }
 
-func runColumnDelete(name, board string, force, nonInteractive bool) {
+func runColumnDelete(name, board string, nonInteractive bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -246,35 +239,6 @@ func runColumnDelete(name, board string, force, nonInteractive bool) {
 	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
 	if err != nil {
 		Fatal(err)
-	}
-
-	// Check how many cards are in the column
-	cardCount, err := app.BoardService.GetColumnCardCount(boardName, name)
-	if err != nil {
-		Fatal(err)
-	}
-
-	// Confirm if there are cards and no --force flag
-	if cardCount > 0 && !force {
-		if nonInteractive {
-			Fatal(fmt.Errorf("column %q has %d cards; use --force to confirm deletion", name, cardCount))
-		}
-
-		cardWord := "cards"
-		if cardCount == 1 {
-			cardWord = "card"
-		}
-		confirmed, err := app.Prompter.Confirm(
-			fmt.Sprintf("Column %q has %d %s. Delete column and all cards?", name, cardCount, cardWord),
-			false,
-		)
-		if err != nil {
-			Fatal(err)
-		}
-		if !confirmed {
-			PrintInfo("Cancelled")
-			return
-		}
 	}
 
 	deletedCards, err := app.BoardService.DeleteColumn(boardName, name)

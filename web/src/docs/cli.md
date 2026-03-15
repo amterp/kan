@@ -55,12 +55,7 @@ kan board list
 
 ```bash
 kan board delete features
-kan board delete features --force
 ```
-
-| Flag          | Description                                                      |
-|---------------|------------------------------------------------------------------|
-| `-f, --force` | Skip confirmation (required in non-interactive mode)             |
 
 Deleting the last remaining board is not allowed. If the deleted board was set as the default, the default is cleared automatically.
 
@@ -104,13 +99,11 @@ kan column add review --limit 5
 
 ```bash
 kan column delete review
-kan column delete review --force
 ```
 
 | Flag          | Description                                                              |
 |---------------|--------------------------------------------------------------------------|
 | `-b, --board` | Target board                                                             |
-| `-f, --force` | Skip confirmation (required in non-interactive mode if column has cards) |
 
 **Rename a column:**
 
@@ -239,13 +232,11 @@ Delete a card.
 
 ```bash
 kan delete fix-login-bug
-kan delete fix-login-bug --force
 ```
 
 | Flag          | Description                                  |
 |---------------|----------------------------------------------|
 | `-b, --board` | Board name                                   |
-| `-f, --force` | Skip confirmation (required in non-interactive mode) |
 
 ### serve
 

@@ -39,12 +39,10 @@ type CommandContext struct {
 	DeleteUsed  *bool
 	DeleteCard  *string
 	DeleteBoard *string
-	DeleteForce *bool
 
 	// board delete
-	BoardDeleteUsed  *bool
-	BoardDeleteName  *string
-	BoardDeleteForce *bool
+	BoardDeleteUsed *bool
+	BoardDeleteName *string
 
 	// add command
 	AddUsed        *bool
@@ -103,7 +101,6 @@ type CommandContext struct {
 	// column delete
 	ColumnDeleteUsed  *bool
 	ColumnDeleteName  *string
-	ColumnDeleteForce *bool
 	ColumnDeleteBoard *string
 
 	// column rename
@@ -249,7 +246,7 @@ func executeCommand(ctx *CommandContext) {
 		runBoardCreate(*ctx.BoardCreateName)
 
 	case *ctx.BoardDeleteUsed:
-		runBoardDelete(*ctx.BoardDeleteName, *ctx.BoardDeleteForce, *ctx.NonInteractive)
+		runBoardDelete(*ctx.BoardDeleteName, *ctx.NonInteractive)
 
 	case *ctx.BoardDescribeUsed:
 		runBoardDescribe(*ctx.BoardDescribeName, *ctx.BoardDescribeBoard, *ctx.NonInteractive, *ctx.Json)
@@ -261,7 +258,7 @@ func executeCommand(ctx *CommandContext) {
 		runAdd(*ctx.AddTitle, *ctx.AddDescription, *ctx.AddBoard, *ctx.AddColumn, *ctx.AddParent, *ctx.AddFields, *ctx.AddStrict, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.DeleteUsed:
-		runDelete(*ctx.DeleteCard, *ctx.DeleteBoard, *ctx.DeleteForce, *ctx.NonInteractive)
+		runDelete(*ctx.DeleteCard, *ctx.DeleteBoard, *ctx.NonInteractive)
 
 	case *ctx.ShowUsed:
 		runShow(*ctx.ShowCard, *ctx.ShowBoard, *ctx.Json)
@@ -288,7 +285,7 @@ func executeCommand(ctx *CommandContext) {
 		runColumnAdd(*ctx.ColumnAddName, *ctx.ColumnAddColor, *ctx.ColumnAddDescription, *ctx.ColumnAddPosition, *ctx.ColumnAddLimit, *ctx.ColumnAddBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnDeleteUsed:
-		runColumnDelete(*ctx.ColumnDeleteName, *ctx.ColumnDeleteBoard, *ctx.ColumnDeleteForce, *ctx.NonInteractive)
+		runColumnDelete(*ctx.ColumnDeleteName, *ctx.ColumnDeleteBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnRenameUsed:
 		runColumnRename(*ctx.ColumnRenameOld, *ctx.ColumnRenameNew, *ctx.ColumnRenameBoard, *ctx.NonInteractive)
