@@ -184,7 +184,15 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
     if (!boardName) return;
 
     const response = await apiCreateCard(boardName, input);
-    setCards((prev) => [...prev, response.card]);
+    setCards((prev) => {
+      const existing = prev.find((c) => c.id === response.card.id);
+      if (existing) {
+        // Card already added by WebSocket handler - update with API response
+        // (which has the post-hook state and is authoritative)
+        return prev.map((c) => c.id === response.card.id ? response.card : c);
+      }
+      return [...prev, response.card];
+    });
 
     // Log hook results if any ran
     if (response.hook_results && response.hook_results.length > 0) {
