@@ -302,7 +302,7 @@ Pattern hooks allow running external commands when cards are created with titles
 [[pattern_hooks]]
 name = "jira-sync"
 pattern_title = "^[A-Z]+-\\d+$"  # Matches JIRA-123, PROJ-456, etc.
-command = "~/.kan/hooks/jira-sync.sh"
+command = ".kan/hooks/jira-sync.sh"
 timeout = 60  # Optional, defaults to 30s
 ```
 

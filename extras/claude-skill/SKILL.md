@@ -457,7 +457,7 @@ Run commands when cards are created with matching titles:
 [[pattern_hooks]]
 name = "jira-sync"
 pattern_title = "^[A-Z]+-\\d+$"  # Matches JIRA-123, PROJ-456
-command = "~/.kan/hooks/jira-sync.sh"
+command = ".kan/hooks/jira-sync.sh"
 timeout = 60  # Optional, defaults to 30s
 ```
 

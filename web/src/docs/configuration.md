@@ -192,7 +192,7 @@ Pattern hooks run commands when cards are created with titles matching specified
 [[pattern_hooks]]
 name = "jira-sync"
 pattern_title = "^[A-Z]+-\\d+$"  # Matches JIRA-123, PROJ-456
-command = "~/.kan/hooks/jira-sync.sh"
+command = ".kan/hooks/jira-sync.sh"
 timeout = 60  # Optional, defaults to 30s
 ```
 
@@ -204,12 +204,12 @@ timeout = 60  # Optional, defaults to 30s
 | `timeout` | No | Timeout in seconds (default: 30) |
 
 **Important:** The `command` field must be a **path to an executable file**, not a shell command with arguments. For example:
-- ✅ `"~/.kan/hooks/my-hook.sh"` — direct path to script with shebang
+- ✅ `".kan/hooks/my-hook.sh"` — relative path to script with shebang (relative to project root)
 - ✅ `"/usr/local/bin/my-tool"` — absolute path to binary
 - ❌ `"python script.py"` — won't work (not a shell command)
 - ❌ `"./hook.sh --verbose"` — won't work (arguments not parsed)
 
-The `~` prefix is expanded to your home directory. If you need to pass arguments or use shell features, create a wrapper script.
+The `~` prefix is expanded to your home directory. Relative paths are resolved from the project root. If you need to pass arguments or use shell features, create a wrapper script.
 
 **Execution details:**
 - Hooks run **after** the card is fully created and saved
@@ -219,7 +219,7 @@ The `~` prefix is expanded to your home directory. If you need to pass arguments
 - Hook stdout is shown to the user
 - Non-zero exit code shows a warning but doesn't roll back card creation
 
-**Example hook script** (`~/.kan/hooks/jira-sync.sh`):
+**Example hook script** (`.kan/hooks/jira-sync.sh`):
 ```bash
 #!/bin/bash
 CARD_ID="$1"
