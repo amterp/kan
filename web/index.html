@@ -7,6 +7,7 @@
     <link rel="preload" href="/fonts/GeistVF.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/GeistMonoVF.woff2" as="font" type="font/woff2" crossorigin />
     <title>Kan</title>
+    <meta name="description" content="A file-based kanban board CLI tool. All data lives as plain files - no database, no server. Works with any VCS." />
     <script>
       // Prevent flash of wrong theme on load
       (function() {
@@ -30,5 +31,14 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <noscript>
+      <h1>Kan</h1>
+      <p>A file-based kanban board CLI tool. All data lives as plain files - no database, no server. Works with any VCS.</p>
+      <p>This site requires JavaScript. For machine-readable documentation, see:</p>
+      <ul>
+        <li><a href="llms.txt">Documentation index (llms.txt)</a></li>
+        <li><a href="llms-full.txt">Full documentation (llms-full.txt)</a></li>
+      </ul>
+    </noscript>
   </body>
 </html>

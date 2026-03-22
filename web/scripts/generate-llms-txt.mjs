@@ -12,12 +12,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const docsDir = join(__dirname, '..', 'src', 'docs');
 const distDir = join(__dirname, '..', '..', 'internal', 'api', 'dist');
 
-const basePath = process.env.VITE_BASE_PATH || '/';
-// When deployed to GitHub Pages, use absolute URLs. Otherwise use the base path.
-const baseUrl = basePath === '/kan/'
-  ? 'https://amterp.github.io/kan/'
-  : basePath;
-  
+// SITE_URL is the public site root (e.g. "https://amterp.github.io/kan").
+// Set in CI for absolute URLs. When absent, use relative paths.
+const siteUrl = process.env.SITE_URL; // no trailing slash
+const baseUrl = siteUrl ? `${siteUrl}/` : '/';
+
 // Auto-discover doc files: index first, then alphabetical.
 const docFiles = readdirSync(docsDir)
   .filter(f => f.endsWith('.md'))
@@ -91,6 +90,29 @@ const distDocsDir = join(distDir, 'docs');
 mkdirSync(distDocsDir, { recursive: true });
 for (const d of docs) {
   copyFileSync(join(docsDir, `${d.slug}.md`), join(distDocsDir, `${d.slug}.md`));
+}
+
+// -- sitemap.xml and robots.txt (public builds only) --
+
+if (siteUrl) {
+  const urls = [
+    `${siteUrl}/llms.txt`,
+    `${siteUrl}/llms-full.txt`,
+    ...docs.map(d => `${siteUrl}/docs/${d.slug}.md`),
+  ];
+  const sitemap = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ...urls.map(u => `  <url><loc>${u}</loc></url>`),
+    '</urlset>',
+    '',
+  ].join('\n');
+  writeFileSync(join(distDir, 'sitemap.xml'), sitemap);
+
+  const robots = `User-agent: *\nAllow: /\n\nSitemap: ${siteUrl}/sitemap.xml\n`;
+  writeFileSync(join(distDir, 'robots.txt'), robots);
+
+  console.log(`Generated sitemap.xml and robots.txt`);
 }
 
 console.log(`Generated llms.txt, llms-full.txt, and ${docs.length} doc files in ${distDir}`);
