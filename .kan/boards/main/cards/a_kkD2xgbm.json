@@ -1,0 +1,11 @@
+{
+  "_v": 1,
+  "alias": "hooks-cause-new",
+  "alias_explicit": false,
+  "created_at_millis": 1774132847030,
+  "creator": "Alexander Terp",
+  "id": "a_kkD2xgbm",
+  "title": "hooks cause new cards to appear twice",
+  "type": "bug",
+  "updated_at_millis": 1774132847330
+}
