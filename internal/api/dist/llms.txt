@@ -1,0 +1,15 @@
+# Kan
+
+> A file-based kanban board CLI tool. All data lives as plain files - no database, no server. Works with any VCS.
+
+Kan manages kanban boards using plain files in a `.kan/` directory. It includes both a CLI and a web UI (served via `kan serve`). Boards, columns, and cards are stored as TOML and JSON files, making them easy to version control and merge.
+
+## Docs
+
+- [Kan Documentation](/docs/index.md): Who is Kan for?, Quick Start, Topics, Roadmap
+- [CLI Reference](/docs/cli.md): Getting Started, Commands, Global Flags, JSON Output
+- [Configuration](/docs/configuration.md): File Locations, Board Configuration, Fields Reference, Global User Configuration, Managing Columns via CLI
+- [Custom Fields](/docs/custom-fields.md): Field Types, Defining Fields, Card Display, Setting Fields via CLI, Default Configuration, Reserved Names
+- [Editing Cards](/docs/editing.md): Keyboard Shortcuts, Supported Markdown, My Card
+- [Link Rules](/docs/link-rules.md): Configuration, Pattern Syntax, URL Template Placeholders, How Matches Work, Troubleshooting
+- [Keyboard Shortcuts](/docs/shortcuts.md): Quick Search (Omnibar), Board, Card Creation, Card Editor

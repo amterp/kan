@@ -1,0 +1,1187 @@
+# Kan
+
+> A file-based kanban board CLI tool. All data lives as plain files - no database, no server. Works with any VCS.
+
+Kan manages kanban boards using plain files in a `.kan/` directory. It includes both a CLI and a web UI (served via `kan serve`). Boards, columns, and cards are stored as TOML and JSON files, making them easy to version control and merge.
+
+## Kan Documentation
+
+Kan is a file-based kanban board that lives in your repository. All data is stored as plain files in `.kan/` - no database, no server dependencies, works with any VCS.
+
+**A note on shortcuts:** Throughout these docs, ⌘ represents the super key - Cmd on Mac, Ctrl on Windows/Linux.
+
+## Who is Kan for?
+
+Kan works great for solo developers and small teams working on personal projects.
+
+If you're juggling multiple side projects, you know the friction: you open a project you haven't touched in a while, and your task context is... somewhere else. Maybe a Trello board you forgot about, maybe scattered notes, maybe just your memory.
+
+With Kan, every project has its own board that lives right in the repo. Open the project, run `kan serve`, and you're looking at exactly where you left off. No accounts, no syncing, no context switching between your code and some external service.
+
+This works because Kan is:
+
+- **Local and fast.** No network calls, no loading spinners. Your board is just files on disk.
+- **File-based.** Plain JSON and TOML that version control tracks like any other file. Clone a repo, get its board.
+- **Self-contained.** No database, no server dependencies. Just a single binary that serves a web UI.
+
+## Quick Start
+
+Initialize Kan in your project:
+
+```bash
+kan init
+kan serve
+```
+
+That's it. Your board opens in the browser.
+
+From there, the web UI handles everything - add cards, drag them between columns, click to edit, use ⌘K to quick-search. Most users never need to touch the CLI for anything more.
+
+For scripting or automation (CI, AI agents, etc.), there's a full [CLI](/docs/cli) with commands to add, edit, move, and query cards programmatically.
+
+## Topics
+
+- [Keyboard Shortcuts](/docs/shortcuts) - Omnibar search, navigation, and editor shortcuts
+- [Editing Cards](/docs/editing) - Markdown support and formatting
+- [Custom Fields](/docs/custom-fields) - Define enum, tags, string, and date fields
+- [Configuration](/docs/configuration) - Board structure, columns, and display options
+- [Link Rules](/docs/link-rules) - Auto-link patterns like Jira tickets or GitHub issues
+- [CLI Reference](/docs/cli) - Full command line tool usage
+
+## Roadmap
+
+Kan is usable today. Current focus areas:
+
+- **Card relationships** - "Related to" links and "blocked by" dependencies
+- **More card features** - Additional field types, richer visualization, display customization
+- **Board customization** - More control over how your boards & cards look and behave
+- **Quality of life** - Ongoing improvements and bug fixes
+
+## CLI Reference
+
+The `kan` command line tool lets you manage your kanban boards from the terminal.
+
+## Getting Started
+
+Initialize Kan in your project directory:
+
+```bash
+kan init
+```
+
+This creates a `.kan/` directory with a default board named "main" and four columns: backlog, next, in-progress, done.
+
+You can customize the initialization:
+
+```bash
+kan init -l .kanboard              # Custom location
+kan init -c todo,doing,done        # Custom columns
+kan init -n myboard                # Custom board name
+kan init -p myproject              # Custom project name for favicon/title
+kan init -c a,b,c -n project       # Both custom columns and name
+```
+
+## Commands
+
+### init
+
+Initialize Kan in the current directory.
+
+| Flag                 | Description                                                                   |
+|----------------------|-------------------------------------------------------------------------------|
+| `-l, --location`     | Custom location for .kan directory (relative path)                            |
+| `-c, --columns`      | Comma-separated column names (default: backlog,next,in-progress,done)         |
+| `-n, --name`         | Board name (default: main)                                                    |
+| `-p, --project-name` | Project name for favicon and page title (default: git repo or directory name) |
+
+### board
+
+Manage boards.
+
+**Create a board:**
+
+```bash
+kan board create "features"
+```
+
+**List all boards:**
+
+```bash
+kan board list
+```
+
+**Delete a board:**
+
+```bash
+kan board delete features
+```
+
+Deleting the last remaining board is not allowed. If the deleted board was set as the default, the default is cleared automatically.
+
+**Describe a board:**
+
+Show full board documentation including columns, custom fields, card display settings, link rules, and pattern hooks.
+
+```bash
+kan board describe
+kan board describe features
+kan board describe --json
+```
+
+| Flag       | Description            |
+|------------|------------------------|
+| `-b, --board` | Target board       |
+| `--json`   | Machine-readable output |
+
+### column
+
+Manage columns within a board.
+
+**Add a column:**
+
+```bash
+kan column add review
+kan column add review --color "#9333ea" --position 2
+kan column add review --description "Cards under code review"
+kan column add review --limit 5
+```
+
+| Flag                | Description                                       |
+|---------------------|---------------------------------------------------|
+| `-b, --board`       | Target board                                      |
+| `-C, --color`       | Hex color (default: auto from palette)            |
+| `-d, --description` | Description of the column's purpose               |
+| `-l, --limit`       | Max cards allowed in column (0 = no limit)        |
+| `-p, --position`    | Insert position (0-indexed, default: end)         |
+
+**Delete a column:**
+
+```bash
+kan column delete review
+```
+
+| Flag          | Description                                                              |
+|---------------|--------------------------------------------------------------------------|
+| `-b, --board` | Target board                                                             |
+
+**Rename a column:**
+
+```bash
+kan column rename review code-review
+```
+
+| Flag          | Description  |
+|---------------|--------------|
+| `-b, --board` | Target board |
+
+**Edit column properties:**
+
+```bash
+kan column edit review --color "#ec4899"
+kan column edit review --description "Updated purpose"
+kan column edit review --limit 3
+kan column edit review --limit 0    # Clear limit
+```
+
+| Flag                | Description                                       |
+|---------------------|---------------------------------------------------|
+| `-b, --board`       | Target board                                      |
+| `-C, --color`       | New hex color                                     |
+| `-d, --description` | New description for the column                    |
+| `-l, --limit`       | Column limit (0 = clear, >0 = set max cards)      |
+
+**List columns:**
+
+```bash
+kan column list
+kan column list -b features
+```
+
+| Flag          | Description  |
+|---------------|--------------|
+| `-b, --board` | Target board |
+
+**Move/reorder a column:**
+
+```bash
+kan column move review --position 1
+kan column move review --after backlog
+```
+
+| Flag             | Description              |
+|------------------|--------------------------|
+| `-b, --board`    | Target board             |
+| `-p, --position` | Target index (0-indexed) |
+| `-a, --after`    | Insert after this column |
+
+### add
+
+Add a new card.
+
+```bash
+kan add "Fix login bug"
+kan add "Update docs" "Description goes here"
+```
+
+| Flag           | Description                                   |
+|----------------|-----------------------------------------------|
+| `-b, --board`  | Target board                                  |
+| `-c, --column` | Target column                                 |
+| `-p, --parent` | Parent card ID or alias                       |
+| `-f, --field`  | Custom field in key=value format (repeatable) |
+| `--strict`     | Error if wanted fields are missing (default: warn) |
+
+**Examples:**
+
+```bash
+kan add "Task title" -c backlog
+kan add "Feature" -b features -c todo -f priority=high
+```
+
+### show
+
+Display card details.
+
+```bash
+kan show fix-login-bug
+```
+
+| Flag          | Description |
+|---------------|-------------|
+| `-b, --board` | Board name  |
+
+### list
+
+List cards, grouped by column.
+
+```bash
+kan list
+kan list -b features
+kan list -c done
+```
+
+| Flag           | Description      |
+|----------------|------------------|
+| `-b, --board`  | Filter by board  |
+| `-c, --column` | Filter by column |
+
+### edit
+
+Edit an existing card. Run without flags for interactive mode, or use flags to apply changes directly.
+
+```bash
+kan edit fix-login-bug
+kan edit fix-login-bug -t "New title" -c done
+```
+
+| Flag                | Description                                       |
+|---------------------|---------------------------------------------------|
+| `-b, --board`       | Board name                                        |
+| `-t, --title`       | Set card title                                    |
+| `-d, --description` | Set card description                              |
+| `-c, --column`      | Move card to column                               |
+| `-p, --parent`      | Set parent card ID or alias                       |
+| `-a, --alias`       | Set explicit alias                                |
+| `-f, --field`       | Set custom field in key=value format (repeatable) |
+| `--strict`          | Error if wanted fields are missing (default: warn) |
+
+### delete
+
+Delete a card.
+
+```bash
+kan delete fix-login-bug
+```
+
+| Flag          | Description                                  |
+|---------------|----------------------------------------------|
+| `-b, --board` | Board name                                   |
+
+### serve
+
+Start the web interface.
+
+```bash
+kan serve
+kan serve -p 8080
+kan serve --no-open
+```
+
+| Flag         | Description                       |
+|--------------|-----------------------------------|
+| `-p, --port` | Port to listen on (default: 5260) |
+| `--no-open`  | Don't open browser automatically  |
+
+### comment
+
+Manage card comments.
+
+**Add a comment:**
+
+```bash
+kan comment add fix-login-bug "Found the issue in session.go"
+kan comment add fix-login-bug  # Opens editor for body
+```
+
+| Flag          | Description |
+|---------------|-------------|
+| `-b, --board` | Board name  |
+
+The first argument is the card ID or alias. The second argument is the comment body - if omitted, your editor opens to
+write the comment.
+
+**Edit a comment:**
+
+```bash
+kan comment edit c_9kL2x "Updated comment text"
+kan comment edit c_9kL2x  # Opens editor with existing text
+```
+
+| Flag          | Description |
+|---------------|-------------|
+| `-b, --board` | Board name  |
+
+**Delete a comment:**
+
+```bash
+kan comment delete c_9kL2x
+```
+
+| Flag          | Description |
+|---------------|-------------|
+| `-b, --board` | Board name  |
+
+### migrate
+
+Migrate board data to current schema version.
+
+```bash
+kan migrate
+kan migrate --dry-run
+kan migrate --all
+kan migrate --all --dry-run
+```
+
+| Flag        | Description                                        |
+|-------------|----------------------------------------------------|
+| `--dry-run` | Show what would be changed without modifying files |
+| `--all`     | Migrate all projects registered in global config (prompts per project) |
+
+### doctor
+
+Check board data for consistency issues and optionally fix them.
+
+```bash
+kan doctor
+kan doctor --fix
+kan doctor --dry-run
+kan doctor -b main
+kan doctor --json
+```
+
+| Flag          | Description                                         |
+|---------------|-----------------------------------------------------|
+| `--fix`       | Apply automatic fixes for issues with deterministic solutions |
+| `--dry-run`   | Show what fixes would be applied without making changes |
+| `-b, --board` | Check only a specific board (default: all)          |
+
+**Exit codes:**
+
+- `0`: No errors (warnings are OK)
+- `1`: Errors found
+
+**Issues detected:**
+
+- **Errors** (must be fixed):
+  - `MALFORMED_BOARD_CONFIG`: Board config.toml fails to parse
+  - `MALFORMED_CARD`: Card JSON fails to parse
+  - `MISSING_CARD_FILE`: Card ID in column but file not found (fixable)
+  - `ORPHANED_CARD`: Card file not in any column (fixable)
+  - `DUPLICATE_CARD_ID`: Same ID in multiple columns (fixable)
+
+- **Warnings** (should be addressed):
+  - `SCHEMA_OUTDATED`: Board/card needs migration (run `kan migrate`)
+  - `INVALID_DEFAULT_COLUMN`: References missing column (fixable)
+  - `INVALID_CARD_DISPLAY`: References missing custom field (fixable)
+  - `INVALID_LINK_RULE`: Regex doesn't compile
+  - `INVALID_PATTERN_HOOK`: Regex doesn't compile
+  - `MISSING_HOOK_FILE`: Pattern hook references non-existent file
+  - `INVALID_PARENT_REF`: Parent points to non-existent card (fixable)
+  - `MISSING_WANTED_FIELDS`: Card is missing fields marked as `wanted`
+  - `MALFORMED_GLOBAL_CONFIG`: Global config.toml fails to parse
+  - `GLOBAL_SCHEMA_OUTDATED`: Global config needs migration
+
+### completion
+
+Output shell completion scripts for TAB completion of commands, flags, board names, card IDs/aliases, and column names.
+
+```bash
+kan completion bash
+kan completion zsh
+```
+
+To enable, add one of these to your shell profile (e.g. `~/.zshrc` or `~/.bashrc`):
+
+```bash
+eval "$(kan completion zsh)"
+eval "$(kan completion bash)"
+```
+
+## Global Flags
+
+| Flag                    | Description                                                                              |
+|-------------------------|------------------------------------------------------------------------------------------|
+| `-I, --non-interactive` | Fail instead of prompting for missing input                                              |
+| `--json`                | Output results as JSON (supported by: show, list, add, edit, board list, column list, comment add, doctor) |
+
+## JSON Output
+
+Use the `--json` flag for programmatic access to Kan data. Output is structured with wrapper objects for
+forward-compatibility:
+
+```bash
+# Get card details as JSON
+kan show fix-login --json
+# Output: {"card": {...}}
+
+# List all cards as JSON
+kan list --json
+# Output: {"cards": [...]}
+
+# Create a card and get the result as JSON
+kan add "New task" --json
+# Output: {"card": {...}}
+
+# Edit a card and get the updated result as JSON
+kan edit fix-login -t "New title" --json
+# Output: {"card": {...}}
+
+# List boards as JSON
+kan board list --json
+# Output: {"boards": ["main", "features"]}
+
+# List columns as JSON
+kan column list --json
+# Output: {"columns": [{"name": "backlog", "color": "#...", "card_count": 5}, ...]}
+
+# Add a comment and get the result as JSON
+kan comment add fix-login "Found the issue" --json
+# Output: {"comment": {...}}
+```
+
+**Example with jq:**
+
+```bash
+kan show fix-login --json | jq .card.title
+kan list --json | jq '.cards | length'
+kan list --json | jq '.cards[] | select(.column == "in-progress") | .title'
+```
+
+## Configuration
+
+Kan uses TOML files for configuration. This page documents the board configuration structure.
+
+## File Locations
+
+- **Board config**: `.kan/boards/<board-name>/config.toml`
+- **Global user config**: `~/.config/kan/config.toml`
+
+## Board Configuration
+
+A board's `config.toml` defines its structure, columns, custom fields, and display options.
+
+### Minimal Example
+
+```toml
+kan_schema = "board/8"
+id = "k7xQ2m"
+name = "main"
+
+[[columns]]
+name = "todo"
+color = "#6b7280"
+
+[[columns]]
+name = "in-progress"
+color = "#f59e0b"
+
+[[columns]]
+name = "done"
+color = "#10b981"
+```
+
+### Full Example
+
+```toml
+kan_schema = "board/8"
+id = "k7xQ2m"
+name = "main"
+default_column = "backlog"
+
+[[columns]]
+name = "backlog"
+color = "#6b7280"
+description = "Planned work not yet started"
+
+[[columns]]
+name = "in-progress"
+color = "#f59e0b"
+description = "Currently being worked on"
+limit = 5
+
+[[columns]]
+name = "done"
+color = "#10b981"
+description = "Completed work"
+
+[custom_fields.type]
+type = "enum"
+options = [
+  { value = "feature", color = "#16a34a" },
+  { value = "bug", color = "#dc2626" },
+  { value = "task", color = "#4b5563" },
+]
+
+[custom_fields.labels]
+type = "enum-set"
+options = [
+  { value = "blocked", color = "#dc2626" },
+  { value = "urgent", color = "#f59e0b" },
+]
+
+[custom_fields.topics]
+type = "free-set"
+
+[card_display]
+type_indicator = "type"
+badges = ["labels"]
+
+[[link_rules]]
+name = "JIRA"
+pattern = "([A-Z]+-\\d+)"
+url = "https://jira.example.com/browse/{1}"
+
+[[link_rules]]
+name = "GitHub"
+pattern = "#(\\d+)"
+url = "https://github.com/org/repo/issues/{1}"
+```
+
+## Fields Reference
+
+### Root Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `kan_schema` | Yes | Schema version (e.g., `"board/5"`) |
+| `id` | Yes | Unique board identifier (auto-generated) |
+| `name` | Yes | Board name (also used as directory name) |
+| `default_column` | No | Column for new cards via `kan add` (defaults to first column) |
+
+### Columns
+
+Columns are defined as an ordered array:
+
+```toml
+[[columns]]
+name = "in-progress"
+color = "#f59e0b"
+description = "Currently being worked on"
+limit = 5
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Column name (must be unique within board) |
+| `color` | Yes | Hex color for column header |
+| `description` | No | Purpose of this workflow stage |
+| `limit` | No | Max cards allowed (0 or omitted = no limit) |
+| `card_ids` | No | Ordered list of card IDs (managed by Kan) |
+
+**Default columns** when creating a new board: `backlog`, `next`, `in-progress`, `done`.
+
+**Column Limits**: When a column has a `limit`, adding or moving cards into it is refused once the limit is reached. Column headers show the count as `(X/Y)` when a limit is set. This is a core kanban practice for controlling flow.
+
+### Custom Fields
+
+See [Custom Fields](/docs/custom-fields) for full documentation.
+
+```toml
+[custom_fields.<field-name>]
+type = "enum"  # or "enum-set", "free-set", "string", "date", "boolean"
+wanted = true  # optional: warn if field is missing
+options = [    # required for enum/enum-set
+  { value = "...", color = "#..." },
+]
+```
+
+#### Wanted Fields
+
+Mark a field as `wanted = true` to encourage its use without strict enforcement:
+
+- `kan add` and `kan edit` print warnings when wanted fields are missing
+- Use `--strict` flag to convert warnings to errors
+- `kan doctor` reports cards missing wanted fields
+- Frontend shows asterisk on wanted field labels and warning icon on cards
+
+This is useful for fields like "type" that should ideally be set on every card but shouldn't block quick card creation.
+
+### Card Display
+
+Controls how custom fields appear on cards in the board view:
+
+```toml
+[card_display]
+type_indicator = "type"      # enum field shown as badge
+badges = ["labels"]          # set fields shown as chips
+metadata = ["assignee"]      # any fields shown as text
+```
+
+See [Custom Fields](/docs/custom-fields#card-display) for details on display slots.
+
+### Link Rules
+
+Auto-link patterns for references like ticket IDs:
+
+```toml
+[[link_rules]]
+name = "JIRA"
+pattern = "([A-Z]+-\\d+)"
+url = "https://jira.example.com/browse/{1}"
+
+[[link_rules]]
+name = "GitHub"
+pattern = "#(\\d+)"
+url = "https://github.com/org/repo/issues/{1}"
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Human-readable name for the rule |
+| `pattern` | Yes | Regex pattern with capture groups |
+| `url` | Yes | URL template using `{0}` for full match, `{1}`, `{2}`, etc. for groups |
+
+See [Link Rules](/docs/link-rules) for full documentation.
+
+### Pattern Hooks
+
+Pattern hooks run commands when cards are created with titles matching specified patterns. This is useful for integrating with external systems.
+
+```toml
+[[pattern_hooks]]
+name = "jira-sync"
+pattern_title = "^[A-Z]+-\\d+$"  # Matches JIRA-123, PROJ-456
+command = ".kan/hooks/jira-sync.sh"
+timeout = 60  # Optional, defaults to 30s
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Human-readable hook name (for logs/errors) |
+| `pattern_title` | Yes | Regex pattern to match card titles |
+| `command` | Yes | Path to executable (see note below) |
+| `timeout` | No | Timeout in seconds (default: 30) |
+
+**Important:** The `command` field must be a **path to an executable file**, not a shell command with arguments. For example:
+- ✅ `".kan/hooks/my-hook.sh"` — relative path to script with shebang (relative to project root)
+- ✅ `"/usr/local/bin/my-tool"` — absolute path to binary
+- ❌ `"python script.py"` — won't work (not a shell command)
+- ❌ `"./hook.sh --verbose"` — won't work (arguments not parsed)
+
+The `~` prefix is expanded to your home directory. Relative paths are resolved from the project root. If you need to pass arguments or use shell features, create a wrapper script.
+
+**Execution details:**
+- Hooks run **after** the card is fully created and saved
+- Multiple matching hooks run sequentially in config order
+- Hook receives `<card_id> <board_name>` as command-line arguments
+- Hooks can use `kan` CLI commands to modify the card
+- Hook stdout is shown to the user
+- Non-zero exit code shows a warning but doesn't roll back card creation
+
+**Example hook script** (`.kan/hooks/jira-sync.sh`):
+```bash
+#!/bin/bash
+CARD_ID="$1"
+BOARD="$2"
+
+# Fetch JIRA ticket description and update the card
+TITLE=$(kan show "$CARD_ID" -b "$BOARD" --format '{{.Title}}')
+DESCRIPTION=$(curl -s "https://jira.example.com/rest/api/2/issue/$TITLE" | jq -r '.fields.description')
+
+kan edit "$CARD_ID" -b "$BOARD" -d "$DESCRIPTION"
+echo "Synced description from JIRA"
+```
+
+## Global User Configuration
+
+The global config at `~/.config/kan/config.toml` stores user preferences:
+
+```toml
+editor = "vim"  # Editor for interactive editing
+
+[projects]
+my-project = "/Users/name/src/my-project"
+
+[repos."/Users/name/src/my-project"]
+default_board = "features"
+```
+
+| Field | Description |
+|-------|-------------|
+| `editor` | Editor for interactive mode (falls back to `$EDITOR`, then `vim`) |
+| `projects` | Registry of known Kan projects (populated automatically) |
+| `repos.<path>.default_board` | Default board when a repo has multiple boards |
+
+## Managing Columns via CLI
+
+```bash
+# Add a column
+kan column add review
+kan column add review --color "#9333ea" --position 2
+kan column add review --limit 5
+
+# Rename a column
+kan column rename review code-review
+
+# Edit column properties
+kan column edit review --color "#ec4899"
+kan column edit review --description "Cards under review"
+kan column edit review --limit 3
+kan column edit review --limit 0    # Clear limit
+
+# Reorder columns
+kan column move review --position 1
+kan column move review --after backlog
+
+# Delete a column
+kan column delete review
+```
+
+See [CLI Reference](/docs/cli#column) for all column commands.
+
+## Custom Fields
+
+Kan supports custom fields on cards to track whatever metadata matters to your workflow - priority, assignee, type, labels, due dates, and more.
+
+## Field Types
+
+| Type | Description | Example Values |
+|------|-------------|----------------|
+| `enum` | Single-select from defined options | `"bug"`, `"feature"` |
+| `enum-set` | Multi-select from defined options | `["blocked", "urgent"]` |
+| `free-set` | Multi-value freeform text | `["backend", "auth"]` |
+| `string` | Free-form text | `"John Doe"`, `"https://..."` |
+| `date` | Date value | `"2024-03-15"` |
+| `boolean` | Yes/no flag | `true`, `false` |
+
+## Defining Fields
+
+Custom fields are defined in your board's `config.toml` under the `[custom_fields]` section:
+
+```toml
+[custom_fields.type]
+type = "enum"
+options = [
+  { value = "feature", color = "#16a34a" },
+  { value = "bug", color = "#dc2626" },
+  { value = "task", color = "#4b5563" },
+]
+
+[custom_fields.labels]
+type = "enum-set"
+options = [
+  { value = "blocked", color = "#dc2626" },
+  { value = "needs-review", color = "#f59e0b" },
+]
+
+[custom_fields.topics]
+type = "free-set"
+
+[custom_fields.assignee]
+type = "string"
+
+[custom_fields.due_date]
+type = "date"
+```
+
+### Wanted Fields
+
+Mark a field as `wanted` to get warnings when cards are missing it:
+
+```toml
+[custom_fields.type]
+type = "enum"
+wanted = true
+options = [
+  { value = "feature", color = "#16a34a" },
+  { value = "bug", color = "#dc2626" },
+]
+```
+
+When a card is missing a wanted field:
+- CLI commands (`kan add`, `kan edit`) print warnings
+- Use `--strict` flag to block operations instead of warning
+- `kan doctor` reports cards missing wanted fields
+- Web UI shows an asterisk on wanted field labels and a warning icon on cards
+
+This is useful for enforcing workflow standards without making fields strictly required.
+
+### Badge Colors
+
+When badges or chips are shown on cards, each value gets a color:
+
+- **Enum / enum-set options with a `color`** - the specified color is used as-is.
+- **Enum / enum-set options without a `color`** - a color is automatically assigned based on the value's text.
+- **Free-set values** - always auto-colored (no predefined options to attach colors to).
+
+Auto-assigned colors are deterministic and case-insensitive - "Bug" and "bug" will always get the same color. If you want to override an auto-assigned color for an enum or enum-set field, add an explicit `color` to the option in your board config.
+
+### Enum and Enum-set
+
+For `enum` and `enum-set` fields, you must define the allowed options. Each option can optionally have a color for visual display:
+
+```toml
+[custom_fields.priority]
+type = "enum"
+options = [
+  { value = "low", color = "#6b7280" },
+  { value = "medium", color = "#f59e0b" },
+  { value = "high", color = "#ef4444" },
+]
+```
+
+The difference between `enum` and `enum-set`:
+- **Enum** is single-select - a card can only have one value (e.g., a card is either a bug OR a feature)
+- **Enum-set** is multi-select - a card can have multiple values from the defined options (e.g., a card can be both "blocked" AND "urgent")
+
+### Free-set
+
+`free-set` fields accept any text values without predefined options - useful for ad-hoc labels, topics, or tags:
+
+```toml
+[custom_fields.topics]
+type = "free-set"
+```
+
+Values are deduplicated and limited to 10 per field. In the web UI, values are added by typing and pressing Enter, and removed by clicking the X on each chip.
+
+### String and Date
+
+For `string` and `date` fields, no options are needed:
+
+```toml
+[custom_fields.assignee]
+type = "string"
+
+[custom_fields.due_date]
+type = "date"
+```
+
+### Boolean
+
+Boolean fields are simple yes/no flags - no options needed:
+
+```toml
+[custom_fields.high_priority]
+type = "boolean"
+```
+
+In the CLI, set with `-f high_priority=true` or `-f high_priority=false`. Also accepts `yes`/`no` and `1`/`0` (case-insensitive). In the web UI, boolean fields render as toggle switches.
+
+## Card Display
+
+The `[card_display]` section in your board config controls how custom fields appear on cards in the board view:
+
+```toml
+[card_display]
+type_indicator = "type"           # Shown as a colored badge
+badges = ["labels"]               # Shown as colored chips
+metadata = ["assignee"]           # Shown as small text
+```
+
+### Display Slots
+
+| Slot | Field Types | Rendering |
+|------|-------------|-----------|
+| `type_indicator` | `enum` only | Colored badge (single value) |
+| `badges` | `enum-set`, `free-set` | Colored chips (multiple values) |
+| `metadata` | Any | Small text in card footer |
+
+Fields not assigned to a display slot are only visible in the card detail view.
+
+**Example card appearance:**
+
+```
+┌────────────────────────────────────┐
+│ Fix login timeout                  │  ← title
+│ ┌─────────┐ ┌─────────┐ ┌────────┐ │
+│ │   bug   │ │ blocked │ │ urgent │ │  ← type_indicator + badges
+│ └─────────┘ └─────────┘ └────────┘ │
+│ assignee: sarah              📝 💬 │  ← metadata + system indicators
+└────────────────────────────────────┘
+```
+
+## Setting Fields via CLI
+
+Use the `-f` flag on `kan add` or `kan edit` to set custom field values:
+
+```bash
+# Set a single field
+kan add "Fix bug" -f type=bug
+
+# Set multiple fields
+kan add "New feature" -f type=feature -f priority=high
+
+# Set multi-value fields (comma-separated)
+kan edit abc123 -f labels=blocked,urgent
+kan edit abc123 -f topics=backend,auth
+
+# Clear a field
+kan edit abc123 -f assignee=
+```
+
+## Default Configuration
+
+New boards are created with a `type` field and sensible defaults:
+
+```toml
+[custom_fields.type]
+type = "enum"
+options = [
+  { value = "feature", color = "#16a34a" },
+  { value = "bug", color = "#dc2626" },
+  { value = "task", color = "#4b5563" },
+]
+
+[card_display]
+type_indicator = "type"
+```
+
+You can modify, remove, or add fields to match your workflow.
+
+## Reserved Names
+
+Field names cannot start with:
+- `_` (reserved for internal use)
+- `kan_` (reserved for Kan)
+
+Use the `x_` prefix if you need to escape a name that would otherwise conflict.
+
+## Editing Cards
+
+Kan uses Markdown for card descriptions. Click anywhere on a description to edit it; press **⌘↵** or click outside to stop editing.
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| ⌘B | Bold |
+| ⌘I | Italic |
+| ⌘K | Insert link |
+| ⌘↵ | Exit edit mode |
+| Escape | Exit edit mode |
+
+**Tip:** For links, select the text you want to link first, then press ⌘K. The URL placeholder will be selected so you can paste or type the URL immediately.
+
+## Supported Markdown
+
+Kan supports [GitHub Flavored Markdown](https://github.github.com/gfm/) (GFM):
+
+- **Bold** and *italic* text
+- [Links](https://example.com) and `inline code`
+- Bullet lists and numbered lists
+- Task lists with checkboxes
+- Tables
+- Code blocks
+- Blockquotes
+- ~~Strikethrough~~
+
+### Example
+
+```markdown
+## My Card
+
+This is a **bold** statement with a [link](https://example.com).
+
+- [ ] Todo item
+- [x] Completed item
+
+| Column A | Column B |
+|----------|----------|
+| Data 1   | Data 2   |
+```
+
+## Link Rules
+
+Link rules automatically convert text patterns into clickable links. This is useful for linking issue trackers, pull requests, or any text that follows a predictable pattern.
+
+## Configuration
+
+Link rules are defined in your board's `config.toml` file under the `link_rules` section:
+
+```toml
+[[link_rules]]
+  name = "Jira"
+  pattern = "([A-Z]+-\\d+)"
+  url = "https://jira.example.com/browse/{1}"
+
+[[link_rules]]
+  name = "GitHub Issue"
+  pattern = "#(\\d+)"
+  url = "https://github.com/org/repo/issues/{1}"
+```
+
+Each rule has three required fields:
+
+| Field | Description |
+|-------|-------------|
+| `name` | Human-readable name for the rule (shown in warnings) |
+| `pattern` | Regular expression to match |
+| `url` | URL template with placeholders |
+
+## Pattern Syntax
+
+Patterns use standard regex syntax. Use capture groups `()` to extract portions of the match for use in the URL template.
+
+### Examples
+
+**Jira tickets** like `ABC-123`:
+```toml
+pattern = "([A-Z]+-\\d+)"
+```
+
+**GitHub issues** like `#42`:
+```toml
+pattern = "#(\\d+)"
+```
+
+**GitHub PRs** with org/repo like `org/repo#123`:
+```toml
+pattern = "([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)#(\\d+)"
+```
+
+Note: In TOML, backslashes must be escaped (use `\\d` not `\d`).
+
+## URL Template Placeholders
+
+URL templates support these placeholders:
+
+| Placeholder | Description |
+|-------------|-------------|
+| `{0}` | The entire matched text (URL encoded) |
+| `{1}`, `{2}`, ... | Capture groups 1, 2, etc. (URL encoded) |
+| `{0!raw}`, `{1!raw}`, ... | Same as above, but *not* URL encoded |
+
+### When to use `!raw`
+
+Use the `!raw` suffix when the captured text should be inserted as-is, typically for path segments:
+
+```toml
+# Good: path segments don't need encoding
+url = "https://github.com/{1!raw}/{2!raw}/pull/{3}"
+
+# Good: query parameters should be encoded
+url = "https://search.example.com/?q={1}"
+```
+
+## How Matches Work
+
+1. **Rules are processed in order** — earlier rules take priority over later ones
+2. **First match wins** — if two patterns could match the same text, the first match is used
+3. **Existing links are preserved** — text already inside markdown links `[text](url)` is not processed
+4. **Raw URLs are detected** — `http://` and `https://` URLs are automatically linked even without rules
+
+## Troubleshooting
+
+### Invalid Regex Warning
+
+If a pattern has invalid regex syntax, you'll see a warning when loading the board:
+
+```
+Warning: link_rules: invalid regex in 'Rule Name': error details
+```
+
+The rule will be skipped, but other rules will still work. Fix the pattern syntax to resolve the warning.
+
+### Pattern Not Matching
+
+If your pattern isn't matching as expected:
+
+1. Test your regex using a site like [regexr.com](https://regexr.com/) or [regex101.com](https://regex101.com/) (use JavaScript flavor)
+2. Remember to escape backslashes in TOML: `\\d` not `\d`
+3. Check if an earlier rule is matching the text first
+
+### Special Characters in URLs
+
+If matched text contains special characters that break URLs, use the encoded placeholder (without `!raw`):
+
+```toml
+# Search query might contain spaces or special chars
+url = "https://search.example.com/?q={1}"  # Encodes to ?q=hello%20world
+```
+
+## Keyboard Shortcuts
+
+## Quick Search (Omnibar)
+
+Press **⌘K** to open quick search. Start typing to filter cards in real-time.
+
+| Shortcut | Action |
+|----------|--------|
+| ⌘K | Open/close quick search |
+| ↑ ↓ | Navigate between cards in a column |
+| ← → | Navigate between columns |
+| Enter | Open highlighted card |
+| Escape | Close quick search |
+
+### How Filtering Works
+
+Quick search uses **word-based substring matching**. Each word in your query must appear as a consecutive substring somewhere in the card. Multiple words are AND'd together, but can match different fields. For example:
+
+- `bug` matches "fixing a **bug**" and "de**bug**ging"
+- `fix bug` matches a card with "**fix** login" in title and "**bug** report" in description
+- `fg` does *not* match "fixing a bug" (not a consecutive substring)
+
+The search looks across all card fields: title, alias, description, and any custom fields defined on your board.
+
+### Filtering Behavior
+
+- Cards that don't match your query disappear from the board
+- Empty columns are hidden while filtering
+- Drag-and-drop continues to work with the filtered set
+- The filter clears when you close quick search
+
+## Board
+
+| Shortcut | Action |
+|----------|--------|
+| 1-9 | Start creating a card in column N |
+
+Columns are numbered left to right starting at 1. If a card creation form is already open in another column, it will close and any draft title you typed will be preserved - press the original number again to return to it. Boards with more than 9 columns will have the remaining columns unreachable by shortcut.
+
+## Card Creation
+
+When typing in the new card input:
+
+| Shortcut | Action |
+|----------|--------|
+| Enter | Create card and continue adding |
+| ⇧↵ | Create card and open field panel |
+| ⌘↵ | Create card and open full modal |
+| Escape | Cancel and close input |
+
+The **field panel** is a compact popup that appears next to your newly created card, letting you quickly set custom fields (like type, priority, tags) without opening the full modal.
+
+## Card Editor
+
+When editing a card's description:
+
+| Shortcut | Action |
+|----------|--------|
+| ⌘B | Bold |
+| ⌘I | Italic |
+| ⌘K | Insert link |
+| ⌘↵ | Save and exit edit mode |
+| Escape | Save and exit edit mode |
+
+See [Editing Cards](/docs/editing) for details on Markdown support.
