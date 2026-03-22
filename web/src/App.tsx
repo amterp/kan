@@ -237,6 +237,13 @@ function BoardApp() {
     }
   }, [board, createCard, openCard]);
 
+  const handleOpenCard = useCallback((id: string, focusDescription?: boolean) => {
+    if (focusDescription) {
+      setNewlyCreatedCardId(id);
+    }
+    openCard(id);
+  }, [openCard]);
+
   // Auto-select first board if only one exists (replace so no extra history entry)
   useEffect(() => {
     if (!boardName && !boardsLoading && boards.length === 1) {
@@ -341,7 +348,7 @@ function BoardApp() {
             onDeleteColumn={deleteColumn}
             onUpdateColumn={updateColumn}
             onReorderColumns={reorderColumns}
-            onOpenCard={openCard}
+            onOpenCard={handleOpenCard}
             isOmnibarOpen={omnibar.isOpen}
             isCardModalOpen={!!cardId}
           />

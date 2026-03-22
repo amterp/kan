@@ -32,7 +32,7 @@ interface BoardProps {
   onDeleteColumn?: (columnName: string) => Promise<unknown>;
   onUpdateColumn?: (columnName: string, updates: UpdateColumnInput) => Promise<unknown>;
   onReorderColumns?: (columns: string[]) => Promise<void>;
-  onOpenCard: (cardId: string) => void;
+  onOpenCard: (cardId: string, focusDescription?: boolean) => void;
   isOmnibarOpen?: boolean;
   isCardModalOpen?: boolean;
 }
@@ -370,7 +370,7 @@ export default function Board({
 
       if (openModal && newCard) {
         setPanelTarget(null);
-        onOpenCard(newCard.id);
+        onOpenCard(newCard.id, true);
       } else if (showPanel && newCard) {
         // Show panel anchored to the just-created card.
         // NOTE: This relies on Card.tsx rendering with data-card-id={card.id} attribute.
