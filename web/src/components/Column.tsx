@@ -104,6 +104,7 @@ interface ColumnProps {
   isDragging?: boolean;
   // Floating panel props
   onPanelHide?: () => void;
+  columnIndex: number;
 }
 
 export default function Column({
@@ -129,6 +130,7 @@ export default function Column({
   overIndex,
   isDragging,
   onPanelHide,
+  columnIndex,
 }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.name });
   const { showToast } = useToast();
@@ -380,7 +382,7 @@ export default function Column({
           onClick={onStartAddCard}
           onPointerDown={(e) => e.stopPropagation()}
           className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-          title="Add card"
+          title={columnIndex < 9 ? `Add card (${columnIndex + 1})` : 'Add card'}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

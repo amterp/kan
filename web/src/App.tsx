@@ -342,6 +342,8 @@ function BoardApp() {
             onUpdateColumn={updateColumn}
             onReorderColumns={reorderColumns}
             onOpenCard={openCard}
+            isOmnibarOpen={omnibar.isOpen}
+            isCardModalOpen={!!cardId}
           />
         ) : (
           <div className="h-full flex items-center justify-center">

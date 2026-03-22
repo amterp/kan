@@ -29,6 +29,14 @@ The search looks across all card fields: title, alias, description, and any cust
 - Drag-and-drop continues to work with the filtered set
 - The filter clears when you close quick search
 
+## Board
+
+| Shortcut | Action |
+|----------|--------|
+| 1-9 | Start creating a card in column N |
+
+Columns are numbered left to right starting at 1. If a card creation form is already open in another column, it will close and any draft title you typed will be preserved - press the original number again to return to it. Boards with more than 9 columns will have the remaining columns unreachable by shortcut.
+
 ## Card Creation
 
 When typing in the new card input:

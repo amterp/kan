@@ -33,6 +33,8 @@ interface BoardProps {
   onUpdateColumn?: (columnName: string, updates: UpdateColumnInput) => Promise<unknown>;
   onReorderColumns?: (columns: string[]) => Promise<void>;
   onOpenCard: (cardId: string) => void;
+  isOmnibarOpen?: boolean;
+  isCardModalOpen?: boolean;
 }
 
 export default function Board({
@@ -49,6 +51,8 @@ export default function Board({
   onUpdateColumn,
   onReorderColumns,
   onOpenCard,
+  isOmnibarOpen = false,
+  isCardModalOpen = false,
 }: BoardProps) {
   const { showToast } = useToast();
   const [activeCard, setActiveCard] = useState<Card | null>(null);
@@ -506,6 +510,32 @@ export default function Board({
     };
   }, [isAddingColumn]);
 
+  // Number key shortcuts: press 1-9 to start adding a card to column N
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if ((e.target as HTMLElement)?.isContentEditable) return;
+
+      if (isOmnibarOpen || isCardModalOpen) return;
+
+      const digit = parseInt(e.key, 10);
+      if (isNaN(digit) || digit < 1 || digit > 9) return;
+
+      const columnIndex = digit - 1;
+      if (columnIndex >= visibleColumns.length) return;
+
+      e.preventDefault();
+      setPanelTarget(null);
+      setAddingToColumn(visibleColumns[columnIndex].name);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [visibleColumns, isOmnibarOpen, isCardModalOpen]);
+
   const handleAddColumn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newColumnName.trim() || !onCreateColumn) return;
@@ -535,10 +565,11 @@ export default function Board({
             </div>
           )}
           <SortableContext items={columnNames} strategy={horizontalListSortingStrategy}>
-            {visibleColumns.map((column) => (
+            {visibleColumns.map((column, index) => (
               <Column
                 key={column.name}
                 column={column}
+                columnIndex={index}
                 cards={cardsByColumn[column.name] || []}
                 board={board}
                 highlightedCardId={highlightedCardId}
