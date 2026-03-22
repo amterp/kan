@@ -19,6 +19,12 @@ export function toApiFieldValues(
   for (const [fieldName, value] of Object.entries(values)) {
     if (value === undefined) continue;
 
+    // Convert booleans to string for API (Go handler expects map[string]string)
+    if (typeof value === 'boolean') {
+      apiFields[fieldName] = String(value);
+      continue;
+    }
+
     // Check if this is a set field (array -> comma-separated string)
     const fieldType = boardFields?.[fieldName]?.type;
     const isSet = fieldType === 'enum-set' || fieldType === 'free-set' || Array.isArray(value);
@@ -38,6 +44,7 @@ export function toApiFieldValues(
  * Convenience wrapper for single-field updates.
  */
 export function toApiFieldValue(value: unknown): unknown {
+  if (typeof value === 'boolean') return String(value);
   if (Array.isArray(value)) {
     return (value as string[]).join(',');
   }

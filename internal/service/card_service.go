@@ -426,6 +426,17 @@ func (s *CardService) validateAndApplyCustomFields(card *model.Card, boardCfg *m
 			}
 			card.CustomFields[key] = vals
 
+		case model.FieldTypeBoolean:
+			if value == "" {
+				delete(card.CustomFields, key)
+			} else {
+				boolVal, err := parseBoolValue(value)
+				if err != nil {
+					return kanerr.InvalidField(key, err.Error())
+				}
+				card.CustomFields[key] = boolVal
+			}
+
 		case model.FieldTypeString, model.FieldTypeDate:
 			card.CustomFields[key] = value
 
@@ -491,6 +502,19 @@ func parseSetValues(value string) []string {
 	return result
 }
 
+// parseBoolValue parses a string as a boolean value.
+// Accepts true/false, yes/no, 1/0 (case-insensitive).
+func parseBoolValue(s string) (bool, error) {
+	switch strings.ToLower(s) {
+	case "true", "yes", "1":
+		return true, nil
+	case "false", "no", "0":
+		return false, nil
+	default:
+		return false, fmt.Errorf("must be one of: true, false, yes, no, 1, 0")
+	}
+}
+
 // dedup removes duplicate strings, preserving order.
 func dedup(vals []string) []string {
 	seen := make(map[string]bool, len(vals))
@@ -513,7 +537,7 @@ type MissingWantedFieldOption struct {
 // MissingWantedField describes a wanted field that is missing from a card.
 type MissingWantedField struct {
 	FieldName   string                     // Name of the custom field
-	FieldType   string                     // Type of the field (enum, enum-set, free-set, string, date)
+	FieldType   string                     // Type of the field (enum, enum-set, free-set, string, date, boolean)
 	Description string                     // Field-level description
 	Options     []MissingWantedFieldOption // For enum/enum-set, the valid options
 }
@@ -544,6 +568,13 @@ func CheckWantedFieldsForProposal(existingFields map[string]any, proposedFields 
 		case model.FieldTypeEnumSet, model.FieldTypeFreeSet:
 			// Parse comma-separated values
 			merged[fieldName] = parseSetValues(value)
+		case model.FieldTypeBoolean:
+			boolVal, err := parseBoolValue(value)
+			if err == nil {
+				merged[fieldName] = boolVal
+			} else {
+				merged[fieldName] = value // let validation catch it
+			}
 		default:
 			// String, enum, date - store as string
 			merged[fieldName] = value
@@ -609,6 +640,9 @@ func isEmpty(value any, fieldType string) bool {
 		default:
 			return true
 		}
+	case model.FieldTypeBoolean:
+		_, ok := value.(bool)
+		return !ok
 	default:
 		return true
 	}

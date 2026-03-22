@@ -12,6 +12,7 @@ const (
 	FieldTypeEnumSet = "enum-set"
 	FieldTypeFreeSet = "free-set"
 	FieldTypeDate    = "date"
+	FieldTypeBoolean = "boolean"
 )
 
 // MaxSetItems is the maximum number of values allowed per set field (enum-set, free-set).
@@ -19,7 +20,7 @@ const (
 const MaxSetItems = 10
 
 // ValidFieldTypes lists all supported custom field types.
-var ValidFieldTypes = []string{FieldTypeString, FieldTypeEnum, FieldTypeEnumSet, FieldTypeFreeSet, FieldTypeDate}
+var ValidFieldTypes = []string{FieldTypeString, FieldTypeEnum, FieldTypeEnumSet, FieldTypeFreeSet, FieldTypeDate, FieldTypeBoolean}
 
 // IsValidFieldType returns true if the given type is a valid custom field type.
 func IsValidFieldType(t string) bool {
@@ -69,7 +70,7 @@ type CustomFieldOption struct {
 
 // CustomFieldSchema defines the schema for a custom field.
 type CustomFieldSchema struct {
-	Type        string              `toml:"type" json:"type"`                           // "string", "enum", "enum-set", "free-set", "date"
+	Type        string              `toml:"type" json:"type"`                           // "string", "enum", "enum-set", "free-set", "date", "boolean"
 	Options     []CustomFieldOption `toml:"options,omitempty" json:"options,omitempty"` // For enum/enum-set types
 	Wanted      bool                `toml:"wanted,omitempty" json:"wanted,omitempty"`   // Warn if field is missing
 	Description string              `toml:"description,omitempty" json:"description,omitempty"`

@@ -1,6 +1,6 @@
 import type { BoardConfig, CustomFieldSchema } from '../api/types';
 import { useState } from 'react';
-import { FIELD_TYPE_ENUM, FIELD_TYPE_ENUM_SET, FIELD_TYPE_FREE_SET, FIELD_TYPE_STRING, FIELD_TYPE_DATE } from '../api/types';
+import { FIELD_TYPE_ENUM, FIELD_TYPE_ENUM_SET, FIELD_TYPE_FREE_SET, FIELD_TYPE_STRING, FIELD_TYPE_DATE, FIELD_TYPE_BOOLEAN } from '../api/types';
 import { stringToColor } from '../utils/badgeColors';
 import FieldDescriptionTooltip from './FieldDescriptionTooltip';
 
@@ -268,6 +268,37 @@ export default function CustomFieldsEditor({
             />
           </div>
         );
+
+      case FIELD_TYPE_BOOLEAN: {
+        const isOn = currentValue === true;
+        return (
+          <div className={marginClass} key={fieldName}>
+            <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 capitalize">
+              <span>{fieldName}</span>
+              {schema.description && <FieldDescriptionTooltip description={schema.description!} />}
+              {wantedIndicator}
+            </label>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isOn}
+              aria-label={fieldName}
+              onClick={() => onChange(fieldName, !isOn)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors mt-1 ${
+                isOn
+                  ? 'bg-blue-500'
+                  : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  isOn ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        );
+      }
 
       default:
         return null;

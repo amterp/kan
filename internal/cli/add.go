@@ -220,7 +220,7 @@ func printMissingWantedWarnings(missing []service.MissingWantedField) {
 					mf.FieldName, mf.FieldType, strings.Join(values, ", "))
 			}
 		} else {
-			// No options (string, date, free-set)
+			// No options (string, date, free-set, boolean)
 			if mf.Description != "" {
 				fmt.Fprintf(os.Stderr, "  - %s (%s): %s\n", mf.FieldName, mf.FieldType, mf.Description)
 			} else {

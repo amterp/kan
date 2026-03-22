@@ -1112,6 +1112,267 @@ func TestCardService_Edit_EnumSet_Deduplicates(t *testing.T) {
 	}
 }
 
+// ============================================================================
+// Boolean Tests
+// ============================================================================
+
+func testBoardConfigWithBoolean(name string) *model.BoardConfig {
+	cfg := testBoardConfig(name)
+	cfg.CustomFields["high_priority"] = model.CustomFieldSchema{Type: "boolean"}
+	return cfg
+}
+
+func TestCardService_Add_WithBooleanTrue(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithBoolean("main"))
+
+	card, _, err := service.Add(AddCardInput{
+		BoardName:    "main",
+		Title:        "Test card",
+		Column:       "backlog",
+		CustomFields: map[string]string{"high_priority": "true"},
+	})
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	val, ok := card.CustomFields["high_priority"].(bool)
+	if !ok {
+		t.Fatalf("Expected high_priority to be bool, got %T", card.CustomFields["high_priority"])
+	}
+	if !val {
+		t.Error("Expected high_priority to be true")
+	}
+}
+
+func TestCardService_Add_WithBooleanFalse(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithBoolean("main"))
+
+	card, _, err := service.Add(AddCardInput{
+		BoardName:    "main",
+		Title:        "Test card",
+		Column:       "backlog",
+		CustomFields: map[string]string{"high_priority": "false"},
+	})
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	val, ok := card.CustomFields["high_priority"].(bool)
+	if !ok {
+		t.Fatalf("Expected high_priority to be bool, got %T", card.CustomFields["high_priority"])
+	}
+	if val {
+		t.Error("Expected high_priority to be false")
+	}
+}
+
+func TestCardService_Add_WithBooleanYesNo(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithBoolean("main"))
+
+	for _, input := range []string{"yes", "YES", "Yes"} {
+		card, _, err := service.Add(AddCardInput{
+			BoardName:    "main",
+			Title:        "Test " + input,
+			Column:       "backlog",
+			CustomFields: map[string]string{"high_priority": input},
+		})
+		if err != nil {
+			t.Fatalf("Add with %q failed: %v", input, err)
+		}
+		if card.CustomFields["high_priority"] != true {
+			t.Errorf("Expected true for input %q, got %v", input, card.CustomFields["high_priority"])
+		}
+	}
+
+	for _, input := range []string{"no", "NO", "No"} {
+		card, _, err := service.Add(AddCardInput{
+			BoardName:    "main",
+			Title:        "Test " + input,
+			Column:       "backlog",
+			CustomFields: map[string]string{"high_priority": input},
+		})
+		if err != nil {
+			t.Fatalf("Add with %q failed: %v", input, err)
+		}
+		if card.CustomFields["high_priority"] != false {
+			t.Errorf("Expected false for input %q, got %v", input, card.CustomFields["high_priority"])
+		}
+	}
+}
+
+func TestCardService_Add_WithBooleanOneZero(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithBoolean("main"))
+
+	card, _, err := service.Add(AddCardInput{
+		BoardName:    "main",
+		Title:        "Test 1",
+		Column:       "backlog",
+		CustomFields: map[string]string{"high_priority": "1"},
+	})
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	if card.CustomFields["high_priority"] != true {
+		t.Error("Expected true for input '1'")
+	}
+
+	card2, _, err := service.Add(AddCardInput{
+		BoardName:    "main",
+		Title:        "Test 0",
+		Column:       "backlog",
+		CustomFields: map[string]string{"high_priority": "0"},
+	})
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	if card2.CustomFields["high_priority"] != false {
+		t.Error("Expected false for input '0'")
+	}
+}
+
+func TestCardService_Add_WithBooleanCaseInsensitive(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithBoolean("main"))
+
+	for _, input := range []string{"TRUE", "True", "tRuE"} {
+		card, _, err := service.Add(AddCardInput{
+			BoardName:    "main",
+			Title:        "Test " + input,
+			Column:       "backlog",
+			CustomFields: map[string]string{"high_priority": input},
+		})
+		if err != nil {
+			t.Fatalf("Add with %q failed: %v", input, err)
+		}
+		if card.CustomFields["high_priority"] != true {
+			t.Errorf("Expected true for input %q", input)
+		}
+	}
+}
+
+func TestCardService_Add_WithBooleanInvalidValue(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithBoolean("main"))
+
+	_, _, err := service.Add(AddCardInput{
+		BoardName:    "main",
+		Title:        "Test card",
+		Column:       "backlog",
+		CustomFields: map[string]string{"high_priority": "maybe"},
+	})
+	if err == nil {
+		t.Fatal("Expected error for invalid boolean value")
+	}
+	if !kanerr.IsValidationError(err) {
+		t.Errorf("Expected ValidationError, got %v", err)
+	}
+}
+
+func TestCardService_Edit_BooleanUnset(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithBoolean("main"))
+
+	// Create card with boolean set to true
+	card, _, _ := service.Add(AddCardInput{
+		BoardName:    "main",
+		Title:        "Test card",
+		Column:       "backlog",
+		CustomFields: map[string]string{"high_priority": "true"},
+	})
+	if card.CustomFields["high_priority"] != true {
+		t.Fatal("Expected high_priority to be true after add")
+	}
+
+	// Unset the field by passing empty string
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		CustomFields:  map[string]string{"high_priority": ""},
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	if _, exists := updated.CustomFields["high_priority"]; exists {
+		t.Error("Expected high_priority to be unset (deleted) after edit with empty string")
+	}
+}
+
+func TestCardService_Edit_Boolean(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfigWithBoolean("main"))
+
+	card, _, _ := service.Add(AddCardInput{
+		BoardName:    "main",
+		Title:        "Test card",
+		Column:       "backlog",
+		CustomFields: map[string]string{"high_priority": "false"},
+	})
+
+	updated, err := service.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card.ID,
+		CustomFields:  map[string]string{"high_priority": "true"},
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	val, ok := updated.CustomFields["high_priority"].(bool)
+	if !ok {
+		t.Fatalf("Expected bool, got %T", updated.CustomFields["high_priority"])
+	}
+	if !val {
+		t.Error("Expected high_priority to be true after edit")
+	}
+}
+
+func TestCheckWantedFields_BooleanFalse_IsNotEmpty(t *testing.T) {
+	cfg := testBoardConfigWithBoolean("main")
+	cfg.CustomFields["high_priority"] = model.CustomFieldSchema{
+		Type:   "boolean",
+		Wanted: true,
+	}
+
+	// Card with high_priority explicitly set to false should NOT be missing
+	card := &model.Card{
+		CustomFields: map[string]any{"high_priority": false},
+	}
+	missing := CheckWantedFields(card, cfg)
+	for _, mf := range missing {
+		if mf.FieldName == "high_priority" {
+			t.Error("Boolean field set to false should not be reported as missing wanted field")
+		}
+	}
+}
+
+func TestCheckWantedFields_BooleanUnset_IsMissing(t *testing.T) {
+	cfg := testBoardConfigWithBoolean("main")
+	cfg.CustomFields["high_priority"] = model.CustomFieldSchema{
+		Type:   "boolean",
+		Wanted: true,
+	}
+
+	// Card without high_priority set should be reported as missing
+	card := &model.Card{
+		CustomFields: map[string]any{},
+	}
+	missing := CheckWantedFields(card, cfg)
+	found := false
+	for _, mf := range missing {
+		if mf.FieldName == "high_priority" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Unset boolean wanted field should be reported as missing")
+	}
+}
+
 func TestCardService_Edit_Parent(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))

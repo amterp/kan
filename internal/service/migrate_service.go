@@ -408,6 +408,14 @@ func (s *MigrateService) migrateBoardConfig(plan *BoardMigration) error {
 		fromVersion = 8
 	}
 
+	// v8 → v9: schema-only (adds boolean custom field type)
+	if fromVersion == 8 && version.CurrentBoardVersion >= 9 {
+		if err := s.updateBoardSchema(plan.ConfigPath, version.FormatBoardSchema(9)); err != nil {
+			return err
+		}
+		fromVersion = 9
+	}
+
 	// Fallback for unknown versions: just update the schema
 	if fromVersion < version.CurrentBoardVersion {
 		return s.updateBoardSchema(plan.ConfigPath, plan.ToSchema)

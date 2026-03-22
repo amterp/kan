@@ -308,11 +308,11 @@ func (h *Handler) ListCards(w http.ResponseWriter, r *http.Request) {
 
 // CreateCardRequest is the JSON body for creating a card.
 type CreateCardRequest struct {
-	Title        string            `json:"title"`
-	Description  string            `json:"description,omitempty"`
-	Column       string            `json:"column,omitempty"`
-	Parent       string            `json:"parent,omitempty"`
-	CustomFields map[string]string `json:"custom_fields,omitempty"`
+	Title        string         `json:"title"`
+	Description  string         `json:"description,omitempty"`
+	Column       string         `json:"column,omitempty"`
+	Parent       string         `json:"parent,omitempty"`
+	CustomFields map[string]any `json:"custom_fields,omitempty"`
 }
 
 // MissingWantedOptionInfo describes a valid option for a missing wanted field.
@@ -366,7 +366,7 @@ func (h *Handler) CreateCard(w http.ResponseWriter, r *http.Request) {
 		Column:       req.Column,
 		Parent:       req.Parent,
 		Creator:      h.ctx().Creator,
-		CustomFields: req.CustomFields,
+		CustomFields: stringifyCustomFields(req.CustomFields),
 	}
 
 	card, hookResults, err := h.ctx().CardService.Add(input)
@@ -426,10 +426,10 @@ func (h *Handler) GetCard(w http.ResponseWriter, r *http.Request) {
 
 // UpdateCardRequest is the JSON body for updating a card.
 type UpdateCardRequest struct {
-	Title        *string           `json:"title,omitempty"`
-	Description  *string           `json:"description,omitempty"`
-	Column       *string           `json:"column,omitempty"`
-	CustomFields map[string]string `json:"custom_fields,omitempty"`
+	Title        *string        `json:"title,omitempty"`
+	Description  *string        `json:"description,omitempty"`
+	Column       *string        `json:"column,omitempty"`
+	CustomFields map[string]any `json:"custom_fields,omitempty"`
 }
 
 // UpdateCard updates an existing card.
@@ -467,7 +467,7 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 		CardIDOrAlias: card.ID,
 		Title:         req.Title,
 		Description:   req.Description,
-		CustomFields:  req.CustomFields,
+		CustomFields:  stringifyCustomFields(req.CustomFields),
 	}
 
 	// Only call Edit if there are changes to apply
@@ -747,6 +747,20 @@ type CommentResponse struct {
 	Author          string `json:"author"`
 	CreatedAtMillis int64  `json:"created_at_millis"`
 	UpdatedAtMillis int64  `json:"updated_at_millis,omitempty"`
+}
+
+// stringifyCustomFields converts API custom field values to strings for the
+// service layer. The API accepts any JSON value (string, bool, number) so that
+// clients can send e.g. {"high_priority": true} instead of {"high_priority": "true"}.
+func stringifyCustomFields(fields map[string]any) map[string]string {
+	if fields == nil {
+		return nil
+	}
+	result := make(map[string]string, len(fields))
+	for k, v := range fields {
+		result[k] = fmt.Sprintf("%v", v)
+	}
+	return result
 }
 
 // toCommentResponse converts a model.Comment to a CommentResponse.

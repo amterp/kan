@@ -128,9 +128,10 @@ letter = "M"
 - **board/5**: Renames custom field type `tags` to `enum-set` for clearer terminology. Adds new `free-set` type for freeform multi-value fields.
 - **board/6**: Adds optional `description` field to custom field schemas and individual options. Descriptions are surfaced in CLI warnings, API responses, and the web UI to help users and agents understand field semantics.
 - **board/7**: Adds optional `description` field to columns. Column descriptions document what each workflow stage means, surfaced via `kan column list`, `kan board describe`, column info tooltips in the web UI, and the API.
-- **board/8 (current)**: Adds optional `limit` field to columns. Column limits cap the number of cards in a column. Adding or moving cards to a full column is refused. Column headers show `(X/Y)` when a limit is set.
+- **board/8**: Adds optional `limit` field to columns. Column limits cap the number of cards in a column. Adding or moving cards to a full column is refused. Column headers show `(X/Y)` when a limit is set.
+- **board/9 (current)**: Adds `boolean` custom field type for simple yes/no flags. Boolean values are stored as JSON `true`/`false` in card files.
 
-Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8.
+Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9.
 
 **Rationale**: Strict versioning—Kan refuses to read files without version stamps (or with incompatible versions). This catches schema drift early and forces explicit migration.
 
@@ -177,6 +178,7 @@ The full type system is now:
 | `enum` | single | predefined options |
 | `enum-set` | multiple | predefined options (was `tags`) |
 | `free-set` | multiple | freeform |
+| `boolean` | single | true/false |
 
 Both set types enforce deduplication and a maximum of 10 values per field.
 
@@ -264,6 +266,27 @@ Column limits are enforced at:
 Reordering within the same column always succeeds regardless of column limits.
 
 **Migration**: board/7 -> board/8 only updates the schema version. The `limit` field is optional with a zero-value default (0 = no limit).
+
+### Boolean Fields (board/9)
+
+**Added in**: board/9
+
+Boolean fields are simple yes/no flags - useful for things like "high priority", "blocked", or "needs review".
+
+```toml
+[custom_fields.high_priority]
+type = "boolean"
+wanted = true
+description = "Whether this card is high priority"
+```
+
+Booleans are stored as native JSON `true`/`false` in card files (not strings). In the CLI, set with `-f high_priority=true` or `-f high_priority=false`. Also accepts `yes`/`no` and `1`/`0` (case-insensitive). In the web UI, boolean fields render as toggle switches.
+
+For "wanted" field checking, `false` is considered a valid explicit value (non-empty). Only unset/missing boolean fields trigger wanted warnings - this matches the semantics of "I looked at this and decided no" vs "nobody has evaluated this yet".
+
+Boolean fields are valid in `card_display.metadata` but not in `type_indicator` (enum only) or `badges` (set types only).
+
+**Migration**: board/8 -> board/9 only updates the schema version. The `boolean` type is a new option for the existing `type` field in custom field schemas.
 
 ### Pattern Hooks (board/3)
 

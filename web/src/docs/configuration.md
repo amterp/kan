@@ -129,7 +129,7 @@ See [Custom Fields](/docs/custom-fields) for full documentation.
 
 ```toml
 [custom_fields.<field-name>]
-type = "enum"  # or "enum-set", "free-set", "string", "date"
+type = "enum"  # or "enum-set", "free-set", "string", "date", "boolean"
 wanted = true  # optional: warn if field is missing
 options = [    # required for enum/enum-set
   { value = "...", color = "#..." },

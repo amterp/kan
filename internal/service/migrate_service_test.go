@@ -1255,10 +1255,10 @@ func TestMigrateService_V7ToV8_Idempotent(t *testing.T) {
 }
 
 // ============================================================================
-// V8 Tests (Current schema - no migration needed)
+// V8 -> V9 Tests (schema-only: adds boolean custom field type)
 // ============================================================================
 
-func TestMigrateService_Plan_V8_NoChanges(t *testing.T) {
+func TestMigrateService_Plan_V8_NeedsMigration(t *testing.T) {
 	service, _, cleanup := setupMigrationTest(t, "v8")
 	defer cleanup()
 
@@ -1266,16 +1266,122 @@ func TestMigrateService_Plan_V8_NoChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Plan failed: %v", err)
 	}
-	if plan.HasChanges() {
-		t.Error("Current schema (v8) data should not need migration")
+	if !plan.HasChanges() {
+		t.Fatal("V8 data should need migration to v9")
+	}
+
+	if len(plan.Boards) != 1 {
+		t.Fatalf("Expected 1 board, got %d", len(plan.Boards))
+	}
+
+	board := plan.Boards[0]
+	if !board.NeedsMigration {
+		t.Error("Board config should need migration")
+	}
+	if board.FromSchema != "board/8" {
+		t.Errorf("Expected FromSchema 'board/8', got %q", board.FromSchema)
+	}
+	if board.ToSchema != version.CurrentBoardSchema() {
+		t.Errorf("Expected ToSchema %q, got %q", version.CurrentBoardSchema(), board.ToSchema)
 	}
 }
 
-func TestMigrateService_V8_ReadableByStores(t *testing.T) {
-	_, tempDir, cleanup := setupMigrationTest(t, "v8")
+func TestMigrateService_V8ToV9_UpdatesSchema(t *testing.T) {
+	service, tempDir, cleanup := setupMigrationTest(t, "v8")
 	defer cleanup()
 
-	// V8 fixtures should be directly readable by stores without migration
+	// Migrate
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if err := service.Execute(plan, false); err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	// Verify stores can read the migrated data
+	paths := config.NewPaths(tempDir, "")
+	boardStore := store.NewBoardStore(paths)
+
+	boardCfg, err := boardStore.Get("main")
+	if err != nil {
+		t.Fatalf("BoardStore.Get failed after migration: %v", err)
+	}
+
+	// Verify schema was updated
+	if boardCfg.KanSchema != version.CurrentBoardSchema() {
+		t.Errorf("Expected KanSchema %q, got %q", version.CurrentBoardSchema(), boardCfg.KanSchema)
+	}
+
+	// Existing fields should be preserved
+	if boardCfg.Name != "main" {
+		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
+	}
+	if len(boardCfg.CustomFields) == 0 {
+		t.Error("CustomFields should be preserved")
+	}
+	if len(boardCfg.PatternHooks) != 1 {
+		t.Error("PatternHooks should be preserved")
+	}
+
+	// Column limit should be preserved
+	backlog := boardCfg.GetColumn("Backlog")
+	if backlog == nil {
+		t.Fatal("Expected 'Backlog' column")
+	}
+	if backlog.Limit != 5 {
+		t.Errorf("Expected Backlog Limit 5, got %d", backlog.Limit)
+	}
+}
+
+func TestMigrateService_V8ToV9_Idempotent(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v8")
+	defer cleanup()
+
+	// First migration
+	plan1, err := service.Plan()
+	if err != nil {
+		t.Fatalf("First Plan failed: %v", err)
+	}
+	if !plan1.HasChanges() {
+		t.Fatal("First plan should have changes")
+	}
+	if err := service.Execute(plan1, false); err != nil {
+		t.Fatalf("First Execute failed: %v", err)
+	}
+
+	// Second migration should be no-op
+	plan2, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Second Plan failed: %v", err)
+	}
+	if plan2.HasChanges() {
+		t.Error("Second plan should have no changes (migration is idempotent)")
+	}
+}
+
+// ============================================================================
+// V9 Tests (Current schema - no migration needed)
+// ============================================================================
+
+func TestMigrateService_Plan_V9_NoChanges(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v9")
+	defer cleanup()
+
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if plan.HasChanges() {
+		t.Error("Current schema (v9) data should not need migration")
+	}
+}
+
+func TestMigrateService_V9_ReadableByStores(t *testing.T) {
+	_, tempDir, cleanup := setupMigrationTest(t, "v9")
+	defer cleanup()
+
+	// V9 fixtures should be directly readable by stores without migration
 	paths := config.NewPaths(tempDir, "")
 	cardStore := store.NewCardStore(paths)
 	boardStore := store.NewBoardStore(paths)
@@ -1283,7 +1389,7 @@ func TestMigrateService_V8_ReadableByStores(t *testing.T) {
 	// Board store should read without error
 	boardCfg, err := boardStore.Get("main")
 	if err != nil {
-		t.Fatalf("BoardStore.Get failed on v8 fixtures: %v", err)
+		t.Fatalf("BoardStore.Get failed on v9 fixtures: %v", err)
 	}
 	if boardCfg.Name != "main" {
 		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
@@ -1363,10 +1469,23 @@ func TestMigrateService_V8_ReadableByStores(t *testing.T) {
 		t.Errorf("Expected topics type 'free-set', got %q", topicsSchema.Type)
 	}
 
+	// boolean field should be present
+	hpSchema, ok := boardCfg.CustomFields["high_priority"]
+	if !ok {
+		t.Error("Expected 'high_priority' custom field")
+	} else {
+		if hpSchema.Type != "boolean" {
+			t.Errorf("Expected high_priority type 'boolean', got %q", hpSchema.Type)
+		}
+		if !hpSchema.Wanted {
+			t.Error("Expected 'high_priority' field to have wanted=true")
+		}
+	}
+
 	// Card store should read without error
 	card, err := cardStore.Get("main", "card-abc")
 	if err != nil {
-		t.Fatalf("CardStore.Get failed on v8 fixtures: %v", err)
+		t.Fatalf("CardStore.Get failed on v9 fixtures: %v", err)
 	}
 	if card.ID != "card-abc" {
 		t.Errorf("Card ID = %q, want 'card-abc'", card.ID)
@@ -1378,5 +1497,8 @@ func TestMigrateService_V8_ReadableByStores(t *testing.T) {
 	// Custom fields should be present
 	if card.CustomFields["priority"] != "high" {
 		t.Errorf("Custom field 'priority' = %v, want 'high'", card.CustomFields["priority"])
+	}
+	if card.CustomFields["high_priority"] != true {
+		t.Errorf("Custom field 'high_priority' = %v, want true", card.CustomFields["high_priority"])
 	}
 }

@@ -56,6 +56,7 @@ export const FIELD_TYPE_ENUM = 'enum' as const;
 export const FIELD_TYPE_ENUM_SET = 'enum-set' as const;
 export const FIELD_TYPE_FREE_SET = 'free-set' as const;
 export const FIELD_TYPE_DATE = 'date' as const;
+export const FIELD_TYPE_BOOLEAN = 'boolean' as const;
 
 export const VALID_FIELD_TYPES = [
   FIELD_TYPE_STRING,
@@ -63,6 +64,7 @@ export const VALID_FIELD_TYPES = [
   FIELD_TYPE_ENUM_SET,
   FIELD_TYPE_FREE_SET,
   FIELD_TYPE_DATE,
+  FIELD_TYPE_BOOLEAN,
 ] as const;
 
 export type FieldType = (typeof VALID_FIELD_TYPES)[number];

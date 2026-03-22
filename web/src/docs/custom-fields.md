@@ -11,6 +11,7 @@ Kan supports custom fields on cards to track whatever metadata matters to your w
 | `free-set` | Multi-value freeform text | `["backend", "auth"]` |
 | `string` | Free-form text | `"John Doe"`, `"https://..."` |
 | `date` | Date value | `"2024-03-15"` |
+| `boolean` | Yes/no flag | `true`, `false` |
 
 ## Defining Fields
 
@@ -114,6 +115,17 @@ type = "string"
 [custom_fields.due_date]
 type = "date"
 ```
+
+### Boolean
+
+Boolean fields are simple yes/no flags - no options needed:
+
+```toml
+[custom_fields.high_priority]
+type = "boolean"
+```
+
+In the CLI, set with `-f high_priority=true` or `-f high_priority=false`. Also accepts `yes`/`no` and `1`/`0` (case-insensitive). In the web UI, boolean fields render as toggle switches.
 
 ## Card Display
 

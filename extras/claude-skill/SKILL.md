@@ -89,7 +89,7 @@ The first column in the list becomes the default column for new cards.
 ### Step 3: Custom Fields
 
 Walk the user through what fields they want on their cards. For each field, discuss:
-- What type? (`string`, `enum`, `enum-set`, `free-set`, `date`)
+- What type? (`string`, `enum`, `enum-set`, `free-set`, `date`, `boolean`)
 - What are the options/values? (for `enum` and `enum-set` types)
 - Descriptions for the field itself and each of its options
 - Should this field be **wanted**? (If the user is new, explain: wanted fields generate a warning when a card is created without them, encouraging consistent metadata across cards)
