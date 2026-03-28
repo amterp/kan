@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { OmnibarMode } from '../hooks/useOmnibar';
 import type { BoardEntry, SkippedProject } from '../api/types';
+import type { SlashCommand } from '../hooks/omnibarConstants';
 import { COMPACT_COMMAND } from '../hooks/omnibarConstants';
 
 export type NavigationDirection = 'up' | 'down' | 'left' | 'right';
@@ -104,6 +105,53 @@ function BoardsList({
   );
 }
 
+interface CommandSuggestionsProps {
+  commands: SlashCommand[];
+  highlightedIndex: number;
+  onSelect: (index: number) => void;
+}
+
+function CommandSuggestions({ commands, highlightedIndex, onSelect }: CommandSuggestionsProps) {
+  const highlightedRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (highlightedRef.current) {
+      highlightedRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [highlightedIndex]);
+
+  return (
+    <div className="py-1">
+      {commands.map((cmd, idx) => {
+        const isHighlighted = idx === highlightedIndex;
+        return (
+          <div
+            key={cmd.command}
+            ref={isHighlighted ? highlightedRef : undefined}
+            onClick={() => onSelect(idx)}
+            className={`px-4 py-2 cursor-pointer flex items-center gap-3 transition-colors ${
+              isHighlighted
+                ? 'bg-blue-50 dark:bg-blue-900/30'
+                : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+            }`}
+          >
+            <span className={`text-sm font-mono ${
+              isHighlighted
+                ? 'text-blue-700 dark:text-blue-300 font-medium'
+                : 'text-gray-700 dark:text-gray-300'
+            }`}>
+              {cmd.command}
+            </span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">
+              {cmd.description}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 interface OmnibarProps {
   mode: OmnibarMode;
   query: string;
@@ -120,11 +168,16 @@ interface OmnibarProps {
   boardLoading?: boolean;
   boardError?: string | null;
   boardDisplayLabel?: (entry: BoardEntry) => string;
+  // Slash command autocomplete props
+  slashCommands?: SlashCommand[];
+  slashHighlightedIndex?: number;
+  slashAutocompleteActive?: boolean;
   onQueryChange: (query: string) => void;
   onNavigate: (direction: NavigationDirection) => void;
   onSelect: () => void;
   onClose: () => void;
   onBoardSelect?: (index: number) => void;
+  onSlashCommandSelect?: (index: number) => void;
 }
 
 export default function Omnibar({
@@ -142,11 +195,15 @@ export default function Omnibar({
   boardLoading = false,
   boardError = null,
   boardDisplayLabel,
+  slashCommands = [],
+  slashHighlightedIndex = 0,
+  slashAutocompleteActive = false,
   onQueryChange,
   onNavigate,
   onSelect,
   onClose,
   onBoardSelect,
+  onSlashCommandSelect,
 }: OmnibarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const prevModalOpenRef = useRef(isModalOpen);
@@ -176,31 +233,29 @@ export default function Omnibar({
           break;
         case 'ArrowUp':
           e.preventDefault();
-          if (mode === 'boards') {
-            onNavigate('up');
-          } else {
-            onNavigate('up');
-          }
+          onNavigate('up');
           break;
         case 'ArrowDown':
           e.preventDefault();
-          if (mode === 'boards') {
-            onNavigate('down');
-          } else {
-            onNavigate('down');
-          }
+          onNavigate('down');
           break;
         case 'ArrowLeft':
-          if (mode === 'cards') {
+          if (mode === 'cards' && !slashAutocompleteActive) {
             e.preventDefault();
             onNavigate('left');
           }
-          // In boards mode, let cursor move naturally in input
+          // In boards mode or autocomplete, let cursor move naturally in input
           break;
         case 'ArrowRight':
-          if (mode === 'cards') {
+          if (mode === 'cards' && !slashAutocompleteActive) {
             e.preventDefault();
             onNavigate('right');
+          }
+          break;
+        case 'Tab':
+          if (slashAutocompleteActive) {
+            e.preventDefault();
+            onSelect();
           }
           break;
         case 'Enter':
@@ -212,22 +267,37 @@ export default function Omnibar({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isModalOpen, mode, onClose, onNavigate, onSelect]);
+  }, [isModalOpen, mode, slashAutocompleteActive, onClose, onNavigate, onSelect]);
 
-  const placeholder = mode === 'boards' ? 'Switch board...' : 'Search cards...';
+  const placeholder = mode === 'boards'
+    ? 'Switch board...'
+    : 'Search cards or type / for commands...';
   const isCompactCommand = query.trim().toLowerCase() === COMPACT_COMMAND;
-  const statusText = isCompactCommand
-    ? 'Toggle compact view · ↵'
-    : mode === 'boards'
-      ? `${boardEntries.length} board${boardEntries.length !== 1 ? 's' : ''}`
-      : `${matchCount} of ${totalCount} cards${hasHighlight && !isModalOpen ? ' · ↵ to open' : ''}`;
+  const statusText = slashAutocompleteActive
+    ? (slashCommands.length > 0 ? 'Select command · ↵' : 'No matching commands')
+    : isCompactCommand
+      ? 'Toggle compact view · ↵'
+      : mode === 'boards'
+        ? `${boardEntries.length} board${boardEntries.length !== 1 ? 's' : ''}`
+        : `${matchCount} of ${totalCount} cards${hasHighlight && !isModalOpen ? ' · ↵ to open' : ''}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center pb-16 pointer-events-none">
       <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/5 dark:from-black/20 to-transparent pointer-events-none" />
       <div className="pointer-events-auto flex flex-col items-center gap-2 min-w-96 max-w-lg w-full px-4">
+        {/* Slash command suggestions (renders above the bar, mutually exclusive with boards) */}
+        {slashAutocompleteActive && slashCommands.length > 0 && (
+          <div className="w-full animate-omnibar-enter bg-white/95 backdrop-blur-sm dark:bg-gray-800/95 rounded-xl ring-1 ring-black/10 dark:ring-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.25)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] overflow-hidden">
+            <CommandSuggestions
+              commands={slashCommands}
+              highlightedIndex={slashHighlightedIndex}
+              onSelect={(idx) => onSlashCommandSelect?.(idx)}
+            />
+          </div>
+        )}
+
         {/* Boards results list (renders above the bar) */}
-        {mode === 'boards' && (
+        {mode === 'boards' && !slashAutocompleteActive && (
           <div className="w-full animate-omnibar-enter bg-white/95 backdrop-blur-sm dark:bg-gray-800/95 rounded-xl ring-1 ring-black/10 dark:ring-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.25)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] overflow-hidden">
             <BoardsList
               boards={boardEntries}

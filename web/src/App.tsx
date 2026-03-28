@@ -3,6 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useBoards, useBoard } from './hooks/useBoards';
 import { useOmnibar } from './hooks/useOmnibar';
 import { useBoardSwitcher } from './hooks/useBoardSwitcher';
+import { useSlashCommandAutocomplete } from './hooks/useSlashCommandAutocomplete';
+import { COMPACT_COMMAND } from './hooks/omnibarConstants';
+import type { SlashCommand } from './hooks/omnibarConstants';
 import { useProject, usePageTitle, useFavicon } from './hooks/useProject';
 import { useUrlState } from './hooks/useUrlState';
 import { cardMatchesQuery } from './utils/fuzzyMatch';
@@ -47,15 +50,34 @@ function BoardApp() {
   // Board switcher
   const boardSwitcher = useBoardSwitcher(omnibar.query, omnibar.isOpen && omnibar.mode === 'boards');
 
+  // Slash command autocomplete
+  const slashAutocomplete = useSlashCommandAutocomplete(omnibar.query);
+
+  const toggleCompactWithFeedback = useCallback(() => {
+    toggleCompact();
+    showToast('info', isCompact ? 'Compact view off' : 'Compact view on');
+  }, [toggleCompact, isCompact, showToast]);
+
+  // Execute slash commands that run immediately (insertsIntoInput: false).
+  // Prefix commands like /board are handled separately by inserting into the input.
+  const executeSlashCommand = useCallback((cmd: SlashCommand) => {
+    if (cmd.insertsIntoInput) {
+      omnibar.setQuery(cmd.command + ' ');
+    } else if (cmd.command === COMPACT_COMMAND) {
+      toggleCompactWithFeedback();
+      omnibar.close();
+    }
+  }, [omnibar, toggleCompactWithFeedback]);
+
   // Set page title and favicon
   usePageTitle(project?.name, boardName);
   useFavicon();
 
   // Compute filtered cards for navigation
   const filteredCards = useMemo(() => {
-    if (!board || !omnibar.query.trim() || omnibar.mode === 'boards') return cards;
+    if (!board || !omnibar.query.trim() || omnibar.mode === 'boards' || slashAutocomplete.isActive) return cards;
     return cards.filter((card) => cardMatchesQuery(card, omnibar.query.trim(), board));
-  }, [cards, omnibar.query, omnibar.mode, board]);
+  }, [cards, omnibar.query, omnibar.mode, board, slashAutocomplete.isActive]);
 
   // Group filtered cards by column (in column order) for navigation
   const filteredCardsByColumn = useMemo(() => {
@@ -84,6 +106,16 @@ function BoardApp() {
   // Handle arrow key navigation
   const handleNavigate = useCallback(
     (direction: NavigationDirection) => {
+      // Slash command autocomplete takes priority
+      if (slashAutocomplete.isActive) {
+        if (direction === 'up') {
+          slashAutocomplete.moveHighlight(-1);
+        } else if (direction === 'down') {
+          slashAutocomplete.moveHighlight(1);
+        }
+        return;
+      }
+
       if (omnibar.mode === 'boards') {
         // In boards mode, up/down moves the board highlight
         if (direction === 'up') {
@@ -154,11 +186,20 @@ function BoardApp() {
         omnibar.setHighlightedCardId(nextCardId);
       }
     },
-    [filteredCardsByColumn, omnibar, boardSwitcher]
+    [filteredCardsByColumn, omnibar, boardSwitcher, slashAutocomplete]
   );
 
   // Handle Enter to select
   const handleSelect = useCallback(async () => {
+    // Slash command autocomplete selection
+    if (slashAutocomplete.isActive && slashAutocomplete.filteredCommands.length > 0) {
+      const selected = slashAutocomplete.filteredCommands[slashAutocomplete.highlightedIndex];
+      if (selected) {
+        executeSlashCommand(selected);
+      }
+      return;
+    }
+
     if (omnibar.mode === 'boards') {
       const result = await boardSwitcher.selectHighlighted();
       if (result) {
@@ -185,12 +226,11 @@ function BoardApp() {
     }
 
     // Slash commands (only when no card is highlighted)
-    if (omnibar.query.trim().toLowerCase() === '/compact') {
-      toggleCompact();
-      showToast('info', isCompact ? 'Compact view off' : 'Compact view on');
+    if (omnibar.query.trim().toLowerCase() === COMPACT_COMMAND) {
+      toggleCompactWithFeedback();
       omnibar.close();
     }
-  }, [omnibar, boardSwitcher, cards, setBoard, openCard, toggleCompact, isCompact, showToast]);
+  }, [omnibar, boardSwitcher, cards, setBoard, openCard, toggleCompactWithFeedback, executeSlashCommand, slashAutocomplete]);
 
   // Handle clicking a board entry in the list
   const handleBoardSelect = useCallback(async (index: number) => {
@@ -212,6 +252,13 @@ function BoardApp() {
       // Error is handled by the switcher hook
     }
   }, [boardSwitcher, omnibar, setBoard]);
+
+  // Handle clicking a slash command suggestion
+  const handleSlashCommandSelect = useCallback((index: number) => {
+    const selected = slashAutocomplete.filteredCommands[index];
+    if (!selected) return;
+    executeSlashCommand(selected);
+  }, [slashAutocomplete, executeSlashCommand]);
 
   // Cmd+K keyboard shortcut for omnibar (cards mode)
   // Cmd+P keyboard shortcut for board switcher
@@ -244,14 +291,13 @@ function BoardApp() {
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
         if (omnibar.isOpen || cardId) return;
         e.preventDefault();
-        toggleCompact();
-        showToast('info', isCompact ? 'Compact view off' : 'Compact view on');
+        toggleCompactWithFeedback();
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [omnibar, cardId, toggleCompact, isCompact, showToast]);
+  }, [omnibar, cardId, toggleCompactWithFeedback]);
 
   const handleNewCard = useCallback(async () => {
     if (!board) return;
@@ -363,7 +409,7 @@ function BoardApp() {
           <Board
             board={board}
             cards={cards}
-            filterQuery={omnibar.mode === 'cards' ? omnibar.query : ''}
+            filterQuery={omnibar.mode === 'cards' && !slashAutocomplete.isActive ? omnibar.query : ''}
             highlightedCardId={omnibar.isOpen && omnibar.mode === 'cards' ? omnibar.highlightedCardId : null}
             onMoveCard={moveCard}
             onCreateCard={createCard}
@@ -409,11 +455,15 @@ function BoardApp() {
           boardLoading={boardSwitcher.loading}
           boardError={boardSwitcher.fetchError || boardSwitcher.switchError}
           boardDisplayLabel={boardSwitcher.displayLabel}
+          slashCommands={slashAutocomplete.filteredCommands}
+          slashHighlightedIndex={slashAutocomplete.highlightedIndex}
+          slashAutocompleteActive={slashAutocomplete.isActive}
           onQueryChange={omnibar.setQuery}
           onNavigate={handleNavigate}
           onSelect={handleSelect}
           onClose={omnibar.close}
           onBoardSelect={handleBoardSelect}
+          onSlashCommandSelect={handleSlashCommandSelect}
         />
       )}
     </div>

@@ -4,3 +4,21 @@ export const BOARD_PREFIX = '/board ';
 
 // Slash-command that toggles compact view mode.
 export const COMPACT_COMMAND = '/compact';
+
+// Structured command registry for autocomplete.
+export interface SlashCommand {
+  /** The command string the user types, e.g. "/board" */
+  command: string;
+  /** Brief description shown in the autocomplete dropdown */
+  description: string;
+  /**
+   * If true, selecting this command inserts it into the input (with trailing space)
+   * rather than executing immediately. Used for prefix commands like /board.
+   */
+  insertsIntoInput: boolean;
+}
+
+export const SLASH_COMMANDS: SlashCommand[] = [
+  { command: '/board', description: 'Switch to another board', insertsIntoInput: true },
+  { command: '/compact', description: 'Toggle compact view', insertsIntoInput: false },
+];

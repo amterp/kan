@@ -12,6 +12,15 @@ Press **⌘K** to open quick search. Start typing to filter cards in real-time.
 | Enter | Open highlighted card |
 | Escape | Close quick search |
 
+### Slash Commands
+
+Type `/` in quick search to see available commands with autocomplete. Use ↑ ↓ to navigate suggestions and Enter to select.
+
+| Command | Action |
+|---------|--------|
+| /board | Switch to another board |
+| /compact | Toggle compact view |
+
 ### How Filtering Works
 
 Quick search uses **word-based substring matching**. Each word in your query must appear as a consecutive substring somewhere in the card. Multiple words are AND'd together, but can match different fields. For example:
