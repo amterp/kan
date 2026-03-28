@@ -43,8 +43,16 @@ function BoardApp() {
   } = useBoard(boardName, refreshKey);
   const [newlyCreatedCardId, setNewlyCreatedCardId] = useState<string | null>(null);
   const omnibar = useOmnibar();
-  const { toggleCompact } = useCompactMode();
+  const { toggleCompact, setProjectPath } = useCompactMode();
   const { project } = useProject(refreshKey);
+
+  // Keep compact mode context aware of the current project path so
+  // per-board compact overrides are scoped to each project.
+  useEffect(() => {
+    if (project?.project_path) {
+      setProjectPath(project.project_path);
+    }
+  }, [project?.project_path, setProjectPath]);
 
   // Board switcher
   const boardSwitcher = useBoardSwitcher(omnibar.query, omnibar.isOpen && omnibar.mode === 'boards');
@@ -197,6 +205,7 @@ function BoardApp() {
     if (omnibar.mode === 'boards') {
       const result = await boardSwitcher.selectHighlighted();
       if (result) {
+        setProjectPath(result.projectPath);
         omnibar.close();
         setBoard(result.boardName);
         setRefreshKey((k) => k + 1);
@@ -224,7 +233,7 @@ function BoardApp() {
       toggleCompact();
       omnibar.close();
     }
-  }, [omnibar, boardSwitcher, cards, setBoard, openCard, toggleCompact, executeSlashCommand, slashAutocomplete]);
+  }, [omnibar, boardSwitcher, cards, setBoard, openCard, toggleCompact, executeSlashCommand, slashAutocomplete, setProjectPath]);
 
   // Handle clicking a board entry in the list
   const handleBoardSelect = useCallback(async (index: number) => {
@@ -234,6 +243,7 @@ function BoardApp() {
 
     try {
       await switchProject(entry.project_path);
+      setProjectPath(entry.project_path);
       omnibar.close();
       setBoard(entry.board_name);
       setRefreshKey((k) => k + 1);
@@ -245,7 +255,7 @@ function BoardApp() {
     } catch {
       // Error is handled by the switcher hook
     }
-  }, [boardSwitcher, omnibar, setBoard]);
+  }, [boardSwitcher, omnibar, setBoard, setProjectPath]);
 
   // Handle clicking a slash command suggestion
   const handleSlashCommandSelect = useCallback((index: number) => {

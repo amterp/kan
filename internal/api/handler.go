@@ -207,8 +207,9 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 // ProjectResponse is the JSON response for project metadata.
 type ProjectResponse struct {
-	Name    string              `json:"name"`
-	Favicon model.FaviconConfig `json:"favicon"`
+	Name        string              `json:"name"`
+	Favicon     model.FaviconConfig `json:"favicon"`
+	ProjectPath string              `json:"project_path"`
 }
 
 // GetProject returns the project metadata.
@@ -217,8 +218,9 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Return sensible defaults on error
 		JSON(w, http.StatusOK, ProjectResponse{
-			Name:    "Kan",
-			Favicon: model.DefaultFaviconConfig("", "Kan"),
+			Name:        "Kan",
+			Favicon:     model.DefaultFaviconConfig("", "Kan"),
+			ProjectPath: h.ctx().ProjectRoot,
 		})
 		return
 	}
@@ -236,8 +238,9 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	JSON(w, http.StatusOK, ProjectResponse{
-		Name:    name,
-		Favicon: favicon,
+		Name:        name,
+		Favicon:     favicon,
+		ProjectPath: h.ctx().ProjectRoot,
 	})
 }
 

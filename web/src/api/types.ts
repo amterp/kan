@@ -153,6 +153,7 @@ export interface FaviconConfig {
 export interface ProjectConfig {
   name: string;
   favicon: FaviconConfig;
+  project_path: string;
 }
 
 // Cross-project types

@@ -6,6 +6,8 @@ import type { ReactNode } from 'react';
 interface CompactModeContextValue {
   globalDefault: boolean;
   boardOverrides: Record<string, boolean>;
+  projectPath: string;
+  setProjectPath: (path: string) => void;
   toggleForBoard: (boardName: string | null) => void;
 }
 
@@ -13,6 +15,7 @@ const CompactModeContext = createContext<CompactModeContextValue | null>(null);
 
 const GLOBAL_KEY = 'kan-compact-mode';
 const BOARDS_KEY = 'kan-compact-mode-boards';
+const PROJECT_PATH_KEY = 'kan-project-path';
 
 function getStoredGlobalDefault(): boolean {
   if (typeof window === 'undefined') return false;
@@ -33,17 +36,41 @@ function getStoredBoardOverrides(): Record<string, boolean> {
   }
 }
 
+function getStoredProjectPath(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    return localStorage.getItem(PROJECT_PATH_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function compactKey(projectPath: string, boardName: string): string {
+  return projectPath ? `${projectPath}:${boardName}` : boardName;
+}
+
 export function CompactModeProvider({ children }: { children: ReactNode }) {
   // Read-only migration seed: the old global compact preference becomes the
   // fallback for boards that haven't been explicitly toggled yet.
   const [globalDefault] = useState<boolean>(getStoredGlobalDefault);
   const [boardOverrides, setBoardOverrides] = useState<Record<string, boolean>>(getStoredBoardOverrides);
+  const [projectPath, setProjectPathState] = useState<string>(getStoredProjectPath);
+
+  const setProjectPath = useCallback((path: string) => {
+    setProjectPathState(path);
+    try {
+      localStorage.setItem(PROJECT_PATH_KEY, path);
+    } catch {
+      // Safari private browsing or storage-restricted environments
+    }
+  }, []);
 
   const toggleForBoard = useCallback((boardName: string | null) => {
     if (!boardName) return;
     setBoardOverrides((prev) => {
-      const currentValue = boardName in prev ? prev[boardName] : globalDefault;
-      const next = { ...prev, [boardName]: !currentValue };
+      const key = compactKey(projectPath, boardName);
+      const currentValue = key in prev ? prev[key] : globalDefault;
+      const next = { ...prev, [key]: !currentValue };
       try {
         localStorage.setItem(BOARDS_KEY, JSON.stringify(next));
       } catch {
@@ -51,10 +78,10 @@ export function CompactModeProvider({ children }: { children: ReactNode }) {
       }
       return next;
     });
-  }, [globalDefault]);
+  }, [globalDefault, projectPath]);
 
   return (
-    <CompactModeContext.Provider value={{ globalDefault, boardOverrides, toggleForBoard }}>
+    <CompactModeContext.Provider value={{ globalDefault, boardOverrides, projectPath, setProjectPath, toggleForBoard }}>
       {children}
     </CompactModeContext.Provider>
   );
@@ -71,15 +98,17 @@ export function useCompactMode() {
   }
 
   const { boardName } = useParams<{ boardName: string }>();
-  const { globalDefault, boardOverrides, toggleForBoard } = context;
+  const { globalDefault, boardOverrides, projectPath, setProjectPath, toggleForBoard } = context;
 
-  const isCompact = boardName && boardName in boardOverrides
-    ? boardOverrides[boardName]
+  const key = boardName ? compactKey(projectPath, boardName) : null;
+
+  const isCompact = key && key in boardOverrides
+    ? boardOverrides[key]
     : globalDefault;
 
   const toggleCompact = useCallback(() => {
     toggleForBoard(boardName ?? null);
   }, [toggleForBoard, boardName]);
 
-  return { isCompact, toggleCompact };
+  return { isCompact, toggleCompact, setProjectPath };
 }
