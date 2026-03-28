@@ -17,7 +17,7 @@ import DocsPage from './pages/DocsPage';
 import { switchProject } from './api/projects';
 import type { UpdateCardInput } from './api/types';
 import { useCompactMode } from './contexts/CompactModeContext';
-import { useToast } from './contexts/ToastContext';
+
 
 function BoardApp() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -43,8 +43,7 @@ function BoardApp() {
   } = useBoard(boardName, refreshKey);
   const [newlyCreatedCardId, setNewlyCreatedCardId] = useState<string | null>(null);
   const omnibar = useOmnibar();
-  const { isCompact, toggleCompact } = useCompactMode();
-  const { showToast } = useToast();
+  const { toggleCompact } = useCompactMode();
   const { project } = useProject(refreshKey);
 
   // Board switcher
@@ -53,21 +52,16 @@ function BoardApp() {
   // Slash command autocomplete
   const slashAutocomplete = useSlashCommandAutocomplete(omnibar.query);
 
-  const toggleCompactWithFeedback = useCallback(() => {
-    toggleCompact();
-    showToast('info', isCompact ? 'Compact view off' : 'Compact view on');
-  }, [toggleCompact, isCompact, showToast]);
-
   // Execute slash commands that run immediately (insertsIntoInput: false).
   // Prefix commands like /board are handled separately by inserting into the input.
   const executeSlashCommand = useCallback((cmd: SlashCommand) => {
     if (cmd.insertsIntoInput) {
       omnibar.setQuery(cmd.command + ' ');
     } else if (cmd.command === COMPACT_COMMAND) {
-      toggleCompactWithFeedback();
+      toggleCompact();
       omnibar.close();
     }
-  }, [omnibar, toggleCompactWithFeedback]);
+  }, [omnibar, toggleCompact]);
 
   // Set page title and favicon
   usePageTitle(project?.name, boardName);
@@ -227,10 +221,10 @@ function BoardApp() {
 
     // Slash commands (only when no card is highlighted)
     if (omnibar.query.trim().toLowerCase() === COMPACT_COMMAND) {
-      toggleCompactWithFeedback();
+      toggleCompact();
       omnibar.close();
     }
-  }, [omnibar, boardSwitcher, cards, setBoard, openCard, toggleCompactWithFeedback, executeSlashCommand, slashAutocomplete]);
+  }, [omnibar, boardSwitcher, cards, setBoard, openCard, toggleCompact, executeSlashCommand, slashAutocomplete]);
 
   // Handle clicking a board entry in the list
   const handleBoardSelect = useCallback(async (index: number) => {
@@ -291,13 +285,13 @@ function BoardApp() {
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
         if (omnibar.isOpen || cardId) return;
         e.preventDefault();
-        toggleCompactWithFeedback();
+        toggleCompact();
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [omnibar, cardId, toggleCompactWithFeedback]);
+  }, [omnibar, cardId, toggleCompact]);
 
   const handleNewCard = useCallback(async () => {
     if (!board) return;
