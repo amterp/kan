@@ -6,6 +6,7 @@ import type { Card, Column as ColumnType, BoardConfig, UpdateColumnInput } from 
 import CardComponent from './Card';
 import ConfirmationModal from './ConfirmationModal';
 import { useToast } from '../contexts/ToastContext';
+import { useCompactMode } from '../contexts/CompactModeContext';
 
 // Transform user input to valid column name format (same as Board.tsx for createColumn)
 function transformColumnName(input: string): string {
@@ -134,6 +135,7 @@ export default function Column({
 }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.name });
   const { showToast } = useToast();
+  const { isCompact } = useCompactMode();
 
   // Make the column header draggable for reordering
   const {
@@ -473,7 +475,7 @@ export default function Column({
       </div>
 
       {/* Cards */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-2">
+      <div className={`flex-1 overflow-y-auto overflow-x-hidden p-2 ${isCompact ? 'space-y-1' : 'space-y-2'}`}>
         <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
           {(() => {
             // Build the list of elements to render
@@ -485,15 +487,16 @@ export default function Column({
             const renderPlaceholder = () => (
               <div
                 key="placeholder"
-                className="bg-blue-100 dark:bg-blue-900/30 border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg p-3 opacity-70"
+                className={`bg-blue-100 dark:bg-blue-900/30 border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg ${isCompact ? 'px-2 py-1.5 min-h-[40px]' : 'p-3 min-h-[60px]'} opacity-70`}
               >
-                {/* Render same content as the card for proper sizing */}
                 {activeCard && (
                   <>
-                    <h3 className="font-medium text-blue-400 dark:text-blue-300 text-sm">{activeCard.title}</h3>
-                    <div className="flex items-center justify-between mt-2 text-xs text-blue-300 dark:text-blue-400">
-                      <span className="font-mono">{activeCard.alias}</span>
-                    </div>
+                    <h3 className={`font-medium text-blue-400 dark:text-blue-300 ${isCompact ? 'text-xs' : 'text-sm'}`}>{activeCard.title}</h3>
+                    {!isCompact && (
+                      <div className="flex items-center justify-between mt-2 text-xs text-blue-300 dark:text-blue-400">
+                        <span className="font-mono">{activeCard.alias}</span>
+                      </div>
+                    )}
                   </>
                 )}
               </div>

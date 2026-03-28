@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Card as CardType, BoardConfig, CustomFieldOption } from '../api/types';
 import { parseTextWithLinks } from '../utils/linkParser';
 import { stringToColor } from '../utils/badgeColors';
+import { useCompactMode } from '../contexts/CompactModeContext';
 
 interface CardProps {
   card: CardType;
@@ -38,6 +39,7 @@ function getSetValues(card: CardType, fieldName: string): string[] {
  * when anchoring the FloatingFieldPanel after card creation. Don't remove it.
  */
 export default function Card({ card, board, isDragging = false, isPlaceholder = false, isHighlighted = false, onClick, onDelete }: CardProps) {
+  const { isCompact } = useCompactMode();
   const [showConfirm, setShowConfirm] = useState(false);
   const {
     attributes,
@@ -96,7 +98,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
         data-card-id={card.id}
         {...attributes}
         {...listeners}
-        className="bg-gray-100 dark:bg-gray-600 border-2 border-dashed border-gray-300 dark:border-gray-500 rounded-lg p-3 min-h-[60px] opacity-50"
+        className={`bg-gray-100 dark:bg-gray-600 border-2 border-dashed border-gray-300 dark:border-gray-500 rounded-lg ${isCompact ? 'px-2 py-1.5 min-h-[40px]' : 'p-3 min-h-[60px]'} opacity-50`}
       />
     );
   }
@@ -114,7 +116,8 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       {...attributes}
       {...listeners}
       onClick={handleClick}
-      className={`group relative bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-100 dark:border-gray-600 cursor-pointer hover:shadow-md transition-shadow animate-card-enter ${
+      title={isCompact ? card.alias : undefined}
+      className={`group relative bg-white dark:bg-gray-700 rounded-lg ${isCompact ? 'px-2 py-1.5' : 'p-3'} shadow-sm border border-gray-100 dark:border-gray-600 cursor-pointer hover:shadow-md transition-shadow animate-card-enter ${
         isDragging ? 'shadow-lg rotate-2' : ''
       } ${isHighlighted ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-200 dark:ring-offset-gray-800' : ''}`}
     >
@@ -182,11 +185,11 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
         if (allBadges.length === 0) return null;
 
         return (
-          <div className="flex flex-wrap gap-1 mb-2">
+          <div className={`flex flex-wrap ${isCompact ? 'gap-0.5 mb-0.5' : 'gap-1 mb-2'}`}>
             {allBadges.map(badge => (
               <span
                 key={badge.key}
-                className="px-2 py-0.5 text-xs rounded-full text-white"
+                className={`rounded-full text-white ${isCompact ? 'px-1.5 text-[10px] leading-4' : 'px-2 py-0.5 text-xs'}`}
                 style={{ backgroundColor: badge.color }}
               >
                 {badge.value}
@@ -196,60 +199,71 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
         );
       })()}
 
-      {/* Title */}
-      <h3 className="font-medium text-gray-900 dark:text-white text-sm break-words">
-        {parseTextWithLinks(card.title, board.link_rules).map((segment, i) =>
-          segment.type === 'link' ? (
-            <a
-              key={i}
-              href={segment.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              {segment.content}
-            </a>
-          ) : (
-            <span key={i}>{segment.content}</span>
-          )
-        )}
-      </h3>
+      {/* Title + indicators row */}
+      <div className="flex items-end gap-1.5">
+        <div className="flex-1 min-w-0">
+          {/* Title */}
+          <h3 className={`font-medium text-gray-900 dark:text-white ${isCompact ? 'text-[13px] leading-snug' : 'text-sm'} break-words`}>
+            {parseTextWithLinks(card.title, board.link_rules).map((segment, i) =>
+              segment.type === 'link' ? (
+                <a
+                  key={i}
+                  href={segment.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  {segment.content}
+                </a>
+              ) : (
+                <span key={i}>{segment.content}</span>
+              )
+            )}
+          </h3>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
-        <span className="font-mono">{card.alias}</span>
-        <div className="flex items-center gap-2">
-          {card.missing_wanted_fields && card.missing_wanted_fields.length > 0 && (
-            <span className="relative group/warning">
-              <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <span className="absolute bottom-full right-0 mb-1 px-2 py-1 text-xs text-white bg-gray-800 dark:bg-gray-900 rounded shadow-lg whitespace-pre-line opacity-0 group-hover/warning:opacity-100 transition-opacity pointer-events-none z-50">
-                {`Missing wanted fields:\n${card.missing_wanted_fields.map(f => {
-                  let line = `  ${f.name} (${f.type})`;
-                  if (f.description) line += `: ${f.description}`;
-                  return line;
-                }).join('\n')}`}
-              </span>
-            </span>
-          )}
-          {card.description?.trim() && (
-            <span title="Has description">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
-              </svg>
-            </span>
-          )}
-          {card.comments && card.comments.length > 0 && (
-            <span className="flex items-center gap-1" title="Comments">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              {card.comments.length}
-            </span>
+          {/* Alias (regular mode only) */}
+          {!isCompact && (
+            <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <span className="font-mono">{card.alias}</span>
+            </div>
           )}
         </div>
+
+        {/* Card indicators - bottom-right, text wraps around them */}
+        {(card.missing_wanted_fields?.length || card.description?.trim() || card.comments?.length) ? (
+          <div className="flex-shrink-0 flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+            {card.missing_wanted_fields && card.missing_wanted_fields.length > 0 && (
+              <span className="relative group/warning">
+                <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className="absolute bottom-full right-0 mb-1 px-2 py-1 text-xs text-white bg-gray-800 dark:bg-gray-900 rounded shadow-lg whitespace-pre-line opacity-0 group-hover/warning:opacity-100 transition-opacity pointer-events-none z-50">
+                  {`Missing wanted fields:\n${card.missing_wanted_fields.map(f => {
+                    let line = `  ${f.name} (${f.type})`;
+                    if (f.description) line += `: ${f.description}`;
+                    return line;
+                  }).join('\n')}`}
+                </span>
+              </span>
+            )}
+            {card.description?.trim() && (
+              <span title="Has description">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                </svg>
+              </span>
+            )}
+            {card.comments && card.comments.length > 0 && (
+              <span className="flex items-center gap-0.5 text-xs" title="Comments">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                {card.comments.length}
+              </span>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   );

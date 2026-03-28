@@ -13,6 +13,8 @@ import Omnibar, { type NavigationDirection } from './components/Omnibar';
 import DocsPage from './pages/DocsPage';
 import { switchProject } from './api/projects';
 import type { UpdateCardInput } from './api/types';
+import { useCompactMode } from './contexts/CompactModeContext';
+import { useToast } from './contexts/ToastContext';
 
 function BoardApp() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -38,6 +40,8 @@ function BoardApp() {
   } = useBoard(boardName, refreshKey);
   const [newlyCreatedCardId, setNewlyCreatedCardId] = useState<string | null>(null);
   const omnibar = useOmnibar();
+  const { isCompact, toggleCompact } = useCompactMode();
+  const { showToast } = useToast();
   const { project } = useProject(refreshKey);
 
   // Board switcher
@@ -170,14 +174,23 @@ function BoardApp() {
       return;
     }
 
-    // Cards mode
-    if (!omnibar.highlightedCardId) return;
-    const card = cards.find((c) => c.id === omnibar.highlightedCardId);
-    if (card) {
-      omnibar.close();
-      openCard(card.id);
+    // Cards mode - highlighted card takes priority over commands
+    if (omnibar.highlightedCardId) {
+      const card = cards.find((c) => c.id === omnibar.highlightedCardId);
+      if (card) {
+        omnibar.close();
+        openCard(card.id);
+      }
+      return;
     }
-  }, [omnibar, boardSwitcher, cards, setBoard, openCard]);
+
+    // Slash commands (only when no card is highlighted)
+    if (omnibar.query.trim().toLowerCase() === '/compact') {
+      toggleCompact();
+      showToast('info', isCompact ? 'Compact view off' : 'Compact view on');
+      omnibar.close();
+    }
+  }, [omnibar, boardSwitcher, cards, setBoard, openCard, toggleCompact, isCompact, showToast]);
 
   // Handle clicking a board entry in the list
   const handleBoardSelect = useCallback(async (index: number) => {
@@ -202,6 +215,7 @@ function BoardApp() {
 
   // Cmd+K keyboard shortcut for omnibar (cards mode)
   // Cmd+P keyboard shortcut for board switcher
+  // Cmd+C keyboard shortcut for compact mode toggle
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -222,11 +236,22 @@ function BoardApp() {
           omnibar.open('boards');
         }
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+        // Only toggle compact when nothing else would use Cmd+C
+        const selection = window.getSelection();
+        if (selection && selection.toString().length > 0) return;
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (omnibar.isOpen || cardId) return;
+        e.preventDefault();
+        toggleCompact();
+        showToast('info', isCompact ? 'Compact view off' : 'Compact view on');
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [omnibar, cardId]);
+  }, [omnibar, cardId, toggleCompact, isCompact, showToast]);
 
   const handleNewCard = useCallback(async () => {
     if (!board) return;

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { OmnibarMode } from '../hooks/useOmnibar';
 import type { BoardEntry, SkippedProject } from '../api/types';
+import { COMPACT_COMMAND } from '../hooks/omnibarConstants';
 
 export type NavigationDirection = 'up' | 'down' | 'left' | 'right';
 
@@ -214,9 +215,12 @@ export default function Omnibar({
   }, [isModalOpen, mode, onClose, onNavigate, onSelect]);
 
   const placeholder = mode === 'boards' ? 'Switch board...' : 'Search cards...';
-  const statusText = mode === 'boards'
-    ? `${boardEntries.length} board${boardEntries.length !== 1 ? 's' : ''}`
-    : `${matchCount} of ${totalCount} cards${hasHighlight && !isModalOpen ? ' · ↵ to open' : ''}`;
+  const isCompactCommand = query.trim().toLowerCase() === COMPACT_COMMAND;
+  const statusText = isCompactCommand
+    ? 'Toggle compact view · ↵'
+    : mode === 'boards'
+      ? `${boardEntries.length} board${boardEntries.length !== 1 ? 's' : ''}`
+      : `${matchCount} of ${totalCount} cards${hasHighlight && !isModalOpen ? ' · ↵ to open' : ''}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center pb-16 pointer-events-none">
