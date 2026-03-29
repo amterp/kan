@@ -22,13 +22,14 @@ default_column = "backlog-hi"
   color = "#3b82f6"
   description = "This is a much longer description that might wrap across multiple lines and we need to see how it renders in the terminal output to ensure it doesn't cause formatting issues"
   limit = 5
-  card_ids = ["a_M3nVUL08", "a_kkQOY0pR", "a_kqpCDDy6"]
+  card_ids = ["a_M3nVUL08", "a_kkQOY0pR", "a_kqpCDDy6", "a_pCUjoCcC"]
 
 [[columns]]
   name = "in-progress"
   color = "#f59e0b"
   description = "Currently being worked on"
   limit = 5
+  card_ids = ["a_pBUazX4s"]
 
 [[columns]]
   name = "done"
