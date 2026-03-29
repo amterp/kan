@@ -75,14 +75,12 @@ export default function DocsPage() {
               Kan Documentation
             </h1>
           </div>
-          {!isDocsOnly && (
-            <Link
-              to="/"
-              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              ← Back to board
-            </Link>
-          )}
+          <Link
+            to="/"
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            {isDocsOnly ? '← Home' : '← Back to board'}
+          </Link>
         </div>
       </header>
 

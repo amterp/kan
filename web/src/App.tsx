@@ -12,6 +12,7 @@ import { cardMatchesQuery } from './utils/fuzzyMatch';
 import Header from './components/Header';
 import Board from './components/Board';
 import CardEditModal from './components/CardEditModal';
+import LandingPage from './pages/LandingPage';
 import Omnibar, { type NavigationDirection } from './components/Omnibar';
 import DocsPage from './pages/DocsPage';
 import { switchProject } from './api/projects';
@@ -487,7 +488,10 @@ function App() {
       <Routes>
         <Route path="/docs/*" element={<DocsPage />} />
         {isDocsOnly ? (
-          <Route path="/*" element={<Navigate to="/docs" replace />} />
+          <>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/*" element={<Navigate to="/" replace />} />
+          </>
         ) : (
           <>
             <Route path="/" element={<BoardApp />} />

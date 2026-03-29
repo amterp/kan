@@ -21,13 +21,19 @@ function getSystemTheme(): ResolvedTheme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+function getDefaultTheme(): Theme {
+  // GitHub Pages (docs-only) defaults to light; local app defaults to system
+  const isDocsOnly = import.meta.env.BASE_URL !== '/';
+  return isDocsOnly ? 'light' : 'system';
+}
+
 function getStoredTheme(): Theme {
-  if (typeof window === 'undefined') return 'system';
+  if (typeof window === 'undefined') return getDefaultTheme();
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored === 'light' || stored === 'dark' || stored === 'system') {
     return stored;
   }
-  return 'system';
+  return getDefaultTheme();
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

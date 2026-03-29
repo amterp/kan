@@ -14,11 +14,11 @@ const (
 // Stored at .kan/config.toml
 // Schema changes require a version bump—see internal/version/version.go.
 type ProjectConfig struct {
-	KanSchema            string        `toml:"kan_schema" json:"kan_schema"`
-	ID                   string        `toml:"id" json:"id"`
-	Name                 string        `toml:"name" json:"name"`
-	Favicon              FaviconConfig `toml:"favicon" json:"favicon"`
-	WorktreeIndependent  bool          `toml:"worktree_independent,omitempty" json:"worktree_independent,omitempty"`
+	KanSchema           string        `toml:"kan_schema" json:"kan_schema"`
+	ID                  string        `toml:"id" json:"id"`
+	Name                string        `toml:"name" json:"name"`
+	Favicon             FaviconConfig `toml:"favicon" json:"favicon"`
+	WorktreeIndependent bool          `toml:"worktree_independent,omitempty" json:"worktree_independent,omitempty"`
 }
 
 // FaviconConfig holds the favicon appearance settings.

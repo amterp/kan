@@ -9,6 +9,7 @@ args:
     push p bool                       # Push up to origin
     re_serve s bool                   # Build, validate, then run ./kan serve
     format f bool                     # Format Go code
+    website w bool                    # Preview the GitHub Pages website locally
     release r str?                    # Release type (patch, minor, major)
     tap_path str = "../homebrew-tap"  # Path to homebrew-tap repo
 
@@ -16,6 +17,9 @@ args:
 
 if format:
     $`gofmt -w .`
+
+if website:
+    $`cd web && VITE_BASE_PATH=/kan/ npx vite`
 
 if build or validate or push or re_serve or release:
     // Build frontend first (required for go:embed)
