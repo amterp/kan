@@ -8,6 +8,7 @@ import (
 
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/discovery"
+	"github.com/amterp/kan/internal/git"
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/resolver"
 	"github.com/amterp/kan/internal/store"
@@ -41,6 +42,14 @@ func initCompletionCtx() {
 		compCtx.globalCfg = globalCfg
 
 		result, err := discovery.DiscoverProject(globalCfg)
+		if err != nil || result == nil {
+			compCtx.err = fmt.Errorf("no project found")
+			return
+		}
+
+		// Resolve worktree to main if applicable
+		gitClient := git.NewClient()
+		result, err = discovery.ResolveWorktree(result, gitClient, globalCfg, isWorktreeIndependent)
 		if err != nil || result == nil {
 			compCtx.err = fmt.Errorf("no project found")
 			return

@@ -215,6 +215,158 @@ func TestDiscoverProjectFrom_NilGlobalConfig(t *testing.T) {
 	}
 }
 
+// --- WorktreeResolver mock ---
+
+type mockWorktreeResolver struct {
+	isWorktree bool
+	mainRoot   string
+	err        error
+}
+
+func (m *mockWorktreeResolver) IsWorktree() bool {
+	return m.isWorktree
+}
+
+func (m *mockWorktreeResolver) GetMainWorktreeRoot() (string, error) {
+	if m.err != nil {
+		return "", m.err
+	}
+	return m.mainRoot, nil
+}
+
+func TestResolveWorktree_NotInWorktree(t *testing.T) {
+	result := &Result{ProjectRoot: "/some/path", DataLocation: ""}
+	resolver := &mockWorktreeResolver{isWorktree: false}
+
+	resolved, err := ResolveWorktree(result, resolver, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolved.ResolvedFromWorktree {
+		t.Error("should not resolve from worktree when not in a worktree")
+	}
+	if resolved.ProjectRoot != "/some/path" {
+		t.Errorf("expected original project root, got %q", resolved.ProjectRoot)
+	}
+}
+
+func TestResolveWorktree_RedirectsToMain(t *testing.T) {
+	tmpDir := t.TempDir()
+	mainDir := filepath.Join(tmpDir, "main")
+	wtDir := filepath.Join(tmpDir, "worktree")
+
+	// Create .kan in main
+	if err := os.MkdirAll(filepath.Join(mainDir, ".kan", "boards"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Create .kan in worktree (as git would check out)
+	if err := os.MkdirAll(filepath.Join(wtDir, ".kan", "boards"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	worktreeResult := &Result{ProjectRoot: wtDir, DataLocation: ""}
+	resolver := &mockWorktreeResolver{isWorktree: true, mainRoot: mainDir}
+
+	resolved, err := ResolveWorktree(worktreeResult, resolver, &model.GlobalConfig{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !resolved.ResolvedFromWorktree {
+		t.Error("expected ResolvedFromWorktree to be true")
+	}
+	if resolved.ProjectRoot != mainDir {
+		t.Errorf("expected main dir %q, got %q", mainDir, resolved.ProjectRoot)
+	}
+	if resolved.OriginalWorktreeRoot != wtDir {
+		t.Errorf("expected original worktree root %q, got %q", wtDir, resolved.OriginalWorktreeRoot)
+	}
+}
+
+func TestResolveWorktree_IndependentOptOut(t *testing.T) {
+	tmpDir := t.TempDir()
+	mainDir := filepath.Join(tmpDir, "main")
+	wtDir := filepath.Join(tmpDir, "worktree")
+
+	// Create .kan in both
+	if err := os.MkdirAll(filepath.Join(mainDir, ".kan", "boards"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(wtDir, ".kan", "boards"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	worktreeResult := &Result{ProjectRoot: wtDir, DataLocation: ""}
+	resolver := &mockWorktreeResolver{isWorktree: true, mainRoot: mainDir}
+
+	// Independence check returns true - should NOT redirect
+	isIndependent := func(projectRoot, dataLocation string) bool { return true }
+
+	resolved, err := ResolveWorktree(worktreeResult, resolver, &model.GlobalConfig{}, isIndependent)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolved.ResolvedFromWorktree {
+		t.Error("should not redirect when project is independent")
+	}
+	if resolved.ProjectRoot != wtDir {
+		t.Errorf("expected worktree root %q, got %q", wtDir, resolved.ProjectRoot)
+	}
+}
+
+func TestResolveWorktree_MainHasNoProject(t *testing.T) {
+	tmpDir := t.TempDir()
+	mainDir := filepath.Join(tmpDir, "main")
+	wtDir := filepath.Join(tmpDir, "worktree")
+
+	// Main has NO .kan
+	if err := os.MkdirAll(mainDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Worktree has .kan
+	if err := os.MkdirAll(filepath.Join(wtDir, ".kan", "boards"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	worktreeResult := &Result{ProjectRoot: wtDir, DataLocation: ""}
+	resolver := &mockWorktreeResolver{isWorktree: true, mainRoot: mainDir}
+
+	resolved, err := ResolveWorktree(worktreeResult, resolver, &model.GlobalConfig{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should fall back to worktree since main has no project
+	if resolved.ResolvedFromWorktree {
+		t.Error("should not redirect when main has no project")
+	}
+	if resolved.ProjectRoot != wtDir {
+		t.Errorf("expected worktree root %q, got %q", wtDir, resolved.ProjectRoot)
+	}
+}
+
+func TestResolveWorktree_NilResult(t *testing.T) {
+	resolver := &mockWorktreeResolver{isWorktree: true, mainRoot: "/some/main"}
+
+	resolved, err := ResolveWorktree(nil, resolver, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolved != nil {
+		t.Error("expected nil result for nil input")
+	}
+}
+
+func TestResolveWorktree_NilResolver(t *testing.T) {
+	result := &Result{ProjectRoot: "/some/path"}
+
+	resolved, err := ResolveWorktree(result, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolved.ProjectRoot != "/some/path" {
+		t.Errorf("expected original result, got %q", resolved.ProjectRoot)
+	}
+}
+
 func TestDiscoverProjectFrom_NestedProjects(t *testing.T) {
 	// Inner project should be found first when starting from within it
 	tmpDir := t.TempDir()

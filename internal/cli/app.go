@@ -56,12 +56,30 @@ func NewApp(interactive bool) (*App, error) {
 		// This is a real error (e.g., global config says path exists but it doesn't)
 		return nil, err
 	}
+
+	// If we're in a git worktree, redirect to the main worktree's board
+	if result != nil {
+		result, err = discovery.ResolveWorktree(result, gitClient, globalCfg, isWorktreeIndependent)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if result != nil {
 		projectRoot = result.ProjectRoot
 		dataLocation = result.DataLocation
 
-		// Auto-register unregistered projects
-		if !result.WasRegistered && globalCfg != nil {
+		if result.ResolvedFromWorktree {
+			PrintInfo("Using board from main worktree at %s", result.ProjectRoot)
+
+			// Clean up stale global config entry for the worktree path
+			if globalCfg != nil && result.OriginalWorktreeRoot != "" {
+				cleanupStaleWorktreeEntry(globalStore, globalCfg, result.OriginalWorktreeRoot)
+			}
+		}
+
+		// Auto-register unregistered projects (but not worktree paths)
+		if !result.WasRegistered && !result.ResolvedFromWorktree && globalCfg != nil {
 			registerProject(globalStore, globalCfg, projectRoot, dataLocation)
 		}
 	}
@@ -148,6 +166,27 @@ func registerProject(globalStore store.GlobalStore, globalCfg *model.GlobalConfi
 
 	// Best effort - don't fail if we can't save
 	_ = globalStore.Save(globalCfg)
+}
+
+// isWorktreeIndependent checks if the project at the given root has opted out
+// of worktree sharing via the worktree_independent flag in project config.
+func isWorktreeIndependent(projectRoot, dataLocation string) bool {
+	paths := config.NewPaths(projectRoot, dataLocation)
+	ps := store.NewProjectStore(paths)
+	cfg, err := ps.Load()
+	if err != nil {
+		return false
+	}
+	return cfg.WorktreeIndependent
+}
+
+// cleanupStaleWorktreeEntry removes a worktree path from global config if it
+// was auto-registered before worktree support existed.
+func cleanupStaleWorktreeEntry(globalStore store.GlobalStore, globalCfg *model.GlobalConfig, worktreePath string) {
+	if globalCfg.GetRepoConfig(worktreePath) != nil {
+		globalCfg.RemoveRepoConfig(worktreePath)
+		_ = globalStore.Save(globalCfg)
+	}
 }
 
 // RequireKan ensures Kan is initialized in the current project.

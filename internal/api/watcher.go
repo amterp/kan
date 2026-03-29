@@ -58,18 +58,17 @@ type FileWatcher struct {
 	running     bool
 }
 
-// NewFileWatcher creates a new file watcher for the .kan directory.
-func NewFileWatcher(projectRoot string) (*FileWatcher, error) {
+// NewFileWatcher creates a new file watcher for the given kan data directory.
+// kanRoot should be the resolved .kan/ path (e.g., from Paths.KanRoot()).
+func NewFileWatcher(kanRoot string) (*FileWatcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
 
-	kanDir := filepath.Join(projectRoot, ".kan")
-
 	fw := &FileWatcher{
 		watcher:  watcher,
-		kanDir:   kanDir,
+		kanDir:   kanRoot,
 		debounce: make(map[string]*time.Timer),
 		stopCh:   make(chan struct{}),
 	}

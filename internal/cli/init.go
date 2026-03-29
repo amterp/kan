@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/amterp/kan/internal/discovery"
+	"github.com/amterp/kan/internal/git"
 	"github.com/amterp/ra"
 )
 
@@ -85,6 +86,24 @@ func runInit(location, boardName, columnsStr, projectName string) {
 		Fatal(err)
 	}
 
+	// Warn if running in a worktree - this creates a board separate from main
+	gitClient := git.NewClient()
+	worktreeIndependent := false
+	if gitClient.IsWorktree() {
+		PrintWarning("You are in a git worktree. Initializing here will create a board separate from the main worktree's board.")
+		fmt.Println("If you want to share the main worktree's board, exit and use 'kan' commands directly (they automatically use the main board).")
+		fmt.Println()
+		fmt.Print("Continue with separate board? (y/N) ")
+		var answer string
+		fmt.Scanln(&answer)
+		answer = strings.TrimSpace(strings.ToLower(answer))
+		if answer != "y" && answer != "yes" {
+			fmt.Println("Aborted.")
+			return
+		}
+		worktreeIndependent = true
+	}
+
 	app, err := NewApp(true)
 	if err != nil {
 		// If discovery failed due to stale global config, proceed with init anyway.
@@ -98,7 +117,7 @@ func runInit(location, boardName, columnsStr, projectName string) {
 		}
 	}
 
-	if err := app.InitService.Initialize(location, boardName, columns, projectName); err != nil {
+	if err := app.InitService.Initialize(location, boardName, columns, projectName, worktreeIndependent); err != nil {
 		Fatal(err)
 	}
 

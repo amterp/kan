@@ -17,22 +17,22 @@ type Server struct {
 	watcherMu  sync.Mutex // Protects watcher during project switches
 }
 
-// NewServer creates a new server with the given handler, port, and project root.
-// If projectRoot is empty, file watching is disabled.
-func NewServer(handler *Handler, port int, projectRoot string) *Server {
+// NewServer creates a new server with the given handler, port, and kan root.
+// kanRoot is the resolved .kan/ directory path. If empty, file watching is disabled.
+func NewServer(handler *Handler, port int, kanRoot string) *Server {
 	mux := http.NewServeMux()
 	handler.RegisterRoutes(mux)
 
-	// Set up file watching and WebSocket if we have a project root
+	// Set up file watching and WebSocket if we have a kan root
 	var watcher *FileWatcher
 	var wsHub *WebSocketHub
 
-	if projectRoot != "" {
+	if kanRoot != "" {
 		wsHub = NewWebSocketHub()
 		mux.HandleFunc("GET /api/v1/ws", wsHub.ServeWS)
 
 		var err error
-		watcher, err = NewFileWatcher(projectRoot)
+		watcher, err = NewFileWatcher(kanRoot)
 		if err != nil {
 			log.Printf("Warning: failed to create file watcher: %v", err)
 		} else {
@@ -86,8 +86,8 @@ func (s *Server) Addr() string {
 	return s.httpServer.Addr
 }
 
-// switchWatcher stops the current file watcher and starts a new one for the given project.
-func (s *Server) switchWatcher(newProjectRoot string) {
+// switchWatcher stops the current file watcher and starts a new one for the given kan root.
+func (s *Server) switchWatcher(newKanRoot string) {
 	s.watcherMu.Lock()
 	defer s.watcherMu.Unlock()
 
@@ -105,9 +105,9 @@ func (s *Server) switchWatcher(newProjectRoot string) {
 	}
 
 	// Create and start new watcher
-	watcher, err := NewFileWatcher(newProjectRoot)
+	watcher, err := NewFileWatcher(newKanRoot)
 	if err != nil {
-		log.Printf("Warning: failed to create file watcher for %s: %v", newProjectRoot, err)
+		log.Printf("Warning: failed to create file watcher for %s: %v", newKanRoot, err)
 		return
 	}
 
@@ -118,5 +118,5 @@ func (s *Server) switchWatcher(newProjectRoot string) {
 	}
 
 	s.watcher = watcher
-	log.Printf("File watcher switched to: %s", newProjectRoot)
+	log.Printf("File watcher switched to: %s", newKanRoot)
 }

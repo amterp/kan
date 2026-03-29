@@ -139,7 +139,7 @@ type Handler struct {
 	globalStore     store.GlobalStore
 	mu              sync.RWMutex
 	current         *ProjectContext
-	onProjectSwitch func(newProjectRoot string) // Called when project is switched
+	onProjectSwitch func(newKanRoot string) // Called when project is switched
 }
 
 // NewHandler creates a new handler with the given dependencies.
@@ -152,7 +152,7 @@ func NewHandler(globalStore store.GlobalStore, ctx *ProjectContext) *Handler {
 
 // SetOnProjectSwitch sets a callback that's called when the active project changes.
 // Used by Server to update the file watcher when projects are switched.
-func (h *Handler) SetOnProjectSwitch(fn func(newProjectRoot string)) {
+func (h *Handler) SetOnProjectSwitch(fn func(newKanRoot string)) {
 	h.onProjectSwitch = fn
 }
 
@@ -1020,7 +1020,7 @@ func (h *Handler) SwitchProject(w http.ResponseWriter, r *http.Request) {
 
 	// Notify server to update file watcher
 	if h.onProjectSwitch != nil {
-		h.onProjectSwitch(newCtx.ProjectRoot)
+		h.onProjectSwitch(newCtx.Paths.KanRoot())
 	}
 
 	JSON(w, http.StatusOK, SwitchProjectResponse{

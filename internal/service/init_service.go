@@ -32,7 +32,7 @@ func NewInitService(globalStore store.GlobalStore) *InitService {
 // If boardName is empty, uses "main".
 // If customColumns is empty, uses default columns.
 // If projectName is empty, derives from git repo root or cwd basename.
-func (s *InitService) Initialize(customLocation, boardName string, customColumns []string, projectName string) error {
+func (s *InitService) Initialize(customLocation, boardName string, customColumns []string, projectName string, worktreeIndependent bool) error {
 	// Get current working directory as project root
 	projectRoot, err := os.Getwd()
 	if err != nil {
@@ -103,9 +103,10 @@ func (s *InitService) Initialize(customLocation, boardName string, customColumns
 	projectID := id.Generate(id.Project)
 	projectStore := store.NewProjectStore(paths)
 	projectCfg := &model.ProjectConfig{
-		ID:      projectID,
-		Name:    projectName,
-		Favicon: model.DefaultFaviconConfig(projectID, projectName),
+		ID:                  projectID,
+		Name:                projectName,
+		Favicon:             model.DefaultFaviconConfig(projectID, projectName),
+		WorktreeIndependent: worktreeIndependent,
 	}
 	if err := projectStore.Save(projectCfg); err != nil {
 		return fmt.Errorf("failed to create project config: %w", err)
