@@ -105,6 +105,8 @@ func (s *FileProjectStore) EnsureInitialized(defaultName string) error {
 		return fmt.Errorf("invalid project config: %w", err)
 	}
 
+	needsSave := false
+
 	// Check if we need to generate an ID
 	if cfg.ID == "" {
 		cfg.ID = id.Generate(id.Project)
@@ -120,6 +122,17 @@ func (s *FileProjectStore) EnsureInitialized(defaultName string) error {
 			cfg.Favicon = model.DefaultFaviconConfig(cfg.ID, cfg.Name)
 		}
 
+		needsSave = true
+	}
+
+	// Auto-upgrade outdated project schema. Save() stamps the current
+	// version, so this handles forward migration for additive changes
+	// (e.g., new optional fields) without requiring `kan migrate`.
+	if cfg.KanSchema != version.CurrentProjectSchema() {
+		needsSave = true
+	}
+
+	if needsSave {
 		return s.Save(&cfg)
 	}
 

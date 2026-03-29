@@ -140,6 +140,7 @@ func TestMinKanVersionCompleteness(t *testing.T) {
 		fmt.Sprintf("card/%d", CurrentCardVersion),
 		fmt.Sprintf("board/%d", CurrentBoardVersion),
 		fmt.Sprintf("global/%d", CurrentGlobalVersion),
+		fmt.Sprintf("project/%d", CurrentProjectVersion),
 	}
 
 	for _, key := range requiredKeys {

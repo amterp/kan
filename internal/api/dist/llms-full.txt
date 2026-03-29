@@ -81,6 +81,12 @@ kan init -p myproject              # Custom project name for favicon/title
 kan init -c a,b,c -n project       # Both custom columns and name
 ```
 
+## Git Worktree Support
+
+When you run `kan` commands inside a git worktree, Kan automatically uses the board from the main worktree. All worktrees share the same kanban board by default - no extra setup needed.
+
+If you run `kan init` inside a worktree, Kan warns that this will create a separate, independent board. If you confirm, the worktree gets its own `.kan/` directory with `worktree_independent = true` in its project config.
+
 ## Commands
 
 ### init

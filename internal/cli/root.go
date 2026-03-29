@@ -247,7 +247,7 @@ func executeCommand(ctx *CommandContext) {
 
 	switch {
 	case *ctx.InitUsed:
-		runInit(*ctx.InitLocation, *ctx.InitName, *ctx.InitColumns, *ctx.InitProjectName)
+		runInit(*ctx.InitLocation, *ctx.InitName, *ctx.InitColumns, *ctx.InitProjectName, *ctx.NonInteractive)
 
 	case *ctx.BoardCreateUsed:
 		runBoardCreate(*ctx.BoardCreateName)

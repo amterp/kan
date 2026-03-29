@@ -258,6 +258,12 @@ limit = 5
 card_ids = []
 ```
 
+## Git Worktree Support
+
+When you run `kan` commands inside a git worktree, Kan automatically uses the board from the main worktree. This means all worktrees share the same kanban board by default - you don't need to initialize or manage separate boards per worktree.
+
+If you run `kan init` inside a worktree, Kan warns that this will create a separate, independent board. If you confirm, the worktree gets its own `.kan/` directory and `worktree_independent = true` is set in its project config.
+
 ## Initialize
 
 ```bash

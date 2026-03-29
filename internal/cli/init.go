@@ -8,6 +8,7 @@ import (
 
 	"github.com/amterp/kan/internal/discovery"
 	"github.com/amterp/kan/internal/git"
+	"github.com/amterp/kan/internal/prompt"
 	"github.com/amterp/ra"
 )
 
@@ -80,7 +81,7 @@ func parseColumns(columnsStr string) ([]string, error) {
 	return columns, nil
 }
 
-func runInit(location, boardName, columnsStr, projectName string) {
+func runInit(location, boardName, columnsStr, projectName string, nonInteractive bool) {
 	columns, err := parseColumns(columnsStr)
 	if err != nil {
 		Fatal(err)
@@ -93,18 +94,27 @@ func runInit(location, boardName, columnsStr, projectName string) {
 		PrintWarning("You are in a git worktree. Initializing here will create a board separate from the main worktree's board.")
 		fmt.Println("If you want to share the main worktree's board, exit and use 'kan' commands directly (they automatically use the main board).")
 		fmt.Println()
-		fmt.Print("Continue with separate board? (y/N) ")
-		var answer string
-		fmt.Scanln(&answer)
-		answer = strings.TrimSpace(strings.ToLower(answer))
-		if answer != "y" && answer != "yes" {
+
+		var prompter prompt.Prompter
+		if nonInteractive {
+			prompter = &prompt.NoopPrompter{}
+		} else {
+			prompter = prompt.NewHuhPrompter()
+		}
+
+		confirmed, err := prompter.Confirm("Continue with separate board?", false)
+		if err != nil {
+			Fatal(err)
+		}
+		if !confirmed {
 			fmt.Println("Aborted.")
 			return
 		}
 		worktreeIndependent = true
 	}
 
-	app, err := NewApp(true)
+	interactive := !nonInteractive
+	app, err := NewApp(interactive)
 	if err != nil {
 		// If discovery failed due to stale global config, proceed with init anyway.
 		// This handles the case where user deleted .kan/ and wants to re-init.

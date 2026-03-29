@@ -110,6 +110,21 @@ letter = "M"
 
 **Project ID**: Each project has a unique ID (e.g., `p_abc123`). This ID is used to derive deterministic values like favicon colors. The ID is stable even if the project name changes, ensuring visual consistency.
 
+### Worktree Support (project/2)
+
+**Added in**: project/2
+
+Adds optional `worktree_independent` boolean field. When a project is inside a git worktree, Kan automatically redirects to the main worktree's board. If a user runs `kan init` inside a worktree (creating a separate board), `worktree_independent = true` is set so Kan knows to use the worktree's own board instead of redirecting.
+
+```toml
+kan_schema = "project/2"
+id = "p_abc123"
+name = "my-project"
+worktree_independent = true
+```
+
+**Migration**: project/1 -> project/2 is handled automatically by `EnsureInitialized` (runs on every CLI command). The field is optional with `omitempty` - existing projects without it default to `false` (use main worktree's board). No manual `kan migrate` step needed.
+
 ### Why Independent Versions?
 
 **Decision**: Card schema and board schema evolve independently. A card at `_v: 2` can exist in a board at `board/1`.

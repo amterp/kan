@@ -170,8 +170,8 @@ func TestFileProjectStore_EnsureInitialized_CreatesNewConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to read config file: %v", err)
 	}
-	if !strings.Contains(string(data), `kan_schema = "project/1"`) {
-		t.Error("Config file should have project/1 schema stamp")
+	if !strings.Contains(string(data), `kan_schema = "project/2"`) {
+		t.Error("Config file should have project/2 schema stamp")
 	}
 }
 
@@ -331,6 +331,52 @@ func TestFileProjectStore_EnsureInitialized_Idempotent(t *testing.T) {
 	}
 	if cfg2.Name != "test-project" {
 		t.Errorf("Name changed after second EnsureInitialized: want 'test-project', got %q", cfg2.Name)
+	}
+}
+
+func TestFileProjectStore_EnsureInitialized_UpgradesOutdatedSchema(t *testing.T) {
+	store, dir, cleanup := setupTestProjectStore(t)
+	defer cleanup()
+
+	// Create a config with old schema but valid ID (simulates upgrading Kan)
+	configPath := filepath.Join(dir, ".kan", "config.toml")
+	oldConfig := `kan_schema = "project/1"
+id = "p_existing456"
+name = "old-schema-project"
+
+[favicon]
+background = "#ef4444"
+icon_type = "letter"
+letter = "O"
+`
+	if err := os.WriteFile(configPath, []byte(oldConfig), 0644); err != nil {
+		t.Fatalf("Failed to write old config: %v", err)
+	}
+
+	// EnsureInitialized should upgrade the schema
+	if err := store.EnsureInitialized("default-name"); err != nil {
+		t.Fatalf("EnsureInitialized failed: %v", err)
+	}
+
+	// Load and verify schema was upgraded
+	cfg, err := store.Load()
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.KanSchema != version.CurrentProjectSchema() {
+		t.Errorf("KanSchema = %q, want %q (should be upgraded)", cfg.KanSchema, version.CurrentProjectSchema())
+	}
+
+	// Should preserve existing data
+	if cfg.ID != "p_existing456" {
+		t.Errorf("ID = %q, want 'p_existing456' (should preserve)", cfg.ID)
+	}
+	if cfg.Name != "old-schema-project" {
+		t.Errorf("Name = %q, want 'old-schema-project' (should preserve)", cfg.Name)
+	}
+	if cfg.Favicon.Background != "#ef4444" {
+		t.Errorf("Favicon.Background = %q, want '#ef4444' (should preserve)", cfg.Favicon.Background)
 	}
 }
 
