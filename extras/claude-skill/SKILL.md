@@ -389,6 +389,19 @@ kan comment delete c_9kL2x                    # Delete comment
 |------|-------------|
 | `-b, --board` | Board name |
 
+## Committing Kan Files
+
+```bash
+kan commit                     # Stage and commit all .kan/ changes
+kan commit -m "update board"   # Custom commit message
+```
+
+| Flag            | Description                                              |
+|-----------------|----------------------------------------------------------|
+| `-m, --message` | Commit message (default: "chore: update kan files")      |
+
+Only kan data files are committed, leaving any other staged changes untouched. Requires being inside a git repository.
+
 ## Web Interface
 
 ```bash

@@ -153,6 +153,10 @@ type CommandContext struct {
 	DoctorFix    *bool
 	DoctorDryRun *bool
 	DoctorBoard  *string
+
+	// commit command
+	CommitUsed    *bool
+	CommitMessage *string
 }
 
 // Run is the main entry point for the CLI.
@@ -192,6 +196,7 @@ func Run() {
 	registerServe(cmd, ctx)
 	registerMigrate(cmd, ctx)
 	registerDoctor(cmd, ctx)
+	registerCommit(cmd, ctx)
 	registerCompletion(cmd, ctx)
 
 	// Parse command line
@@ -232,6 +237,8 @@ func executeCommand(ctx *CommandContext) {
 			unsupportedCommand = "delete"
 		case *ctx.BoardDeleteUsed:
 			unsupportedCommand = "board delete"
+		case *ctx.CommitUsed:
+			unsupportedCommand = "commit"
 		}
 		if unsupportedCommand != "" {
 			warnJsonNotSupported(unsupportedCommand)
@@ -310,6 +317,9 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.DoctorUsed:
 		runDoctor(*ctx.DoctorBoard, *ctx.DoctorFix, *ctx.DoctorDryRun, *ctx.Json)
+
+	case *ctx.CommitUsed:
+		runCommit(*ctx.CommitMessage)
 
 	case *ctx.CompletionUsed:
 		runCompletion(*ctx.CompletionShell, ctx.RootCmd)

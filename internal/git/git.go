@@ -2,6 +2,7 @@ package git
 
 import (
 	"errors"
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -40,6 +41,13 @@ func (c *Client) GetRepoRoot() (string, error) {
 // IsRepo returns true if the current directory is inside a git repository.
 func (c *Client) IsRepo() bool {
 	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	return cmd.Run() == nil
+}
+
+// IsRepoAt returns true if the given directory is inside a git repository.
+func (c *Client) IsRepoAt(dir string) bool {
+	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	cmd.Dir = dir
 	return cmd.Run() == nil
 }
 
@@ -90,6 +98,51 @@ func (c *Client) GetMainWorktreeRoot() (string, error) {
 	// --git-common-dir returns the main repo's .git directory.
 	// The main worktree root is its parent.
 	return filepath.Dir(absCommon), nil
+}
+
+// StatusPorcelain returns `git status --porcelain` output for the given paths.
+// Empty output means no changes. dir sets the working directory for the command.
+func (c *Client) StatusPorcelain(dir string, paths ...string) (string, error) {
+	args := append([]string{"status", "--porcelain", "--"}, paths...)
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("git status failed: %s", strings.TrimSpace(string(out)))
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// Add stages the given paths. dir sets the working directory for the command.
+func (c *Client) Add(dir string, paths ...string) error {
+	args := append([]string{"add", "--"}, paths...)
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git add failed: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// Commit creates a commit with the given message. When paths are provided,
+// only those paths are included in the commit - other staged changes are left
+// untouched. This is equivalent to running `git commit -m <msg> -- <paths>`,
+// which scopes the commit to the specified paths without the --only flag.
+// dir sets the working directory for the command.
+func (c *Client) Commit(dir string, message string, paths ...string) error {
+	args := []string{"commit", "-m", message}
+	if len(paths) > 0 {
+		args = append(args, "--")
+		args = append(args, paths...)
+	}
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git commit failed: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 func (c *Client) gitRevParse(arg string) (string, error) {

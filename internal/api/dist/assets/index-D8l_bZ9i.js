@@ -512,6 +512,23 @@ kan comment delete c_9kL2x
 |---------------|-------------|
 | \`-b, --board\` | Board name  |
 
+### commit
+
+Stage and commit kan data files to git.
+
+\`\`\`bash
+kan commit                              # Commit with default message
+kan commit -m "update board"           # Custom commit message
+\`\`\`
+
+| Flag             | Description                                     |
+|------------------|-------------------------------------------------|
+| \`-m, --message\`  | Commit message (default: "chore: update kan files") |
+
+Only kan data files are committed - any other staged changes are left untouched.
+
+Fails if not in a git repository or if kan is not initialized.
+
 ### migrate
 
 Migrate board data to current schema version.

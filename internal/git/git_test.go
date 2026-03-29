@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -66,6 +67,135 @@ func TestGetMainWorktreeRoot_NotWorktree(t *testing.T) {
 	_, err := client.GetMainWorktreeRoot()
 	if err == nil {
 		t.Error("expected error when not in a worktree")
+	}
+}
+
+func TestStatusPorcelain_NoChanges(t *testing.T) {
+	dir := initTestRepo(t)
+	chdir(t, dir)
+
+	if err := os.WriteFile(filepath.Join(dir, "file.txt"), []byte("content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, "add", "file.txt")
+	runGit(t, dir, "commit", "-m", "add file")
+
+	client := NewClient()
+	out, err := client.StatusPorcelain(dir, ".")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out != "" {
+		t.Errorf("expected empty status, got %q", out)
+	}
+}
+
+func TestStatusPorcelain_WithChanges(t *testing.T) {
+	dir := initTestRepo(t)
+	chdir(t, dir)
+
+	if err := os.WriteFile(filepath.Join(dir, "file.txt"), []byte("content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	client := NewClient()
+	out, err := client.StatusPorcelain(dir, ".")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out == "" {
+		t.Error("expected non-empty status for untracked file")
+	}
+}
+
+func TestAdd(t *testing.T) {
+	dir := initTestRepo(t)
+	chdir(t, dir)
+
+	if err := os.WriteFile(filepath.Join(dir, "file.txt"), []byte("content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	client := NewClient()
+	if err := client.Add(dir, "file.txt"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify the file is staged
+	out, err := client.StatusPorcelain(dir, "file.txt")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out == "" {
+		t.Error("expected file to be staged after Add")
+	}
+}
+
+func TestCommit(t *testing.T) {
+	dir := initTestRepo(t)
+	chdir(t, dir)
+
+	if err := os.WriteFile(filepath.Join(dir, "file.txt"), []byte("content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	client := NewClient()
+	if err := client.Add(dir, "file.txt"); err != nil {
+		t.Fatalf("add failed: %v", err)
+	}
+	if err := client.Commit(dir, "test commit", "file.txt"); err != nil {
+		t.Fatalf("commit failed: %v", err)
+	}
+
+	// Verify commit exists with correct message
+	cmd := exec.Command("git", "log", "--oneline", "-1")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git log failed: %v", err)
+	}
+	if !strings.Contains(string(out), "test commit") {
+		t.Errorf("expected commit message %q in log output %q", "test commit", string(out))
+	}
+}
+
+func TestCommit_OnlyScopedPaths(t *testing.T) {
+	dir := initTestRepo(t)
+	chdir(t, dir)
+
+	// Create two files
+	kanFile := filepath.Join(dir, ".kan", "board.txt")
+	if err := os.MkdirAll(filepath.Dir(kanFile), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(kanFile, []byte("kan content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	otherFile := filepath.Join(dir, "other.txt")
+	if err := os.WriteFile(otherFile, []byte("other content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Stage other.txt manually
+	runGit(t, dir, "add", "other.txt")
+
+	client := NewClient()
+	if err := client.Add(dir, ".kan"); err != nil {
+		t.Fatalf("add failed: %v", err)
+	}
+	if err := client.Commit(dir, "kan only", ".kan"); err != nil {
+		t.Fatalf("commit failed: %v", err)
+	}
+
+	// other.txt should still be staged (not committed)
+	cmd := exec.Command("git", "diff", "--cached", "--name-only")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git diff failed: %v", err)
+	}
+	if !strings.Contains(string(out), "other.txt") {
+		t.Errorf("expected other.txt to remain staged, got %q", string(out))
 	}
 }
 
