@@ -10,7 +10,9 @@ Kan is a kanban board stored as plain files in your repo.
 Run `kan serve` to open the web UI, or use the CLI for quick updates.
 Since it's just files, your board is version-controlled alongside your code and visible to anyone with access to the repo.
 
-![web-screenshot](./assets/web-screenshot.png)
+<p align="center">
+  <img src="./assets/web-screenshot.png" alt="web-screenshot" width="900" />
+</p>
 
 ## Quick Start
 

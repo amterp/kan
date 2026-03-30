@@ -170,7 +170,7 @@ export default function LandingPage() {
           backgroundSize: '48px 48px',
         }} />
 
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-20 sm:pt-28 pb-16 sm:pb-20">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-12 sm:pb-16">
           <Section>
             <div className="max-w-3xl">
               <img ref={heroLogoRef} src={`${baseUrl}images/logo.png`} alt="Kan" className="h-20 sm:h-28 w-auto mb-6" />
@@ -210,7 +210,7 @@ export default function LandingPage() {
       </section>
 
       {/* Screenshot */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-20 sm:pb-28">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-14 sm:pb-18">
         <Section>
           <div className="rounded-xl border border-gray-200 dark:border-gray-800 shadow-xl dark:shadow-2xl overflow-hidden bg-gray-100 dark:bg-gray-900">
             {/* Browser chrome */}
@@ -222,7 +222,7 @@ export default function LandingPage() {
               </div>
               <div className="flex-1 ml-2">
                 <div className="max-w-xs mx-auto h-5 rounded-md bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
-                  <span className="text-[10px] font-mono text-gray-400 dark:text-gray-600">localhost:7654</span>
+                  <span className="text-[10px] font-mono text-gray-400 dark:text-gray-600">localhost:5260</span>
                 </div>
               </div>
             </div>
@@ -237,7 +237,7 @@ export default function LandingPage() {
 
       {/* Features */}
       <section className="border-t border-gray-100 dark:border-gray-900 bg-gray-50/50 dark:bg-gray-900/30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-28">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
           <Section>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-950 dark:text-white">
               Why Kan?
@@ -273,7 +273,7 @@ export default function LandingPage() {
 
       {/* Installation */}
       <section className="border-t border-gray-100 dark:border-gray-900">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-28">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
           <Section>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-950 dark:text-white">
               Installation
