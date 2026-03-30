@@ -12,7 +12,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const docsDir = join(__dirname, '..', 'src', 'docs');
 const distDir = join(__dirname, '..', '..', 'internal', 'api', 'dist');
 
-// SITE_URL is the public site root (e.g. "https://amterp.github.io/kan").
+// SITE_URL is the public site root (e.g. "https://amterp.dev/kan").
 // Set in CI for absolute URLs. When absent, use relative paths.
 const siteUrl = process.env.SITE_URL; // no trailing slash
 const baseUrl = siteUrl ? `${siteUrl}/` : '/';

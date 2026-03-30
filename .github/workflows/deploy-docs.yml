@@ -38,7 +38,7 @@ jobs:
         working-directory: web
         env:
           VITE_BASE_PATH: /kan/
-          SITE_URL: https://amterp.github.io/kan
+          SITE_URL: https://amterp.dev/kan
 
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3

@@ -7,7 +7,7 @@ description: Manage kanban boards using the Kan CLI. Use when working with tasks
 
 [Kan](https://github.com/amterp/kan) is a file-based kanban board CLI. All data lives in `.kan/` as plain files.
 
-Full documentation is available at [amterp.github.io/kan/docs](https://amterp.github.io/kan/docs).
+Full documentation is available at [amterp.dev/kan/docs](https://amterp.dev/kan/docs).
 
 ## Getting Help
 
@@ -23,7 +23,7 @@ kan column --help
 
 When a user asks to create a new board (`kan board create`) or initialize a new Kan project (`kan init`), run this interactive setup process rather than creating a board with defaults. This applies to both new projects and additional boards.
 
-Before writing any config, consult the [Kan documentation](https://amterp.github.io/kan/docs) to double-check available options and TOML structure.
+Before writing any config, consult the [Kan documentation](https://amterp.dev/kan/docs) to double-check available options and TOML structure.
 
 ### Step 1: Understand the Project and User
 
@@ -514,4 +514,4 @@ kan comment add fix-login "Note" --json | jq .comment.id
 
 ## Documentation
 
-Full documentation is available at [amterp.github.io/kan/docs](https://amterp.github.io/kan/docs). Consult the docs when setting up boards or editing config files to verify available options and TOML structure.
+Full documentation is available at [amterp.dev/kan/docs](https://amterp.dev/kan/docs). Consult the docs when setting up boards or editing config files to verify available options and TOML structure.
