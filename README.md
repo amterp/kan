@@ -40,6 +40,8 @@ kan list                       # List all cards
 kan show fix-login-bug         # View card details
 ```
 
+Kan also ships with a skill file (`extras/skill/`) following the [Agent Skills](https://agentskills.io) standard, so AI coding agents like Claude Code, Codex, and others can manage your board out of the box. See the [AI Agents docs](https://amterp.dev/kan/docs/ai-agents) for details.
+
 ## Why Kan?
 
 Kan works great for solo developers and small teams juggling multiple projects. Every project gets its own board that lives in the repo - open the project, run `kan serve`, and you're right where you left off.

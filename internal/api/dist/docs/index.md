@@ -18,6 +18,8 @@ This works because Kan is:
 - **File-based.** Plain JSON and TOML that version control tracks like any other file. Clone a repo, get its board.
 - **Self-contained.** No database, no server dependencies. Just a single binary that serves a web UI.
 
+If you use AI coding agents (Claude Code, Codex, etc.), Kan's CLI-first design means your agent can manage your board directly. Let the agent create and customize your boards, set up columns, create cards, triage work - without any special integration. See [AI Agents](/docs/ai-agents) for more.
+
 ## Quick Start
 
 Initialize Kan in your project:
@@ -41,6 +43,7 @@ For scripting or automation (CI, AI agents, etc.), there's a full [CLI](/docs/cl
 - [Configuration](/docs/configuration) - Board structure, columns, and display options
 - [Link Rules](/docs/link-rules) - Auto-link patterns like Jira tickets or GitHub issues
 - [CLI Reference](/docs/cli) - Full command line tool usage
+- [AI Agents](/docs/ai-agents) - Using Kan with AI coding agents
 
 ## Roadmap
 

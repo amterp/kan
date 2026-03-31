@@ -10,6 +10,7 @@ import cliDoc from '../docs/cli.md?raw';
 import linkRulesDoc from '../docs/link-rules.md?raw';
 import customFieldsDoc from '../docs/custom-fields.md?raw';
 import configurationDoc from '../docs/configuration.md?raw';
+import aiAgentsDoc from '../docs/ai-agents.md?raw';
 
 const docs: Record<string, string> = {
   '': indexDoc,
@@ -20,6 +21,7 @@ const docs: Record<string, string> = {
   'link-rules': linkRulesDoc,
   'custom-fields': customFieldsDoc,
   'configuration': configurationDoc,
+  'ai-agents': aiAgentsDoc,
 };
 
 const navItems = [
@@ -30,6 +32,7 @@ const navItems = [
   { path: '/docs/configuration', label: 'Configuration' },
   { path: '/docs/link-rules', label: 'Link Rules' },
   { path: '/docs/cli', label: 'CLI Reference' },
+  { path: '/docs/ai-agents', label: 'AI Agents' },
 ];
 
 export default function DocsPage() {
