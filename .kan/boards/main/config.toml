@@ -15,7 +15,7 @@ default_column = "backlog-hi"
   color = "#6b7280"
   description = "Higher priority items ready to be picked up soon"
   limit = 10
-  card_ids = ["a_cZjBKkSX", "3cIruBkr", "3cJmN0qU", "48AVDad4", "2REBgzSK", "2RESoTin", "2RET9h3a", "2RF25n0b", "a_6NPbhW3o", "a_BlWLznge"]
+  card_ids = ["3cIruBkr", "3cJmN0qU", "48AVDad4", "2REBgzSK", "2RESoTin", "2RET9h3a", "2RF25n0b", "a_6NPbhW3o", "a_BlWLznge"]
 
 [[columns]]
   name = "next"
@@ -29,6 +29,7 @@ default_column = "backlog-hi"
   color = "#f59e0b"
   description = "Currently being worked on"
   limit = 5
+  card_ids = ["a_cZjBKkSX"]
 
 [[columns]]
   name = "done"
