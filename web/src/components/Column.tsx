@@ -7,6 +7,7 @@ import CardComponent from './Card';
 import ConfirmationModal from './ConfirmationModal';
 import { useToast } from '../contexts/ToastContext';
 import { useCompactMode } from '../contexts/CompactModeContext';
+import { useSlimMode } from '../contexts/SlimModeContext';
 
 // Transform user input to valid column name format (same as Board.tsx for createColumn)
 function transformColumnName(input: string): string {
@@ -106,6 +107,9 @@ interface ColumnProps {
   // Floating panel props
   onPanelHide?: () => void;
   columnIndex: number;
+  // Slim mode props
+  onAdvanceCard?: (cardId: string) => void;
+  onCardContextMenu?: (card: Card, e: React.MouseEvent) => void;
 }
 
 export default function Column({
@@ -132,10 +136,13 @@ export default function Column({
   isDragging,
   onPanelHide,
   columnIndex,
+  onAdvanceCard,
+  onCardContextMenu,
 }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.name });
   const { showToast } = useToast();
   const { isCompact } = useCompactMode();
+  const { isSlim } = useSlimMode();
 
   // Make the column header draggable for reordering
   const {
@@ -326,16 +333,31 @@ export default function Column({
       e.preventDefault();
       if (e.metaKey || e.ctrlKey) {
         // Cmd+Enter or Ctrl+Enter - create and open full modal
+        // In slim mode: behave like plain Enter (no modal in slim mode)
         if (draftTitle.trim()) {
           onPanelHide?.();
-          onAddCard(draftTitle.trim(), true);
-          onDraftChange('');
+          if (isSlim) {
+            onAddCard(draftTitle.trim(), false, true);
+            onDraftChange('');
+            setTimeout(() => inputRef.current?.focus(), 0);
+          } else {
+            onAddCard(draftTitle.trim(), true);
+            onDraftChange('');
+          }
         }
       } else if (e.shiftKey) {
         // Shift+Enter - create card, close form, show field panel anchored to card
+        // In slim mode: behave like plain Enter (no room for floating panel)
         if (draftTitle.trim()) {
-          onAddCard(draftTitle.trim(), false, false, true); // keepFormOpen=false, showPanel=true
-          onDraftChange('');
+          if (isSlim) {
+            onPanelHide?.();
+            onAddCard(draftTitle.trim(), false, true);
+            onDraftChange('');
+            setTimeout(() => inputRef.current?.focus(), 0);
+          } else {
+            onAddCard(draftTitle.trim(), false, false, true); // keepFormOpen=false, showPanel=true
+            onDraftChange('');
+          }
         }
       } else {
         // Plain Enter - create card and continue (no panel)
@@ -370,7 +392,11 @@ export default function Column({
       <div
         ref={setRefs}
         style={{ ...sortableStyle, borderTopColor: column.color }}
-        className={`flex-1 min-w-64 max-w-sm flex flex-col bg-gray-200 dark:bg-gray-800 rounded-lg max-h-full border-t-[3px] ${
+        className={`${
+          isSlim
+            ? 'w-full'
+            : 'flex-1 min-w-64 max-w-sm max-h-full'
+        } flex flex-col bg-gray-200 dark:bg-gray-800 rounded-lg border-t-[3px] ${
           isOver ? 'ring-2 ring-blue-400' : ''
         } ${isDragging ? 'opacity-50' : ''}`}
       >
@@ -412,6 +438,11 @@ export default function Column({
           </div>
         ) : (
           <>
+            {isSlim && columnIndex < 9 && (
+              <span className="text-xs text-gray-400 dark:text-gray-500 font-mono flex-shrink-0">
+                {columnIndex + 1}
+              </span>
+            )}
             <h2
               className="font-semibold text-gray-700 dark:text-gray-200 truncate cursor-text hover:underline hover:decoration-dotted hover:decoration-gray-400 dark:hover:decoration-gray-500"
               onClick={handleStartEdit}
@@ -518,6 +549,8 @@ export default function Column({
                   board={board}
                   onClick={() => onCardClick(card)}
                   onDelete={() => onDeleteCard(card.id)}
+                  onAdvance={onAdvanceCard ? () => onAdvanceCard(card.id) : undefined}
+                  onContextMenu={onCardContextMenu ? (e) => onCardContextMenu(card, e) : undefined}
                   isPlaceholder={isBeingDragged}
                   isHighlighted={card.id === highlightedCardId}
                 />
@@ -569,7 +602,9 @@ export default function Column({
                   Cancel
                 </button>
               </div>
-              <span className="text-xs text-gray-400 dark:text-gray-500">⇧↵ fields · ⌘↵ modal</span>
+              {!isSlim && (
+                <span className="text-xs text-gray-400 dark:text-gray-500">⇧↵ fields · ⌘↵ modal</span>
+              )}
             </div>
           </form>
         )}
