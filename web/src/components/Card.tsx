@@ -5,6 +5,7 @@ import type { Card as CardType, BoardConfig, CustomFieldOption } from '../api/ty
 import { parseTextWithLinks } from '../utils/linkParser';
 import { stringToColor } from '../utils/badgeColors';
 import { useCompactMode } from '../contexts/CompactModeContext';
+import { useSlimMode } from '../contexts/SlimModeContext';
 
 interface CardProps {
   card: CardType;
@@ -14,6 +15,8 @@ interface CardProps {
   isHighlighted?: boolean;
   onClick?: () => void;
   onDelete?: () => void;
+  onAdvance?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 // Helper to get option details for a field value
@@ -38,8 +41,9 @@ function getSetValues(card: CardType, fieldName: string): string[] {
  * NOTE: The data-card-id attribute is used by Board.tsx to find this element
  * when anchoring the FloatingFieldPanel after card creation. Don't remove it.
  */
-export default function Card({ card, board, isDragging = false, isPlaceholder = false, isHighlighted = false, onClick, onDelete }: CardProps) {
+export default function Card({ card, board, isDragging = false, isPlaceholder = false, isHighlighted = false, onClick, onDelete, onAdvance, onContextMenu }: CardProps) {
   const { isCompact } = useCompactMode();
+  const { isSlim } = useSlimMode();
   const [showConfirm, setShowConfirm] = useState(false);
   const {
     attributes,
@@ -70,6 +74,19 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
     // Don't trigger click if we're dragging or confirming delete
     if (!isDragging && !isSortableDragging && !showConfirm && onClick) {
       onClick();
+    }
+  };
+
+  const handleAdvanceClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAdvance?.();
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (onContextMenu) {
+      e.preventDefault();
+      e.stopPropagation();
+      onContextMenu(e);
     }
   };
 
@@ -116,8 +133,9 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       {...attributes}
       {...listeners}
       onClick={handleClick}
+      onContextMenu={handleContextMenu}
       title={isCompact ? card.alias : undefined}
-      className={`group relative bg-white dark:bg-gray-700 rounded-lg ${isCompact ? 'px-2 py-1.5' : 'p-3'} shadow-sm border border-gray-100 dark:border-gray-600 cursor-pointer hover:shadow-md transition-shadow animate-card-enter ${
+      className={`group relative bg-white dark:bg-gray-700 rounded-lg ${isCompact ? 'px-2 py-1.5' : 'p-3'} shadow-sm border border-gray-100 dark:border-gray-600 ${isSlim ? 'cursor-default' : 'cursor-pointer'} hover:shadow-md transition-shadow animate-card-enter ${
         isDragging ? 'shadow-lg rotate-2' : ''
       } ${isHighlighted ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-200 dark:ring-offset-gray-800' : ''}`}
     >
@@ -140,6 +158,19 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
             </button>
           </div>
         </div>
+      )}
+
+      {/* Advance button - shown on hover in slim mode */}
+      {isSlim && onAdvance && !showConfirm && (
+        <button
+          onClick={handleAdvanceClick}
+          className={`absolute top-1 ${onDelete ? 'right-7' : 'right-1'} p-1 text-gray-300 dark:text-gray-500 hover:text-green-500 opacity-0 group-hover:opacity-100 transition-opacity`}
+          title="Advance to next column"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       )}
 
       {/* Trash icon - shown on hover */}

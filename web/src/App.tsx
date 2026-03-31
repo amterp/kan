@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom';
 import { useBoards, useBoard } from './hooks/useBoards';
 import { useOmnibar } from './hooks/useOmnibar';
 import { useBoardSwitcher } from './hooks/useBoardSwitcher';
 import { useSlashCommandAutocomplete } from './hooks/useSlashCommandAutocomplete';
-import { COMPACT_COMMAND } from './hooks/omnibarConstants';
+import { COMPACT_COMMAND, SLIM_COMMAND } from './hooks/omnibarConstants';
 import type { SlashCommand } from './hooks/omnibarConstants';
 import { useProject, usePageTitle, useFavicon } from './hooks/useProject';
 import { useUrlState } from './hooks/useUrlState';
@@ -18,6 +18,7 @@ import DocsPage from './pages/DocsPage';
 import { switchProject } from './api/projects';
 import type { UpdateCardInput } from './api/types';
 import { useCompactMode } from './contexts/CompactModeContext';
+import { useSlimMode } from './contexts/SlimModeContext';
 
 
 function BoardApp() {
@@ -45,7 +46,28 @@ function BoardApp() {
   const [newlyCreatedCardId, setNewlyCreatedCardId] = useState<string | null>(null);
   const omnibar = useOmnibar();
   const { toggleCompact, setProjectPath } = useCompactMode();
+  const { isSlim, toggleSlim } = useSlimMode();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { project } = useProject(refreshKey);
+
+  // Keep URL ?slim param in sync with slim mode state.
+  // Initial state is read from URL in SlimModeContext (URL wins over localStorage).
+  useEffect(() => {
+    const hasSlimParam = searchParams.get('slim') === 'true';
+    if (isSlim && !hasSlimParam) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('slim', 'true');
+        return next;
+      }, { replace: true });
+    } else if (!isSlim && hasSlimParam) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('slim');
+        return next;
+      }, { replace: true });
+    }
+  }, [isSlim, searchParams, setSearchParams]);
 
   // Keep compact mode context aware of the current project path so
   // per-board compact overrides are scoped to each project.
@@ -69,8 +91,11 @@ function BoardApp() {
     } else if (cmd.command === COMPACT_COMMAND) {
       toggleCompact();
       omnibar.close();
+    } else if (cmd.command === SLIM_COMMAND) {
+      toggleSlim();
+      omnibar.close();
     }
-  }, [omnibar, toggleCompact]);
+  }, [omnibar, toggleCompact, toggleSlim]);
 
   // Set page title and favicon
   usePageTitle(project?.name, boardName);
@@ -168,6 +193,8 @@ function BoardApp() {
           break;
         }
         case 'left': {
+          // In slim mode, columns are vertical - left/right column jumping disabled
+          if (isSlim) break;
           if (currentColIdx > 0) {
             const prevColumn = filteredCardsByColumn[currentColIdx - 1];
             const targetIdx = Math.min(currentCardIdx, prevColumn.cards.length - 1);
@@ -176,6 +203,7 @@ function BoardApp() {
           break;
         }
         case 'right': {
+          if (isSlim) break;
           if (currentColIdx < filteredCardsByColumn.length - 1) {
             const nextColumn = filteredCardsByColumn[currentColIdx + 1];
             const targetIdx = Math.min(currentCardIdx, nextColumn.cards.length - 1);
@@ -189,7 +217,7 @@ function BoardApp() {
         omnibar.setHighlightedCardId(nextCardId);
       }
     },
-    [filteredCardsByColumn, omnibar, boardSwitcher, slashAutocomplete]
+    [filteredCardsByColumn, omnibar, boardSwitcher, slashAutocomplete, isSlim]
   );
 
   // Handle Enter to select
@@ -230,11 +258,15 @@ function BoardApp() {
     }
 
     // Slash commands (only when no card is highlighted)
-    if (omnibar.query.trim().toLowerCase() === COMPACT_COMMAND) {
+    const trimmedQuery = omnibar.query.trim().toLowerCase();
+    if (trimmedQuery === COMPACT_COMMAND) {
       toggleCompact();
       omnibar.close();
+    } else if (trimmedQuery === SLIM_COMMAND) {
+      toggleSlim();
+      omnibar.close();
     }
-  }, [omnibar, boardSwitcher, cards, setBoard, openCard, toggleCompact, executeSlashCommand, slashAutocomplete, setProjectPath]);
+  }, [omnibar, boardSwitcher, cards, setBoard, openCard, toggleCompact, toggleSlim, executeSlashCommand, slashAutocomplete, setProjectPath]);
 
   // Handle clicking a board entry in the list
   const handleBoardSelect = useCallback(async (index: number) => {
@@ -298,11 +330,20 @@ function BoardApp() {
         e.preventDefault();
         toggleCompact();
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+        const selection = window.getSelection();
+        if (selection && selection.toString().length > 0) return;
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (omnibar.isOpen || cardId) return;
+        e.preventDefault();
+        toggleSlim();
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [omnibar, cardId, toggleCompact]);
+  }, [omnibar, cardId, toggleCompact, toggleSlim]);
 
   const handleNewCard = useCallback(async () => {
     if (!board) return;
