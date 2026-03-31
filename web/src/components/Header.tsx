@@ -1,5 +1,6 @@
 import ThemeToggle from './ThemeToggle';
 import CompactToggle from './CompactToggle';
+import SlimToggle from './SlimToggle';
 
 interface SyncStatus {
   connected: boolean;
@@ -89,6 +90,7 @@ export default function Header({ boards, selectedBoard, onSelectBoard, onRefresh
           Docs
         </a>
         <CompactToggle />
+        <SlimToggle />
         <ThemeToggle />
         <button
           onClick={onRefresh}

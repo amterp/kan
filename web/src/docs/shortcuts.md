@@ -20,6 +20,7 @@ Type `/` in quick search to see available commands with autocomplete. Use ↑ �
 |---------|--------|
 | /board | Switch to another board |
 | /compact | Toggle compact view |
+| /slim | Toggle slim view (vertical columns) |
 
 ### How Filtering Works
 
@@ -37,6 +38,17 @@ The search looks across all card fields: title, alias, description, and any cust
 - Empty columns are hidden while filtering
 - Drag-and-drop continues to work with the filtered set
 - The filter clears when you close quick search
+
+## View Modes
+
+| Shortcut | Action |
+|----------|--------|
+| ⌘C | Toggle compact view |
+| ⌘J | Toggle slim view (vertical columns) |
+
+**Compact mode** reduces card padding and hides aliases to show more cards at once.
+
+**Slim mode** stacks columns vertically for narrow windows. Cards get an advance button (moves to next column) and right-click context menu (move to any column). Card modals are disabled - slim mode is for quick task processing.
 
 ## Board
 

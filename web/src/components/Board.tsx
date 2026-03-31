@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent, DragOverEvent, CollisionDetection, DroppableContainer } from '@dnd-kit/core';
-import { SortableContext, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import type { BoardConfig, Card, Column as ColumnType, CreateCardInput, CreateCardResponse, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
 import { cardMatchesQuery } from '../utils/fuzzyMatch';
 import { toApiFieldValue } from '../utils/customFields';
@@ -10,6 +10,8 @@ import { useToast } from '../contexts/ToastContext';
 import Column from './Column';
 import CardComponent from './Card';
 import FloatingFieldPanel from './FloatingFieldPanel';
+import CardContextMenu from './CardContextMenu';
+import { useSlimMode } from '../contexts/SlimModeContext';
 
 // Panel target - tracks what the floating field panel is editing
 interface PanelTarget {
@@ -55,6 +57,7 @@ export default function Board({
   isCardModalOpen = false,
 }: BoardProps) {
   const { showToast } = useToast();
+  const { isSlim } = useSlimMode();
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [activeColumn, setActiveColumn] = useState<ColumnType | null>(null);
   const [addingToColumn, setAddingToColumn] = useState<string | null>(null);
@@ -102,6 +105,15 @@ export default function Board({
     [board.columns, filteredCards]
   );
 
+  // Unfiltered card counts for column limit checks (filter must not bypass limits)
+  const allCardsByColumn = useMemo(() =>
+    board.columns.reduce<Record<string, Card[]>>((acc, column) => {
+      acc[column.name] = cards.filter((card) => card.column === column.name);
+      return acc;
+    }, {}),
+    [board.columns, cards]
+  );
+
   // Always show all columns (even when filtering, so cards can be moved into empty columns)
   const visibleColumns = useMemo(() => board.columns, [board.columns]);
 
@@ -129,7 +141,7 @@ export default function Board({
       }
     });
 
-    // For column drags: pure X-based detection, find closest column by X center
+    // For column drags: find closest column along the layout axis
     if (isDraggingColumn) {
       let closestColumn: DroppableContainer | null = null;
       let minDistance = Infinity;
@@ -138,8 +150,12 @@ export default function Board({
         const rect = column.rect.current;
         if (!rect) continue;
 
-        const columnCenterX = rect.left + rect.width / 2;
-        const distance = Math.abs(pointerX - columnCenterX);
+        // Slim mode: Y-based detection; normal mode: X-based detection
+        const center = isSlim
+          ? rect.top + rect.height / 2
+          : rect.left + rect.width / 2;
+        const pointer = isSlim ? pointerY : pointerX;
+        const distance = Math.abs(pointer - center);
 
         if (distance < minDistance) {
           minDistance = distance;
@@ -150,27 +166,40 @@ export default function Board({
       return closestColumn ? [{ id: closestColumn.id }] : [];
     }
 
-    // For card drags: X determines column, Y determines position within column
+    // For card drags: primary axis determines column, Y determines position within column
     let targetColumn: DroppableContainer | null = null;
-    let minXDistance = Infinity;
+    let minAxisDistance = Infinity;
 
     for (const column of columnContainers) {
       const rect = column.rect.current;
       if (!rect) continue;
 
-      // Check if pointer X is within column bounds
-      if (pointerX >= rect.left && pointerX <= rect.right) {
-        targetColumn = column;
-        break;
-      }
-
-      // Otherwise find closest column by X
-      const distToLeft = Math.abs(pointerX - rect.left);
-      const distToRight = Math.abs(pointerX - rect.right);
-      const dist = Math.min(distToLeft, distToRight);
-      if (dist < minXDistance) {
-        minXDistance = dist;
-        targetColumn = column;
+      if (isSlim) {
+        // Slim mode: Y determines target column
+        if (pointerY >= rect.top && pointerY <= rect.bottom) {
+          targetColumn = column;
+          break;
+        }
+        const distToTop = Math.abs(pointerY - rect.top);
+        const distToBottom = Math.abs(pointerY - rect.bottom);
+        const dist = Math.min(distToTop, distToBottom);
+        if (dist < minAxisDistance) {
+          minAxisDistance = dist;
+          targetColumn = column;
+        }
+      } else {
+        // Normal mode: X determines target column
+        if (pointerX >= rect.left && pointerX <= rect.right) {
+          targetColumn = column;
+          break;
+        }
+        const distToLeft = Math.abs(pointerX - rect.left);
+        const distToRight = Math.abs(pointerX - rect.right);
+        const dist = Math.min(distToLeft, distToRight);
+        if (dist < minAxisDistance) {
+          minAxisDistance = dist;
+          targetColumn = column;
+        }
       }
     }
 
@@ -215,7 +244,7 @@ export default function Board({
 
     // Pointer is below all cards' centers - append to end (return column)
     return [{ id: targetColumn.id }];
-  }, [columnNames, cards]);
+  }, [columnNames, cards, isSlim]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const activeId = event.active.id as string;
@@ -339,7 +368,7 @@ export default function Board({
     if (draggedCard.column !== targetColumn) {
       const col = board.columns.find((c) => c.name === targetColumn);
       if (col?.limit) {
-        const colCards = cardsByColumn[targetColumn] || [];
+        const colCards = allCardsByColumn[targetColumn] || [];
         if (colCards.length >= col.limit) {
           showToast('error', `Column "${targetColumn}" is full (limit: ${col.limit})`);
           return;
@@ -461,9 +490,78 @@ export default function Board({
   }, [panelTarget, cards, board.custom_fields, createdCardFields]);
 
   const handleCardClick = (card: Card) => {
+    if (isSlim) return; // Slim mode: no card modal, quick-processing only
     setPanelTarget(null); // Dismiss panel when opening card modal
     onOpenCard(card.id);
   };
+
+  // Advance card to the next column (slim mode)
+  const handleAdvanceCard = useCallback(async (columnName: string, cardId: string) => {
+    const colIndex = board.columns.findIndex((c) => c.name === columnName);
+    if (colIndex === -1 || colIndex >= board.columns.length - 1) return;
+
+    const nextColumn = board.columns[colIndex + 1];
+
+    // Check column limit (use unfiltered count - filter must not bypass limits)
+    if (nextColumn.limit) {
+      const nextColumnCards = allCardsByColumn[nextColumn.name] || [];
+      if (nextColumnCards.length >= nextColumn.limit) {
+        showToast('error', `Column "${nextColumn.name}" is full (limit: ${nextColumn.limit})`);
+        return;
+      }
+    }
+
+    try {
+      await onMoveCard(cardId, nextColumn.name, 0);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to advance card';
+      showToast('error', message);
+    }
+  }, [board.columns, allCardsByColumn, onMoveCard, showToast]);
+
+  // Context menu state for slim mode
+  const [contextMenu, setContextMenu] = useState<{
+    cardId: string;
+    cardColumn: string;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const handleCardContextMenu = useCallback((card: Card, e: React.MouseEvent) => {
+    setContextMenu({
+      cardId: card.id,
+      cardColumn: card.column,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  }, []);
+
+  const handleContextMenuMove = useCallback(async (columnName: string) => {
+    if (!contextMenu) return;
+    if (columnName === contextMenu.cardColumn) {
+      setContextMenu(null);
+      return;
+    }
+
+    // Check column limit (use unfiltered count - filter must not bypass limits)
+    const col = board.columns.find((c) => c.name === columnName);
+    if (col?.limit) {
+      const colCards = allCardsByColumn[columnName] || [];
+      if (colCards.length >= col.limit) {
+        showToast('error', `Column "${columnName}" is full (limit: ${col.limit})`);
+        setContextMenu(null);
+        return;
+      }
+    }
+
+    try {
+      await onMoveCard(contextMenu.cardId, columnName);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to move card';
+      showToast('error', message);
+    }
+    setContextMenu(null);
+  }, [contextMenu, board.columns, allCardsByColumn, onMoveCard, showToast]);
 
   // Clear debounce timer when panel target changes (switching cards or dismissing)
   useEffect(() => {
@@ -558,13 +656,16 @@ export default function Board({
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 p-4 h-full overflow-x-auto">
+        <div className={isSlim
+          ? "flex flex-col gap-4 p-4 h-full overflow-y-auto"
+          : "flex gap-4 p-4 h-full overflow-x-auto"
+        }>
           {filteredCards.length === 0 && filterQuery.trim() && (
             <div className="flex-1 flex items-center justify-center">
               <p className="text-gray-500 dark:text-gray-400">No cards match your filter</p>
             </div>
           )}
-          <SortableContext items={columnNames} strategy={horizontalListSortingStrategy}>
+          <SortableContext items={columnNames} strategy={isSlim ? verticalListSortingStrategy : horizontalListSortingStrategy}>
             {visibleColumns.map((column, index) => (
               <Column
                 key={column.name}
@@ -591,13 +692,17 @@ export default function Board({
                 overIndex={overColumn === column.name ? overIndex : null}
                 isDragging={activeColumn?.name === column.name}
                 onPanelHide={handlePanelHide}
+                onAdvanceCard={isSlim && index < board.columns.length - 1
+                  ? (cardId) => handleAdvanceCard(column.name, cardId)
+                  : undefined}
+                onCardContextMenu={isSlim ? handleCardContextMenu : undefined}
               />
             ))}
           </SortableContext>
 
           {/* Add Column Button/Form */}
           {onCreateColumn && !filterQuery.trim() && (
-            <div className="flex-1 min-w-64 max-w-sm">
+            <div className={isSlim ? "w-full" : "flex-1 min-w-64 max-w-sm"}>
               {isAddingColumn ? (
                 <form
                   ref={addColumnFormRef}
@@ -675,6 +780,18 @@ export default function Board({
           onChange={handlePanelFieldChange}
           anchorEl={panelTarget.anchorEl}
           onDismiss={handlePanelHide}
+        />
+      )}
+
+      {/* Context menu for moving cards (slim mode) */}
+      {contextMenu && (
+        <CardContextMenu
+          columns={board.columns}
+          currentColumn={contextMenu.cardColumn}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onMove={handleContextMenuMove}
+          onClose={() => setContextMenu(null)}
         />
       )}
 
