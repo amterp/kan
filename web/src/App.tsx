@@ -183,12 +183,17 @@ function BoardApp() {
         case 'up': {
           if (currentCardIdx > 0) {
             nextCardId = currentColumn.cards[currentCardIdx - 1].id;
+          } else if (isSlim && currentColIdx > 0) {
+            const prevColumn = filteredCardsByColumn[currentColIdx - 1];
+            nextCardId = prevColumn.cards[prevColumn.cards.length - 1].id;
           }
           break;
         }
         case 'down': {
           if (currentCardIdx < currentColumn.cards.length - 1) {
             nextCardId = currentColumn.cards[currentCardIdx + 1].id;
+          } else if (isSlim && currentColIdx < filteredCardsByColumn.length - 1) {
+            nextCardId = filteredCardsByColumn[currentColIdx + 1].cards[0].id;
           }
           break;
         }
