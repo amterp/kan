@@ -692,7 +692,7 @@ export default function Board({
                 overIndex={overColumn === column.name ? overIndex : null}
                 isDragging={activeColumn?.name === column.name}
                 onPanelHide={handlePanelHide}
-                onAdvanceCard={isSlim && index < board.columns.length - 1
+                onAdvanceCard={index < board.columns.length - 1
                   ? (cardId) => handleAdvanceCard(column.name, cardId)
                   : undefined}
                 onCardContextMenu={isSlim ? handleCardContextMenu : undefined}

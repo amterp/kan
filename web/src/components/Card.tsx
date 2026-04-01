@@ -160,8 +160,8 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
         </div>
       )}
 
-      {/* Advance button - shown on hover in slim mode */}
-      {isSlim && onAdvance && !showConfirm && (
+      {/* Advance button - shown on hover */}
+      {onAdvance && !showConfirm && (
         <button
           onClick={handleAdvanceClick}
           className={`absolute top-1 ${onDelete ? 'right-7' : 'right-1'} p-1 text-gray-300 dark:text-gray-500 hover:text-green-500 opacity-0 group-hover:opacity-100 transition-opacity`}
