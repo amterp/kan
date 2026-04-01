@@ -107,9 +107,8 @@ interface ColumnProps {
   // Floating panel props
   onPanelHide?: () => void;
   columnIndex: number;
-  // Slim mode props
   onAdvanceCard?: (cardId: string) => void;
-  onCardContextMenu?: (card: Card, e: React.MouseEvent) => void;
+  onCardContextMenu?: (card: Card, e: React.MouseEvent) => void; // slim mode only
 }
 
 export default function Column({
