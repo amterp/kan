@@ -908,7 +908,6 @@ The \`[card_display]\` section in your board config controls how custom fields a
 [card_display]
 type_indicator = "type"           # Shown as a colored badge
 badges = ["labels"]               # Shown as colored chips
-metadata = ["assignee"]           # Shown as small text
 \`\`\`
 
 ### Display Slots
@@ -917,7 +916,6 @@ metadata = ["assignee"]           # Shown as small text
 |------|-------------|-----------|
 | \`type_indicator\` | \`enum\` only | Colored badge (single value) |
 | \`badges\` | \`enum-set\`, \`free-set\` | Colored chips (multiple values) |
-| \`metadata\` | Any | Small text in card footer |
 
 Fields not assigned to a display slot are only visible in the card detail view.
 
@@ -929,7 +927,7 @@ Fields not assigned to a display slot are only visible in the card detail view.
 │ ┌─────────┐ ┌─────────┐ ┌────────┐ │
 │ │   bug   │ │ blocked │ │ urgent │ │  ← type_indicator + badges
 │ └─────────┘ └─────────┘ └────────┘ │
-│ assignee: sarah              📝 💬 │  ← metadata + system indicators
+│                              📝 💬 │  ← system indicators
 └────────────────────────────────────┘
 \`\`\`
 
@@ -1135,7 +1133,6 @@ Controls how custom fields appear on cards in the board view:
 [card_display]
 type_indicator = "type"      # enum field shown as badge
 badges = ["labels"]          # set fields shown as chips
-metadata = ["assignee"]      # any fields shown as text
 \`\`\`
 
 See [Custom Fields](/docs/custom-fields#card-display) for details on display slots.
