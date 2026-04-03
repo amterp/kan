@@ -274,7 +274,7 @@ func TestBoardConfig_ValidateCardDisplay(t *testing.T) {
 			wantWarnings: 1,
 		},
 		{
-			name: "badges references non-set field",
+			name: "badges references non-set/non-boolean field",
 			cfg: &BoardConfig{
 				CustomFields: map[string]CustomFieldSchema{
 					"labels": {Type: "enum"},
@@ -284,6 +284,31 @@ func TestBoardConfig_ValidateCardDisplay(t *testing.T) {
 				},
 			},
 			wantWarnings: 1,
+		},
+		{
+			name: "badges with boolean field is valid",
+			cfg: &BoardConfig{
+				CustomFields: map[string]CustomFieldSchema{
+					"blocked": {Type: "boolean"},
+				},
+				CardDisplay: CardDisplayConfig{
+					Badges: []string{"blocked"},
+				},
+			},
+			wantWarnings: 0,
+		},
+		{
+			name: "badges with mixed set and boolean fields is valid",
+			cfg: &BoardConfig{
+				CustomFields: map[string]CustomFieldSchema{
+					"labels":  {Type: "enum-set"},
+					"blocked": {Type: "boolean"},
+				},
+				CardDisplay: CardDisplayConfig{
+					Badges: []string{"labels", "blocked"},
+				},
+			},
+			wantWarnings: 0,
 		},
 		{
 			name: "metadata references non-existent field",

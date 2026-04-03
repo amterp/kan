@@ -1,7 +1,7 @@
 import type { BoardConfig, CustomFieldSchema } from '../api/types';
 import { useState } from 'react';
 import { FIELD_TYPE_ENUM, FIELD_TYPE_ENUM_SET, FIELD_TYPE_FREE_SET, FIELD_TYPE_STRING, FIELD_TYPE_DATE, FIELD_TYPE_BOOLEAN } from '../api/types';
-import { stringToColor } from '../utils/badgeColors';
+import { badgeColor } from '../utils/badgeColors';
 import FieldDescriptionTooltip from './FieldDescriptionTooltip';
 
 interface CustomFieldsEditorProps {
@@ -77,7 +77,7 @@ function FreeSetField({
             <span
               key={val}
               className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full text-white"
-              style={{ backgroundColor: stringToColor(val) }}
+              style={{ backgroundColor: badgeColor('free-set', fieldName, val) }}
             >
               {val}
               <button
@@ -203,9 +203,9 @@ export default function CustomFieldsEditor({
                         : 'text-white opacity-60 hover:opacity-80'
                     }`}
                     style={{
-                      backgroundColor: opt.color || stringToColor(opt.value),
+                      backgroundColor: opt.color || badgeColor('enum-set', fieldName, opt.value),
                       boxShadow: isSelected
-                        ? `0 0 0 2px white, 0 0 0 4px ${opt.color || stringToColor(opt.value)}`
+                        ? `0 0 0 2px white, 0 0 0 4px ${opt.color || badgeColor('enum-set', fieldName, opt.value)}`
                         : undefined,
                     }}
                   >

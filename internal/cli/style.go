@@ -150,6 +150,12 @@ var badgeColors = []string{
 	"#166534", "#1e40af", "#6b21a8", "#475569", "#9f1239",
 }
 
+// badgeColor returns a deterministic color for a badge, salted by field type and
+// name so that the same value in different fields won't share a color.
+func badgeColor(fieldType, fieldName, value string) string {
+	return stringToColor(fieldType + ":" + fieldName + ":" + value)
+}
+
 // stringToColor maps a string to a deterministic badge color using djb2 hash.
 // Port of web/src/utils/badgeColors.ts - uses int32 arithmetic to match JS | 0 truncation.
 func stringToColor(value string) string {
