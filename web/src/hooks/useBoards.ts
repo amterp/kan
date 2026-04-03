@@ -37,6 +37,15 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
   // Track pending local changes to avoid overwriting optimistic updates
   const pendingChangesRef = useRef<Set<string>>(new Set());
 
+  // Reset state when switching boards so stale data doesn't render
+  useEffect(() => {
+    setBoard(null);
+    setCards([]);
+    setError(null);
+    setLoading(!!boardName);
+    pendingChangesRef.current = new Set();
+  }, [boardName]);
+
   const refresh = useCallback(async () => {
     if (!boardName) return;
     setLoading(true);
@@ -100,6 +109,7 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
         listCards(boardName),
       ]);
       setBoard(boardData);
+      setError(null);
       // Merge fetched cards, but preserve any with pending local changes
       setCards((prev) => {
         const pendingIds = pendingChangesRef.current;
