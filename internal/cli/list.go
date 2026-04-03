@@ -149,6 +149,53 @@ func getTypeIndicatorValue(card *model.Card, boardCfg *model.BoardConfig) string
 	return ""
 }
 
+// getSetValues extracts string values from a set field (enum-set or free-set).
+func getSetValues(card *model.Card, fieldName string) []string {
+	val, ok := card.CustomFields[fieldName]
+	if !ok || val == nil {
+		return nil
+	}
+	switch v := val.(type) {
+	case []any:
+		result := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				result = append(result, s)
+			}
+		}
+		return result
+	case []string:
+		return v
+	default:
+		return nil
+	}
+}
+
+// renderBadges renders all badge values for a card as colored [value] tags.
+func renderBadges(card *model.Card, boardCfg *model.BoardConfig) string {
+	badgeFields := boardCfg.CardDisplay.Badges
+	if len(badgeFields) == 0 {
+		return ""
+	}
+	var parts []string
+	for _, fieldName := range badgeFields {
+		values := getSetValues(card, fieldName)
+		for _, val := range values {
+			color := boardCfg.GetOptionColor(fieldName, val)
+			if color == "" {
+				color = stringToColor(val)
+			}
+			if rendered := RenderTypeIndicator(val, color); rendered != "" {
+				parts = append(parts, rendered)
+			}
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "  " + strings.Join(parts, " ")
+}
+
 // calculateColumnWidths calculates the max widths for ID and type indicator columns.
 func calculateColumnWidths(cards []*model.Card, boardCfg *model.BoardConfig) cardColumnWidths {
 	widths := cardColumnWidths{}
@@ -188,5 +235,6 @@ func printCardLine(card *model.Card, boardCfg *model.BoardConfig, widths cardCol
 			typeIndicator = strings.Repeat(" ", widths.typeWidth) + "  "
 		}
 	}
-	fmt.Printf("  %s  %s%s\n", renderedID, typeIndicator, card.Title)
+	badges := renderBadges(card, boardCfg)
+	fmt.Printf("  %s  %s%s%s\n", renderedID, typeIndicator, card.Title, badges)
 }
