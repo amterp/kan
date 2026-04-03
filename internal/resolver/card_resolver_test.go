@@ -197,3 +197,92 @@ func TestCardResolver_Resolve_EmptyIDOrAlias(t *testing.T) {
 		t.Fatal("Expected error for empty idOrAlias")
 	}
 }
+
+// ============================================================================
+// ResolveAcrossBoards Tests
+// ============================================================================
+
+func TestCardResolver_ResolveAcrossBoards_FoundInOneBoard(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "abc123", Title: "Fix Bug"})
+	mockStore.addCard("feature", &model.Card{ID: "def456", Title: "New Feature"})
+
+	resolver := NewCardResolver(mockStore)
+
+	matches, err := resolver.ResolveAcrossBoards([]string{"main", "feature"}, "abc123")
+	if err != nil {
+		t.Fatalf("ResolveAcrossBoards failed: %v", err)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("Expected 1 match, got %d", len(matches))
+	}
+	if matches[0].BoardName != "main" {
+		t.Errorf("Expected board 'main', got %q", matches[0].BoardName)
+	}
+	if matches[0].Card.ID != "abc123" {
+		t.Errorf("Expected card ID 'abc123', got %q", matches[0].Card.ID)
+	}
+}
+
+func TestCardResolver_ResolveAcrossBoards_FoundInMultipleBoards(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "abc123", Title: "Main Bug"})
+	mockStore.addCard("feature", &model.Card{ID: "abc123", Title: "Feature Bug"})
+
+	resolver := NewCardResolver(mockStore)
+
+	matches, err := resolver.ResolveAcrossBoards([]string{"main", "feature"}, "abc123")
+	if err != nil {
+		t.Fatalf("ResolveAcrossBoards failed: %v", err)
+	}
+	if len(matches) != 2 {
+		t.Fatalf("Expected 2 matches, got %d", len(matches))
+	}
+}
+
+func TestCardResolver_ResolveAcrossBoards_NotFound(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "abc123", Title: "Fix Bug"})
+
+	resolver := NewCardResolver(mockStore)
+
+	matches, err := resolver.ResolveAcrossBoards([]string{"main", "feature"}, "nonexistent")
+	if err != nil {
+		t.Fatalf("ResolveAcrossBoards failed: %v", err)
+	}
+	if len(matches) != 0 {
+		t.Fatalf("Expected 0 matches, got %d", len(matches))
+	}
+}
+
+func TestCardResolver_ResolveAcrossBoards_ByAlias(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "abc123", Alias: "fix-bug", Title: "Fix Bug"})
+	mockStore.addCard("feature", &model.Card{ID: "def456", Alias: "new-feat", Title: "New Feature"})
+
+	resolver := NewCardResolver(mockStore)
+
+	matches, err := resolver.ResolveAcrossBoards([]string{"main", "feature"}, "fix-bug")
+	if err != nil {
+		t.Fatalf("ResolveAcrossBoards failed: %v", err)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("Expected 1 match, got %d", len(matches))
+	}
+	if matches[0].BoardName != "main" {
+		t.Errorf("Expected board 'main', got %q", matches[0].BoardName)
+	}
+}
+
+func TestCardResolver_ResolveAcrossBoards_EmptyBoardList(t *testing.T) {
+	mockStore := newMockCardStore()
+	resolver := NewCardResolver(mockStore)
+
+	matches, err := resolver.ResolveAcrossBoards([]string{}, "abc123")
+	if err != nil {
+		t.Fatalf("ResolveAcrossBoards failed: %v", err)
+	}
+	if len(matches) != 0 {
+		t.Fatalf("Expected 0 matches, got %d", len(matches))
+	}
+}

@@ -23,7 +23,7 @@ func TestCardJsonFieldSync(t *testing.T) {
 
 	// Fields that exist in cardJson but not in model.Card
 	cardJsonOnly := map[string]bool{
-		// Currently none - all cardJson fields should map to model.Card fields
+		"Board": true, // Set by CLI commands, not stored in card files
 	}
 
 	// Check that all model.Card fields are in cardJson (or explicitly excluded)

@@ -32,14 +32,16 @@ func runDelete(cardArg, board string, nonInteractive bool) {
 		Fatal(err)
 	}
 
-	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	// Resolve board and card together (with cross-board search)
+	result, err := app.ResolveCardWithBoard(board, cardArg, !nonInteractive)
 	if err != nil {
 		Fatal(err)
 	}
+	boardName := result.BoardName
+	card := result.Card
 
-	card, err := app.CardResolver.Resolve(boardName, cardArg)
-	if err != nil {
-		Fatal(err)
+	if result.CrossBoard {
+		PrintInfo("Found card in board %q", boardName)
 	}
 
 	if err := app.CardService.Delete(boardName, card.ID); err != nil {

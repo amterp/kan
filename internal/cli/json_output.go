@@ -26,6 +26,7 @@ type cardJson struct {
 	UpdatedAtMillis int64           `json:"updated_at_millis"`
 	Comments        []model.Comment `json:"comments,omitempty"`
 	Column          string          `json:"column,omitempty"`
+	Board           string          `json:"board,omitempty"`
 	CustomFields    map[string]any  `json:"-"` // Merged at top level like model.Card
 }
 
