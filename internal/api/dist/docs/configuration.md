@@ -155,7 +155,6 @@ Controls how custom fields appear on cards in the board view:
 [card_display]
 type_indicator = "type"      # enum field shown as badge
 badges = ["labels"]          # set fields shown as chips
-metadata = ["assignee"]      # any fields shown as text
 ```
 
 See [Custom Fields](/docs/custom-fields#card-display) for details on display slots.

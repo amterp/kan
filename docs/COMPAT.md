@@ -299,7 +299,7 @@ Booleans are stored as native JSON `true`/`false` in card files (not strings). I
 
 For "wanted" field checking, `false` is considered a valid explicit value (non-empty). Only unset/missing boolean fields trigger wanted warnings - this matches the semantics of "I looked at this and decided no" vs "nobody has evaluated this yet".
 
-Boolean fields are valid in `card_display.metadata` but not in `type_indicator` (enum only) or `badges` (set types only).
+Boolean fields are not valid in `type_indicator` (enum only) or `badges` (set types only). They are visible in the card detail view.
 
 **Migration**: board/8 -> board/9 only updates the schema version. The `boolean` type is a new option for the existing `type` field in custom field schemas.
 
