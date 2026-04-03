@@ -39,3 +39,9 @@ export function stringToColor(value: string): string {
   if (!value) return BADGE_COLORS[0];
   return BADGE_COLORS[hashString(value.toLowerCase()) % BADGE_COLORS.length];
 }
+
+/** Deterministic badge color salted by field type and name, so the same value
+ *  in different fields won't share a color. */
+export function badgeColor(fieldType: string, fieldName: string, value: string): string {
+  return stringToColor(fieldType + ':' + fieldName + ':' + value);
+}

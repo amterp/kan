@@ -79,7 +79,7 @@ type CustomFieldSchema struct {
 // CardDisplayConfig controls how custom fields render on cards in the board view.
 type CardDisplayConfig struct {
 	TypeIndicator string   `toml:"type_indicator,omitempty" json:"type_indicator,omitempty"` // enum field shown as badge
-	Badges        []string `toml:"badges,omitempty" json:"badges,omitempty"`                 // set fields shown as chips
+	Badges        []string `toml:"badges,omitempty" json:"badges,omitempty"`                 // set/boolean fields shown as chips
 	Metadata      []string `toml:"metadata,omitempty" json:"metadata,omitempty"`             // fields shown as small text
 }
 
@@ -440,13 +440,13 @@ func (b *BoardConfig) ValidateCardDisplay() []string {
 		}
 	}
 
-	// Validate badges reference set fields (enum-set or free-set)
+	// Validate badges reference set or boolean fields
 	for _, fieldName := range cd.Badges {
 		schema, exists := b.CustomFields[fieldName]
 		if !exists {
 			warnings = append(warnings, "card_display.badges references non-existent field: "+fieldName)
-		} else if schema.Type != FieldTypeEnumSet && schema.Type != FieldTypeFreeSet {
-			warnings = append(warnings, "card_display.badges should reference set fields (enum-set or free-set), but '"+fieldName+"' is type '"+schema.Type+"'")
+		} else if schema.Type != FieldTypeEnumSet && schema.Type != FieldTypeFreeSet && schema.Type != FieldTypeBoolean {
+			warnings = append(warnings, "card_display.badges should reference set or boolean fields (enum-set, free-set, or boolean), but '"+fieldName+"' is type '"+schema.Type+"'")
 		}
 	}
 

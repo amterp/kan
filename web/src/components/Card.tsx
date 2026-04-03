@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Card as CardType, BoardConfig, CustomFieldOption } from '../api/types';
+import { FIELD_TYPE_BOOLEAN } from '../api/types';
 import { parseTextWithLinks } from '../utils/linkParser';
-import { stringToColor } from '../utils/badgeColors';
+import { stringToColor, badgeColor } from '../utils/badgeColors';
 import { useCompactMode } from '../contexts/CompactModeContext';
 import { useSlimMode } from '../contexts/SlimModeContext';
 
@@ -208,14 +209,27 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
 
         // Add badge field values
         for (const fieldName of badgeFields) {
-          const values = getSetValues(card, fieldName);
-          for (const value of values) {
-            const option = getFieldOption(board, fieldName, value);
-            allBadges.push({
-              key: `${fieldName}-${value}`,
-              value,
-              color: option?.color || stringToColor(value),
-            });
+          const schema = board.custom_fields?.[fieldName];
+          if (!schema) continue;
+
+          if (schema.type === FIELD_TYPE_BOOLEAN) {
+            if (card[fieldName] === true) {
+              allBadges.push({
+                key: `bool-${fieldName}`,
+                value: fieldName,
+                color: badgeColor('boolean', fieldName, fieldName),
+              });
+            }
+          } else {
+            const values = getSetValues(card, fieldName);
+            for (const value of values) {
+              const option = getFieldOption(board, fieldName, value);
+              allBadges.push({
+                key: `${fieldName}-${value}`,
+                value,
+                color: option?.color || badgeColor(schema.type, fieldName, value),
+              });
+            }
           }
         }
 

@@ -72,8 +72,9 @@ When badges or chips are shown on cards, each value gets a color:
 - **Enum / enum-set options with a `color`** - the specified color is used as-is.
 - **Enum / enum-set options without a `color`** - a color is automatically assigned based on the value's text.
 - **Free-set values** - always auto-colored (no predefined options to attach colors to).
+- **Boolean fields** - auto-colored based on the field name when shown as a badge.
 
-Auto-assigned colors are deterministic and case-insensitive - "Bug" and "bug" will always get the same color. If you want to override an auto-assigned color for an enum or enum-set field, add an explicit `color` to the option in your board config.
+Auto-assigned colors are deterministic and case-insensitive - "Bug" and "bug" will always get the same color. The same value in different field types is not guaranteed to get the same color. If you want to override an auto-assigned color for an enum or enum-set field, add an explicit `color` to the option in your board config.
 
 ### Enum and Enum-set
 
@@ -125,7 +126,7 @@ Boolean fields are simple yes/no flags - no options needed:
 type = "boolean"
 ```
 
-In the CLI, set with `-f high_priority=true` or `-f high_priority=false`. Also accepts `yes`/`no` and `1`/`0` (case-insensitive). In the web UI, boolean fields render as toggle switches.
+In the CLI, set with `-f high_priority=true` or `-f high_priority=false`. Also accepts `yes`/`no` and `1`/`0` (case-insensitive). In the web UI, boolean fields render as toggle switches in the card detail view. When added to the `badges` display slot, a boolean field appears as a colored badge on the card when `true`, and is hidden when `false` or unset.
 
 ## Card Display
 
@@ -142,7 +143,7 @@ badges = ["labels"]               # Shown as colored chips
 | Slot | Field Types | Rendering |
 |------|-------------|-----------|
 | `type_indicator` | `enum` only | Colored badge (single value) |
-| `badges` | `enum-set`, `free-set` | Colored chips (multiple values) |
+| `badges` | `enum-set`, `free-set`, `boolean` | Colored chips (set values) or field name badge (boolean, shown when `true`) |
 
 Fields not assigned to a display slot are only visible in the card detail view.
 

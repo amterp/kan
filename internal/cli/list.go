@@ -179,14 +179,28 @@ func renderBadges(card *model.Card, boardCfg *model.BoardConfig) string {
 	}
 	var parts []string
 	for _, fieldName := range badgeFields {
-		values := getSetValues(card, fieldName)
-		for _, val := range values {
-			color := boardCfg.GetOptionColor(fieldName, val)
-			if color == "" {
-				color = stringToColor(val)
+		schema, exists := boardCfg.CustomFields[fieldName]
+		if !exists {
+			continue
+		}
+
+		if schema.Type == model.FieldTypeBoolean {
+			if b, ok := card.CustomFields[fieldName].(bool); ok && b {
+				color := badgeColor("boolean", fieldName, fieldName)
+				if rendered := RenderTypeIndicator(fieldName, color); rendered != "" {
+					parts = append(parts, rendered)
+				}
 			}
-			if rendered := RenderTypeIndicator(val, color); rendered != "" {
-				parts = append(parts, rendered)
+		} else {
+			values := getSetValues(card, fieldName)
+			for _, val := range values {
+				color := boardCfg.GetOptionColor(fieldName, val)
+				if color == "" {
+					color = badgeColor(schema.Type, fieldName, val)
+				}
+				if rendered := RenderTypeIndicator(val, color); rendered != "" {
+					parts = append(parts, rendered)
+				}
 			}
 		}
 	}
