@@ -221,10 +221,12 @@ type CardResolution struct {
 // a card ID/alias. When no board is specified and there are fewer than
 // MaxBoardsForCrossSearch boards, searches across all boards automatically.
 func (a *App) ResolveCardWithBoard(explicitBoard, idOrAlias string, interactive bool) (*CardResolution, error) {
-	// Try standard board resolution first (explicit flag, single board, default_board).
-	// Always non-interactive here - we only want the "free" inferences.
-	boardName, err := a.BoardResolver.Resolve(explicitBoard, false)
-	if err == nil {
+	// 1. If explicit board flag provided, use it strictly - no fallback.
+	if explicitBoard != "" {
+		boardName, err := a.BoardResolver.Resolve(explicitBoard, false)
+		if err != nil {
+			return nil, err
+		}
 		card, cardErr := a.CardResolver.Resolve(boardName, idOrAlias)
 		if cardErr != nil {
 			return nil, cardErr
@@ -233,7 +235,23 @@ func (a *App) ResolveCardWithBoard(explicitBoard, idOrAlias string, interactive 
 		return &CardResolution{Card: card, BoardName: boardName, MultipleBoards: multipleBoards}, nil
 	}
 
-	// Standard resolution failed - check if we should try cross-board search
+	// 2. Try non-interactive inference (single board, default_board).
+	boardName, err := a.BoardResolver.Resolve("", false)
+	if err == nil {
+		card, cardErr := a.CardResolver.Resolve(boardName, idOrAlias)
+		if cardErr == nil {
+			multipleBoards := a.hasMultipleBoards()
+			return &CardResolution{Card: card, BoardName: boardName, MultipleBoards: multipleBoards}, nil
+		}
+		// Card not found on the inferred board. If there are multiple boards,
+		// fall through to cross-board search rather than failing - the inferred
+		// board is a convenience default, not an explicit user choice.
+		if !kanerr.IsNotFound(cardErr) {
+			return nil, cardErr
+		}
+	}
+
+	// 3. Inference failed or card wasn't on the inferred board - try cross-board search
 	boards, listErr := a.BoardStore.List()
 	if listErr != nil {
 		return nil, listErr
