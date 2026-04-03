@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -139,4 +140,31 @@ func LabelValue(label, value string, labelWidth int) string {
 		Align(lipgloss.Right).
 		Foreground(ColorMuted)
 	return fmt.Sprintf("%s %s", labelStyle.Render(label+":"), value)
+}
+
+// Badge color palette - matches web/src/utils/badgeColors.ts for CLI/web parity.
+var badgeColors = []string{
+	"#2563eb", "#dc2626", "#047857", "#c2410c", "#9333ea",
+	"#db2777", "#0e7490", "#a16207", "#4f46e5", "#4d7c0f",
+	"#c026d3", "#0f766e", "#e11d48", "#991b1b", "#92400e",
+	"#166534", "#1e40af", "#6b21a8", "#475569", "#9f1239",
+}
+
+// stringToColor maps a string to a deterministic badge color using djb2 hash.
+// Port of web/src/utils/badgeColors.ts - uses int32 arithmetic to match JS | 0 truncation.
+func stringToColor(value string) string {
+	if value == "" {
+		return badgeColors[0]
+	}
+	lower := strings.ToLower(value)
+	var hash int32 = 5381
+	for _, c := range lower {
+		hash = (hash << 5) + hash + int32(c)
+	}
+	// Match JS Math.abs() - use int64 to safely negate int32 min value
+	idx := int64(hash)
+	if idx < 0 {
+		idx = -idx
+	}
+	return badgeColors[idx%int64(len(badgeColors))]
 }
