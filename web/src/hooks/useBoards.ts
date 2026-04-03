@@ -37,8 +37,12 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
   // Track pending local changes to avoid overwriting optimistic updates
   const pendingChangesRef = useRef<Set<string>>(new Set());
 
+  // Version counter to discard stale fetch responses after board/project switches
+  const fetchVersionRef = useRef(0);
+
   // Reset state when switching boards so stale data doesn't render
   useEffect(() => {
+    fetchVersionRef.current += 1;
     setBoard(null);
     setCards([]);
     setError(null);
@@ -48,19 +52,24 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
 
   const refresh = useCallback(async () => {
     if (!boardName) return;
+    const version = ++fetchVersionRef.current;
     setLoading(true);
     try {
       const [boardData, cardsData] = await Promise.all([
         getBoard(boardName),
         listCards(boardName),
       ]);
+      if (fetchVersionRef.current !== version) return;
       setBoard(boardData);
       setCards(cardsData);
       setError(null);
     } catch (e) {
+      if (fetchVersionRef.current !== version) return;
       setError(e instanceof Error ? e.message : 'Failed to load board');
     } finally {
-      setLoading(false);
+      if (fetchVersionRef.current === version) {
+        setLoading(false);
+      }
     }
   }, [boardName]);
 
@@ -103,11 +112,13 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
     // Board config changed - refresh both board AND cards
     // Cards need refresh because their column assignments come from board config
     if (!boardName) return;
+    const version = ++fetchVersionRef.current;
     try {
       const [boardData, cardsData] = await Promise.all([
         getBoard(boardName),
         listCards(boardName),
       ]);
+      if (fetchVersionRef.current !== version) return;
       setBoard(boardData);
       setError(null);
       // Merge fetched cards, but preserve any with pending local changes
@@ -122,6 +133,7 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
         return [...freshCards, ...pendingCards];
       });
     } catch (err) {
+      if (fetchVersionRef.current !== version) return;
       console.warn('Failed to refresh board:', err);
     }
   }, [boardName]);
