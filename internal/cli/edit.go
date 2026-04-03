@@ -100,16 +100,16 @@ func runEdit(idOrAlias, board string, title, description, column string,
 		Fatal(err)
 	}
 
-	// Resolve board (allow interactive only if not in non-interactive mode)
-	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	// Resolve board and card together (with cross-board search)
+	result, err := app.ResolveCardWithBoard(board, idOrAlias, !nonInteractive)
 	if err != nil {
 		Fatal(err)
 	}
+	boardName := result.BoardName
+	card := result.Card
 
-	// Resolve card
-	card, err := app.CardResolver.Resolve(boardName, idOrAlias)
-	if err != nil {
-		Fatal(err)
+	if result.CrossBoard && !jsonOutput {
+		PrintInfo("Found card in board %q", boardName)
 	}
 
 	// Get board config for column/label options
@@ -186,7 +186,9 @@ func runEditNonInteractive(app *App, boardName string, card *model.Card, boardCf
 	missingWanted := service.CheckWantedFields(updatedCard, boardCfg)
 
 	if jsonOutput {
-		if err := printJson(NewCardOutput(updatedCard)); err != nil {
+		output := NewCardOutput(updatedCard)
+		output.Card.Board = boardName
+		if err := printJson(output); err != nil {
 			Fatal(err)
 		}
 		return

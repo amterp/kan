@@ -6,6 +6,17 @@ import (
 	"github.com/amterp/kan/internal/store"
 )
 
+// MaxBoardsForCrossSearch is the maximum number of boards to search across
+// when no board is specified. Beyond this, the user must specify a board
+// explicitly or set a default. Keeps lookups fast in repos with many boards.
+const MaxBoardsForCrossSearch = 10
+
+// CrossBoardMatch holds the result of resolving a card across multiple boards.
+type CrossBoardMatch struct {
+	Card      *model.Card
+	BoardName string
+}
+
 // CardResolver handles card ID and alias resolution.
 type CardResolver struct {
 	cardStore store.CardStore
@@ -36,4 +47,21 @@ func (r *CardResolver) Resolve(boardName, idOrAlias string) (*model.Card, error)
 		return nil, kanerr.CardNotFound(idOrAlias)
 	}
 	return nil, err
+}
+
+// ResolveAcrossBoards searches for a card by ID or alias across multiple boards.
+// Returns all matches found. Callers decide how to handle 0, 1, or N results.
+func (r *CardResolver) ResolveAcrossBoards(boards []string, idOrAlias string) ([]CrossBoardMatch, error) {
+	var matches []CrossBoardMatch
+	for _, board := range boards {
+		card, err := r.Resolve(board, idOrAlias)
+		if err != nil {
+			if kanerr.IsNotFound(err) {
+				continue
+			}
+			return nil, err
+		}
+		matches = append(matches, CrossBoardMatch{Card: card, BoardName: board})
+	}
+	return matches, nil
 }

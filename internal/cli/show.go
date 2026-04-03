@@ -39,17 +39,15 @@ func runShow(idOrAlias, board string, jsonOutput bool) {
 		Fatal(err)
 	}
 
-	// Resolve board
-	boardName, err := app.BoardResolver.Resolve(board, true)
+	// Resolve board and card together (with cross-board search)
+	result, err := app.ResolveCardWithBoard(board, idOrAlias, true)
 	if err != nil {
 		Fatal(err)
 	}
+	boardName := result.BoardName
+	card := result.Card
 
-	// Resolve card
-	card, err := app.CardResolver.Resolve(boardName, idOrAlias)
-	if err != nil {
-		Fatal(err)
-	}
+	// Don't print CrossBoard info for show - the Board field in card output covers it
 
 	// Get column from board config (not stored in card file)
 	boardCfg, err := app.BoardService.Get(boardName)
@@ -59,7 +57,9 @@ func runShow(idOrAlias, board string, jsonOutput bool) {
 	card.Column = boardCfg.GetCardColumn(card.ID)
 
 	if jsonOutput {
-		if err := printJson(NewCardOutput(card)); err != nil {
+		output := NewCardOutput(card)
+		output.Card.Board = boardName
+		if err := printJson(output); err != nil {
 			Fatal(err)
 		}
 		return
@@ -73,10 +73,10 @@ func runShow(idOrAlias, board string, jsonOutput bool) {
 			break
 		}
 	}
-	printCard(card, colColor)
+	printCard(card, colColor, boardName, result.MultipleBoards)
 }
 
-func printCard(card *model.Card, colColor string) {
+func printCard(card *model.Card, colColor, boardName string, multipleBoards bool) {
 	const labelWidth = 10
 
 	// Title box
@@ -85,6 +85,9 @@ func printCard(card *model.Card, colColor string) {
 
 	// Card details with aligned labels
 	fmt.Println(LabelValue("ID", RenderID(card.ID), labelWidth))
+	if multipleBoards {
+		fmt.Println(LabelValue("Board", boardName, labelWidth))
+	}
 	fmt.Println(LabelValue("Alias", card.Alias, labelWidth))
 	fmt.Println(LabelValue("Column", RenderColumnColor(card.Column, colColor), labelWidth))
 

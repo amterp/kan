@@ -90,10 +90,16 @@ func runCommentAdd(card, body, board string, nonInteractive, jsonOutput bool) {
 		Fatal(err)
 	}
 
-	// Resolve board
-	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	// Resolve board and card together (with cross-board search)
+	result, err := app.ResolveCardWithBoard(board, card, !nonInteractive)
 	if err != nil {
 		Fatal(err)
+	}
+	boardName := result.BoardName
+	card = result.Card.ID
+
+	if result.CrossBoard && !jsonOutput {
+		PrintInfo("Found card in board %q", boardName)
 	}
 
 	// Get author
