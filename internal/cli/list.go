@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/amterp/kan/internal/model"
@@ -59,20 +58,6 @@ func runList(board, column string, jsonOutput bool) {
 	if err != nil {
 		Fatal(err)
 	}
-
-	// Sort cards by column order, then by created_at
-	columnOrder := make(map[string]int)
-	for i, col := range boardCfg.Columns {
-		columnOrder[col.Name] = i
-	}
-
-	sort.Slice(cards, func(i, j int) bool {
-		ci, cj := cards[i], cards[j]
-		if ci.Column != cj.Column {
-			return columnOrder[ci.Column] < columnOrder[cj.Column]
-		}
-		return ci.CreatedAtMillis < cj.CreatedAtMillis
-	})
 
 	if jsonOutput {
 		if err := printJson(NewListOutput(cards)); err != nil {
