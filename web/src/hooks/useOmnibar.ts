@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import { BOARD_PREFIX } from './omnibarConstants';
+import { BOARD_PREFIX, THEME_PREFIX } from './omnibarConstants';
 
-export type OmnibarMode = 'cards' | 'boards';
+export type OmnibarMode = 'cards' | 'boards' | 'themes';
 
 interface UseOmnibarReturn {
   isOpen: boolean;
@@ -26,6 +26,8 @@ export function useOmnibar(): UseOmnibarReturn {
     setIsOpen(true);
     if (m === 'boards') {
       setQueryState(BOARD_PREFIX);
+    } else if (m === 'themes') {
+      setQueryState(THEME_PREFIX);
     } else {
       setQueryState('');
     }
@@ -40,11 +42,15 @@ export function useOmnibar(): UseOmnibarReturn {
   }, []);
 
   const setQuery = useCallback((q: string) => {
-    // Auto-switch mode based on /board prefix
+    // Auto-switch mode based on command prefix
     if (q.startsWith(BOARD_PREFIX) && mode !== 'boards') {
       setMode('boards');
     } else if (!q.startsWith(BOARD_PREFIX) && mode === 'boards') {
-      // User deleted the prefix, switch back to cards mode
+      setMode('cards');
+    }
+    if (q.startsWith(THEME_PREFIX) && mode !== 'themes') {
+      setMode('themes');
+    } else if (!q.startsWith(THEME_PREFIX) && mode === 'themes') {
       setMode('cards');
     }
     setQueryState(q);

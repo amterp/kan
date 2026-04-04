@@ -2,6 +2,9 @@
 // Shared between useOmnibar (mode detection) and useBoardSwitcher (query parsing).
 export const BOARD_PREFIX = '/board ';
 
+// Slash-command prefix that triggers theme-switching mode in the omnibar.
+export const THEME_PREFIX = '/theme ';
+
 // Slash-command that toggles compact view mode.
 export const COMPACT_COMMAND = '/compact';
 
@@ -25,4 +28,5 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { command: '/board', description: 'Switch to another board', insertsIntoInput: true },
   { command: '/compact', description: 'Toggle compact view', insertsIntoInput: false },
   { command: '/slim', description: 'Toggle slim view (vertical columns)', insertsIntoInput: false },
+  { command: '/theme', description: 'Switch theme', insertsIntoInput: true },
 ];
