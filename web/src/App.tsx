@@ -4,6 +4,7 @@ import { useBoards, useBoard } from './hooks/useBoards';
 import { useOmnibar } from './hooks/useOmnibar';
 import { useBoardSwitcher } from './hooks/useBoardSwitcher';
 import { useSlashCommandAutocomplete } from './hooks/useSlashCommandAutocomplete';
+import { useThemeSwitcher } from './hooks/useThemeSwitcher';
 import { COMPACT_COMMAND, SLIM_COMMAND } from './hooks/omnibarConstants';
 import type { SlashCommand } from './hooks/omnibarConstants';
 import { useProject, usePageTitle, useFavicon } from './hooks/useProject';
@@ -83,6 +84,9 @@ function BoardApp() {
   // Slash command autocomplete
   const slashAutocomplete = useSlashCommandAutocomplete(omnibar.query);
 
+  // Theme switcher
+  const themeSwitcher = useThemeSwitcher(omnibar.query, omnibar.isOpen && omnibar.mode === 'themes');
+
   // Execute slash commands that run immediately (insertsIntoInput: false).
   // Prefix commands like /board are handled separately by inserting into the input.
   const executeSlashCommand = useCallback((cmd: SlashCommand) => {
@@ -103,7 +107,7 @@ function BoardApp() {
 
   // Compute filtered cards for navigation
   const filteredCards = useMemo(() => {
-    if (!board || !omnibar.query.trim() || omnibar.mode === 'boards' || slashAutocomplete.isActive) return cards;
+    if (!board || !omnibar.query.trim() || omnibar.mode === 'boards' || omnibar.mode === 'themes' || slashAutocomplete.isActive) return cards;
     return cards.filter((card) => cardMatchesQuery(card, omnibar.query.trim(), board));
   }, [cards, omnibar.query, omnibar.mode, board, slashAutocomplete.isActive]);
 
@@ -140,6 +144,15 @@ function BoardApp() {
           slashAutocomplete.moveHighlight(-1);
         } else if (direction === 'down') {
           slashAutocomplete.moveHighlight(1);
+        }
+        return;
+      }
+
+      if (omnibar.mode === 'themes') {
+        if (direction === 'up') {
+          themeSwitcher.moveHighlight(-1);
+        } else if (direction === 'down') {
+          themeSwitcher.moveHighlight(1);
         }
         return;
       }
@@ -222,7 +235,7 @@ function BoardApp() {
         omnibar.setHighlightedCardId(nextCardId);
       }
     },
-    [filteredCardsByColumn, omnibar, boardSwitcher, slashAutocomplete, isSlim]
+    [filteredCardsByColumn, omnibar, boardSwitcher, themeSwitcher, slashAutocomplete, isSlim]
   );
 
   // Handle Enter to select
@@ -232,6 +245,13 @@ function BoardApp() {
       const selected = slashAutocomplete.filteredCommands[slashAutocomplete.highlightedIndex];
       if (selected) {
         executeSlashCommand(selected);
+      }
+      return;
+    }
+
+    if (omnibar.mode === 'themes') {
+      if (themeSwitcher.selectHighlighted()) {
+        omnibar.close();
       }
       return;
     }
@@ -294,6 +314,13 @@ function BoardApp() {
       // Error is handled by the switcher hook
     }
   }, [boardSwitcher, omnibar, setBoard, setProjectPath]);
+
+  // Handle clicking a theme option in the list
+  const handleThemeSelect = useCallback((index: number) => {
+    if (themeSwitcher.selectByIndex(index)) {
+      omnibar.close();
+    }
+  }, [themeSwitcher, omnibar]);
 
   // Handle clicking a slash command suggestion
   const handleSlashCommandSelect = useCallback((index: number) => {
@@ -506,6 +533,9 @@ function BoardApp() {
           boardLoading={boardSwitcher.loading}
           boardError={boardSwitcher.fetchError || boardSwitcher.switchError}
           boardDisplayLabel={boardSwitcher.displayLabel}
+          themeOptions={themeSwitcher.filteredOptions}
+          themeHighlightedIndex={themeSwitcher.highlightedIndex}
+          themeCurrentTheme={themeSwitcher.currentTheme}
           slashCommands={slashAutocomplete.filteredCommands}
           slashHighlightedIndex={slashAutocomplete.highlightedIndex}
           slashAutocompleteActive={slashAutocomplete.isActive}
@@ -514,6 +544,7 @@ function BoardApp() {
           onSelect={handleSelect}
           onClose={omnibar.close}
           onBoardSelect={handleBoardSelect}
+          onThemeSelect={handleThemeSelect}
           onSlashCommandSelect={handleSlashCommandSelect}
         />
       )}

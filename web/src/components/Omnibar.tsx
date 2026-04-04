@@ -3,6 +3,8 @@ import type { OmnibarMode } from '../hooks/useOmnibar';
 import type { BoardEntry, SkippedProject } from '../api/types';
 import type { SlashCommand } from '../hooks/omnibarConstants';
 import { COMPACT_COMMAND } from '../hooks/omnibarConstants';
+import type { Theme } from '../contexts/ThemeContext';
+import type { ThemeOption } from '../hooks/useThemeSwitcher';
 
 export type NavigationDirection = 'up' | 'down' | 'left' | 'right';
 
@@ -152,6 +154,62 @@ function CommandSuggestions({ commands, highlightedIndex, onSelect }: CommandSug
   );
 }
 
+interface ThemesListProps {
+  options: ThemeOption[];
+  highlightedIndex: number;
+  currentTheme: Theme;
+  onSelect: (index: number) => void;
+}
+
+function ThemesList({ options, highlightedIndex, currentTheme, onSelect }: ThemesListProps) {
+  const highlightedRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (highlightedRef.current) {
+      highlightedRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [highlightedIndex]);
+
+  if (options.length === 0) {
+    return (
+      <div className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400">
+        No matching themes
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-1">
+      {options.map((opt, idx) => {
+        const isCurrent = opt.value === currentTheme;
+        const isHighlighted = idx === highlightedIndex;
+        return (
+          <div
+            key={opt.value}
+            ref={isHighlighted ? highlightedRef : undefined}
+            onClick={() => onSelect(idx)}
+            className={`px-4 py-2 cursor-pointer flex items-center gap-2 transition-colors ${
+              isCurrent ? 'border-l-4 border-blue-500 dark:border-blue-400 pl-3' : 'border-l-4 border-transparent'
+            } ${
+              isHighlighted
+                ? 'bg-blue-50 dark:bg-blue-900/30'
+                : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+            }`}
+          >
+            <span className={`text-sm flex-1 ${
+              isHighlighted
+                ? 'text-blue-700 dark:text-blue-300 font-medium'
+                : 'text-gray-700 dark:text-gray-300'
+            }`}>
+              {opt.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 interface OmnibarProps {
   mode: OmnibarMode;
   query: string;
@@ -168,6 +226,10 @@ interface OmnibarProps {
   boardLoading?: boolean;
   boardError?: string | null;
   boardDisplayLabel?: (entry: BoardEntry) => string;
+  // Theme mode props
+  themeOptions?: ThemeOption[];
+  themeHighlightedIndex?: number;
+  themeCurrentTheme?: Theme;
   // Slash command autocomplete props
   slashCommands?: SlashCommand[];
   slashHighlightedIndex?: number;
@@ -177,6 +239,7 @@ interface OmnibarProps {
   onSelect: () => void;
   onClose: () => void;
   onBoardSelect?: (index: number) => void;
+  onThemeSelect?: (index: number) => void;
   onSlashCommandSelect?: (index: number) => void;
 }
 
@@ -195,6 +258,9 @@ export default function Omnibar({
   boardLoading = false,
   boardError = null,
   boardDisplayLabel,
+  themeOptions = [],
+  themeHighlightedIndex = 0,
+  themeCurrentTheme = 'system',
   slashCommands = [],
   slashHighlightedIndex = 0,
   slashAutocompleteActive = false,
@@ -203,6 +269,7 @@ export default function Omnibar({
   onSelect,
   onClose,
   onBoardSelect,
+  onThemeSelect,
   onSlashCommandSelect,
 }: OmnibarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -271,15 +338,19 @@ export default function Omnibar({
 
   const placeholder = mode === 'boards'
     ? 'Switch board...'
-    : 'Search cards or type / for commands...';
+    : mode === 'themes'
+      ? 'Switch theme...'
+      : 'Search cards or type / for commands...';
   const isCompactCommand = query.trim().toLowerCase() === COMPACT_COMMAND;
   const statusText = slashAutocompleteActive
     ? (slashCommands.length > 0 ? 'Select command · ↵' : 'No matching commands')
     : isCompactCommand
       ? 'Toggle compact view · ↵'
-      : mode === 'boards'
-        ? `${boardEntries.length} board${boardEntries.length !== 1 ? 's' : ''}`
-        : `${matchCount} of ${totalCount} cards${hasHighlight && !isModalOpen ? ' · ↵ to open' : ''}`;
+      : mode === 'themes'
+        ? (themeOptions.length > 0 ? 'Select theme · ↵' : 'No matching themes')
+        : mode === 'boards'
+          ? `${boardEntries.length} board${boardEntries.length !== 1 ? 's' : ''}`
+          : `${matchCount} of ${totalCount} cards${hasHighlight && !isModalOpen ? ' · ↵ to open' : ''}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center pb-16 pointer-events-none">
@@ -309,6 +380,18 @@ export default function Omnibar({
               error={boardError}
               displayLabel={boardDisplayLabel || ((e) => `${e.project_name} - ${e.board_name}`)}
               onSelect={(idx) => onBoardSelect?.(idx)}
+            />
+          </div>
+        )}
+
+        {/* Theme options list (renders above the bar) */}
+        {mode === 'themes' && !slashAutocompleteActive && (
+          <div className="w-full animate-omnibar-enter bg-white/95 backdrop-blur-sm dark:bg-gray-800/95 rounded-xl ring-1 ring-black/10 dark:ring-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.25)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] overflow-hidden">
+            <ThemesList
+              options={themeOptions}
+              highlightedIndex={themeHighlightedIndex}
+              currentTheme={themeCurrentTheme}
+              onSelect={(idx) => onThemeSelect?.(idx)}
             />
           </div>
         )}
