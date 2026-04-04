@@ -121,7 +121,14 @@ export function useBoardSwitcher(query: string, isActive: boolean): UseBoardSwit
     });
   }, [boards, query]);
 
-  // Reset highlight when filtered results change
+  // Reset highlight to second row (first non-current board) when switcher opens
+  useEffect(() => {
+    if (isActive) {
+      setHighlightedIndex(filteredBoards.length > 1 ? 1 : 0);
+    }
+  }, [isActive]);
+
+  // Reset highlight when filtered results change (e.g. typing a filter)
   useEffect(() => {
     setHighlightedIndex(0);
   }, [filteredBoards.length]);
