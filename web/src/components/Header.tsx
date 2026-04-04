@@ -1,6 +1,7 @@
 import ThemeToggle from './ThemeToggle';
 import CompactToggle from './CompactToggle';
 import SlimToggle from './SlimToggle';
+import { useSlimMode } from '../contexts/SlimModeContext';
 
 interface SyncStatus {
   connected: boolean;
@@ -17,12 +18,13 @@ interface HeaderProps {
   syncStatus?: SyncStatus;
 }
 
-function SyncIndicator({ status }: { status: SyncStatus }) {
+function SyncIndicator({ status, alwaysShowLabel }: { status: SyncStatus; alwaysShowLabel?: boolean }) {
+  const labelClass = alwaysShowLabel ? '' : 'hidden sm:inline';
   if (status.connected) {
     return (
       <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400" title="Live sync active">
         <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-        <span className="hidden sm:inline">Live</span>
+        <span className={labelClass}>Live</span>
       </div>
     );
   }
@@ -30,7 +32,7 @@ function SyncIndicator({ status }: { status: SyncStatus }) {
     return (
       <div className="flex items-center gap-1.5 text-xs text-yellow-600 dark:text-yellow-400" title="Reconnecting...">
         <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
-        <span className="hidden sm:inline">Reconnecting</span>
+        <span className={labelClass}>Reconnecting</span>
       </div>
     );
   }
@@ -38,7 +40,7 @@ function SyncIndicator({ status }: { status: SyncStatus }) {
     return (
       <div className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400" title="Live sync disconnected. Click refresh to update.">
         <span className="w-2 h-2 bg-red-500 rounded-full" />
-        <span className="hidden sm:inline">Disconnected</span>
+        <span className={labelClass}>Disconnected</span>
       </div>
     );
   }
@@ -46,6 +48,7 @@ function SyncIndicator({ status }: { status: SyncStatus }) {
 }
 
 export default function Header({ boards, selectedBoard, onSelectBoard, onRefresh, onNewCard, syncStatus }: HeaderProps) {
+  const { isSlim } = useSlimMode();
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -67,7 +70,7 @@ export default function Header({ boards, selectedBoard, onSelectBoard, onRefresh
         {boards.length === 1 && (
           <span className="text-gray-600 dark:text-gray-400">{boards[0]}</span>
         )}
-        {onNewCard && (
+        {!isSlim && onNewCard && (
           <button
             onClick={onNewCard}
             className="flex items-center gap-1 text-sm text-white bg-blue-500 hover:bg-blue-600 px-3 py-1.5 rounded-md"
@@ -80,18 +83,20 @@ export default function Header({ boards, selectedBoard, onSelectBoard, onRefresh
         )}
       </div>
       <div className="flex items-center gap-2">
-        {syncStatus && <SyncIndicator status={syncStatus} />}
-        <a
-          href="/docs"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-        >
-          Docs
-        </a>
-        <CompactToggle />
+        {syncStatus && <SyncIndicator status={syncStatus} alwaysShowLabel={isSlim} />}
+        {!isSlim && (
+          <a
+            href="/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          >
+            Docs
+          </a>
+        )}
+        {!isSlim && <CompactToggle />}
         <SlimToggle />
-        <ThemeToggle />
+        {!isSlim && <ThemeToggle />}
         <button
           onClick={onRefresh}
           className="text-gray-500 hover:text-gray-700 p-2 rounded-md hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
