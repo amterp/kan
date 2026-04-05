@@ -57,6 +57,11 @@ func runMigrate(dryRun bool) {
 		return
 	}
 
+	// Refuse to migrate data from a newer Kan version (would downgrade)
+	if err := plan.FutureVersionError(); err != nil {
+		Fatal(err)
+	}
+
 	if dryRun {
 		fmt.Println(RenderBold("Migration plan (dry run):"))
 		fmt.Println()
@@ -224,6 +229,13 @@ func migrateGlobalOnce(dryRun bool) {
 	}
 
 	plan := &service.MigrationPlan{GlobalConfig: globalPlan}
+
+	// Refuse to migrate data from a newer Kan version (would corrupt)
+	if err := plan.FutureVersionError(); err != nil {
+		PrintWarning("Global config: %v", err)
+		return
+	}
+
 	if dryRun {
 		fmt.Println(RenderBold("Global config (dry run):"))
 		_ = svc.Execute(plan, true)
@@ -257,6 +269,12 @@ func migrateProject(proj projectEntry, dryRun bool, nonInteractive bool, prompte
 	if !plan.HasChanges() {
 		fmt.Printf("\n%s: %s\n", header, RenderMuted("up to date"))
 		return outcomeUpToDate
+	}
+
+	// Refuse to migrate data from a newer Kan version (would downgrade)
+	if err := plan.FutureVersionError(); err != nil {
+		PrintWarning("Skipping %q - %v", proj.name, err)
+		return outcomeFailed
 	}
 
 	// Print what would change.

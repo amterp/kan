@@ -113,3 +113,28 @@ func ParseProjectVersion(schema string) (int, error) {
 func CurrentProjectSchema() string {
 	return FormatProjectSchema(CurrentProjectVersion)
 }
+
+// IsFutureBoardSchema returns true if schema represents a board version
+// newer than this binary supports.
+func IsFutureBoardSchema(schema string) bool {
+	v, err := ParseBoardVersion(schema)
+	if err != nil {
+		return false
+	}
+	return v > CurrentBoardVersion
+}
+
+// IsFutureGlobalSchema returns true if schema represents a global version
+// newer than this binary supports.
+func IsFutureGlobalSchema(schema string) bool {
+	v, err := ParseGlobalVersion(schema)
+	if err != nil {
+		return false
+	}
+	return v > CurrentGlobalVersion
+}
+
+// IsFutureCardVersion returns true if v is newer than this binary supports.
+func IsFutureCardVersion(v int) bool {
+	return v > CurrentCardVersion
+}
