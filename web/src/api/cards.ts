@@ -31,6 +31,10 @@ export async function deleteCard(board: string, id: string): Promise<void> {
   await api.delete<void>(`/boards/${encodeURIComponent(board)}/cards/${encodeURIComponent(id)}`);
 }
 
+export async function restoreCard(board: string, card: Card, column: string, position: number): Promise<Card> {
+  return api.post<Card>(`/boards/${encodeURIComponent(board)}/cards/restore`, { card, column, position });
+}
+
 // Comment operations
 
 export async function createComment(board: string, cardId: string, body: string): Promise<Comment> {

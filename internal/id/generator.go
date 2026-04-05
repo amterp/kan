@@ -12,10 +12,15 @@
 package id
 
 import (
+	"regexp"
 	"time"
 
 	fid "github.com/amterp/flexid"
 )
+
+// validIDPattern matches IDs that are safe for use as filenames.
+// Allows alphanumeric chars, underscores, and hyphens. No path separators.
+var validIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
 // Entity represents a type of entity that can have a generated ID.
 // Used to assign human-friendly prefixes—see package doc for caveats.
@@ -54,4 +59,10 @@ func init() {
 // Generate returns a new unique ID for the given entity type.
 func Generate(entity Entity) string {
 	return prefixes[entity] + generator.MustGenerate()
+}
+
+// IsValidID checks that an ID string is safe for use as a filename.
+// Rejects path traversal attempts and other dangerous characters.
+func IsValidID(id string) bool {
+	return len(id) > 0 && len(id) <= 100 && validIDPattern.MatchString(id)
 }

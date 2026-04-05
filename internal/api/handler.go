@@ -193,6 +193,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/v1/boards/{board}/cards/{id}", h.UpdateCard)
 	mux.HandleFunc("DELETE /api/v1/boards/{board}/cards/{id}", h.DeleteCard)
 	mux.HandleFunc("PATCH /api/v1/boards/{board}/cards/{id}/move", h.MoveCard)
+	mux.HandleFunc("POST /api/v1/boards/{board}/cards/restore", h.RestoreCard)
 
 	// Comment routes
 	mux.HandleFunc("POST /api/v1/boards/{board}/cards/{id}/comments", h.CreateComment)
@@ -507,6 +508,52 @@ func (h *Handler) DeleteCard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// RestoreCardRequest is the JSON body for restoring a deleted card.
+type RestoreCardRequest struct {
+	Card     json.RawMessage `json:"card"`     // Full card JSON (preserves ID, alias, timestamps, etc.)
+	Column   string          `json:"column"`   // Column to restore into
+	Position int             `json:"position"` // Position within the column
+}
+
+// RestoreCard re-creates a previously deleted card from a full snapshot.
+func (h *Handler) RestoreCard(w http.ResponseWriter, r *http.Request) {
+	boardName := r.PathValue("board")
+
+	var req RestoreCardRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		BadRequest(w, "invalid JSON body")
+		return
+	}
+
+	if req.Column == "" {
+		BadRequest(w, "column is required")
+		return
+	}
+
+	// Unmarshal the card from the raw JSON
+	var card model.Card
+	if err := json.Unmarshal(req.Card, &card); err != nil {
+		BadRequest(w, "invalid card JSON: "+err.Error())
+		return
+	}
+
+	if card.ID == "" {
+		BadRequest(w, "card must have an id")
+		return
+	}
+
+	if err := h.ctx().CardService.Restore(boardName, &card, req.Column, req.Position); err != nil {
+		Error(w, err)
+		return
+	}
+
+	// Populate column for response
+	card.Column = req.Column
+
+	boardCfg, _ := h.ctx().BoardStore.Get(boardName)
+	JSON(w, http.StatusCreated, toCardResponseWithWanted(&card, boardCfg))
 }
 
 // MoveCardRequest is the JSON body for moving a card.

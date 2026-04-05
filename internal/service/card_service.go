@@ -466,6 +466,58 @@ func (s *CardService) Delete(boardName, cardID string) error {
 	return s.boardStore.Update(boardCfg)
 }
 
+// Restore re-creates a previously deleted card from a full snapshot.
+// The card is written to disk as-is (preserving ID, alias, timestamps, etc.)
+// and inserted into the specified column at the given position.
+// If the original alias is taken, a new alias is generated.
+func (s *CardService) Restore(boardName string, card *model.Card, column string, position int) error {
+	// Validate card ID looks reasonable (prevent path traversal)
+	if !id.IsValidID(card.ID) {
+		return fmt.Errorf("invalid card ID: %s", card.ID)
+	}
+
+	// Validate board exists
+	boardCfg, err := s.boardStore.Get(boardName)
+	if err != nil {
+		return err
+	}
+
+	// Validate column exists
+	if !boardCfg.HasColumn(column) {
+		return kanerr.ColumnNotFound(column, boardName)
+	}
+
+	// Check column limit
+	col := boardCfg.GetColumn(column)
+	if col.IsAtLimit() {
+		return kanerr.ColumnLimitExceeded(column, col.Limit)
+	}
+
+	// Check that no card with this ID already exists
+	if _, err := s.cardStore.Get(boardName, card.ID); err == nil {
+		return fmt.Errorf("card %s already exists", card.ID)
+	}
+
+	// Check alias availability - regenerate if taken by another card
+	if !s.aliasService.IsAliasAvailable(boardName, card.Alias, card.ID) {
+		alias, err := s.aliasService.GenerateAlias(boardName, card.Title, card.ID)
+		if err != nil {
+			return err
+		}
+		card.Alias = alias
+		card.AliasExplicit = false
+	}
+
+	// Write card file
+	if err := s.cardStore.Create(boardName, card); err != nil {
+		return err
+	}
+
+	// Insert into column at position
+	boardCfg.InsertCardInColumn(card.ID, column, position)
+	return s.boardStore.Update(boardCfg)
+}
+
 // isValidOption checks if a value exists in the options list.
 func isValidOption(options []model.CustomFieldOption, value string) bool {
 	for _, opt := range options {

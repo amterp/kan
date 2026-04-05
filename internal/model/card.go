@@ -88,6 +88,9 @@ func (c *Card) UnmarshalJSON(data []byte) error {
 		"parent": true, "creator": true,
 		"created_at_millis": true, "updated_at_millis": true,
 		"comments": true,
+		// These are computed/API-only fields that may appear in JSON from
+		// external sources (e.g. restore endpoint) but aren't custom fields.
+		"column": true, "missing_wanted_fields": true,
 	}
 
 	c.CustomFields = make(map[string]any)
