@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Card as CardType, BoardConfig, CustomFieldOption } from '../api/types';
@@ -45,7 +44,6 @@ function getSetValues(card: CardType, fieldName: string): string[] {
 export default function Card({ card, board, isDragging = false, isPlaceholder = false, isHighlighted = false, onClick, onDelete, onAdvance, onContextMenu }: CardProps) {
   const { isCompact } = useCompactMode();
   const { isSlim } = useSlimMode();
-  const [showConfirm, setShowConfirm] = useState(false);
   const {
     attributes,
     listeners,
@@ -72,8 +70,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
   const badgeFields = board.card_display?.badges || [];
 
   const handleClick = () => {
-    // Don't trigger click if we're dragging or confirming delete
-    if (!isDragging && !isSortableDragging && !showConfirm && onClick) {
+    if (!isDragging && !isSortableDragging && onClick) {
       onClick();
     }
   };
@@ -93,18 +90,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setShowConfirm(true);
-  };
-
-  const handleConfirmDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
     onDelete?.();
-    setShowConfirm(false);
-  };
-
-  const handleCancelDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowConfirm(false);
   };
 
   // Render as dashed placeholder when being dragged
@@ -140,35 +126,8 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
         isDragging ? 'shadow-lg rotate-2' : ''
       } ${isHighlighted ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-200 dark:ring-offset-gray-800' : ''}`}
     >
-      {/* Delete confirmation overlay */}
-      {showConfirm && (
-        <div className="absolute inset-0 bg-white dark:bg-gray-700 rounded-lg flex items-center justify-between px-3 gap-2 z-10">
-          <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-nowrap">Delete this card?</p>
-          <div className="flex gap-1.5 flex-shrink-0">
-            <button
-              onClick={handleConfirmDelete}
-              className="px-1.5 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-              title="Confirm delete"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </button>
-            <button
-              onClick={handleCancelDelete}
-              className="px-1.5 py-1 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded"
-              title="Cancel"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Advance button - shown on hover */}
-      {onAdvance && !showConfirm && (
+      {onAdvance && (
         <button
           onClick={handleAdvanceClick}
           className={`absolute top-1 ${onDelete ? 'right-7' : 'right-1'} p-1 text-gray-300 dark:text-gray-500 hover:text-green-500 opacity-0 group-hover:opacity-100 transition-opacity`}
@@ -181,10 +140,10 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       )}
 
       {/* Trash icon - shown on hover */}
-      {onDelete && !showConfirm && (
+      {onDelete && (
         <button
           onClick={handleDeleteClick}
-          className="absolute top-1 right-1 p-1 text-gray-300 dark:text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute top-1 right-1 p-1 rounded text-gray-300 dark:text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 opacity-0 group-hover:opacity-100 transition-all"
           title="Delete card"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

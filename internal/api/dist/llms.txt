@@ -13,4 +13,4 @@ Kan manages kanban boards using plain files in a `.kan/` directory. It includes 
 - [Custom Fields](/docs/custom-fields.md): Field Types, Defining Fields, Card Display, Setting Fields via CLI, Default Configuration, Reserved Names
 - [Editing Cards](/docs/editing.md): Keyboard Shortcuts, Supported Markdown, My Card
 - [Link Rules](/docs/link-rules.md): Configuration, Pattern Syntax, URL Template Placeholders, How Matches Work, Troubleshooting
-- [Keyboard Shortcuts](/docs/shortcuts.md): Quick Search (Omnibar), View Modes, Board, Card Creation, Card Editor
+- [Keyboard Shortcuts](/docs/shortcuts.md): Quick Search (Omnibar), View Modes, Board, Card Creation, Undo, Card Editor

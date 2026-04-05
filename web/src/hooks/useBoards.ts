@@ -288,6 +288,19 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
     }
   }, [boardName, refresh]);
 
+  const addCardToState = useCallback((card: Card) => {
+    pendingChangesRef.current.add(card.id);
+    setCards((prev) => {
+      const existing = prev.find((c) => c.id === card.id);
+      if (existing) {
+        return prev.map((c) => (c.id === card.id ? card : c));
+      }
+      return [...prev, card];
+    });
+    // Clear pending after a short delay to let WebSocket settle
+    setTimeout(() => pendingChangesRef.current.delete(card.id), 2000);
+  }, []);
+
   // Column operations
 
   const createColumn = useCallback(async (input: CreateColumnInput) => {
@@ -385,6 +398,7 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
     createCard,
     updateCard,
     deleteCard,
+    addCardToState,
     createColumn,
     deleteColumn,
     updateColumn,

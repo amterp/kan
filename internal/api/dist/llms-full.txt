@@ -1293,6 +1293,20 @@ When typing in the new card input:
 
 The **field panel** is a compact popup that appears next to your newly created card, letting you quickly set custom fields (like type, priority, tags) without opening the full modal.
 
+## Undo
+
+Press **⌘Z** to undo recent actions. The last 20 actions are tracked.
+
+| Action | What Undo Does |
+|--------|----------------|
+| Card move (drag-and-drop, advance, context menu) | Moves card back to its previous column and position |
+| Card delete (inline or modal) | Restores the card with all its original data |
+| Card field edit (title, description, custom fields) | Reverts changed fields to their previous values |
+
+Undo is aware of external changes. If another process (e.g. the CLI) modifies a card that's on the undo stack, undo will skip stale operations and show a notification rather than overwriting the external change.
+
+The undo stack is cleared when you switch boards or when the board's column/field schema changes externally.
+
 ## Card Editor
 
 When editing a card's description:

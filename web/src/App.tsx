@@ -18,8 +18,11 @@ import Omnibar, { type NavigationDirection } from './components/Omnibar';
 import DocsPage from './pages/DocsPage';
 import { switchProject } from './api/projects';
 import type { UpdateCardInput } from './api/types';
+import { restoreCard as apiRestoreCard } from './api/cards';
+import { useUndo } from './hooks/useUndo';
 import { useCompactMode } from './contexts/CompactModeContext';
 import { useSlimMode } from './contexts/SlimModeContext';
+import { useToast } from './contexts/ToastContext';
 
 
 function BoardApp() {
@@ -35,6 +38,7 @@ function BoardApp() {
     createCard,
     updateCard,
     deleteCard,
+    addCardToState,
     createColumn,
     deleteColumn,
     updateColumn,
@@ -46,6 +50,18 @@ function BoardApp() {
   } = useBoard(boardName, refreshKey);
   const [newlyCreatedCardId, setNewlyCreatedCardId] = useState<string | null>(null);
   const omnibar = useOmnibar();
+  const { showToast } = useToast();
+
+  const { pushUndo } = useUndo({
+    boardName,
+    cards,
+    board,
+    moveCard,
+    updateCard,
+    restoreCard: apiRestoreCard,
+    addCardToState,
+    showToast,
+  });
   const { toggleCompact, setProjectPath } = useCompactMode();
   const { isSlim, toggleSlim } = useSlimMode();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -418,17 +434,68 @@ function BoardApp() {
   // resolve, which handles the URL update via closeCard.
   const handleSaveModalCard = useCallback(async (updates: UpdateCardInput) => {
     if (modalCard) {
+      // Compute per-field diffs for undo (capture before the async call)
+      const fieldChanges: Record<string, { from: unknown; to: unknown }> = {};
+      if (updates.title !== undefined && updates.title !== modalCard.title) {
+        fieldChanges.title = { from: modalCard.title, to: updates.title };
+      }
+      if (updates.description !== undefined && (updates.description || '') !== (modalCard.description || '')) {
+        fieldChanges.description = { from: modalCard.description || '', to: updates.description };
+      }
+      if (updates.column !== undefined && updates.column !== modalCard.column) {
+        fieldChanges.column = { from: modalCard.column, to: updates.column };
+      }
+      if (updates.custom_fields) {
+        for (const [key, apiValue] of Object.entries(updates.custom_fields)) {
+          const current = modalCard[key];
+          // Normalize API-format values back to card format for undo
+          // comparison. The modal converts booleans to strings ("true")
+          // and sets to comma-separated strings for the API, but cards
+          // store native types. Without this, staleness checks would
+          // always see a type mismatch and skip the undo.
+          const fieldType = board?.custom_fields?.[key]?.type;
+          let cardValue: unknown = apiValue;
+          if (fieldType === 'boolean' && typeof apiValue === 'string') {
+            cardValue = apiValue === 'true';
+          } else if ((fieldType === 'enum-set' || fieldType === 'free-set') && typeof apiValue === 'string') {
+            cardValue = apiValue === '' ? [] : apiValue.split(',');
+          }
+          if (JSON.stringify(current) !== JSON.stringify(cardValue)) {
+            fieldChanges[key] = { from: current, to: cardValue };
+          }
+        }
+      }
+
       await updateCard(modalCard.id, updates);
       setNewlyCreatedCardId(null);
+
+      // Push undo only after success
+      if (Object.keys(fieldChanges).length > 0) {
+        pushUndo({ type: 'edit', cardId: modalCard.id, fieldChanges });
+      }
     }
-  }, [modalCard, updateCard]);
+  }, [modalCard, board, updateCard, pushUndo]);
 
   const handleDeleteModalCard = useCallback(async () => {
     if (modalCard) {
+      // Capture undo data before deletion (need position info while card exists)
+      const columnCards = cards.filter((c) => c.column === modalCard.column);
+      const position = columnCards.findIndex((c) => c.id === modalCard.id);
+      const undoAction = {
+        type: 'delete' as const,
+        card: { ...modalCard },
+        column: modalCard.column,
+        position: position >= 0 ? position : 0,
+      };
+
       setNewlyCreatedCardId(null);
       await deleteCard(modalCard.id);
+
+      // Push undo only after successful delete
+      pushUndo(undoAction);
+      showToast('info', 'Card deleted \u2013 Cmd+Z to undo');
     }
-  }, [modalCard, deleteCard]);
+  }, [modalCard, cards, deleteCard, pushUndo, showToast]);
 
   if (boardsLoading) {
     return (
@@ -493,6 +560,7 @@ function BoardApp() {
             onCreateCard={createCard}
             onUpdateCard={updateCard}
             onDeleteCard={deleteCard}
+            onPushUndo={pushUndo}
             onCreateColumn={createColumn}
             onDeleteColumn={deleteColumn}
             onUpdateColumn={updateColumn}

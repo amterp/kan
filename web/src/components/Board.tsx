@@ -3,6 +3,7 @@ import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@
 import type { DragEndEvent, DragStartEvent, DragOverEvent, CollisionDetection, DroppableContainer } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import type { BoardConfig, Card, Column as ColumnType, CreateCardInput, CreateCardResponse, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
+import type { UndoAction } from '../hooks/useUndo';
 import { cardMatchesQuery } from '../utils/fuzzyMatch';
 import { toApiFieldValue } from '../utils/customFields';
 import { BoardConfigProvider } from '../contexts/BoardConfigContext';
@@ -35,6 +36,7 @@ interface BoardProps {
   onUpdateColumn?: (columnName: string, updates: UpdateColumnInput) => Promise<unknown>;
   onReorderColumns?: (columns: string[]) => Promise<void>;
   onOpenCard: (cardId: string, focusDescription?: boolean) => void;
+  onPushUndo?: (action: UndoAction) => void;
   isOmnibarOpen?: boolean;
   isCardModalOpen?: boolean;
 }
@@ -53,6 +55,7 @@ export default function Board({
   onUpdateColumn,
   onReorderColumns,
   onOpenCard,
+  onPushUndo,
   isOmnibarOpen = false,
   isCardModalOpen = false,
 }: BoardProps) {
@@ -376,8 +379,20 @@ export default function Board({
       }
     }
 
+    // Capture position data before the move (optimistic update changes it)
+    const fromColumnCards = allCardsByColumn[draggedCard.column] || [];
+    const fromPosition = Math.max(0, fromColumnCards.findIndex((c) => c.id === activeId));
+
     try {
       await onMoveCard(activeId, targetColumn, position);
+      // Push undo only after successful move
+      onPushUndo?.({
+        type: 'move',
+        cardId: activeId,
+        fromColumn: draggedCard.column,
+        fromPosition,
+        toColumn: targetColumn,
+      });
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to move card';
       showToast('error', message);
@@ -511,13 +526,24 @@ export default function Board({
       }
     }
 
+    // Capture position before the move
+    const fromColumnCards = allCardsByColumn[columnName] || [];
+    const fromPosition = Math.max(0, fromColumnCards.findIndex((c) => c.id === cardId));
+
     try {
       await onMoveCard(cardId, nextColumn.name, 0);
+      onPushUndo?.({
+        type: 'move',
+        cardId,
+        fromColumn: columnName,
+        fromPosition,
+        toColumn: nextColumn.name,
+      });
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to advance card';
       showToast('error', message);
     }
-  }, [board.columns, allCardsByColumn, onMoveCard, showToast]);
+  }, [board.columns, allCardsByColumn, onMoveCard, onPushUndo, showToast]);
 
   // Context menu state for slim mode
   const [contextMenu, setContextMenu] = useState<{
@@ -526,6 +552,30 @@ export default function Board({
     x: number;
     y: number;
   } | null>(null);
+
+  // Wrap onDeleteCard to capture undo data and show toast
+  const handleDeleteCard = useCallback(async (cardId: string) => {
+    // Capture position info while card still exists in state
+    const card = cards.find((c) => c.id === cardId);
+    const undoData = card ? {
+      type: 'delete' as const,
+      card: { ...card },
+      column: card.column,
+      position: Math.max(0, (allCardsByColumn[card.column] || []).findIndex((c) => c.id === cardId)),
+    } : null;
+
+    try {
+      await onDeleteCard(cardId);
+      // Push undo only after successful delete
+      if (undoData && onPushUndo) {
+        onPushUndo(undoData);
+      }
+      showToast('info', 'Card deleted \u2013 Cmd+Z to undo');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to delete card';
+      showToast('error', message);
+    }
+  }, [cards, allCardsByColumn, onDeleteCard, onPushUndo, showToast]);
 
   const handleCardContextMenu = useCallback((card: Card, e: React.MouseEvent) => {
     setContextMenu({
@@ -554,14 +604,25 @@ export default function Board({
       }
     }
 
+    // Capture position before the move
+    const fromColumnCards = allCardsByColumn[contextMenu.cardColumn] || [];
+    const fromPosition = Math.max(0, fromColumnCards.findIndex((c) => c.id === contextMenu.cardId));
+
     try {
       await onMoveCard(contextMenu.cardId, columnName);
+      onPushUndo?.({
+        type: 'move',
+        cardId: contextMenu.cardId,
+        fromColumn: contextMenu.cardColumn,
+        fromPosition,
+        toColumn: columnName,
+      });
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to move card';
       showToast('error', message);
     }
     setContextMenu(null);
-  }, [contextMenu, board.columns, allCardsByColumn, onMoveCard, showToast]);
+  }, [contextMenu, board.columns, allCardsByColumn, onMoveCard, onPushUndo, showToast]);
 
   // Clear debounce timer when panel target changes (switching cards or dismissing)
   useEffect(() => {
@@ -681,7 +742,7 @@ export default function Board({
                 onCancelAddCard={() => setAddingToColumn(null)}
                 onAddCard={(title, openModal, keepFormOpen, showPanel) => handleAddCard(column.name, title, openModal, keepFormOpen, showPanel)}
                 onCardClick={handleCardClick}
-                onDeleteCard={onDeleteCard}
+                onDeleteCard={handleDeleteCard}
                 onDeleteColumn={onDeleteColumn}
                 onUpdateColumn={onUpdateColumn}
                 isEditingName={editingColumnName === column.name}
