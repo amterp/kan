@@ -58,6 +58,7 @@ function BoardApp() {
     board,
     moveCard,
     updateCard,
+    deleteCard,
     restoreCard: apiRestoreCard,
     addCardToState,
     showToast,

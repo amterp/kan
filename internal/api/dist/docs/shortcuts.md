@@ -73,7 +73,7 @@ The **field panel** is a compact popup that appears next to your newly created c
 
 ## Undo
 
-Press **⌘Z** to undo recent actions. The last 20 actions are tracked.
+Press **⌘Z** to undo and **⇧⌘Z** to redo. The last 20 actions are tracked.
 
 | Action | What Undo Does |
 |--------|----------------|
@@ -81,9 +81,11 @@ Press **⌘Z** to undo recent actions. The last 20 actions are tracked.
 | Card delete (inline or modal) | Restores the card with all its original data |
 | Card field edit (title, description, custom fields) | Reverts changed fields to their previous values |
 
-Undo is aware of external changes. If another process (e.g. the CLI) modifies a card that's on the undo stack, undo will skip stale operations and show a notification rather than overwriting the external change.
+Performing a new action after undoing clears the redo history (standard undo/redo behavior).
 
-The undo stack is cleared when you switch boards or when the board's column/field schema changes externally.
+Undo and redo are aware of external changes. If another process (e.g. the CLI) modifies a card that's on the stack, the operation will be skipped with a notification rather than overwriting the external change.
+
+The undo/redo stacks are cleared when you switch boards or when the board's column/field schema changes externally.
 
 ## Card Editor
 

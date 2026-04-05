@@ -392,6 +392,7 @@ export default function Board({
         fromColumn: draggedCard.column,
         fromPosition,
         toColumn: targetColumn,
+        toPosition: position,
       });
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to move card';
@@ -538,6 +539,7 @@ export default function Board({
         fromColumn: columnName,
         fromPosition,
         toColumn: nextColumn.name,
+        toPosition: 0,
       });
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to advance card';
