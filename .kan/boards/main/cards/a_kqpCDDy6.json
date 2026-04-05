@@ -1,10 +1,12 @@
 {
-  "_v": 1,
+  "_v": 2,
   "alias": "shortcuts-for-moving",
   "alias_explicit": false,
+  "column": "backlog-hi",
   "created_at_millis": 1774148613160,
   "creator": "Alexander Terp",
   "id": "a_kqpCDDy6",
+  "position": "4i",
   "title": "shortcuts for moving cards around",
   "type": "feature",
   "updated_at_millis": 1774148613281

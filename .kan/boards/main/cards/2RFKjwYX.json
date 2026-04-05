@@ -1,7 +1,8 @@
 {
-  "_v": 1,
+  "_v": 2,
   "alias": "add-favicon",
   "alias_explicit": false,
+  "column": "done",
   "comments": [
     {
       "author": "Alexander Terp",
@@ -26,6 +27,7 @@
   "created_at_millis": 1767586064736,
   "creator": "Alexander Terp",
   "id": "2RFKjwYX",
+  "position": "YH",
   "title": "Add favicon",
   "type": "chore",
   "updated_at_millis": 1768098749759

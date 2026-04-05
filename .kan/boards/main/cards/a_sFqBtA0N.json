@@ -1,0 +1,14 @@
+{
+  "_v": 2,
+  "alias": "remove-metadata-from",
+  "alias_explicit": false,
+  "column": "done",
+  "created_at_millis": 1775242576955,
+  "creator": "Alexander Terp",
+  "description": "The metadata display slot is documented in custom-fields.md and configuration.md (and thus llms-full.txt) as a working feature, but no rendering code exists for it. This led to a bug report from someone who configured it based on the LLM docs.\n\nStrip all metadata references from user-facing docs. Leave the Go struct field and validation code in place (inert) for potential future use.\n\nFiles to update:\n- web/src/docs/custom-fields.md\n- web/src/docs/configuration.md\n- docs/COMPAT.md\n- Regenerate internal/api/dist/",
+  "id": "a_sFqBtA0N",
+  "position": "!u",
+  "title": "Remove metadata from card_display docs",
+  "type": "chore",
+  "updated_at_millis": 1775242585194
+}

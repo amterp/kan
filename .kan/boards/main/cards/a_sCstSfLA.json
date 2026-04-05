@@ -1,0 +1,22 @@
+{
+  "_v": 2,
+  "alias": "cmd-e-for-recent",
+  "alias_explicit": false,
+  "column": "done",
+  "comments": [
+    {
+      "author": "Alexander Terp",
+      "body": "Cmd+P is already kind of this, not doing",
+      "created_at_millis": 1775423334020,
+      "id": "c_tTgVe3dm",
+      "updated_at_millis": 1775423340462
+    }
+  ],
+  "created_at_millis": 1775235530973,
+  "creator": "Alexander Terp",
+  "id": "a_sCstSfLA",
+  "position": "!6",
+  "title": "Cmd+E for recent boards",
+  "type": "feature",
+  "updated_at_millis": 1775423346076
+}

@@ -1,11 +1,13 @@
 {
-  "_v": 1,
+  "_v": 2,
   "alias": "parents-epics",
   "alias_explicit": false,
+  "column": "backlog-lo",
   "created_at_millis": 1767763257283,
   "creator": "Alexander Terp",
   "description": "test",
   "id": "3dav9GZU",
+  "position": "7N",
   "title": "parents/epics",
   "type": "feature",
   "updated_at_millis": 1770519259854

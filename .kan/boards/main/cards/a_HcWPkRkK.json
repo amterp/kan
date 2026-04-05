@@ -1,10 +1,12 @@
 {
-  "_v": 1,
+  "_v": 2,
   "alias": "update-dependencies",
   "alias_explicit": false,
+  "column": "done",
   "created_at_millis": 1769829387805,
   "creator": "Alexander Terp",
   "id": "a_HcWPkRkK",
+  "position": "xc",
   "title": "Update dependencies",
   "type": "chore",
   "updated_at_millis": 1769829387858

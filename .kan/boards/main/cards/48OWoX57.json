@@ -1,10 +1,12 @@
 {
-  "_v": 1,
+  "_v": 2,
   "alias": "omnibar-filter-should-not-2",
   "alias_explicit": false,
+  "column": "done",
   "created_at_millis": 1767836662590,
   "creator": "Alexander Terp",
   "id": "48OWoX57",
+  "position": "fW",
   "title": "omnibar filter should not hide columns",
   "type": "enhancement",
   "updated_at_millis": 1767836668403

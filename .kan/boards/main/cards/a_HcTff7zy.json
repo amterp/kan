@@ -1,10 +1,12 @@
 {
-  "_v": 1,
-  "id": "a_HcTff7zy",
+  "_v": 2,
   "alias": "another-test-bug",
   "alias_explicit": false,
-  "title": "Another test !bug",
-  "creator": "Alexander Terp",
+  "column": "done",
   "created_at_millis": 1769829282355,
+  "creator": "Alexander Terp",
+  "id": "a_HcTff7zy",
+  "position": "uu",
+  "title": "Another test !bug",
   "updated_at_millis": 1769829282355
 }

@@ -1,10 +1,12 @@
 {
-  "_v": 1,
+  "_v": 2,
   "alias": "boolean-custom-field",
   "alias_explicit": false,
+  "column": "done",
   "created_at_millis": 1774134382583,
   "creator": "Alexander Terp",
   "id": "a_kkqzfROI",
+  "position": "6E",
   "title": "boolean custom field type",
   "type": "feature",
   "updated_at_millis": 1774134382679

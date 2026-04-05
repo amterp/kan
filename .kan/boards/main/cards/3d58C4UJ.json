@@ -1,10 +1,12 @@
 {
-  "_v": 1,
+  "_v": 2,
   "alias": "allow-re-naming-columns-2",
   "alias_explicit": false,
+  "column": "done",
   "created_at_millis": 1767762035291,
   "creator": "Alexander Terp",
   "id": "3d58C4UJ",
+  "position": "di",
   "title": "allow re-naming columns",
   "type": "feature",
   "updated_at_millis": 1767762040095

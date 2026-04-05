@@ -1,11 +1,13 @@
 {
-  "_v": 1,
+  "_v": 2,
   "alias": "erroneous-card-select-w-omni-2",
   "alias_explicit": false,
+  "column": "backlog-lo",
   "created_at_millis": 1767846535663,
   "creator": "Alexander Terp",
   "description": "two scenarios spotted\n\nif i filter cards down with omnibar:\n\n1. highlight a card\n2. click another card\n3. press cmd + enter to close that card\n\nthen the highlighted card comes up at the same time as the other one opens. Not desired.\n\nI don't think cmd + enter should ever bring up a card.\n\nthe other scenario is, after filtering, you use a + New Card button, type a title in, and press enter, then the highlighted card comes up",
   "id": "4CXN7HhS",
+  "position": "vf",
   "title": "erroneous card select w/ omni filter",
   "type": "bug",
   "updated_at_millis": 1767925530660

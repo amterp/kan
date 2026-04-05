@@ -1,10 +1,12 @@
 {
-  "_v": 1,
+  "_v": 2,
   "alias": "url-to-open-specific-ticket-2",
   "alias_explicit": false,
+  "column": "done",
   "created_at_millis": 1767586053397,
   "creator": "Alexander Terp",
   "id": "2RF2RcyA",
+  "position": "Al",
   "title": "url to open specific ticket",
   "type": "feature",
   "updated_at_millis": 1767586091563

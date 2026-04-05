@@ -1,10 +1,12 @@
 {
-  "_v": 1,
+  "_v": 2,
   "alias": "updating-tags-on-cards",
   "alias_explicit": false,
+  "column": "backlog-hi",
   "created_at_millis": 1767586031512,
   "creator": "Alexander Terp",
   "id": "2RET9h3a",
+  "position": "XH",
   "title": "Updating tags on cards generates new slug",
   "type": "bug",
   "updated_at_millis": 1767586031512

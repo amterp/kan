@@ -1,0 +1,14 @@
+{
+  "_v": 2,
+  "alias": "render-badges-in-cli",
+  "alias_explicit": false,
+  "column": "done",
+  "created_at_millis": 1775242580088,
+  "creator": "Alexander Terp",
+  "description": "The badges display slot (for enum-set and free-set fields) renders in the web UI but not in kan list CLI output. Currently only type_indicator renders in CLI.\n\nAdd badge rendering to printCardLine in internal/cli/list.go so CLI users see badge values as colored bracketed tags, similar to how type_indicator renders.\n\nKey files:\n- internal/cli/list.go (printCardLine, calculateColumnWidths)\n- internal/cli/style.go (may need StringToColor Go port for free-set colors)\n- internal/model/board.go (GetOptionColor for enum-set colors)\n\nPrompted by a bug report where someone expected boolean fields to show as badges. Booleans aren't valid in badges (only set types), but the reporter's underlying need was 'see field values on cards in CLI' - which badges would partially address.",
+  "id": "a_sFqH2XI4",
+  "position": "!D",
+  "title": "Render badges in CLI kan list output",
+  "type": "feature",
+  "updated_at_millis": 1775423277623
+}

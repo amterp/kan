@@ -1,74 +1,69 @@
-kan_schema = "board/9"
-id = "2R9nzEvz"
-name = "main"
 default_column = "backlog-hi"
-
-[[columns]]
-  name = "backlog-lo"
-  color = "#9333ea"
-  description = "Lower priority backlog items"
-  limit = 0
-  card_ids = ["3dav9GZU", "4CUbhFTJ", "a_6NhrwFOp", "2REAnxC6", "2RESVvds", "2RF0aoHq", "2RR0gW1U", "2RMKzF8A", "32mUefF1", "a_6OLXA9WA", "a_EX5Arv9h", "4CXN7HhS", "4CWvz4xq"]
-
-[[columns]]
-  name = "backlog-hi"
-  color = "#6b7280"
-  description = "Higher priority items ready to be picked up soon"
-  limit = 10
-  card_ids = ["3cIruBkr", "3cJmN0qU", "48AVDad4", "2REBgzSK", "2RESoTin", "2RET9h3a", "2RF25n0b", "a_6NPbhW3o", "a_BlWLznge"]
-
-[[columns]]
-  name = "next"
-  color = "#3b82f6"
-  description = "This is a much longer description that might wrap across multiple lines and we need to see how it renders in the terminal output to ensure it doesn't cause formatting issues"
-  limit = 5
-  card_ids = ["a_M3nVUL08", "a_kkQOY0pR", "a_kqpCDDy6", "a_pCUjoCcC"]
-
-[[columns]]
-  name = "in-progress"
-  color = "#f59e0b"
-  description = "Currently being worked on"
-  limit = 5
-  card_ids = ["a_cZjBKkSX"]
-
-[[columns]]
-  name = "done"
-  color = "#10b981"
-  description = "Completed and shipped"
-  limit = 0
-  card_ids = ["a_pBUazX4s", "a_onhAsNwM", "a_okJ17LVu", "a_m0G6Ac79", "a_kkD2xgbm", "a_kltO6nZU", "a_kkqzfROI", "a_Masvk7xn", "a_MbhCPG31", "a_dn9ofAUy", "a_cXM0d3aV", "2RF2RcyA", "a_M40WdBIG", "a_M3hjtzpG", "a_M3pA7DaC", "2RF1gl2S", "a_M3dl6TO8", "a_M3lWFtkU", "a_LiGvcqcw", "a_LiGp4vb9", "a_LiGhaUrK", "32odHmOO", "a_GRVDsj80", "a_HdaxCfGq", "a_EYZAQKps", "a_6NBw2rbK", "a_HdqWkJY6", "2RERa5et", "2REB6NLa", "3c900E57", "48O31Ctb", "a_DnJXCAIr", "a_6NrXm5Ky", "a_6NqOp49M", "a_6NpX7nrE", "4CP22Hzt", "a_6Nfme0TU", "2RFKjwYX", "a_8o62zhUu", "a_8o1jyZN8", "5utsN5st", "3cKIYh0p", "3d1MfWZS", "3d58C4UJ", "48P2Qpfg", "48OWoX57", "2RESD2LM", "48NdHhpT", "2REATGIR", "32uFMcPs", "2RdBBLnA", "2RF195UV", "2RERulDq", "2REA5mCQ", "2RFLL8mC", "2RFLeA3b", "2RFLw7h8", "2RFL3u0o", "31FtC9Qq", "31jSrye7", "a_HcRaa5km", "a_HcSky7NT", "a_HcTff7zy", "a_HcVuee8R", "a_HcWHa2M3", "a_HcWPkRkK", "a_HcU8XfXs"]
-
-[custom_fields]
-  [custom_fields.type]
-    type = "enum"
-    wanted = true
-    description = "The category of work this card represents"
-
-    [[custom_fields.type.options]]
-      value = "bug"
-      color = "#dc2626"
-      description = "Something that's broken and needs fixing"
-
-    [[custom_fields.type.options]]
-      value = "enhancement"
-      color = "#2563eb"
-      description = "Improvement to existing functionality"
-
-    [[custom_fields.type.options]]
-      value = "feature"
-      color = "#16a34a"
-      description = "New functionality or capability"
-
-    [[custom_fields.type.options]]
-      value = "chore"
-      color = "#4b5563"
-      description = "Maintenance, refactoring, or tooling work"
+id = "2R9nzEvz"
+kan_schema = "board/10"
+name = "main"
 
 [card_display]
   type_indicator = "type"
 
+[[columns]]
+  color = "#9333ea"
+  description = "Lower priority backlog items"
+  limit = 0
+  name = "backlog-lo"
+
+[[columns]]
+  color = "#6b7280"
+  description = "Higher priority items ready to be picked up soon"
+  limit = 10
+  name = "backlog-hi"
+
+[[columns]]
+  color = "#3b82f6"
+  description = "This is a much longer description that might wrap across multiple lines and we need to see how it renders in the terminal output to ensure it doesn't cause formatting issues"
+  limit = 5
+  name = "next"
+
+[[columns]]
+  color = "#f59e0b"
+  description = "Currently being worked on"
+  limit = 5
+  name = "in-progress"
+
+[[columns]]
+  color = "#10b981"
+  description = "Completed and shipped"
+  limit = 0
+  name = "done"
+
+[custom_fields]
+  [custom_fields.type]
+    description = "The category of work this card represents"
+    type = "enum"
+    wanted = true
+
+    [[custom_fields.type.options]]
+      color = "#dc2626"
+      description = "Something that's broken and needs fixing"
+      value = "bug"
+
+    [[custom_fields.type.options]]
+      color = "#2563eb"
+      description = "Improvement to existing functionality"
+      value = "enhancement"
+
+    [[custom_fields.type.options]]
+      color = "#16a34a"
+      description = "New functionality or capability"
+      value = "feature"
+
+    [[custom_fields.type.options]]
+      color = "#4b5563"
+      description = "Maintenance, refactoring, or tooling work"
+      value = "chore"
+
 [[pattern_hooks]]
+  command = ".kan/hooks/type-shortcut.rad"
   name = "type-shortcut"
   pattern_title = "![a-zA-Z]+"
-  command = ".kan/hooks/type-shortcut.rad"
   timeout = 0
