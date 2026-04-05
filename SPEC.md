@@ -8,7 +8,7 @@ Kan is a personal project management tool that stores kanban boards as plain fil
 
 ### Why This Approach
 
-- **File-based**: Full VCS history, branching, and offline support come free (with any VCS)
+- **File-based**: Full VCS history and offline support come free (with any VCS)
 - **No vendor lock-in**: Your data is plain files you control
 - **Portable and scriptable**: Standard file formats, easy to automate
 - **Data lives where work lives**: Boards live alongside the code they track
