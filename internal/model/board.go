@@ -195,7 +195,6 @@ func (b *BoardConfig) GetColumnIndex(name string) int {
 	return -1
 }
 
-
 // GetColumn returns a pointer to the column with the given name, or nil if not found.
 func (b *BoardConfig) GetColumn(name string) *Column {
 	for i := range b.Columns {

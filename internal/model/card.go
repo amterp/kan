@@ -92,7 +92,7 @@ func (c *Card) UnmarshalJSON(data []byte) error {
 		"parent": true, "creator": true,
 		"created_at_millis": true, "updated_at_millis": true,
 		"comments": true,
-		"column": true, "position": true,
+		"column":   true, "position": true,
 		// Computed/API-only fields that may appear in JSON from external
 		// sources (e.g. restore endpoint) but aren't custom fields.
 		"missing_wanted_fields": true,
