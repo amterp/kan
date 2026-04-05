@@ -511,6 +511,22 @@ export default function Board({
     onOpenCard(card.id);
   };
 
+  // Inline title edit (slim mode only)
+  const handleSaveCardTitle = useCallback(async (cardId: string, newTitle: string) => {
+    const card = cards.find(c => c.id === cardId);
+    if (!card || card.title === newTitle) return;
+    try {
+      await onUpdateCard(cardId, { title: newTitle });
+      onPushUndo?.({
+        type: 'edit',
+        cardId,
+        fieldChanges: { title: { from: card.title, to: newTitle } },
+      });
+    } catch (e) {
+      showToast('error', e instanceof Error ? e.message : 'Failed to update card title');
+    }
+  }, [cards, onUpdateCard, onPushUndo, showToast]);
+
   // Advance card to the next column (slim mode)
   const handleAdvanceCard = useCallback(async (columnName: string, cardId: string) => {
     const colIndex = board.columns.findIndex((c) => c.name === columnName);
@@ -759,6 +775,7 @@ export default function Board({
                   ? (cardId) => handleAdvanceCard(column.name, cardId)
                   : undefined}
                 onCardContextMenu={isSlim ? handleCardContextMenu : undefined}
+                onSaveCardTitle={isSlim ? handleSaveCardTitle : undefined}
               />
             ))}
           </SortableContext>
