@@ -49,16 +49,10 @@ type BoardConfig struct {
 
 // Column represents a kanban column.
 type Column struct {
-	Name        string   `toml:"name" json:"name"`
-	Color       string   `toml:"color" json:"color"`
-	Description string   `toml:"description,omitempty" json:"description,omitempty"`
-	Limit       int      `toml:"limit,omitempty" json:"limit,omitempty"`
-	CardIDs     []string `toml:"card_ids,omitempty" json:"card_ids,omitempty"`
-}
-
-// IsAtLimit returns true if the column has a limit and has reached it.
-func (c *Column) IsAtLimit() bool {
-	return c.Limit > 0 && len(c.CardIDs) >= c.Limit
+	Name        string `toml:"name" json:"name"`
+	Color       string `toml:"color" json:"color"`
+	Description string `toml:"description,omitempty" json:"description,omitempty"`
+	Limit       int    `toml:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // CustomFieldOption represents a single option for enum/enum-set fields.
@@ -201,81 +195,6 @@ func (b *BoardConfig) GetColumnIndex(name string) int {
 	return -1
 }
 
-// AddCardToColumn adds a card ID to a column's card list at the end.
-// Returns false if the column doesn't exist.
-func (b *BoardConfig) AddCardToColumn(cardID, columnName string) bool {
-	return b.InsertCardInColumn(cardID, columnName, -1)
-}
-
-// InsertCardInColumn adds a card ID to a column's card list at a specific position.
-// If position is -1 or >= len(cards), appends to end.
-// Returns false if the column doesn't exist.
-func (b *BoardConfig) InsertCardInColumn(cardID, columnName string, position int) bool {
-	idx := b.GetColumnIndex(columnName)
-	if idx < 0 {
-		return false
-	}
-
-	cards := b.Columns[idx].CardIDs
-
-	// Append to end if position is -1 or out of bounds
-	if position < 0 || position >= len(cards) {
-		b.Columns[idx].CardIDs = append(cards, cardID)
-		return true
-	}
-
-	// Insert at position
-	newCards := make([]string, 0, len(cards)+1)
-	newCards = append(newCards, cards[:position]...)
-	newCards = append(newCards, cardID)
-	newCards = append(newCards, cards[position:]...)
-	b.Columns[idx].CardIDs = newCards
-	return true
-}
-
-// RemoveCardFromColumn removes a card ID from a column's card list.
-// Returns the column name if found, empty string if not found.
-func (b *BoardConfig) RemoveCardFromColumn(cardID string) string {
-	for i, col := range b.Columns {
-		for j, id := range col.CardIDs {
-			if id == cardID {
-				// Remove the card ID
-				b.Columns[i].CardIDs = append(col.CardIDs[:j], col.CardIDs[j+1:]...)
-				return col.Name
-			}
-		}
-	}
-	return ""
-}
-
-// MoveCardToColumn moves a card from its current column to a new column at the end.
-// Returns false if the target column doesn't exist.
-func (b *BoardConfig) MoveCardToColumn(cardID, targetColumn string) bool {
-	return b.MoveCardToColumnAt(cardID, targetColumn, -1)
-}
-
-// MoveCardToColumnAt moves a card from its current column to a new column at a specific position.
-// If position is -1, appends to end.
-// Returns false if the target column doesn't exist.
-func (b *BoardConfig) MoveCardToColumnAt(cardID, targetColumn string, position int) bool {
-	// First remove from current column (if any)
-	b.RemoveCardFromColumn(cardID)
-	// Then insert at position in target column
-	return b.InsertCardInColumn(cardID, targetColumn, position)
-}
-
-// GetCardColumn returns the column name containing the given card ID.
-// Returns empty string if the card is not found in any column.
-func (b *BoardConfig) GetCardColumn(cardID string) string {
-	for _, col := range b.Columns {
-		for _, id := range col.CardIDs {
-			if id == cardID {
-				return col.Name
-			}
-		}
-	}
-	return ""
-}
 
 // GetColumn returns a pointer to the column with the given name, or nil if not found.
 func (b *BoardConfig) GetColumn(name string) *Column {
@@ -309,17 +228,16 @@ func (b *BoardConfig) AddColumn(name, color string, position int) bool {
 }
 
 // RemoveColumn removes a column by name.
-// Returns the removed column's card IDs (for cleanup), or nil if column not found.
-// Does not delete the card files - caller is responsible for that.
-func (b *BoardConfig) RemoveColumn(name string) []string {
+// Returns false if the column was not found.
+// Does not modify card files - caller is responsible for reassigning cards.
+func (b *BoardConfig) RemoveColumn(name string) bool {
 	idx := b.GetColumnIndex(name)
 	if idx < 0 {
-		return nil
+		return false
 	}
 
-	cardIDs := b.Columns[idx].CardIDs
 	b.Columns = append(b.Columns[:idx], b.Columns[idx+1:]...)
-	return cardIDs
+	return true
 }
 
 // RenameColumn renames a column.

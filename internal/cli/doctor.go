@@ -61,7 +61,7 @@ func runDoctor(boardName string, fix bool, dryRun bool, jsonOutput bool) {
 		}
 	}
 
-	doctorService := service.NewDoctorService(app.Paths)
+	doctorService := service.NewDoctorService(app.Paths, app.CardStore)
 
 	// Run diagnosis
 	report, err := doctorService.Diagnose(boardName)

@@ -25,7 +25,8 @@ type cardJson struct {
 	CreatedAtMillis int64           `json:"created_at_millis"`
 	UpdatedAtMillis int64           `json:"updated_at_millis"`
 	Comments        []model.Comment `json:"comments,omitempty"`
-	Column          string          `json:"column,omitempty"`
+	Column          string          `json:"column"`
+	Position        string          `json:"position"`
 	Board           string          `json:"board,omitempty"`
 	CustomFields    map[string]any  `json:"-"` // Merged at top level like model.Card
 }
@@ -43,6 +44,7 @@ func cardToJson(c *model.Card) cardJson {
 		UpdatedAtMillis: c.UpdatedAtMillis,
 		Comments:        c.Comments,
 		Column:          c.Column,
+		Position:        c.Position,
 		CustomFields:    c.CustomFields,
 	}
 }

@@ -1,9 +1,11 @@
 {
-  "_v": 1,
+  "_v": 2,
   "id": "card-1",
   "alias": "c1",
   "alias_explicit": false,
   "title": "Card with invalid parent",
+  "column": "backlog",
+  "position": "V",
   "parent": "card-nonexistent",
   "creator": "test",
   "created_at_millis": 1700000000000,

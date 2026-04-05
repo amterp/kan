@@ -49,12 +49,10 @@ func runShow(idOrAlias, board string, jsonOutput bool) {
 
 	// Don't print CrossBoard info for show - the Board field in card output covers it
 
-	// Get column from board config (not stored in card file)
 	boardCfg, err := app.BoardService.Get(boardName)
 	if err != nil {
 		Fatal(err)
 	}
-	card.Column = boardCfg.GetCardColumn(card.ID)
 
 	if jsonOutput {
 		output := NewCardOutput(card)

@@ -70,13 +70,11 @@ func (s *BoardService) DeleteBoard(boardName string) (int, error) {
 		return 0, kanerr.InvalidField("board", "cannot delete the last remaining board")
 	}
 
-	// Count cards best-effort; schema errors shouldn't block deletion
+	// Count cards best-effort; errors shouldn't block deletion
 	totalCards := 0
-	cfg, err := s.boardStore.Get(boardName)
+	cards, err := s.cardStore.List(boardName)
 	if err == nil {
-		for _, col := range cfg.Columns {
-			totalCards += len(col.CardIDs)
-		}
+		totalCards = len(cards)
 	}
 
 	if err := s.boardStore.Delete(boardName); err != nil {
@@ -139,28 +137,33 @@ func (s *BoardService) DeleteColumn(boardName, columnName string) (int, error) {
 		return 0, kanerr.ColumnNotFound(columnName, boardName)
 	}
 
-	// Get card IDs before removing
-	col := cfg.GetColumn(columnName)
-	cardIDs := col.CardIDs
+	// Find and delete all cards in the column
+	allCards, err := s.cardStore.List(boardName)
+	if err != nil {
+		return 0, err
+	}
 
-	// Delete all cards in the column
-	for _, cardID := range cardIDs {
-		// Ignore errors on individual card deletions
-		_ = s.cardStore.Delete(boardName, cardID)
+	deletedCount := 0
+	for _, card := range allCards {
+		if card.Column == columnName {
+			_ = s.cardStore.Delete(boardName, card.ID)
+			deletedCount++
+		}
 	}
 
 	// Remove column from config
 	cfg.RemoveColumn(columnName)
 
 	if err := s.boardStore.Update(cfg); err != nil {
-		return len(cardIDs), err
+		return deletedCount, err
 	}
 
-	return len(cardIDs), nil
+	return deletedCount, nil
 }
 
 // RenameColumn renames a column.
-// Also updates default_column if it referenced the old name.
+// Also updates default_column if it referenced the old name, and updates
+// all cards in the column to reference the new name.
 func (s *BoardService) RenameColumn(boardName, oldName, newName string) error {
 	// Validate new column name format
 	if !columnNameRegex.MatchString(newName) {
@@ -180,6 +183,23 @@ func (s *BoardService) RenameColumn(boardName, oldName, newName string) error {
 		return kanerr.ColumnAlreadyExists(newName, boardName)
 	}
 
+	// Update card files first - the old column name is still valid in the
+	// board config at this point, so a failure here leaves data consistent.
+	cards, err := s.cardStore.List(boardName)
+	if err != nil {
+		return err
+	}
+	for _, card := range cards {
+		if card.Column == oldName {
+			card.Column = newName
+			if err := s.cardStore.Update(boardName, card); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Now update the board config. Cards already reference the new name,
+	// and the old name is being removed.
 	return s.boardStore.Update(cfg)
 }
 
@@ -296,10 +316,20 @@ func (s *BoardService) GetColumnCardCount(boardName, columnName string) (int, er
 		return 0, err
 	}
 
-	col := cfg.GetColumn(columnName)
-	if col == nil {
+	if !cfg.HasColumn(columnName) {
 		return 0, kanerr.ColumnNotFound(columnName, boardName)
 	}
 
-	return len(col.CardIDs), nil
+	cards, err := s.cardStore.List(boardName)
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, card := range cards {
+		if card.Column == columnName {
+			count++
+		}
+	}
+	return count, nil
 }

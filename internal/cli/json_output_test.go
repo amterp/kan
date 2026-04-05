@@ -173,7 +173,7 @@ func TestBoardDescribeFieldSync(t *testing.T) {
 	excluded := map[string]string{
 		"ID":            "Internal board ID, not useful in describe output",
 		"KanSchema":     "Exposed as 'Schema' (renamed for cleaner output)",
-		"Columns":       "Transformed to BoardDescribeColumnInfo (adds CardCount, IsDefault; omits CardIDs)",
+		"Columns":       "Transformed to BoardDescribeColumnInfo (adds CardCount, IsDefault)",
 		"DefaultColumn": "Surfaced as IsDefault flag on individual columns instead",
 	}
 

@@ -103,8 +103,8 @@ func TestParseGlobalVersion(t *testing.T) {
 func TestCurrentSchemas(t *testing.T) {
 	// Verify current schema functions return expected format
 	boardSchema := CurrentBoardSchema()
-	if boardSchema != "board/9" {
-		t.Errorf("CurrentBoardSchema() = %q, want %q", boardSchema, "board/9")
+	if boardSchema != "board/10" {
+		t.Errorf("CurrentBoardSchema() = %q, want %q", boardSchema, "board/10")
 	}
 
 	globalSchema := CurrentGlobalSchema()

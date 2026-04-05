@@ -201,9 +201,14 @@ func TestMigrateService_Execute_V0(t *testing.T) {
 		t.Errorf("Card _v = %v, want %d", v, version.CurrentCardVersion)
 	}
 
-	// Should NOT have column field
-	if _, ok := cardJSON["column"]; ok {
-		t.Error("Migrated card should NOT have column field")
+	// Should have column field (set by v9->v10 board migration)
+	if _, ok := cardJSON["column"]; !ok {
+		t.Error("Migrated card should have column field")
+	}
+
+	// Should have position field (set by v9->v10 board migration)
+	if _, ok := cardJSON["position"]; !ok {
+		t.Error("Migrated card should have position field")
 	}
 
 	// Should preserve custom fields
@@ -1364,8 +1369,8 @@ func TestMigrateService_V8ToV9_Idempotent(t *testing.T) {
 // V9 Tests (Current schema - no migration needed)
 // ============================================================================
 
-func TestMigrateService_Plan_V9_NoChanges(t *testing.T) {
-	service, _, cleanup := setupMigrationTest(t, "v9")
+func TestMigrateService_Plan_V10_NoChanges(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v10")
 	defer cleanup()
 
 	plan, err := service.Plan()
@@ -1373,15 +1378,15 @@ func TestMigrateService_Plan_V9_NoChanges(t *testing.T) {
 		t.Fatalf("Plan failed: %v", err)
 	}
 	if plan.HasChanges() {
-		t.Error("Current schema (v9) data should not need migration")
+		t.Error("Current schema (v10) data should not need migration")
 	}
 }
 
-func TestMigrateService_V9_ReadableByStores(t *testing.T) {
-	_, tempDir, cleanup := setupMigrationTest(t, "v9")
+func TestMigrateService_V10_ReadableByStores(t *testing.T) {
+	_, tempDir, cleanup := setupMigrationTest(t, "v10")
 	defer cleanup()
 
-	// V9 fixtures should be directly readable by stores without migration
+	// V10 fixtures should be directly readable by stores without migration
 	paths := config.NewPaths(tempDir, "")
 	cardStore := store.NewCardStore(paths)
 	boardStore := store.NewBoardStore(paths)
@@ -1389,7 +1394,7 @@ func TestMigrateService_V9_ReadableByStores(t *testing.T) {
 	// Board store should read without error
 	boardCfg, err := boardStore.Get("main")
 	if err != nil {
-		t.Fatalf("BoardStore.Get failed on v9 fixtures: %v", err)
+		t.Fatalf("BoardStore.Get failed on v10 fixtures: %v", err)
 	}
 	if boardCfg.Name != "main" {
 		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
@@ -1485,13 +1490,21 @@ func TestMigrateService_V9_ReadableByStores(t *testing.T) {
 	// Card store should read without error
 	card, err := cardStore.Get("main", "card-abc")
 	if err != nil {
-		t.Fatalf("CardStore.Get failed on v9 fixtures: %v", err)
+		t.Fatalf("CardStore.Get failed on v10 fixtures: %v", err)
 	}
 	if card.ID != "card-abc" {
 		t.Errorf("Card ID = %q, want 'card-abc'", card.ID)
 	}
 	if card.Version != version.CurrentCardVersion {
 		t.Errorf("Card Version = %d, want %d", card.Version, version.CurrentCardVersion)
+	}
+
+	// Column and position should be present
+	if card.Column != "Backlog" {
+		t.Errorf("Card Column = %q, want 'Backlog'", card.Column)
+	}
+	if card.Position == "" {
+		t.Error("Card Position should not be empty")
 	}
 
 	// Custom fields should be present

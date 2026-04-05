@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/amterp/kan/internal/config"
+	"github.com/amterp/kan/internal/store"
 )
 
 // setupDoctorTest copies test fixtures to a temp directory and returns
@@ -30,7 +31,8 @@ func setupDoctorTest(t *testing.T, fixtureName string) (*DoctorService, string, 
 	}
 
 	paths := config.NewPaths(tempDir, "")
-	service := NewDoctorService(paths)
+	cardStore := store.NewCardStore(paths)
+	service := NewDoctorService(paths, cardStore)
 
 	cleanup := func() {
 		os.RemoveAll(tempDir)
@@ -124,20 +126,22 @@ func TestDoctorService_OrphanedCard_Fix(t *testing.T) {
 		t.Errorf("Expected 1 fix, got %d", fixedReport.Summary.Fixed)
 	}
 
-	// Verify the card was added to the default column
-	configPath := filepath.Join(tempDir, ".kan", "boards", "main", "config.toml")
-	data, err := os.ReadFile(configPath)
+	// Verify the orphaned card now has a column assigned
+	cardPath := filepath.Join(tempDir, ".kan", "boards", "main", "cards", "card-orphan.json")
+	data, err := os.ReadFile(cardPath)
 	if err != nil {
-		t.Fatalf("Failed to read config: %v", err)
+		t.Fatalf("Failed to read card: %v", err)
 	}
 
-	configStr := string(data)
-	if !strings.Contains(configStr, "card-orphan") {
-		t.Error("Fixed config should contain card-orphan in a column")
+	cardStr := string(data)
+	if !strings.Contains(cardStr, `"column"`) {
+		t.Error("Fixed card should have a column field")
 	}
 }
 
 func TestDoctorService_MissingCard(t *testing.T) {
+	// With card-centric storage, "missing card file referenced by board config" can't happen.
+	// This fixture now represents a healthy board (all cards have valid columns).
 	service, _, cleanup := setupDoctorTest(t, "missing-card")
 	defer cleanup()
 
@@ -146,58 +150,14 @@ func TestDoctorService_MissingCard(t *testing.T) {
 		t.Fatalf("Diagnose failed: %v", err)
 	}
 
-	if report.Summary.Errors != 1 {
-		t.Errorf("Expected 1 error, got %d", report.Summary.Errors)
-	}
-
-	// Find the missing card issue
-	found := false
-	for _, issue := range report.Issues {
-		if issue.Code == CodeMissingCardFile && issue.CardID == "card-missing" {
-			found = true
-			if !issue.Fixable {
-				t.Error("Missing card issue should be fixable")
-			}
-		}
-	}
-	if !found {
-		t.Error("Expected MISSING_CARD_FILE issue for card-missing")
-	}
-}
-
-func TestDoctorService_MissingCard_Fix(t *testing.T) {
-	service, tempDir, cleanup := setupDoctorTest(t, "missing-card")
-	defer cleanup()
-
-	report, err := service.Diagnose("")
-	if err != nil {
-		t.Fatalf("Diagnose failed: %v", err)
-	}
-
-	// Apply fix
-	fixedReport, err := service.Fix(report)
-	if err != nil {
-		t.Fatalf("Fix failed: %v", err)
-	}
-
-	if fixedReport.Summary.Fixed != 1 {
-		t.Errorf("Expected 1 fix, got %d", fixedReport.Summary.Fixed)
-	}
-
-	// Verify the missing card reference was removed
-	configPath := filepath.Join(tempDir, ".kan", "boards", "main", "config.toml")
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		t.Fatalf("Failed to read config: %v", err)
-	}
-
-	configStr := string(data)
-	if strings.Contains(configStr, "card-missing") {
-		t.Error("Fixed config should not contain card-missing reference")
+	if report.Summary.Errors != 0 {
+		t.Errorf("Expected 0 errors, got %d", report.Summary.Errors)
 	}
 }
 
 func TestDoctorService_DuplicateCard(t *testing.T) {
+	// With card-centric storage, duplicate card in multiple columns can't happen.
+	// This fixture now represents a healthy board.
 	service, _, cleanup := setupDoctorTest(t, "duplicate-card")
 	defer cleanup()
 
@@ -206,65 +166,8 @@ func TestDoctorService_DuplicateCard(t *testing.T) {
 		t.Fatalf("Diagnose failed: %v", err)
 	}
 
-	if report.Summary.Errors != 1 {
-		t.Errorf("Expected 1 error, got %d", report.Summary.Errors)
-	}
-
-	// Find the duplicate card issue
-	found := false
-	for _, issue := range report.Issues {
-		if issue.Code == CodeDuplicateCardID && issue.CardID == "card-1" {
-			found = true
-			if !issue.Fixable {
-				t.Error("Duplicate card issue should be fixable")
-			}
-		}
-	}
-	if !found {
-		t.Error("Expected DUPLICATE_CARD_ID issue for card-1")
-	}
-}
-
-func TestDoctorService_DuplicateCard_Fix(t *testing.T) {
-	service, tempDir, cleanup := setupDoctorTest(t, "duplicate-card")
-	defer cleanup()
-
-	report, err := service.Diagnose("")
-	if err != nil {
-		t.Fatalf("Diagnose failed: %v", err)
-	}
-
-	// Apply fix
-	fixedReport, err := service.Fix(report)
-	if err != nil {
-		t.Fatalf("Fix failed: %v", err)
-	}
-
-	if fixedReport.Summary.Fixed != 1 {
-		t.Errorf("Expected 1 fix, got %d", fixedReport.Summary.Fixed)
-	}
-
-	// Re-run diagnosis to verify fix
-	newReport, err := service.Diagnose("")
-	if err != nil {
-		t.Fatalf("Second diagnose failed: %v", err)
-	}
-
-	if newReport.Summary.Errors != 0 {
-		t.Errorf("Expected 0 errors after fix, got %d", newReport.Summary.Errors)
-	}
-
-	// Verify the card is only in one column now (the first one: backlog)
-	configPath := filepath.Join(tempDir, ".kan", "boards", "main", "config.toml")
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		t.Fatalf("Failed to read config: %v", err)
-	}
-
-	// Count occurrences of card-1
-	count := countOccurrences(string(data), "card-1")
-	if count != 1 {
-		t.Errorf("Expected card-1 to appear once in config, appeared %d times", count)
+	if report.Summary.Errors != 0 {
+		t.Errorf("Expected 0 errors, got %d", report.Summary.Errors)
 	}
 }
 
@@ -355,7 +258,7 @@ func TestDoctorService_SpecificBoard(t *testing.T) {
 }
 
 func TestDoctorService_HasErrors(t *testing.T) {
-	service, _, cleanup := setupDoctorTest(t, "missing-card")
+	service, _, cleanup := setupDoctorTest(t, "orphaned-card")
 	defer cleanup()
 
 	report, err := service.Diagnose("")

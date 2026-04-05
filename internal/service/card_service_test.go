@@ -311,8 +311,8 @@ func TestCardService_Add_BoardNotFound(t *testing.T) {
 	}
 }
 
-func TestCardService_Add_UpdatesBoardConfig(t *testing.T) {
-	service, _, boardStore := setupCardService()
+func TestCardService_Add_SetsCardColumn(t *testing.T) {
+	service, cardStore, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
 	card, _, err := service.Add(AddCardInput{
@@ -324,21 +324,13 @@ func TestCardService_Add_UpdatesBoardConfig(t *testing.T) {
 		t.Fatalf("Add failed: %v", err)
 	}
 
-	// Verify card was added to board config's column
-	cfg, _ := boardStore.Get("main")
-	found := false
-	for _, col := range cfg.Columns {
-		if col.Name == "in-progress" {
-			for _, id := range col.CardIDs {
-				if id == card.ID {
-					found = true
-					break
-				}
-			}
-		}
+	// Verify the card's Column field is set correctly
+	fetched, err := cardStore.Get("main", card.ID)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
 	}
-	if !found {
-		t.Error("Card ID should be in board config's column CardIDs")
+	if fetched.Column != "in-progress" {
+		t.Errorf("Expected card column 'in-progress', got %q", fetched.Column)
 	}
 }
 
@@ -512,7 +504,7 @@ func TestCardService_List_OrderedByBoardConfig(t *testing.T) {
 // ============================================================================
 
 func TestCardService_MoveCard_ToEnd(t *testing.T) {
-	service, _, boardStore := setupCardService()
+	service, cardStore, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
 	card, _, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
@@ -521,37 +513,18 @@ func TestCardService_MoveCard_ToEnd(t *testing.T) {
 		t.Fatalf("MoveCard failed: %v", err)
 	}
 
-	// Verify board config is updated (column membership is stored in board config only)
-	cfg, _ := boardStore.Get("main")
-	found := false
-	for _, col := range cfg.Columns {
-		if col.Name == "in-progress" {
-			for _, id := range col.CardIDs {
-				if id == card.ID {
-					found = true
-					break
-				}
-			}
-		}
+	// Verify card's Column field is updated
+	fetched, err := cardStore.Get("main", card.ID)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
 	}
-	if !found {
-		t.Error("Card should be in in-progress column's CardIDs")
-	}
-
-	// Verify card is removed from old column
-	for _, col := range cfg.Columns {
-		if col.Name == "backlog" {
-			for _, id := range col.CardIDs {
-				if id == card.ID {
-					t.Error("Card should be removed from backlog column's CardIDs")
-				}
-			}
-		}
+	if fetched.Column != "in-progress" {
+		t.Errorf("Expected card column 'in-progress', got %q", fetched.Column)
 	}
 }
 
 func TestCardService_MoveCardAt_Position(t *testing.T) {
-	service, _, boardStore := setupCardService()
+	service, cardStore, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
 	// Add two cards to in-progress
@@ -565,27 +538,27 @@ func TestCardService_MoveCardAt_Position(t *testing.T) {
 		t.Fatalf("MoveCardAt failed: %v", err)
 	}
 
-	// Verify order in board config
-	cfg, _ := boardStore.Get("main")
-	var inProgressIDs []string
-	for _, col := range cfg.Columns {
-		if col.Name == "in-progress" {
-			inProgressIDs = col.CardIDs
-			break
+	// Verify all three cards are in in-progress
+	for _, id := range []string{card1.ID, card2.ID, card3.ID} {
+		fetched, err := cardStore.Get("main", id)
+		if err != nil {
+			t.Fatalf("Get failed for %s: %v", id, err)
+		}
+		if fetched.Column != "in-progress" {
+			t.Errorf("Expected card %s column 'in-progress', got %q", id, fetched.Column)
 		}
 	}
 
-	if len(inProgressIDs) != 3 {
-		t.Fatalf("Expected 3 cards in in-progress, got %d", len(inProgressIDs))
+	// Verify position ordering: card3 < card1 < card2
+	c1, _ := cardStore.Get("main", card1.ID)
+	c2, _ := cardStore.Get("main", card2.ID)
+	c3, _ := cardStore.Get("main", card3.ID)
+
+	if c3.Position >= c1.Position {
+		t.Errorf("Card3 position %q should be before card1 position %q", c3.Position, c1.Position)
 	}
-	if inProgressIDs[0] != card3.ID {
-		t.Error("Card3 should be at position 0")
-	}
-	if inProgressIDs[1] != card1.ID {
-		t.Error("Card1 should be at position 1")
-	}
-	if inProgressIDs[2] != card2.ID {
-		t.Error("Card2 should be at position 2")
+	if c1.Position >= c2.Position {
+		t.Errorf("Card1 position %q should be before card2 position %q", c1.Position, c2.Position)
 	}
 }
 
@@ -618,7 +591,7 @@ func TestCardService_MoveCard_CardNotFound(t *testing.T) {
 }
 
 func TestCardService_MoveCard_SameColumn(t *testing.T) {
-	service, _, boardStore := setupCardService()
+	service, cardStore, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
 	card, _, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
@@ -628,21 +601,13 @@ func TestCardService_MoveCard_SameColumn(t *testing.T) {
 		t.Fatalf("MoveCard to same column failed: %v", err)
 	}
 
-	// Verify card still in backlog (column membership in board config)
-	cfg, _ := boardStore.Get("main")
-	found := false
-	for _, col := range cfg.Columns {
-		if col.Name == "backlog" {
-			for _, id := range col.CardIDs {
-				if id == card.ID {
-					found = true
-					break
-				}
-			}
-		}
+	// Verify card is still in backlog
+	fetched, err := cardStore.Get("main", card.ID)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
 	}
-	if !found {
-		t.Error("Card should still be in backlog column's CardIDs")
+	if fetched.Column != "backlog" {
+		t.Errorf("Expected card column 'backlog', got %q", fetched.Column)
 	}
 }
 
@@ -748,7 +713,7 @@ func TestCardService_UpdateTitle_PreservesExplicitAlias(t *testing.T) {
 // Delete() Tests
 // ============================================================================
 
-func TestCardService_Delete_RemovesFromBothStores(t *testing.T) {
+func TestCardService_Delete_RemovesFromCardStore(t *testing.T) {
 	service, cardStore, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))
 
@@ -762,16 +727,6 @@ func TestCardService_Delete_RemovesFromBothStores(t *testing.T) {
 	_, err := cardStore.Get("main", card.ID)
 	if !kanerr.IsNotFound(err) {
 		t.Error("Card should be removed from card store")
-	}
-
-	// Verify removed from board config
-	cfg, _ := boardStore.Get("main")
-	for _, col := range cfg.Columns {
-		for _, id := range col.CardIDs {
-			if id == card.ID {
-				t.Error("Card ID should be removed from board config")
-			}
-		}
 	}
 }
 
@@ -876,23 +831,6 @@ func TestCardService_Edit_Column(t *testing.T) {
 
 	if updated.Column != "in-progress" {
 		t.Errorf("Expected column 'in-progress', got %q", updated.Column)
-	}
-
-	// Verify board config was updated
-	cfg, _ := boardStore.Get("main")
-	found := false
-	for _, col := range cfg.Columns {
-		if col.Name == "in-progress" {
-			for _, id := range col.CardIDs {
-				if id == card.ID {
-					found = true
-					break
-				}
-			}
-		}
-	}
-	if !found {
-		t.Error("Card should be in in-progress column's CardIDs")
 	}
 }
 
@@ -1496,6 +1434,48 @@ func TestCardService_Edit_Alias_Collision(t *testing.T) {
 	}
 	if !kanerr.IsValidationError(err) {
 		t.Errorf("Expected validation error, got %v", err)
+	}
+}
+
+func TestCardService_Edit_ColumnAndDescription_PositionPreserved(t *testing.T) {
+	svc, cardStore, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	// Add two cards to in-progress so they have distinct positions
+	card1, _, _ := svc.Add(AddCardInput{BoardName: "main", Title: "Card1", Column: "in-progress"})
+	card2, _, _ := svc.Add(AddCardInput{BoardName: "main", Title: "Card2", Column: "in-progress"})
+
+	// Add card3 to backlog
+	card3, _, _ := svc.Add(AddCardInput{BoardName: "main", Title: "Card3", Column: "backlog"})
+
+	// Edit card3: move to in-progress AND update description
+	newColumn := "in-progress"
+	newDesc := "updated description"
+	_, err := svc.Edit(EditCardInput{
+		BoardName:     "main",
+		CardIDOrAlias: card3.ID,
+		Column:        &newColumn,
+		Description:   &newDesc,
+	})
+	if err != nil {
+		t.Fatalf("Edit failed: %v", err)
+	}
+
+	// Verify card3 has correct column, description, and a unique position
+	c3After, _ := cardStore.Get("main", card3.ID)
+	if c3After.Column != "in-progress" {
+		t.Errorf("Expected column in-progress, got %q", c3After.Column)
+	}
+	if c3After.Description != "updated description" {
+		t.Errorf("Expected description updated, got %q", c3After.Description)
+	}
+
+	// Position must not collide with existing cards in the column
+	c1After, _ := cardStore.Get("main", card1.ID)
+	c2After, _ := cardStore.Get("main", card2.ID)
+	if c3After.Position == c1After.Position || c3After.Position == c2After.Position {
+		t.Errorf("card3 has duplicate position: card3=%q card1=%q card2=%q",
+			c3After.Position, c1After.Position, c2After.Position)
 	}
 }
 
