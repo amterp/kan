@@ -29,7 +29,7 @@ const (
 	// Priority 1: Critical data integrity (errors)
 	CodeMalformedBoardConfig = "MALFORMED_BOARD_CONFIG"
 	CodeMalformedCard        = "MALFORMED_CARD"
-	CodeOrphanedCard = "ORPHANED_CARD"
+	CodeOrphanedCard         = "ORPHANED_CARD"
 
 	// Priority 2: Config issues (warnings)
 	CodeSchemaOutdated     = "SCHEMA_OUTDATED"
@@ -360,12 +360,12 @@ func (s *DoctorService) checkBoard(report *DiagnosticReport, boardName string) {
 
 			if card.Position == "" {
 				report.Issues = append(report.Issues, Issue{
-					Severity:  SeverityWarning,
-					Code:      CodeMalformedCard,
-					Board:     boardName,
-					CardID:    card.ID,
-					Message:   "Card has no position assigned",
-					Fixable:   false,
+					Severity: SeverityWarning,
+					Code:     CodeMalformedCard,
+					Board:    boardName,
+					CardID:   card.ID,
+					Message:  "Card has no position assigned",
+					Fixable:  false,
 				})
 			}
 		}
