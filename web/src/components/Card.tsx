@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Card as CardType, BoardConfig, CustomFieldOption } from '../api/types';
@@ -6,6 +7,7 @@ import { parseTextWithLinks } from '../utils/linkParser';
 import { stringToColor, badgeColor } from '../utils/badgeColors';
 import { useCompactMode } from '../contexts/CompactModeContext';
 import { useSlimMode } from '../contexts/SlimModeContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface CardProps {
   card: CardType;
@@ -17,6 +19,7 @@ interface CardProps {
   onDelete?: () => void;
   onAdvance?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
+  onSaveTitle?: (newTitle: string) => void;
 }
 
 // Helper to get option details for a field value
@@ -41,9 +44,16 @@ function getSetValues(card: CardType, fieldName: string): string[] {
  * NOTE: The data-card-id attribute is used by Board.tsx to find this element
  * when anchoring the FloatingFieldPanel after card creation. Don't remove it.
  */
-export default function Card({ card, board, isDragging = false, isPlaceholder = false, isHighlighted = false, onClick, onDelete, onAdvance, onContextMenu }: CardProps) {
+export default function Card({ card, board, isDragging = false, isPlaceholder = false, isHighlighted = false, onClick, onDelete, onAdvance, onContextMenu, onSaveTitle }: CardProps) {
   const { isCompact } = useCompactMode();
   const { isSlim } = useSlimMode();
+  const { showToast } = useToast();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(card.title);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  const editDoneRef = useRef(false);
+
   const {
     attributes,
     listeners,
@@ -51,7 +61,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
     transform,
     transition,
     isDragging: isSortableDragging,
-  } = useSortable({ id: card.id });
+  } = useSortable({ id: card.id, disabled: isEditing });
 
   // When this card is being dragged (shown as placeholder in originating column)
   const showAsPlaceholder = isPlaceholder || isSortableDragging;
@@ -70,9 +80,14 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
   const badgeFields = board.card_display?.badges || [];
 
   const handleClick = () => {
-    if (!isDragging && !isSortableDragging && onClick) {
-      onClick();
+    if (isDragging || isSortableDragging || isEditing) return;
+    if (isSlim && onSaveTitle) {
+      editDoneRef.current = false;
+      setEditTitle(card.title);
+      setIsEditing(true);
+      return;
     }
+    onClick?.();
   };
 
   const handleAdvanceClick = (e: React.MouseEvent) => {
@@ -92,6 +107,42 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
     e.stopPropagation();
     onDelete?.();
   };
+
+  const commitEdit = useCallback(() => {
+    if (editDoneRef.current) return;
+    editDoneRef.current = true;
+    const trimmed = editTitle.trim();
+    if (!trimmed) {
+      showToast('error', 'Title cannot be empty');
+    } else if (trimmed !== card.title) {
+      onSaveTitle?.(trimmed);
+    }
+    setIsEditing(false);
+  }, [editTitle, card.title, onSaveTitle, showToast]);
+
+  const cancelEdit = useCallback(() => {
+    editDoneRef.current = true;
+    setEditTitle(card.title);
+    setIsEditing(false);
+  }, [card.title]);
+
+  // Focus and select text when entering edit mode
+  useEffect(() => {
+    if (isEditing && titleRef.current) {
+      const ta = titleRef.current;
+      ta.style.height = 'auto';
+      ta.style.height = ta.scrollHeight + 'px';
+      ta.focus();
+      ta.select();
+    }
+  }, [isEditing]);
+
+  // Cancel edit if slim mode is turned off (onSaveTitle disappears)
+  useEffect(() => {
+    if (isEditing && !onSaveTitle) {
+      cancelEdit();
+    }
+  }, [isEditing, onSaveTitle, cancelEdit]);
 
   // Render as dashed placeholder when being dragged
   if (showAsPlaceholder) {
@@ -122,7 +173,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       title={isCompact ? card.alias : undefined}
-      className={`group relative bg-white dark:bg-gray-700 rounded-lg ${isCompact ? 'px-2 py-1.5' : 'p-3'} shadow-sm border border-gray-100 dark:border-gray-600 ${isSlim ? 'cursor-default' : 'cursor-pointer'} hover:shadow-md transition-shadow animate-card-enter ${
+      className={`group relative bg-white dark:bg-gray-700 rounded-lg ${isCompact ? 'px-2 py-1.5' : 'p-3'} shadow-sm border border-gray-100 dark:border-gray-600 ${isSlim ? (onSaveTitle ? 'cursor-text' : 'cursor-default') : 'cursor-pointer'} hover:shadow-md transition-shadow animate-card-enter ${
         isDragging ? 'shadow-lg rotate-2' : ''
       } ${isHighlighted ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-200 dark:ring-offset-gray-800' : ''}`}
     >
@@ -213,24 +264,50 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       <div className="flex items-end gap-1.5">
         <div className="flex-1 min-w-0">
           {/* Title */}
-          <h3 className={`font-medium text-gray-900 dark:text-white ${isCompact ? 'text-[13px] leading-snug' : 'text-sm'} break-words`}>
-            {parseTextWithLinks(card.title, board.link_rules).map((segment, i) =>
-              segment.type === 'link' ? (
-                <a
-                  key={i}
-                  href={segment.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
-                >
-                  {segment.content}
-                </a>
-              ) : (
-                <span key={i}>{segment.content}</span>
-              )
-            )}
-          </h3>
+          {isEditing ? (
+            <textarea
+              ref={titleRef}
+              value={editTitle}
+              onChange={(e) => {
+                setEditTitle(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+              }}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  commitEdit();
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  cancelEdit();
+                }
+              }}
+              onBlur={commitEdit}
+              onClick={(e) => e.stopPropagation()}
+              rows={1}
+              className={`font-medium text-gray-900 dark:text-white ${isCompact ? 'text-[13px] leading-snug' : 'text-sm'} break-words w-full bg-transparent border-0 border-b-2 border-blue-500 focus:outline-none resize-none overflow-hidden p-0 m-0`}
+            />
+          ) : (
+            <h3 className={`font-medium text-gray-900 dark:text-white ${isCompact ? 'text-[13px] leading-snug' : 'text-sm'} break-words`}>
+              {parseTextWithLinks(card.title, board.link_rules).map((segment, i) =>
+                segment.type === 'link' ? (
+                  <a
+                    key={i}
+                    href={segment.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    {segment.content}
+                  </a>
+                ) : (
+                  <span key={i}>{segment.content}</span>
+                )
+              )}
+            </h3>
+          )}
 
           {/* Alias (regular mode only) */}
           {!isCompact && (
