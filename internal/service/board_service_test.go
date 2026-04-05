@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	kanerr "github.com/amterp/kan/internal/errors"
+	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/store"
 )
 
@@ -204,9 +205,12 @@ func TestBoardService_DeleteBoard_WithCards(t *testing.T) {
 	svc.Create("other")
 
 	cfg := testBoardConfig("main")
-	cfg.Columns[0].CardIDs = []string{"c1", "c2"}
-	cfg.Columns[1].CardIDs = []string{"c3"}
 	boardStore.addBoard(cfg)
+
+	// Add cards to the card store with column set
+	cardStore.Create("main", &model.Card{ID: "c1", Column: "backlog", Position: "V"}) //nolint:errcheck
+	cardStore.Create("main", &model.Card{ID: "c2", Column: "backlog", Position: "W"}) //nolint:errcheck
+	cardStore.Create("main", &model.Card{ID: "c3", Column: "done", Position: "V"})    //nolint:errcheck
 
 	deletedCards, err := svc.DeleteBoard("main")
 	if err != nil {

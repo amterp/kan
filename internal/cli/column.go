@@ -340,6 +340,15 @@ func runColumnList(board string, nonInteractive, jsonOutput bool) {
 		Fatal(err)
 	}
 
+	// Build card count per column
+	cards, err := app.CardService.List(boardName, "")
+	cardCounts := make(map[string]int)
+	if err == nil {
+		for _, card := range cards {
+			cardCounts[card.Column]++
+		}
+	}
+
 	if jsonOutput {
 		columns := make([]ColumnInfo, len(boardCfg.Columns))
 		for i, col := range boardCfg.Columns {
@@ -348,7 +357,7 @@ func runColumnList(board string, nonInteractive, jsonOutput bool) {
 				Color:       col.Color,
 				Description: col.Description,
 				Limit:       col.Limit,
-				CardCount:   len(col.CardIDs),
+				CardCount:   cardCounts[col.Name],
 			}
 		}
 		if err := printJson(NewColumnsOutput(columns)); err != nil {
@@ -363,16 +372,17 @@ func runColumnList(board string, nonInteractive, jsonOutput bool) {
 	}
 
 	for _, col := range boardCfg.Columns {
+		n := cardCounts[col.Name]
 		cardWord := "cards"
-		if len(col.CardIDs) == 1 {
+		if n == 1 {
 			cardWord = "card"
 		}
 		swatch := ColorSwatch(col.Color)
 		var count string
 		if col.Limit > 0 {
-			count = RenderMuted(fmt.Sprintf("(%d/%d %s)", len(col.CardIDs), col.Limit, cardWord))
+			count = RenderMuted(fmt.Sprintf("(%d/%d %s)", n, col.Limit, cardWord))
 		} else {
-			count = RenderMuted(fmt.Sprintf("(%d %s)", len(col.CardIDs), cardWord))
+			count = RenderMuted(fmt.Sprintf("(%d %s)", n, cardWord))
 		}
 		fmt.Printf("%-15s %s %s\n", col.Name, swatch, count)
 		if col.Description != "" {

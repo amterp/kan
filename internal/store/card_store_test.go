@@ -65,8 +65,8 @@ func TestFileCardStore_CreateAndGet(t *testing.T) {
 	if retrieved.Title != card.Title {
 		t.Errorf("Title mismatch: got %q, want %q", retrieved.Title, card.Title)
 	}
-	if retrieved.Version != 1 {
-		t.Errorf("Version mismatch: got %d, want 1", retrieved.Version)
+	if retrieved.Version != 2 {
+		t.Errorf("Version mismatch: got %d, want 2", retrieved.Version)
 	}
 }
 

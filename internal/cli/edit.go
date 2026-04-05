@@ -180,8 +180,6 @@ func runEditNonInteractive(app *App, boardName string, card *model.Card, boardCf
 		Fatal(err)
 	}
 
-	updatedCard.Column = boardCfg.GetCardColumn(updatedCard.ID)
-
 	// Check for missing wanted fields (for warnings in non-strict mode)
 	missingWanted := service.CheckWantedFields(updatedCard, boardCfg)
 

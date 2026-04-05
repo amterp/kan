@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/amterp/kan/internal/id"
@@ -79,11 +80,20 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 		return nil, nil, kanerr.ColumnNotFound(column, input.BoardName)
 	}
 
-	// Check column limit
+	// Check column limit by counting existing cards in the column
 	col := boardCfg.GetColumn(column)
-	if col.IsAtLimit() {
+	allCards, err := s.cardStore.List(input.BoardName)
+	if err != nil {
+		return nil, nil, err
+	}
+	colCards := cardsInColumn(allCards, column)
+	if col.Limit > 0 && len(colCards) >= col.Limit {
 		return nil, nil, kanerr.ColumnLimitExceeded(column, col.Limit)
 	}
+
+	// Compute position: append after last card in column
+	position := lastPosition(colCards)
+	position = util.PositionAfter(position)
 
 	// Generate ID and alias
 	cardID := id.Generate(id.Card)
@@ -103,6 +113,8 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 		Creator:         input.Creator,
 		CreatedAtMillis: now,
 		UpdatedAtMillis: now,
+		Column:          column,
+		Position:        position,
 	}
 
 	// Apply custom fields if provided
@@ -116,17 +128,6 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 		return nil, nil, err
 	}
 
-	// Add card to column's card list and save board config
-	boardCfg.AddCardToColumn(cardID, column)
-	if err := s.boardStore.Update(boardCfg); err != nil {
-		// Card was created but board config update failed - log but don't fail
-		card.Column = column // Populate for return (not persisted)
-		return card, nil, nil
-	}
-
-	// Populate Column for return (computed, not persisted)
-	card.Column = column
-
 	// Execute pattern hooks if configured
 	var hookResults []*HookResult
 	if s.hookService != nil && len(boardCfg.PatternHooks) > 0 {
@@ -134,13 +135,11 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 		if len(matchingHooks) > 0 {
 			hookResults = s.hookService.ExecuteHooks(matchingHooks, cardID, input.BoardName)
 
-			// Re-fetch card after hooks to capture any modifications they made
+			// Re-fetch card after hooks to capture any modifications they made.
 			// Hooks can modify cards via commands like `kan edit`, so we need
 			// to return the card's state AFTER hook execution, not before.
 			if updatedCard, err := s.cardStore.Get(input.BoardName, cardID); err == nil {
 				card = updatedCard
-				// Re-populate column field (it's computed, not persisted)
-				card.Column = column
 			}
 			// If re-fetch fails, we still return the original card (non-fatal)
 		}
@@ -166,49 +165,61 @@ func (s *CardService) Update(boardName string, card *model.Card) error {
 }
 
 // List returns all cards for a board, optionally filtered by column.
-// Cards are returned in the order specified by the board's column card_ids.
+// Cards are returned in column order (as defined in board config), sorted
+// by position within each column.
 func (s *CardService) List(boardName string, columnFilter string) ([]*model.Card, error) {
 	cards, err := s.cardStore.List(boardName)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get board config to determine card ordering and column membership
+	// Get board config for column ordering
 	boardCfg, err := s.boardStore.Get(boardName)
 	if err != nil {
-		// Without board config, we can't determine column membership or ordering.
-		// Return unordered cards without column filtering.
+		// Without board config, return cards sorted by position only
+		sort.Slice(cards, func(i, j int) bool {
+			if cards[i].Column != cards[j].Column {
+				return cards[i].Column < cards[j].Column
+			}
+			return cards[i].Position < cards[j].Position
+		})
 		return cards, nil
 	}
 
-	// Build card ID to card map for quick lookup
-	cardMap := make(map[string]*model.Card)
+	// Group cards by column
+	grouped := make(map[string][]*model.Card)
 	for _, card := range cards {
-		cardMap[card.ID] = card
+		grouped[card.Column] = append(grouped[card.Column], card)
 	}
 
-	// Build ordered result based on column card_ids
+	// Sort each group by position
+	for col := range grouped {
+		grp := grouped[col]
+		sort.Slice(grp, func(i, j int) bool {
+			if grp[i].Position == grp[j].Position {
+				return grp[i].ID < grp[j].ID // tiebreaker
+			}
+			return grp[i].Position < grp[j].Position
+		})
+	}
+
+	// Build result in column order (as defined in board config)
 	var result []*model.Card
+	validColumns := make(map[string]bool)
 	for _, col := range boardCfg.Columns {
+		validColumns[col.Name] = true
 		if columnFilter != "" && col.Name != columnFilter {
 			continue
 		}
-		for _, cardID := range col.CardIDs {
-			if card, ok := cardMap[cardID]; ok {
-				// Update card's column from board config (authoritative source)
-				card.Column = col.Name
-				result = append(result, card)
-				delete(cardMap, cardID) // Mark as processed
-			}
-		}
+		result = append(result, grouped[col.Name]...)
 	}
 
-	// Append any cards not in column card_ids (orphaned cards)
-	// These are cards that exist but aren't tracked in the board config.
-	// Only include them if no column filter is specified (since they have no column).
+	// Append orphaned cards (column not in board config) if no filter
 	if columnFilter == "" {
-		for _, card := range cardMap {
-			result = append(result, card)
+		for _, card := range cards {
+			if !validColumns[card.Column] {
+				result = append(result, card)
+			}
 		}
 	}
 
@@ -218,43 +229,51 @@ func (s *CardService) List(boardName string, columnFilter string) ([]*model.Card
 	return result, nil
 }
 
-// MoveCard moves a card to a different column at the top.
+// MoveCard moves a card to a different column at the bottom.
 func (s *CardService) MoveCard(boardName, cardID, targetColumn string) error {
-	return s.MoveCardAt(boardName, cardID, targetColumn, 0)
+	return s.MoveCardAt(boardName, cardID, targetColumn, -1)
 }
 
-// MoveCardAt moves a card to a different column at a specific position.
-// If position is -1, appends to end.
+// MoveCardAt moves a card to a column at a specific index position.
+// Position 0 = top of column, -1 = bottom.
 func (s *CardService) MoveCardAt(boardName, cardID, targetColumn string, position int) error {
-	// Get board config
 	boardCfg, err := s.boardStore.Get(boardName)
 	if err != nil {
 		return err
 	}
 
-	// Validate target column exists
 	if !boardCfg.HasColumn(targetColumn) {
 		return kanerr.ColumnNotFound(targetColumn, boardName)
 	}
 
-	// Check column limit for cross-column moves (reordering within same column is always OK)
-	currentColumn := boardCfg.GetCardColumn(cardID)
-	if currentColumn != targetColumn {
-		col := boardCfg.GetColumn(targetColumn)
-		if col.IsAtLimit() {
-			return kanerr.ColumnLimitExceeded(targetColumn, col.Limit)
-		}
-	}
-
-	// Verify the card exists
-	_, err = s.cardStore.Get(boardName, cardID)
+	// Get the card to move
+	card, err := s.cardStore.Get(boardName, cardID)
 	if err != nil {
 		return err
 	}
 
-	// Move card in board config (authoritative source for column membership)
-	boardCfg.MoveCardToColumnAt(cardID, targetColumn, position)
-	return s.boardStore.Update(boardCfg)
+	// Load all cards to determine positions and check limits
+	allCards, err := s.cardStore.List(boardName)
+	if err != nil {
+		return err
+	}
+
+	// Get sorted cards in target column (excluding the card being moved)
+	colCards := cardsInColumnExcluding(allCards, targetColumn, cardID)
+
+	// Check column limit for cross-column moves
+	if card.Column != targetColumn {
+		col := boardCfg.GetColumn(targetColumn)
+		if col.Limit > 0 && len(colCards) >= col.Limit {
+			return kanerr.ColumnLimitExceeded(targetColumn, col.Limit)
+		}
+	}
+
+	// Compute new position
+	card.Column = targetColumn
+	card.Position = computePosition(colCards, position)
+	card.UpdatedAtMillis = util.NowMillis()
+	return s.cardStore.Update(boardName, card)
 }
 
 // FindByIDOrAlias finds a card by ID or alias.
@@ -323,7 +342,11 @@ func (s *CardService) Edit(input EditCardInput) (*model.Card, error) {
 		if err := s.MoveCard(input.BoardName, card.ID, *input.Column); err != nil {
 			return nil, err
 		}
-		card.Column = *input.Column
+		// Re-fetch card after move (column and position changed on disk)
+		card, err = s.Get(input.BoardName, card.ID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Handle description change
@@ -450,20 +473,7 @@ func (s *CardService) validateAndApplyCustomFields(card *model.Card, boardCfg *m
 
 // Delete removes a card from the board.
 func (s *CardService) Delete(boardName, cardID string) error {
-	// Remove from card store
-	if err := s.cardStore.Delete(boardName, cardID); err != nil {
-		return err
-	}
-
-	// Remove from board config
-	boardCfg, err := s.boardStore.Get(boardName)
-	if err != nil {
-		// Card is deleted, board config update failure is non-fatal
-		return nil
-	}
-
-	boardCfg.RemoveCardFromColumn(cardID)
-	return s.boardStore.Update(boardCfg)
+	return s.cardStore.Delete(boardName, cardID)
 }
 
 // Restore re-creates a previously deleted card from a full snapshot.
@@ -487,9 +497,14 @@ func (s *CardService) Restore(boardName string, card *model.Card, column string,
 		return kanerr.ColumnNotFound(column, boardName)
 	}
 
-	// Check column limit
+	// Check column limit by counting existing cards in the column
 	col := boardCfg.GetColumn(column)
-	if col.IsAtLimit() {
+	allCards, err := s.cardStore.List(boardName)
+	if err != nil {
+		return err
+	}
+	colCards := cardsInColumn(allCards, column)
+	if col.Limit > 0 && len(colCards) >= col.Limit {
 		return kanerr.ColumnLimitExceeded(column, col.Limit)
 	}
 
@@ -508,14 +523,12 @@ func (s *CardService) Restore(boardName string, card *model.Card, column string,
 		card.AliasExplicit = false
 	}
 
-	// Write card file
-	if err := s.cardStore.Create(boardName, card); err != nil {
-		return err
-	}
+	// Set column and position on the card itself
+	card.Column = column
+	card.Position = computePosition(colCards, position)
 
-	// Insert into column at position
-	boardCfg.InsertCardInColumn(card.ID, column, position)
-	return s.boardStore.Update(boardCfg)
+	// Write card file
+	return s.cardStore.Create(boardName, card)
 }
 
 // isValidOption checks if a value exists in the options list.
@@ -791,4 +804,66 @@ func (s *CardService) FindCommentCard(boardName, commentID string) (*model.Card,
 	}
 
 	return nil, kanerr.CommentNotFound(commentID)
+}
+
+// cardsInColumn returns cards belonging to the given column, sorted by position.
+func cardsInColumn(cards []*model.Card, column string) []*model.Card {
+	var result []*model.Card
+	for _, c := range cards {
+		if c.Column == column {
+			result = append(result, c)
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Position == result[j].Position {
+			return result[i].ID < result[j].ID
+		}
+		return result[i].Position < result[j].Position
+	})
+	return result
+}
+
+// cardsInColumnExcluding returns sorted cards in a column, excluding one card by ID.
+func cardsInColumnExcluding(cards []*model.Card, column, excludeID string) []*model.Card {
+	var result []*model.Card
+	for _, c := range cards {
+		if c.Column == column && c.ID != excludeID {
+			result = append(result, c)
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Position == result[j].Position {
+			return result[i].ID < result[j].ID
+		}
+		return result[i].Position < result[j].Position
+	})
+	return result
+}
+
+// lastPosition returns the position of the last card in a sorted slice.
+// Returns "" if the slice is empty. Input should be sorted by position
+// (as returned by cardsInColumn).
+func lastPosition(sortedCards []*model.Card) string {
+	if len(sortedCards) == 0 {
+		return ""
+	}
+	return sortedCards[len(sortedCards)-1].Position
+}
+
+// computePosition generates a fractional index position for inserting at the
+// given index in a sorted slice of column cards.
+// Position 0 = before first card, -1 = after last card.
+func computePosition(sortedCards []*model.Card, index int) string {
+	n := len(sortedCards)
+	if n == 0 {
+		return util.PositionBetween("", "")
+	}
+	if index < 0 || index >= n {
+		// Append to end
+		return util.PositionAfter(sortedCards[n-1].Position)
+	}
+	if index == 0 {
+		return util.PositionBefore(sortedCards[0].Position)
+	}
+	return util.PositionBetween(sortedCards[index-1].Position, sortedCards[index].Position)
 }

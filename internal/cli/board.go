@@ -139,15 +139,24 @@ func runBoardDescribe(name, board string, nonInteractive, jsonOutput bool) {
 		Fatal(err)
 	}
 
+	// Build card count per column
+	cards, err := app.CardService.List(boardName, "")
+	cardCounts := make(map[string]int)
+	if err == nil {
+		for _, card := range cards {
+			cardCounts[card.Column]++
+		}
+	}
+
 	if jsonOutput {
-		printBoardDescribeJson(boardCfg)
+		printBoardDescribeJson(boardCfg, cardCounts)
 		return
 	}
 
-	printBoardDescribeHuman(boardCfg)
+	printBoardDescribeHuman(boardCfg, cardCounts)
 }
 
-func printBoardDescribeJson(cfg *model.BoardConfig) {
+func printBoardDescribeJson(cfg *model.BoardConfig, cardCounts map[string]int) {
 	columns := make([]BoardDescribeColumnInfo, len(cfg.Columns))
 	for i, col := range cfg.Columns {
 		columns[i] = BoardDescribeColumnInfo{
@@ -155,7 +164,7 @@ func printBoardDescribeJson(cfg *model.BoardConfig) {
 			Color:       col.Color,
 			Description: col.Description,
 			Limit:       col.Limit,
-			CardCount:   len(col.CardIDs),
+			CardCount:   cardCounts[col.Name],
 			IsDefault:   col.Name == cfg.DefaultColumn,
 		}
 	}
@@ -178,7 +187,7 @@ func printBoardDescribeJson(cfg *model.BoardConfig) {
 	}
 }
 
-func printBoardDescribeHuman(cfg *model.BoardConfig) {
+func printBoardDescribeHuman(cfg *model.BoardConfig, cardCounts map[string]int) {
 	// Header
 	fmt.Printf("Board: %s\n", cfg.Name)
 	fmt.Printf("Schema: %s\n", cfg.KanSchema)
@@ -187,8 +196,9 @@ func printBoardDescribeHuman(cfg *model.BoardConfig) {
 	fmt.Println()
 	fmt.Println("Columns:")
 	for _, col := range cfg.Columns {
+		n := cardCounts[col.Name]
 		cardWord := "cards"
-		if len(col.CardIDs) == 1 {
+		if n == 1 {
 			cardWord = "card"
 		}
 		swatch := ColorSwatch(col.Color)
@@ -200,7 +210,7 @@ func printBoardDescribeHuman(cfg *model.BoardConfig) {
 		if col.Limit > 0 {
 			limitStr = fmt.Sprintf("/%d", col.Limit)
 		}
-		count := RenderMuted(fmt.Sprintf("(%d%s %s%s)", len(col.CardIDs), limitStr, cardWord, defaultTag))
+		count := RenderMuted(fmt.Sprintf("(%d%s %s%s)", n, limitStr, cardWord, defaultTag))
 		fmt.Printf("  %-17s %s %s\n", col.Name, swatch, count)
 		if col.Description != "" {
 			fmt.Printf("    %s\n", col.Description)

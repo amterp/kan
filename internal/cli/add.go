@@ -127,8 +127,6 @@ func runAdd(title, description, board, column string, parentCard string, fields 
 		Fatal(err)
 	}
 
-	card.Column = boardCfg.GetCardColumn(card.ID)
-
 	// Check for missing wanted fields (for warnings in non-strict mode)
 	missingWanted := service.CheckWantedFields(card, boardCfg)
 

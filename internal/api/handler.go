@@ -13,8 +13,7 @@ import (
 	"github.com/amterp/kan/internal/store"
 )
 
-// CardResponse wraps a Card for JSON API responses, including the Column field
-// which is computed (from board config) and not persisted to card files.
+// CardResponse wraps a Card for JSON API responses.
 // Custom fields are flattened into the top level to match the card JSON storage format.
 type CardResponse struct {
 	ID                  string                   `json:"id"`
@@ -115,15 +114,6 @@ func toCardResponses(cards []*model.Card, boardCfg *model.BoardConfig) []CardRes
 		responses[i] = toCardResponseWithWanted(card, boardCfg)
 	}
 	return responses
-}
-
-// populateCardColumn sets the Column field on a card by looking up the board config.
-func (h *Handler) populateCardColumn(boardName string, card *model.Card) {
-	boardCfg, err := h.ctx().BoardStore.Get(boardName)
-	if err != nil {
-		return // Leave column empty if board config can't be read
-	}
-	card.Column = boardCfg.GetCardColumn(card.ID)
 }
 
 // Handler contains all HTTP handlers for the API.
@@ -379,9 +369,6 @@ func (h *Handler) CreateCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Populate Column from board config for API response
-	h.populateCardColumn(boardName, card)
-
 	// Get board config for wanted fields check
 	boardCfg, _ := h.ctx().BoardStore.Get(boardName)
 
@@ -420,9 +407,6 @@ func (h *Handler) GetCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Populate Column from board config for API response
-	h.populateCardColumn(boardName, card)
-
 	// Get board config for wanted fields check
 	boardCfg, _ := h.ctx().BoardStore.Get(boardName)
 	JSON(w, http.StatusOK, toCardResponseWithWanted(card, boardCfg))
@@ -447,16 +431,13 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Populate Column from board config for comparison
-	h.populateCardColumn(boardName, card)
-
 	var req UpdateCardRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		BadRequest(w, "invalid JSON body")
 		return
 	}
 
-	// Handle column change separately (uses MoveCard to update board config)
+	// Handle column change separately (uses MoveCard to update card file)
 	if req.Column != nil && *req.Column != card.Column {
 		if err := h.ctx().CardService.MoveCard(boardName, card.ID, *req.Column); err != nil {
 			Error(w, err)
@@ -482,7 +463,6 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		card = updated
-		h.populateCardColumn(boardName, card)
 	}
 
 	// Get board config for wanted fields check
@@ -591,7 +571,7 @@ func (h *Handler) MoveCard(w http.ResponseWriter, r *http.Request) {
 		position = *req.Position
 	}
 
-	// Use the service's MoveCardAt which updates board config
+	// Use the service's MoveCardAt which updates the card's column and position
 	if err := h.ctx().CardService.MoveCardAt(boardName, card.ID, req.Column, position); err != nil {
 		Error(w, err)
 		return

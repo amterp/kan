@@ -11,6 +11,8 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/model"
+	"github.com/amterp/kan/internal/store"
+	"github.com/amterp/kan/internal/util"
 	"github.com/amterp/kan/internal/version"
 )
 
@@ -27,9 +29,7 @@ const (
 	// Priority 1: Critical data integrity (errors)
 	CodeMalformedBoardConfig = "MALFORMED_BOARD_CONFIG"
 	CodeMalformedCard        = "MALFORMED_CARD"
-	CodeMissingCardFile      = "MISSING_CARD_FILE"
-	CodeOrphanedCard         = "ORPHANED_CARD"
-	CodeDuplicateCardID      = "DUPLICATE_CARD_ID"
+	CodeOrphanedCard = "ORPHANED_CARD"
 
 	// Priority 2: Config issues (warnings)
 	CodeSchemaOutdated     = "SCHEMA_OUTDATED"
@@ -93,12 +93,13 @@ func (r *DiagnosticReport) HasErrors() bool {
 
 // DoctorService validates Kan data for consistency issues.
 type DoctorService struct {
-	paths *config.Paths
+	paths     *config.Paths
+	cardStore store.CardStore
 }
 
 // NewDoctorService creates a new diagnostic service.
-func NewDoctorService(paths *config.Paths) *DoctorService {
-	return &DoctorService{paths: paths}
+func NewDoctorService(paths *config.Paths, cardStore store.CardStore) *DoctorService {
+	return &DoctorService{paths: paths, cardStore: cardStore}
 }
 
 // Diagnose analyzes all boards (or a specific board) for issues.
@@ -152,12 +153,8 @@ func (s *DoctorService) Fix(report *DiagnosticReport) (*DiagnosticReport, error)
 
 		var err error
 		switch issue.Code {
-		case CodeMissingCardFile:
-			err = s.fixMissingCardFile(issue.Board, issue.CardID)
 		case CodeOrphanedCard:
 			err = s.fixOrphanedCard(issue.Board, issue.CardID)
-		case CodeDuplicateCardID:
-			err = s.fixDuplicateCardID(issue.Board, issue.CardID)
 		case CodeInvalidDefaultCol:
 			err = s.fixInvalidDefaultColumn(issue.Board)
 		case CodeInvalidCardDisplay:
@@ -301,38 +298,6 @@ func (s *DoctorService) checkBoard(report *DiagnosticReport, boardName string) {
 	// Check pattern hooks
 	s.checkPatternHooks(report, boardName, &boardConfig)
 
-	// Collect card IDs from columns
-	referencedCards := make(map[string]string) // cardID -> first column found in
-	duplicates := make(map[string][]string)    // cardID -> all columns found in
-
-	for _, col := range boardConfig.Columns {
-		for _, cardID := range col.CardIDs {
-			if firstCol, exists := referencedCards[cardID]; exists {
-				duplicates[cardID] = append(duplicates[cardID], col.Name)
-				if len(duplicates[cardID]) == 1 {
-					duplicates[cardID] = append([]string{firstCol}, duplicates[cardID]...)
-				}
-			} else {
-				referencedCards[cardID] = col.Name
-			}
-		}
-	}
-
-	diag.CardsReferenced = len(referencedCards)
-
-	// Report duplicates
-	for cardID, cols := range duplicates {
-		report.Issues = append(report.Issues, Issue{
-			Severity:  SeverityError,
-			Code:      CodeDuplicateCardID,
-			Board:     boardName,
-			CardID:    cardID,
-			Message:   fmt.Sprintf("Card appears in multiple columns: %s", strings.Join(cols, ", ")),
-			Fixable:   true,
-			FixAction: fmt.Sprintf("Keep in first column (%s), remove from others", cols[0]),
-		})
-	}
-
 	// Check card files
 	cardsDir := s.paths.CardsDir(boardName)
 	entries, err := os.ReadDir(cardsDir)
@@ -344,6 +309,12 @@ func (s *DoctorService) checkBoard(report *DiagnosticReport, boardName string) {
 			Message:  fmt.Sprintf("Cannot read cards directory: %v", err),
 			Fixable:  false,
 		})
+	}
+
+	// Build set of valid column names
+	validColumns := make(map[string]bool)
+	for _, col := range boardConfig.Columns {
+		validColumns[col.Name] = true
 	}
 
 	cardFiles := make(map[string]bool)
@@ -359,33 +330,44 @@ func (s *DoctorService) checkBoard(report *DiagnosticReport, boardName string) {
 		s.checkCardFile(report, boardName, cardID)
 	}
 
-	// Check for missing card files (referenced but no file)
-	for cardID := range referencedCards {
-		if !cardFiles[cardID] {
-			report.Issues = append(report.Issues, Issue{
-				Severity:  SeverityError,
-				Code:      CodeMissingCardFile,
-				Board:     boardName,
-				CardID:    cardID,
-				Message:   fmt.Sprintf("Card referenced in column but file not found"),
-				Fixable:   true,
-				FixAction: "Remove reference from column",
-			})
-		}
-	}
+	diag.CardsReferenced = len(cardFiles)
 
-	// Check for orphaned cards (file exists but not in any column)
-	for cardID := range cardFiles {
-		if _, referenced := referencedCards[cardID]; !referenced {
-			report.Issues = append(report.Issues, Issue{
-				Severity:  SeverityError,
-				Code:      CodeOrphanedCard,
-				Board:     boardName,
-				CardID:    cardID,
-				Message:   "Card file exists but not in any column",
-				Fixable:   true,
-				FixAction: fmt.Sprintf("Add to default column (%s)", boardConfig.GetDefaultColumn()),
-			})
+	// Check cards for invalid column references
+	cards, err := s.cardStore.List(boardName)
+	if err == nil {
+		for _, card := range cards {
+			if card.Column == "" {
+				report.Issues = append(report.Issues, Issue{
+					Severity:  SeverityError,
+					Code:      CodeOrphanedCard,
+					Board:     boardName,
+					CardID:    card.ID,
+					Message:   "Card has no column assigned",
+					Fixable:   true,
+					FixAction: fmt.Sprintf("Assign to default column (%s)", boardConfig.GetDefaultColumn()),
+				})
+			} else if !validColumns[card.Column] {
+				report.Issues = append(report.Issues, Issue{
+					Severity:  SeverityError,
+					Code:      CodeOrphanedCard,
+					Board:     boardName,
+					CardID:    card.ID,
+					Message:   fmt.Sprintf("Card references non-existent column %q", card.Column),
+					Fixable:   true,
+					FixAction: fmt.Sprintf("Move to default column (%s)", boardConfig.GetDefaultColumn()),
+				})
+			}
+
+			if card.Position == "" {
+				report.Issues = append(report.Issues, Issue{
+					Severity:  SeverityWarning,
+					Code:      CodeMalformedCard,
+					Board:     boardName,
+					CardID:    card.ID,
+					Message:   "Card has no position assigned",
+					Fixable:   false,
+				})
+			}
 		}
 	}
 
@@ -633,33 +615,13 @@ func (s *DoctorService) checkWantedFields(report *DiagnosticReport, boardName st
 
 // Fix implementations
 
-func (s *DoctorService) fixMissingCardFile(boardName, cardID string) error {
-	configPath := s.paths.BoardConfigPath(boardName)
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return err
-	}
-
-	var cfg model.BoardConfig
-	if _, err := toml.Decode(string(data), &cfg); err != nil {
-		return err
-	}
-
-	// Remove cardID from all columns
-	for i := range cfg.Columns {
-		newIDs := []string{}
-		for _, id := range cfg.Columns[i].CardIDs {
-			if id != cardID {
-				newIDs = append(newIDs, id)
-			}
-		}
-		cfg.Columns[i].CardIDs = newIDs
-	}
-
-	return writeBoardConfig(configPath, &cfg)
-}
-
 func (s *DoctorService) fixOrphanedCard(boardName, cardID string) error {
+	// Read the card and assign it to the default column
+	card, err := s.cardStore.Get(boardName, cardID)
+	if err != nil {
+		return err
+	}
+
 	configPath := s.paths.BoardConfigPath(boardName)
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -671,44 +633,11 @@ func (s *DoctorService) fixOrphanedCard(boardName, cardID string) error {
 		return err
 	}
 
-	// Add to default column at the top
-	defaultCol := cfg.GetDefaultColumn()
-	cfg.InsertCardInColumn(cardID, defaultCol, 0)
-
-	return writeBoardConfig(configPath, &cfg)
-}
-
-func (s *DoctorService) fixDuplicateCardID(boardName, cardID string) error {
-	configPath := s.paths.BoardConfigPath(boardName)
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return err
+	card.Column = cfg.GetDefaultColumn()
+	if card.Position == "" {
+		card.Position = util.PositionBetween("", "")
 	}
-
-	var cfg model.BoardConfig
-	if _, err := toml.Decode(string(data), &cfg); err != nil {
-		return err
-	}
-
-	// Keep the first occurrence, remove from all other columns
-	found := false
-	for i := range cfg.Columns {
-		newIDs := []string{}
-		for _, id := range cfg.Columns[i].CardIDs {
-			if id == cardID {
-				if !found {
-					found = true
-					newIDs = append(newIDs, id)
-				}
-				// Skip duplicates
-			} else {
-				newIDs = append(newIDs, id)
-			}
-		}
-		cfg.Columns[i].CardIDs = newIDs
-	}
-
-	return writeBoardConfig(configPath, &cfg)
+	return s.cardStore.Update(boardName, card)
 }
 
 func (s *DoctorService) fixInvalidDefaultColumn(boardName string) error {

@@ -1,4 +1,4 @@
-kan_schema = "board/9"
+kan_schema = "board/10"
 id = "main"
 name = "main"
 default_column = "backlog"
@@ -6,9 +6,7 @@ default_column = "backlog"
 [[columns]]
 name = "backlog"
 color = "#6b7280"
-card_ids = ["card-1"]
 
 [[columns]]
 name = "done"
 color = "#10b981"
-card_ids = []

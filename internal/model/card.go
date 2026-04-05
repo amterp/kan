@@ -20,9 +20,13 @@ type Card struct {
 	UpdatedAtMillis int64     `json:"updated_at_millis"`
 	Comments        []Comment `json:"comments,omitempty"`
 
-	// Column is computed from board config, not persisted to card files.
-	// Populated by service layer when cards are loaded.
-	Column string `json:"-"`
+	// Column is the column this card belongs to. This is the single source of
+	// truth for card-column membership (board config no longer stores card_ids).
+	Column string `json:"column"`
+
+	// Position is a fractional index string for ordering within the column.
+	// Cards are sorted by this field lexicographically.
+	Position string `json:"position"`
 
 	// CustomFields holds board-defined custom fields (including labels, type, etc.).
 	// These are serialized at the top level of the JSON, not nested.
@@ -88,9 +92,10 @@ func (c *Card) UnmarshalJSON(data []byte) error {
 		"parent": true, "creator": true,
 		"created_at_millis": true, "updated_at_millis": true,
 		"comments": true,
-		// These are computed/API-only fields that may appear in JSON from
-		// external sources (e.g. restore endpoint) but aren't custom fields.
-		"column": true, "missing_wanted_fields": true,
+		"column": true, "position": true,
+		// Computed/API-only fields that may appear in JSON from external
+		// sources (e.g. restore endpoint) but aren't custom fields.
+		"missing_wanted_fields": true,
 	}
 
 	c.CustomFields = make(map[string]any)

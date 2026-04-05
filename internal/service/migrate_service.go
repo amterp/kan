@@ -9,6 +9,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/amterp/kan/internal/config"
+	"github.com/amterp/kan/internal/util"
 	"github.com/amterp/kan/internal/version"
 )
 
@@ -126,7 +127,7 @@ func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
 				fmt.Printf("Would migrate board %q config: add kan_schema = %q\n", board.BoardName, board.ToSchema)
 			}
 			if cardsToMigrate > 0 {
-				fmt.Printf("Would migrate %d cards in board %q: add _v=%d, remove column\n",
+				fmt.Printf("Would migrate %d cards in board %q to _v=%d\n",
 					cardsToMigrate, board.BoardName, version.CurrentCardVersion)
 			}
 		} else {
@@ -326,9 +327,11 @@ func (s *MigrateService) planCardMigration(path string) (*CardMigration, error) 
 		plan.FromVersion = 0
 	}
 
-	// Check for column field
-	if _, hasColumn := raw["column"]; hasColumn {
-		plan.RemoveColumn = true
+	// v0->v1: remove column field (old migration)
+	if plan.FromVersion == 0 {
+		if _, hasColumn := raw["column"]; hasColumn {
+			plan.RemoveColumn = true
+		}
 	}
 
 	return plan, nil
@@ -414,6 +417,13 @@ func (s *MigrateService) migrateBoardConfig(plan *BoardMigration) error {
 			return err
 		}
 		fromVersion = 9
+	}
+
+	if fromVersion == 9 && version.CurrentBoardVersion >= 10 {
+		if err := s.migrateBoardV9ToV10(plan); err != nil {
+			return err
+		}
+		fromVersion = 10
 	}
 
 	// Fallback for unknown versions: just update the schema
@@ -557,11 +567,106 @@ func (s *MigrateService) migrateCard(plan *CardMigration) error {
 		return err
 	}
 
+	// Check if already at target version (e.g., v9->v10 board migration
+	// already bumped card files to v2 via writeCardColumnPosition).
+	if v, ok := raw["_v"].(float64); ok && int(v) == plan.ToVersion {
+		return nil
+	}
+
 	// Add/update version
 	raw["_v"] = plan.ToVersion
 
-	// Remove column field
-	delete(raw, "column")
+	// v0->v1: remove column field (moved to board config)
+	if plan.RemoveColumn {
+		delete(raw, "column")
+	}
 
 	return writeJSONMap(plan.Path, raw)
+}
+
+// migrateBoardV9ToV10 moves card-column association from board config to card files.
+// For each column's card_ids, writes column + position to each card file,
+// then strips card_ids from the board config.
+func (s *MigrateService) migrateBoardV9ToV10(plan *BoardMigration) error {
+	// Read board config with card_ids still present
+	data, err := os.ReadFile(plan.ConfigPath)
+	if err != nil {
+		return err
+	}
+
+	var raw map[string]any
+	if _, err := toml.Decode(string(data), &raw); err != nil {
+		return fmt.Errorf("invalid TOML: %w", err)
+	}
+
+	// Extract column -> card_ids mapping before stripping
+	columns, _ := raw["columns"].([]map[string]any)
+	if columns == nil {
+		// Try the TOML decoded format ([]any of map[string]any)
+		if rawCols, ok := raw["columns"].([]any); ok {
+			for _, rc := range rawCols {
+				if m, ok := rc.(map[string]any); ok {
+					columns = append(columns, m)
+				}
+			}
+		}
+	}
+
+	// Write column + position to each card file
+	cardsDir := s.paths.CardsDir(plan.BoardName)
+	for _, col := range columns {
+		colName, _ := col["name"].(string)
+		if colName == "" {
+			continue
+		}
+
+		var cardIDs []string
+		if ids, ok := col["card_ids"].([]any); ok {
+			for _, id := range ids {
+				if s, ok := id.(string); ok {
+					cardIDs = append(cardIDs, s)
+				}
+			}
+		}
+
+		// Generate evenly-spaced positions for all cards in this column
+		positions := util.PositionInitial(len(cardIDs))
+
+		for i, cardID := range cardIDs {
+			cardPath := filepath.Join(cardsDir, cardID+".json")
+			if err := s.writeCardColumnPosition(cardPath, colName, positions[i]); err != nil {
+				// Non-fatal: card file might not exist (will be caught by doctor)
+				fmt.Fprintf(os.Stderr, "Warning: could not update card %s: %v\n", cardID, err)
+			}
+		}
+	}
+
+	// Strip card_ids from all columns in the board config
+	for _, col := range columns {
+		delete(col, "card_ids")
+	}
+
+	// Update schema version
+	raw["kan_schema"] = version.FormatBoardSchema(10)
+
+	return writeTOMLMap(plan.ConfigPath, raw)
+}
+
+// writeCardColumnPosition adds/updates column and position fields on a card JSON file.
+func (s *MigrateService) writeCardColumnPosition(path, column, position string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	raw["column"] = column
+	raw["position"] = position
+	raw["_v"] = version.CurrentCardVersion
+
+	return writeJSONMap(path, raw)
 }
