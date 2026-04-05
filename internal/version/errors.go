@@ -22,7 +22,7 @@ func (e *SchemaVersionError) Error() string {
 	}
 	if e.Found == "missing" {
 		return fmt.Sprintf(
-			"%s has no schema version (file: %s). Run 'kan migrate' to upgrade.",
+			"%s has no schema version (file: %s)",
 			e.FileType, e.FilePath,
 		)
 	}

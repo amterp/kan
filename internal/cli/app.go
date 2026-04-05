@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	"github.com/amterp/kan/internal/resolver"
 	"github.com/amterp/kan/internal/service"
 	"github.com/amterp/kan/internal/store"
+	"github.com/amterp/kan/internal/version"
 )
 
 // App holds all the dependencies for the CLI.
@@ -43,6 +45,17 @@ type App struct {
 func NewApp(interactive bool) (*App, error) {
 	gitClient := git.NewClient()
 	globalStore := store.NewGlobalStore()
+
+	// Auto-migrate global config before loading (schema validation would
+	// otherwise reject old versions).
+	if err := autoMigrateGlobal(); err != nil {
+		var schemaErr *version.SchemaVersionError
+		if errors.As(err, &schemaErr) {
+			// Future version - hard fail with "upgrade Kan" message
+			return nil, err
+		}
+		PrintWarning("failed to auto-migrate global config: %v", err)
+	}
 
 	// Load global config with warnings (don't silently ignore errors)
 	globalCfg, err := globalStore.Load()
@@ -86,6 +99,19 @@ func NewApp(interactive bool) (*App, error) {
 		}
 	}
 	// projectRoot may be empty - that's OK, RequireKan() will catch it
+
+	// Auto-migrate project data before creating stores (which do strict
+	// version validation on reads).
+	if projectRoot != "" {
+		migratePaths := config.NewPaths(projectRoot, dataLocation)
+		if err := autoMigrateProject(migratePaths); err != nil {
+			// Hard error for any migration failure: future-version errors
+			// produce specific "upgrade Kan" messages; other failures are
+			// more informative than the store-level schema rejection that
+			// would follow.
+			return nil, err
+		}
+	}
 
 	paths := config.NewPaths(projectRoot, dataLocation)
 	boardStore := store.NewBoardStore(paths)
@@ -189,6 +215,60 @@ func cleanupStaleWorktreeEntry(globalStore store.GlobalStore, globalCfg *model.G
 		globalCfg.RemoveRepoConfig(worktreePath)
 		_ = globalStore.Save(globalCfg)
 	}
+}
+
+// autoMigrateGlobal checks the global config for outdated schema versions and
+// migrates transparently. Returns a SchemaVersionError for future versions
+// (user needs a newer Kan), or a wrapped error if migration fails.
+func autoMigrateGlobal() error {
+	svc := service.NewQuietMigrateService(config.NewPaths("", ""))
+	globalPlan, err := svc.PlanGlobalMigration()
+	if err != nil {
+		return fmt.Errorf("failed to check global config version: %w", err)
+	}
+
+	if globalPlan == nil || !globalPlan.NeedsMigration {
+		return nil
+	}
+
+	plan := &service.MigrationPlan{GlobalConfig: globalPlan}
+	if err := plan.FutureVersionError(); err != nil {
+		return err
+	}
+
+	if err := svc.Execute(plan, false); err != nil {
+		return fmt.Errorf("auto-migration of global config failed: %w", err)
+	}
+
+	PrintInfo("Auto-migrated global config to %s", version.CurrentGlobalSchema())
+	return nil
+}
+
+// autoMigrateProject checks a project's boards and cards for outdated schema
+// versions and migrates transparently. Returns a SchemaVersionError for future
+// versions, or a wrapped error if migration fails.
+func autoMigrateProject(paths *config.Paths) error {
+	svc := service.NewQuietMigrateService(paths)
+	plan, err := svc.PlanBoardsOnly()
+	if err != nil {
+		return fmt.Errorf("failed to check project schema versions: %w", err)
+	}
+
+	if !plan.HasChanges() {
+		return nil
+	}
+
+	if err := plan.FutureVersionError(); err != nil {
+		return err
+	}
+
+	if err := svc.Execute(plan, false); err != nil {
+		return fmt.Errorf("auto-migration failed: %w", err)
+	}
+
+	PrintInfo("Auto-migrated project data to current schema.")
+	fmt.Println(RenderMuted("  Tip: commit the migrated files separately."))
+	return nil
 }
 
 // RequireKan ensures Kan is initialized in the current project.

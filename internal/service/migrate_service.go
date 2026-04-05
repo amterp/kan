@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,14 +15,24 @@ import (
 )
 
 // MigrateService handles schema migrations for Kan data files.
-// Uses raw file I/O to bypass store validation.
+// Uses raw file I/O to bypass store validation. Output controls where
+// progress messages are written (os.Stdout for interactive use,
+// io.Discard for auto-migration).
 type MigrateService struct {
-	paths *config.Paths
+	paths  *config.Paths
+	output io.Writer
 }
 
-// NewMigrateService creates a new migration service.
+// NewMigrateService creates a new migration service that writes progress
+// to stdout.
 func NewMigrateService(paths *config.Paths) *MigrateService {
-	return &MigrateService{paths: paths}
+	return &MigrateService{paths: paths, output: os.Stdout}
+}
+
+// NewQuietMigrateService creates a migration service that suppresses
+// progress output. Used by auto-migration, which prints its own summary.
+func NewQuietMigrateService(paths *config.Paths) *MigrateService {
+	return &MigrateService{paths: paths, output: io.Discard}
 }
 
 // MigrationPlan describes what changes would be made during migration.
@@ -99,17 +110,19 @@ func (s *MigrateService) Plan() (*MigrationPlan, error) {
 	return plan, nil
 }
 
-// Execute performs the migration.
+// Execute performs the migration. Progress output is written to s.output.
 func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
+	w := s.output
+
 	// Migrate global config
 	if plan.GlobalConfig != nil && plan.GlobalConfig.NeedsMigration {
 		if dryRun {
-			fmt.Printf("Would migrate global config: add kan_schema = %q\n", plan.GlobalConfig.ToSchema)
+			fmt.Fprintf(w, "Would migrate global config: add kan_schema = %q\n", plan.GlobalConfig.ToSchema)
 		} else {
 			if err := s.migrateGlobalConfig(plan.GlobalConfig); err != nil {
 				return fmt.Errorf("failed to migrate global config: %w", err)
 			}
-			fmt.Printf("Migrated global config\n")
+			fmt.Fprintf(w, "Migrated global config\n")
 		}
 	}
 
@@ -124,10 +137,10 @@ func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
 
 		if dryRun {
 			if board.NeedsMigration {
-				fmt.Printf("Would migrate board %q config: add kan_schema = %q\n", board.BoardName, board.ToSchema)
+				fmt.Fprintf(w, "Would migrate board %q config: add kan_schema = %q\n", board.BoardName, board.ToSchema)
 			}
 			if cardsToMigrate > 0 {
-				fmt.Printf("Would migrate %d cards in board %q to _v=%d\n",
+				fmt.Fprintf(w, "Would migrate %d cards in board %q to _v=%d\n",
 					cardsToMigrate, board.BoardName, version.CurrentCardVersion)
 			}
 		} else {
@@ -147,21 +160,44 @@ func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
 			}
 
 			if board.NeedsMigration || cardsToMigrate > 0 {
-				fmt.Printf("Migrated board %q", board.BoardName)
+				fmt.Fprintf(w, "Migrated board %q", board.BoardName)
 				if board.NeedsMigration {
-					fmt.Printf(" (config")
+					fmt.Fprintf(w, " (config")
 					if cardsToMigrate > 0 {
-						fmt.Printf(" + %d cards", cardsToMigrate)
+						fmt.Fprintf(w, " + %d cards", cardsToMigrate)
 					}
-					fmt.Printf(")")
+					fmt.Fprintf(w, ")")
 				} else if cardsToMigrate > 0 {
-					fmt.Printf(" (%d cards)", cardsToMigrate)
+					fmt.Fprintf(w, " (%d cards)", cardsToMigrate)
 				}
-				fmt.Println()
+				fmt.Fprintln(w)
 			}
 		}
 	}
 
+	return nil
+}
+
+// FutureVersionError checks if any files in the plan have a schema version
+// newer than this binary supports. Returns the first future-version error
+// found, or nil if all versions are current or older. Callers should check
+// this before Execute() to avoid silently downgrading data.
+func (p *MigrationPlan) FutureVersionError() error {
+	if p.GlobalConfig != nil && p.GlobalConfig.FromSchema != "" {
+		if version.IsFutureGlobalSchema(p.GlobalConfig.FromSchema) {
+			return version.InvalidGlobalSchema(p.GlobalConfig.Path, p.GlobalConfig.FromSchema)
+		}
+	}
+	for _, board := range p.Boards {
+		if board.FromSchema != "" && version.IsFutureBoardSchema(board.FromSchema) {
+			return version.InvalidBoardSchema(board.ConfigPath, board.FromSchema)
+		}
+		for _, card := range board.Cards {
+			if version.IsFutureCardVersion(card.FromVersion) {
+				return version.InvalidCardVersion(card.Path, card.FromVersion, version.CurrentCardVersion)
+			}
+		}
+	}
 	return nil
 }
 

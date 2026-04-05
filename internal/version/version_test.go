@@ -132,6 +132,65 @@ func TestSchemaVersionError(t *testing.T) {
 	}
 }
 
+func TestIsFutureBoardSchema(t *testing.T) {
+	tests := []struct {
+		schema   string
+		expected bool
+	}{
+		{FormatBoardSchema(CurrentBoardVersion + 1), true},
+		{FormatBoardSchema(CurrentBoardVersion + 10), true},
+		{CurrentBoardSchema(), false},
+		{FormatBoardSchema(1), false},
+		{"global/1", false},  // Wrong prefix
+		{"invalid", false},   // Unparseable
+		{"board/abc", false}, // Non-numeric
+	}
+	for _, tt := range tests {
+		got := IsFutureBoardSchema(tt.schema)
+		if got != tt.expected {
+			t.Errorf("IsFutureBoardSchema(%q) = %v, want %v", tt.schema, got, tt.expected)
+		}
+	}
+}
+
+func TestIsFutureGlobalSchema(t *testing.T) {
+	tests := []struct {
+		schema   string
+		expected bool
+	}{
+		{FormatGlobalSchema(CurrentGlobalVersion + 1), true},
+		{FormatGlobalSchema(CurrentGlobalVersion + 10), true},
+		{CurrentGlobalSchema(), false},
+		{"board/1", false}, // Wrong prefix
+		{"invalid", false}, // Unparseable
+	}
+	for _, tt := range tests {
+		got := IsFutureGlobalSchema(tt.schema)
+		if got != tt.expected {
+			t.Errorf("IsFutureGlobalSchema(%q) = %v, want %v", tt.schema, got, tt.expected)
+		}
+	}
+}
+
+func TestIsFutureCardVersion(t *testing.T) {
+	tests := []struct {
+		v        int
+		expected bool
+	}{
+		{CurrentCardVersion + 1, true},
+		{CurrentCardVersion + 100, true},
+		{CurrentCardVersion, false},
+		{CurrentCardVersion - 1, false},
+		{0, false},
+	}
+	for _, tt := range tests {
+		got := IsFutureCardVersion(tt.v)
+		if got != tt.expected {
+			t.Errorf("IsFutureCardVersion(%d) = %v, want %v", tt.v, got, tt.expected)
+		}
+	}
+}
+
 // TestMinKanVersionCompleteness ensures all current schema versions have
 // corresponding entries in MinKanVersion. This catches the case where someone
 // bumps a version constant but forgets to update MinKanVersion.
