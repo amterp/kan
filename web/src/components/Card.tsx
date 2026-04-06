@@ -81,13 +81,17 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
 
   const handleClick = () => {
     if (isDragging || isSortableDragging || isEditing) return;
+    onClick?.();
+  };
+
+  const handleTitleClick = (e: React.MouseEvent) => {
+    if (isDragging || isSortableDragging || isEditing) return;
     if (isSlim && onSaveTitle) {
+      e.stopPropagation();
       editDoneRef.current = false;
       setEditTitle(card.title);
       setIsEditing(true);
-      return;
     }
-    onClick?.();
   };
 
   const handleAdvanceClick = (e: React.MouseEvent) => {
@@ -173,7 +177,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       title={isCompact ? card.alias : undefined}
-      className={`group relative bg-white dark:bg-gray-700 rounded-lg ${isCompact ? 'px-2 py-1.5' : 'p-3'} shadow-sm border border-gray-100 dark:border-gray-600 ${isSlim ? (onSaveTitle ? 'cursor-text' : 'cursor-default') : 'cursor-pointer'} hover:shadow-md transition-shadow animate-card-enter ${
+      className={`group relative bg-white dark:bg-gray-700 rounded-lg ${isCompact ? 'px-2 py-1.5' : 'p-3'} shadow-sm border border-gray-100 dark:border-gray-600 ${isSlim ? 'cursor-default' : 'cursor-pointer'} hover:shadow-md transition-shadow animate-card-enter ${
         isDragging ? 'shadow-lg rotate-2' : ''
       } ${isHighlighted ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-200 dark:ring-offset-gray-800' : ''}`}
     >
@@ -289,7 +293,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
               className={`font-medium text-gray-900 dark:text-white ${isCompact ? 'text-[13px] leading-snug' : 'text-sm'} break-words w-full bg-transparent border-0 border-b-2 border-blue-500 focus:outline-none resize-none overflow-hidden p-0 m-0`}
             />
           ) : (
-            <h3 className={`font-medium text-gray-900 dark:text-white ${isCompact ? 'text-[13px] leading-snug' : 'text-sm'} break-words`}>
+            <h3 onClick={handleTitleClick} className={`font-medium text-gray-900 dark:text-white ${isCompact ? 'text-[13px] leading-snug' : 'text-sm'} break-words ${isSlim && onSaveTitle ? 'cursor-text inline' : ''}`}>
               {parseTextWithLinks(card.title, board.link_rules).map((segment, i) =>
                 segment.type === 'link' ? (
                   <a
