@@ -60,11 +60,11 @@ func setupAutoMigrateProject(t *testing.T, boardSchema string, cardVersion int) 
 
 	// Write card
 	card := map[string]any{
-		"id":               "card-1",
-		"title":            "Test Card",
-		"column":           "Backlog",
-		"position":         "V",
-		"creator":          "tester",
+		"id":                "card-1",
+		"title":             "Test Card",
+		"column":            "Backlog",
+		"position":          "V",
+		"creator":           "tester",
 		"created_at_millis": 1704307200000,
 		"updated_at_millis": 1704307200000,
 	}
