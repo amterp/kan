@@ -1,6 +1,6 @@
 {
   "_v": 2,
-  "alias": "cache-comments-before-2",
+  "alias": "cache-comments",
   "alias_explicit": false,
   "column": "backlog-hi",
   "created_at_millis": 1768964254847,
@@ -8,6 +8,6 @@
   "id": "a_BlWLznge",
   "position": "oQ",
   "title": "cache comments before submitting, to remember (in case of accidental crash/close/refresh)",
-  "type": "enhancement",
-  "updated_at_millis": 1768964261167
+  "type": "feature",
+  "updated_at_millis": 1775532167068
 }

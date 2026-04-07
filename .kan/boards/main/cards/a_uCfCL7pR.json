@@ -2,13 +2,12 @@
   "_v": 2,
   "alias": "card-tinting",
   "alias_explicit": false,
-  "column": "in-progress",
+  "column": "done",
   "created_at_millis": 1775530531228,
   "creator": "Alexander Terp",
   "id": "a_uCfCL7pR",
-  "position": "U",
-  "tint": "purple",
+  "position": "!2",
   "title": "card tinting",
   "type": "feature",
-  "updated_at_millis": 1775531676415
+  "updated_at_millis": 1775532424600
 }
