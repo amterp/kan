@@ -421,33 +421,44 @@ func (s *CardService) validateAndApplyCustomFields(card *model.Card, boardCfg *m
 		// Validate value against schema
 		switch schema.Type {
 		case model.FieldTypeEnum:
-			if !isValidOption(schema.Options, value) {
+			if value == "" {
+				delete(card.CustomFields, key)
+			} else if !isValidOption(schema.Options, value) {
 				return kanerr.InvalidField(key, fmt.Sprintf("must be one of: %s", formatOptions(schema.Options)))
+			} else {
+				card.CustomFields[key] = value
 			}
-			card.CustomFields[key] = value
 
 		case model.FieldTypeEnumSet:
 			// Parse comma-separated values, validate against options
 			vals := parseSetValues(value)
 			vals = dedup(vals)
-			if len(vals) > model.MaxSetItems {
-				return kanerr.InvalidField(key, fmt.Sprintf("too many values (max %d)", model.MaxSetItems))
-			}
-			for _, v := range vals {
-				if !isValidOption(schema.Options, v) {
-					return kanerr.InvalidField(key, fmt.Sprintf("%q is not a valid option; must be one of: %s", v, formatOptions(schema.Options)))
+			if len(vals) == 0 {
+				delete(card.CustomFields, key)
+			} else {
+				if len(vals) > model.MaxSetItems {
+					return kanerr.InvalidField(key, fmt.Sprintf("too many values (max %d)", model.MaxSetItems))
 				}
+				for _, v := range vals {
+					if !isValidOption(schema.Options, v) {
+						return kanerr.InvalidField(key, fmt.Sprintf("%q is not a valid option; must be one of: %s", v, formatOptions(schema.Options)))
+					}
+				}
+				card.CustomFields[key] = vals
 			}
-			card.CustomFields[key] = vals
 
 		case model.FieldTypeFreeSet:
 			// Parse comma-separated values, no option validation
 			vals := parseSetValues(value)
 			vals = dedup(vals)
-			if len(vals) > model.MaxSetItems {
-				return kanerr.InvalidField(key, fmt.Sprintf("too many values (max %d)", model.MaxSetItems))
+			if len(vals) == 0 {
+				delete(card.CustomFields, key)
+			} else {
+				if len(vals) > model.MaxSetItems {
+					return kanerr.InvalidField(key, fmt.Sprintf("too many values (max %d)", model.MaxSetItems))
+				}
+				card.CustomFields[key] = vals
 			}
-			card.CustomFields[key] = vals
 
 		case model.FieldTypeBoolean:
 			if value == "" {
@@ -461,7 +472,11 @@ func (s *CardService) validateAndApplyCustomFields(card *model.Card, boardCfg *m
 			}
 
 		case model.FieldTypeString, model.FieldTypeDate:
-			card.CustomFields[key] = value
+			if value == "" {
+				delete(card.CustomFields, key)
+			} else {
+				card.CustomFields[key] = value
+			}
 
 		default:
 			return kanerr.InvalidField(key, fmt.Sprintf("unknown field type %q", schema.Type))
