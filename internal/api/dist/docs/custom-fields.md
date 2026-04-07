@@ -135,6 +135,7 @@ The `[card_display]` section in your board config controls how custom fields app
 ```toml
 [card_display]
 type_indicator = "type"           # Shown as a colored badge
+tint = "priority"                 # Card background color
 badges = ["labels"]               # Shown as colored chips
 ```
 
@@ -142,21 +143,24 @@ badges = ["labels"]               # Shown as colored chips
 
 | Slot | Field Types | Rendering |
 |------|-------------|-----------|
-| `type_indicator` | `enum` only | Colored badge (single value) |
+| `type_indicator` | `enum` only | Colored badge (single value) + left border accent |
+| `tint` | `enum` only | Subtle background color wash on the entire card |
 | `badges` | `enum-set`, `free-set`, `boolean` | Colored chips (set values) or field name badge (boolean, shown when `true`) |
 
 Fields not assigned to a display slot are only visible in the card detail view.
 
+The `tint` slot colors the entire card's background using the assigned option's `color` value. This makes specific cards visually stand out on the board. The tint only appears on cards where the field has a value set - cards without a value have no background color. Clear the field value (e.g. `kan edit <card> -f priority=`) to remove the tint. For best results, use bright, saturated colors on your enum options.
+
 **Example card appearance:**
 
 ```
-┌────────────────────────────────────┐
-│ Fix login timeout                  │  ← title
-│ ┌─────────┐ ┌─────────┐ ┌────────┐ │
-│ │   bug   │ │ blocked │ │ urgent │ │  ← type_indicator + badges
-│ └─────────┘ └─────────┘ └────────┘ │
-│                              📝 💬 │  ← system indicators
-└────────────────────────────────────┘
+┌━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┐
+┃ Fix login timeout                  ┃  ← title
+┃ ┌─────────┐ ┌─────────┐ ┌────────┐ ┃
+┃ │   bug   │ │ blocked │ │ urgent │ ┃  ← type_indicator + badges
+┃                              📝 💬 ┃  ← system indicators
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+  ↑ entire card background is tinted
 ```
 
 ## Setting Fields via CLI

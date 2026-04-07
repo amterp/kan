@@ -247,11 +247,14 @@ func printBoardDescribeHuman(cfg *model.BoardConfig, cardCounts map[string]int) 
 
 	// Card Display
 	cd := cfg.CardDisplay
-	if cd.TypeIndicator != "" || len(cd.Badges) > 0 || len(cd.Metadata) > 0 {
+	if cd.TypeIndicator != "" || cd.Tint != "" || len(cd.Badges) > 0 || len(cd.Metadata) > 0 {
 		fmt.Println()
 		fmt.Println("Card Display:")
 		if cd.TypeIndicator != "" {
 			fmt.Printf("  Type indicator: %s\n", cd.TypeIndicator)
+		}
+		if cd.Tint != "" {
+			fmt.Printf("  Tint: %s\n", cd.Tint)
 		}
 		if len(cd.Badges) > 0 {
 			fmt.Printf("  Badges: %s\n", strings.Join(cd.Badges, ", "))

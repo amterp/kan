@@ -1366,11 +1366,83 @@ func TestMigrateService_V8ToV9_Idempotent(t *testing.T) {
 }
 
 // ============================================================================
-// V9 Tests (Current schema - no migration needed)
+// V10 Tests (board/10 -> board/11, schema-only bump for tint display slot)
 // ============================================================================
 
-func TestMigrateService_Plan_V10_NoChanges(t *testing.T) {
+func TestMigrateService_V10ToV11_UpdatesSchema(t *testing.T) {
+	service, tempDir, cleanup := setupMigrationTest(t, "v10")
+	defer cleanup()
+
+	// Migrate
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if !plan.HasChanges() {
+		t.Fatal("v10 data should need migration to v11")
+	}
+	if err := service.Execute(plan, false); err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	// Verify stores can read the migrated data
+	paths := config.NewPaths(tempDir, "")
+	boardStore := store.NewBoardStore(paths)
+
+	boardCfg, err := boardStore.Get("main")
+	if err != nil {
+		t.Fatalf("BoardStore.Get failed after migration: %v", err)
+	}
+
+	// Verify schema was updated
+	if boardCfg.KanSchema != version.CurrentBoardSchema() {
+		t.Errorf("Expected KanSchema %q, got %q", version.CurrentBoardSchema(), boardCfg.KanSchema)
+	}
+
+	// Existing fields should be preserved
+	if boardCfg.Name != "main" {
+		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
+	}
+	if len(boardCfg.CustomFields) == 0 {
+		t.Error("CustomFields should be preserved")
+	}
+	if len(boardCfg.PatternHooks) != 1 {
+		t.Error("PatternHooks should be preserved")
+	}
+}
+
+func TestMigrateService_V10ToV11_Idempotent(t *testing.T) {
 	service, _, cleanup := setupMigrationTest(t, "v10")
+	defer cleanup()
+
+	// First migration
+	plan1, err := service.Plan()
+	if err != nil {
+		t.Fatalf("First Plan failed: %v", err)
+	}
+	if !plan1.HasChanges() {
+		t.Fatal("First plan should have changes")
+	}
+	if err := service.Execute(plan1, false); err != nil {
+		t.Fatalf("First Execute failed: %v", err)
+	}
+
+	// Second migration should be no-op
+	plan2, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Second Plan failed: %v", err)
+	}
+	if plan2.HasChanges() {
+		t.Error("Second plan should have no changes (migration is idempotent)")
+	}
+}
+
+// ============================================================================
+// V11 Tests (Current schema - no migration needed)
+// ============================================================================
+
+func TestMigrateService_Plan_V11_NoChanges(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v11")
 	defer cleanup()
 
 	plan, err := service.Plan()
@@ -1378,15 +1450,15 @@ func TestMigrateService_Plan_V10_NoChanges(t *testing.T) {
 		t.Fatalf("Plan failed: %v", err)
 	}
 	if plan.HasChanges() {
-		t.Error("Current schema (v10) data should not need migration")
+		t.Error("Current schema (v11) data should not need migration")
 	}
 }
 
-func TestMigrateService_V10_ReadableByStores(t *testing.T) {
-	_, tempDir, cleanup := setupMigrationTest(t, "v10")
+func TestMigrateService_V11_ReadableByStores(t *testing.T) {
+	_, tempDir, cleanup := setupMigrationTest(t, "v11")
 	defer cleanup()
 
-	// V10 fixtures should be directly readable by stores without migration
+	// V11 fixtures should be directly readable by stores without migration
 	paths := config.NewPaths(tempDir, "")
 	cardStore := store.NewCardStore(paths)
 	boardStore := store.NewBoardStore(paths)
@@ -1394,7 +1466,7 @@ func TestMigrateService_V10_ReadableByStores(t *testing.T) {
 	// Board store should read without error
 	boardCfg, err := boardStore.Get("main")
 	if err != nil {
-		t.Fatalf("BoardStore.Get failed on v10 fixtures: %v", err)
+		t.Fatalf("BoardStore.Get failed on v11 fixtures: %v", err)
 	}
 	if boardCfg.Name != "main" {
 		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
@@ -1487,10 +1559,28 @@ func TestMigrateService_V10_ReadableByStores(t *testing.T) {
 		}
 	}
 
+	// Tint field should be present (new in v11)
+	tintSchema, ok := boardCfg.CustomFields["tint"]
+	if !ok {
+		t.Error("Expected 'tint' custom field")
+	} else {
+		if tintSchema.Type != "enum" {
+			t.Errorf("Expected tint type 'enum', got %q", tintSchema.Type)
+		}
+		if len(tintSchema.Options) != 2 {
+			t.Errorf("Expected 2 tint options, got %d", len(tintSchema.Options))
+		}
+	}
+
+	// Tint display slot should be present
+	if boardCfg.CardDisplay.Tint != "tint" {
+		t.Errorf("Expected CardDisplay.Tint = 'tint', got %q", boardCfg.CardDisplay.Tint)
+	}
+
 	// Card store should read without error
 	card, err := cardStore.Get("main", "card-abc")
 	if err != nil {
-		t.Fatalf("CardStore.Get failed on v10 fixtures: %v", err)
+		t.Fatalf("CardStore.Get failed on v11 fixtures: %v", err)
 	}
 	if card.ID != "card-abc" {
 		t.Errorf("Card ID = %q, want 'card-abc'", card.ID)
@@ -1513,5 +1603,8 @@ func TestMigrateService_V10_ReadableByStores(t *testing.T) {
 	}
 	if card.CustomFields["high_priority"] != true {
 		t.Errorf("Custom field 'high_priority' = %v, want true", card.CustomFields["high_priority"])
+	}
+	if card.CustomFields["tint"] != "red" {
+		t.Errorf("Custom field 'tint' = %v, want 'red'", card.CustomFields["tint"])
 	}
 }

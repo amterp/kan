@@ -78,6 +78,7 @@ export interface CustomFieldSchema {
 
 export interface CardDisplayConfig {
   type_indicator?: string;
+  tint?: string;
   badges?: string[];
   metadata?: string[];
 }

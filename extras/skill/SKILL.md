@@ -124,6 +124,7 @@ Configure how fields appear on cards in the web UI and CLI output. Apply sensibl
 - If the user has a `type` field, set it as the `type_indicator` (colored badge on each card).
 - Any `enum-set` or `free-set` fields (like `labels`) should go in `badges` (chip-style labels on cards).
 - Other fields like dates or effort can go in `metadata` (small text below the card).
+- If the user has an enum field they want to use for visual emphasis (like priority or urgency), it can be assigned to `tint` to wash the card's background with that option's color.
 
 For new users, just set these defaults and briefly mention that their type will show as a colored badge on cards and any tags will show as labels. Don't expose config key names like `type_indicator` or `badges` unless the user asks for details.
 

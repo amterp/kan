@@ -433,6 +433,8 @@ func (s *DoctorService) checkCardDisplay(report *DiagnosticReport, boardName str
 		fieldType := ""
 		if strings.Contains(w, "type_indicator") {
 			fieldType = "type_indicator"
+		} else if strings.Contains(w, "tint") {
+			fieldType = "tint"
 		} else if strings.Contains(w, "badges") {
 			fieldType = "badges"
 		} else if strings.Contains(w, "metadata") {
@@ -682,6 +684,8 @@ func (s *DoctorService) fixInvalidCardDisplay(boardName string, fixContext map[s
 	switch fieldType {
 	case "type_indicator":
 		cfg.CardDisplay.TypeIndicator = ""
+	case "tint":
+		cfg.CardDisplay.Tint = ""
 	case "badges":
 		cfg.CardDisplay.Badges = filterValidFields(cfg.CardDisplay.Badges, cfg.CustomFields)
 	case "metadata":

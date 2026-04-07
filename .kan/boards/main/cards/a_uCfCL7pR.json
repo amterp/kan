@@ -1,0 +1,14 @@
+{
+  "_v": 2,
+  "alias": "card-tinting",
+  "alias_explicit": false,
+  "column": "in-progress",
+  "created_at_millis": 1775530531228,
+  "creator": "Alexander Terp",
+  "id": "a_uCfCL7pR",
+  "position": "U",
+  "tint": "purple",
+  "title": "card tinting",
+  "type": "feature",
+  "updated_at_millis": 1775531676415
+}

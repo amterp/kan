@@ -73,6 +73,7 @@ type CustomFieldSchema struct {
 // CardDisplayConfig controls how custom fields render on cards in the board view.
 type CardDisplayConfig struct {
 	TypeIndicator string   `toml:"type_indicator,omitempty" json:"type_indicator,omitempty"` // enum field shown as badge
+	Tint          string   `toml:"tint,omitempty" json:"tint,omitempty"`                     // enum field → card background color
 	Badges        []string `toml:"badges,omitempty" json:"badges,omitempty"`                 // set/boolean fields shown as chips
 	Metadata      []string `toml:"metadata,omitempty" json:"metadata,omitempty"`             // fields shown as small text
 }
@@ -343,7 +344,7 @@ func (b *BoardConfig) ValidateCardDisplay() []string {
 	var warnings []string
 
 	cd := b.CardDisplay
-	if cd.TypeIndicator == "" && len(cd.Badges) == 0 && len(cd.Metadata) == 0 {
+	if cd.TypeIndicator == "" && cd.Tint == "" && len(cd.Badges) == 0 && len(cd.Metadata) == 0 {
 		return nil // Empty config, nothing to validate
 	}
 
@@ -354,6 +355,16 @@ func (b *BoardConfig) ValidateCardDisplay() []string {
 			warnings = append(warnings, "card_display.type_indicator references non-existent field: "+cd.TypeIndicator)
 		} else if schema.Type != FieldTypeEnum {
 			warnings = append(warnings, "card_display.type_indicator should reference an enum field, but '"+cd.TypeIndicator+"' is type '"+schema.Type+"'")
+		}
+	}
+
+	// Validate tint references an enum field
+	if cd.Tint != "" {
+		schema, exists := b.CustomFields[cd.Tint]
+		if !exists {
+			warnings = append(warnings, "card_display.tint references non-existent field: "+cd.Tint)
+		} else if schema.Type != FieldTypeEnum {
+			warnings = append(warnings, "card_display.tint should reference an enum field, but '"+cd.Tint+"' is type '"+schema.Type+"'")
 		}
 	}
 

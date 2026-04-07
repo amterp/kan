@@ -321,16 +321,51 @@ func TestBoardConfig_ValidateCardDisplay(t *testing.T) {
 			wantWarnings: 1,
 		},
 		{
+			name: "valid tint config",
+			cfg: &BoardConfig{
+				CustomFields: map[string]CustomFieldSchema{
+					"priority_color": {Type: "enum"},
+				},
+				CardDisplay: CardDisplayConfig{
+					Tint: "priority_color",
+				},
+			},
+			wantWarnings: 0,
+		},
+		{
+			name: "tint references non-existent field",
+			cfg: &BoardConfig{
+				CustomFields: map[string]CustomFieldSchema{},
+				CardDisplay: CardDisplayConfig{
+					Tint: "missing",
+				},
+			},
+			wantWarnings: 1,
+		},
+		{
+			name: "tint references non-enum field",
+			cfg: &BoardConfig{
+				CustomFields: map[string]CustomFieldSchema{
+					"priority": {Type: "string"},
+				},
+				CardDisplay: CardDisplayConfig{
+					Tint: "priority",
+				},
+			},
+			wantWarnings: 1,
+		},
+		{
 			name: "multiple warnings",
 			cfg: &BoardConfig{
 				CustomFields: map[string]CustomFieldSchema{},
 				CardDisplay: CardDisplayConfig{
 					TypeIndicator: "missing1",
-					Badges:        []string{"missing2"},
-					Metadata:      []string{"missing3"},
+					Tint:          "missing2",
+					Badges:        []string{"missing3"},
+					Metadata:      []string{"missing4"},
 				},
 			},
-			wantWarnings: 3,
+			wantWarnings: 4,
 		},
 	}
 

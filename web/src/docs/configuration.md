@@ -75,6 +75,7 @@ type = "free-set"
 
 [card_display]
 type_indicator = "type"
+# tint = "priority"   # optional: enum field for card background color
 badges = ["labels"]
 
 [[link_rules]]
@@ -154,6 +155,7 @@ Controls how custom fields appear on cards in the board view:
 ```toml
 [card_display]
 type_indicator = "type"      # enum field shown as badge
+tint = "priority"      # enum field for card background color
 badges = ["labels"]          # set fields shown as chips
 ```
 

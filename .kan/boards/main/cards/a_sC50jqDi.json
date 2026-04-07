@@ -6,8 +6,9 @@
   "created_at_millis": 1775233613487,
   "creator": "Alexander Terp",
   "id": "a_sC50jqDi",
-  "position": "UT",
+  "position": "Z",
+  "tint": "red",
   "title": "display roles are often missed, maybe default in ?",
   "type": "enhancement",
-  "updated_at_millis": 1775233621966
+  "updated_at_millis": 1775531971000
 }

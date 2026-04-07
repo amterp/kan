@@ -144,9 +144,11 @@ worktree_independent = true
 - **board/6**: Adds optional `description` field to custom field schemas and individual options. Descriptions are surfaced in CLI warnings, API responses, and the web UI to help users and agents understand field semantics.
 - **board/7**: Adds optional `description` field to columns. Column descriptions document what each workflow stage means, surfaced via `kan column list`, `kan board describe`, column info tooltips in the web UI, and the API.
 - **board/8**: Adds optional `limit` field to columns. Column limits cap the number of cards in a column. Adding or moving cards to a full column is refused. Column headers show `(X/Y)` when a limit is set.
-- **board/9 (current)**: Adds `boolean` custom field type for simple yes/no flags. Boolean values are stored as JSON `true`/`false` in card files.
+- **board/9**: Adds `boolean` custom field type for simple yes/no flags. Boolean values are stored as JSON `true`/`false` in card files.
+- **board/10**: Moves card-column association from board config (`card_ids` arrays in columns) to card files (`column` + `position` fields using fractional indexing). This eliminates a class of merge conflicts when multiple users add/move cards simultaneously.
+- **board/11 (current)**: Adds `tint` display slot to `card_display`. Points at an `enum` field whose option color is used as a subtle background wash on cards, making them visually stand out on the board.
 
-Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9.
+Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9 -> v10 -> v11.
 
 **Rationale**: Strict versioning—Kan refuses to read files without version stamps (or with incompatible versions). This catches schema drift early and forces explicit migration.
 

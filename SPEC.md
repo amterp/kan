@@ -499,6 +499,7 @@ How cards render in the board view is configured at the **board level**, not per
 ```toml
 [card_display]
 type_indicator = "type"           # Single enum field shown as colored badge
+tint = "priority"                 # Single enum field for card background color
 badges = ["labels"]               # Array of set fields shown as colored chips
 metadata = ["assignee"]           # Array of fields shown as small text
 ```
@@ -508,6 +509,7 @@ metadata = ["assignee"]           # Array of fields shown as small text
 ```go
 type CardDisplayConfig struct {
     TypeIndicator string   `toml:"type_indicator,omitempty"` // single enum field
+    Tint          string   `toml:"tint,omitempty"`           // single enum field -> card background color
     Badges        []string `toml:"badges,omitempty"`         // array of set fields (enum-set, free-set)
     Metadata      []string `toml:"metadata,omitempty"`       // array of any fields
 }
@@ -521,7 +523,8 @@ Card display slots determine where custom field values appear on cards in the bo
 
 | Slot | Cardinality | Field Type | Rendering |
 |------|-------------|------------|-----------|
-| `type_indicator` | Single field | `enum` | Small colored badge (e.g., "bug" pill) |
+| `type_indicator` | Single field | `enum` | Small colored badge (e.g., "bug" pill) + left border accent |
+| `tint` | Single field | `enum` | Subtle background color wash on the entire card |
 | `badges` | Array of fields | `enum-set`, `free-set` | Colored chips, displayed in config order |
 | `metadata` | Array of fields | Any | Small text in card footer |
 
@@ -550,7 +553,8 @@ These are hardcoded to core fields and cannot be reassigned. They indicate *pres
    - If card.comments is non-empty → show comments icon
 
 2. CONFIGURABLE DISPLAY SLOTS (from [card_display]):
-   - If type_indicator configured → render field value as badge
+   - If type_indicator configured → render field value as badge + left border accent
+   - If tint configured → render card with subtle background color from field's option color
    - If badges configured → render each field's values as chips (in order)
    - If metadata configured → render each field's value as small text
 ```
@@ -571,6 +575,7 @@ These are hardcoded to core fields and cannot be reassigned. They indicate *pres
 
 **Board config validation:**
 - `type_indicator` must reference an existing `enum` custom field
+- `tint` must reference an existing `enum` custom field
 - Each entry in `badges` must reference an existing `enum-set` or `free-set` custom field
 - Each entry in `metadata` must reference an existing custom field (any type)
 - References to non-existent fields produce a validation error on board load

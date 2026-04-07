@@ -76,6 +76,12 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
   const typeValue = typeIndicator ? card[typeIndicator] as string : undefined;
   const typeOption = typeValue ? getFieldOption(board, typeIndicator!, typeValue) : undefined;
 
+  // Get tint field for the card background color
+  const tintField = board.card_display?.tint;
+  const tintValue = tintField ? card[tintField] as string : undefined;
+  const tintOption = tintValue ? getFieldOption(board, tintField!, tintValue) : undefined;
+  const tintColor = tintOption ? (tintOption.color || stringToColor(tintValue!)) : undefined;
+
   // Get badge fields for the card
   const badgeFields = board.card_display?.badges || [];
 
@@ -181,6 +187,13 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
         isDragging ? 'shadow-lg rotate-2' : ''
       } ${isHighlighted ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-200 dark:ring-offset-gray-800' : ''}`}
     >
+      {/* Tint overlay */}
+      {tintColor && (
+        <div
+          className="absolute inset-0 rounded-lg pointer-events-none"
+          style={{ backgroundColor: tintColor, opacity: 0.16 }}
+        />
+      )}
       {/* Advance button - shown on hover */}
       {onAdvance && (
         <button
