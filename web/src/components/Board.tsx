@@ -16,10 +16,12 @@ import { useSlimMode } from '../contexts/SlimModeContext';
 
 // Panel target - tracks what the floating field panel is editing
 interface PanelTarget {
-  type: 'draft' | 'created';
+  type: 'draft' | 'created' | 'existing';
   column: string;
-  cardId?: string; // Only set when type is 'created'
+  cardId?: string; // Set when type is 'created' or 'existing'
   anchorEl: HTMLElement;
+  clickX?: number; // When set, panel positions at click coords instead of anchoring to card
+  clickY?: number;
 }
 
 interface BoardProps {
@@ -454,7 +456,8 @@ export default function Board({
   }, []);
 
   const handlePanelFieldChange = useCallback(async (fieldName: string, value: unknown) => {
-    if (!panelTarget || panelTarget.type !== 'created' || !panelTarget.cardId) return;
+    if (!panelTarget || !panelTarget.cardId) return;
+    if (panelTarget.type !== 'created' && panelTarget.type !== 'existing') return;
 
     // Update local state immediately for responsive UI
     setCreatedCardFields((prev) => ({ ...prev, [fieldName]: value }));
@@ -490,7 +493,8 @@ export default function Board({
 
   // Compute field values for the panel
   const panelFieldValues = useMemo((): Record<string, unknown> => {
-    if (!panelTarget || panelTarget.type !== 'created') return {};
+    if (!panelTarget || !panelTarget.cardId) return {};
+    if (panelTarget.type !== 'created' && panelTarget.type !== 'existing') return {};
 
     // Merge card data with local edits (local edits take precedence)
     const card = cards.find((c) => c.id === panelTarget.cardId);
@@ -511,7 +515,7 @@ export default function Board({
     onOpenCard(card.id);
   };
 
-  // Inline title edit (slim mode only)
+  // Inline title edit (slim mode click-to-edit, or context menu Rename in any mode)
   const handleSaveCardTitle = useCallback(async (cardId: string, newTitle: string) => {
     const card = cards.find(c => c.id === cardId);
     if (!card || card.title === newTitle) return;
@@ -563,7 +567,10 @@ export default function Board({
     }
   }, [board.columns, allCardsByColumn, onMoveCard, onPushUndo, showToast]);
 
-  // Context menu state for slim mode
+  // State for externally triggering card rename via context menu
+  const [forceEditCardId, setForceEditCardId] = useState<string | null>(null);
+
+  // Context menu state
   const [contextMenu, setContextMenu] = useState<{
     cardId: string;
     cardColumn: string;
@@ -596,6 +603,7 @@ export default function Board({
   }, [cards, allCardsByColumn, onDeleteCard, onPushUndo, showToast]);
 
   const handleCardContextMenu = useCallback((card: Card, e: React.MouseEvent) => {
+    setPanelTarget(null); // dismiss any open field panel
     setContextMenu({
       cardId: card.id,
       cardColumn: card.column,
@@ -641,6 +649,29 @@ export default function Board({
     }
     setContextMenu(null);
   }, [contextMenu, board.columns, allCardsByColumn, onMoveCard, onPushUndo, showToast]);
+
+  const handleContextMenuRename = useCallback(() => {
+    if (!contextMenu) return;
+    const cardId = contextMenu.cardId;
+    setContextMenu(null);
+    // Delay so the menu unmounts before the card enters edit mode
+    requestAnimationFrame(() => {
+      setForceEditCardId(cardId);
+    });
+  }, [contextMenu]);
+
+  const handleContextMenuChangeFields = useCallback(() => {
+    if (!contextMenu) return;
+    const { cardId, cardColumn, x, y } = contextMenu;
+    setContextMenu(null);
+    setCreatedCardFields({});
+    const cardEl = document.querySelector(`[data-card-id="${cardId}"]`) as HTMLElement | null;
+    if (cardEl) {
+      setPanelTarget({ type: 'existing', column: cardColumn, cardId, anchorEl: cardEl, clickX: x, clickY: y });
+    } else {
+      console.warn(`Change Fields: could not find card element for id "${cardId}"`);
+    }
+  }, [contextMenu]);
 
   // Clear debounce timer when panel target changes (switching cards or dismissing)
   useEffect(() => {
@@ -774,8 +805,10 @@ export default function Board({
                 onAdvanceCard={index < board.columns.length - 1
                   ? (cardId) => handleAdvanceCard(column.name, cardId)
                   : undefined}
-                onCardContextMenu={isSlim ? handleCardContextMenu : undefined}
-                onSaveCardTitle={isSlim ? handleSaveCardTitle : undefined}
+                onCardContextMenu={handleCardContextMenu}
+                onSaveCardTitle={handleSaveCardTitle}
+                forceEditCardId={forceEditCardId}
+                onForceEditDone={() => setForceEditCardId(null)}
               />
             ))}
           </SortableContext>
@@ -860,16 +893,21 @@ export default function Board({
           onChange={handlePanelFieldChange}
           anchorEl={panelTarget.anchorEl}
           onDismiss={handlePanelHide}
+          clickX={panelTarget.clickX}
+          clickY={panelTarget.clickY}
         />
       )}
 
-      {/* Context menu for moving cards (slim mode) */}
+      {/* Card context menu */}
       {contextMenu && (
         <CardContextMenu
           columns={board.columns}
           currentColumn={contextMenu.cardColumn}
+          hasCustomFields={!!(board.custom_fields && Object.keys(board.custom_fields).length > 0)}
           x={contextMenu.x}
           y={contextMenu.y}
+          onRename={handleContextMenuRename}
+          onChangeFields={handleContextMenuChangeFields}
           onMove={handleContextMenuMove}
           onClose={() => setContextMenu(null)}
         />

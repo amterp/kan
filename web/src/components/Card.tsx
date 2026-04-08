@@ -20,6 +20,8 @@ interface CardProps {
   onAdvance?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
   onSaveTitle?: (newTitle: string) => void;
+  forceEdit?: boolean;
+  onForceEditDone?: () => void;
 }
 
 // Helper to get option details for a field value
@@ -44,7 +46,7 @@ function getSetValues(card: CardType, fieldName: string): string[] {
  * NOTE: The data-card-id attribute is used by Board.tsx to find this element
  * when anchoring the FloatingFieldPanel after card creation. Don't remove it.
  */
-export default function Card({ card, board, isDragging = false, isPlaceholder = false, isHighlighted = false, onClick, onDelete, onAdvance, onContextMenu, onSaveTitle }: CardProps) {
+export default function Card({ card, board, isDragging = false, isPlaceholder = false, isHighlighted = false, onClick, onDelete, onAdvance, onContextMenu, onSaveTitle, forceEdit, onForceEditDone }: CardProps) {
   const { isCompact } = useCompactMode();
   const { isSlim } = useSlimMode();
   const { showToast } = useToast();
@@ -153,6 +155,17 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       cancelEdit();
     }
   }, [isEditing, onSaveTitle, cancelEdit]);
+
+  // Enter edit mode when triggered externally (e.g. context menu Rename).
+  // Same pattern as cancelEdit() above - responding to a prop change.
+  useEffect(() => {
+    if (forceEdit && onSaveTitle && !isEditing) {
+      editDoneRef.current = false;
+      setEditTitle(card.title);
+      setIsEditing(true);
+      onForceEditDone?.();
+    }
+  }, [forceEdit, onSaveTitle, isEditing, card.title, onForceEditDone]);
 
   // Render as dashed placeholder when being dragged
   if (showAsPlaceholder) {

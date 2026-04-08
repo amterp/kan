@@ -108,8 +108,10 @@ interface ColumnProps {
   onPanelHide?: () => void;
   columnIndex: number;
   onAdvanceCard?: (cardId: string) => void;
-  onCardContextMenu?: (card: Card, e: React.MouseEvent) => void; // slim mode only
-  onSaveCardTitle?: (cardId: string, newTitle: string) => void; // slim mode only
+  onCardContextMenu?: (card: Card, e: React.MouseEvent) => void;
+  onSaveCardTitle?: (cardId: string, newTitle: string) => void;
+  forceEditCardId?: string | null;
+  onForceEditDone?: () => void;
 }
 
 export default function Column({
@@ -139,6 +141,8 @@ export default function Column({
   onAdvanceCard,
   onCardContextMenu,
   onSaveCardTitle,
+  forceEditCardId,
+  onForceEditDone,
 }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.name });
   const { showToast } = useToast();
@@ -553,6 +557,8 @@ export default function Column({
                   onAdvance={onAdvanceCard ? () => onAdvanceCard(card.id) : undefined}
                   onContextMenu={onCardContextMenu ? (e) => onCardContextMenu(card, e) : undefined}
                   onSaveTitle={onSaveCardTitle ? (newTitle: string) => onSaveCardTitle(card.id, newTitle) : undefined}
+                  forceEdit={forceEditCardId === card.id}
+                  onForceEditDone={onForceEditDone}
                   isPlaceholder={isBeingDragged}
                   isHighlighted={card.id === highlightedCardId}
                 />
