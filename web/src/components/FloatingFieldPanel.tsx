@@ -8,12 +8,16 @@ interface FloatingFieldPanelProps {
   onChange: (fieldName: string, value: unknown) => void;
   anchorEl: HTMLElement | null;
   onDismiss: () => void;
+  // When provided, position at these coordinates instead of relative to anchorEl
+  clickX?: number;
+  clickY?: number;
 }
 
 /**
- * Floating panel for editing custom fields after card creation.
- * Positions itself relative to the anchor element, flipping as needed
- * to stay within viewport.
+ * Floating panel for editing custom fields.
+ * When clickX/clickY are provided, positions at those coordinates (context menu flow).
+ * Otherwise positions relative to the anchor element (shift+enter card creation flow).
+ * Flips as needed to stay within viewport.
  */
 export default function FloatingFieldPanel({
   board,
@@ -21,6 +25,8 @@ export default function FloatingFieldPanel({
   onChange,
   anchorEl,
   onDismiss,
+  clickX,
+  clickY,
 }: FloatingFieldPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
@@ -28,47 +34,49 @@ export default function FloatingFieldPanel({
   // Don't render if no custom fields defined
   const hasCustomFields = board.custom_fields && Object.keys(board.custom_fields).length > 0;
 
-  // Calculate position relative to anchor element
+  // Calculate position - at click coordinates or relative to anchor element
   const calculatePosition = useCallback(() => {
-    if (!anchorEl || !panelRef.current) return;
+    if (!panelRef.current) return;
 
-    const anchorRect = anchorEl.getBoundingClientRect();
     const panelRect = panelRef.current.getBoundingClientRect();
     const viewport = {
       width: window.innerWidth,
       height: window.innerHeight,
     };
-
     const gap = 8;
 
-    // Default: position to the right of anchor
-    let left = anchorRect.right + gap;
+    let top: number;
+    let left: number;
 
-    // Check if panel overflows right edge - flip to left side
-    if (left + panelRect.width > viewport.width - gap) {
-      left = anchorRect.left - panelRect.width - gap;
+    if (clickX !== undefined && clickY !== undefined) {
+      // Position at click coordinates (context menu flow)
+      left = clickX;
+      top = clickY;
+    } else if (anchorEl) {
+      // Position relative to anchor element (shift+enter flow)
+      const anchorRect = anchorEl.getBoundingClientRect();
+      left = anchorRect.right + gap;
+      top = anchorRect.top;
+    } else {
+      return;
     }
 
-    // Ensure it doesn't go off left edge
+    // Clamp to viewport
+    if (left + panelRect.width > viewport.width - gap) {
+      left = Math.max(gap, left - panelRect.width);
+    }
     if (left < gap) {
       left = gap;
     }
-
-    // Default: align top of panel with top of anchor
-    let top = anchorRect.top;
-
-    // Check if panel overflows bottom - anchor from bottom instead
     if (top + panelRect.height > viewport.height - gap) {
-      top = anchorRect.bottom - panelRect.height;
+      top = Math.max(gap, top - panelRect.height);
     }
-
-    // Ensure it doesn't go off top edge
     if (top < gap) {
       top = gap;
     }
 
     setPosition({ top, left });
-  }, [anchorEl]);
+  }, [anchorEl, clickX, clickY]);
 
   // Calculate position after first render (need panel dimensions)
   useEffect(() => {
