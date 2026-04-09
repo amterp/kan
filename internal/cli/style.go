@@ -40,11 +40,11 @@ const (
 	IconInfo    = "→"
 )
 
-// PrintSuccess prints a success message with a green checkmark.
+// PrintSuccess prints a success message with a green checkmark to stderr.
 func PrintSuccess(format string, args ...any) {
 	icon := StyleSuccess.Render(IconSuccess)
 	msg := fmt.Sprintf(format, args...)
-	fmt.Printf("%s %s\n", icon, msg)
+	fmt.Fprintf(os.Stderr, "%s %s\n", icon, msg)
 }
 
 // PrintError prints an error message with a red X to stderr.
@@ -61,11 +61,11 @@ func PrintWarning(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "%s %s\n", icon, msg)
 }
 
-// PrintInfo prints an info message with a blue arrow.
+// PrintInfo prints an info message with a blue arrow to stderr.
 func PrintInfo(format string, args ...any) {
 	icon := StyleMuted.Render(IconInfo)
 	msg := fmt.Sprintf(format, args...)
-	fmt.Printf("%s %s\n", icon, msg)
+	fmt.Fprintf(os.Stderr, "%s %s\n", icon, msg)
 }
 
 // RenderID renders a card/comment ID in accent color.

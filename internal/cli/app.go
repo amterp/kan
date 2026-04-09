@@ -267,7 +267,7 @@ func autoMigrateProject(paths *config.Paths) error {
 	}
 
 	PrintInfo("Auto-migrated project data to current schema.")
-	fmt.Println(RenderMuted("  Tip: commit the migrated files separately."))
+	fmt.Fprintln(os.Stderr, RenderMuted("  Tip: commit the migrated files separately."))
 	return nil
 }
 
