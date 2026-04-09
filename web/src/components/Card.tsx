@@ -211,7 +211,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       {onAdvance && (
         <button
           onClick={handleAdvanceClick}
-          className={`absolute top-1 ${onDelete ? 'right-7' : 'right-1'} z-10 p-1 text-gray-300 dark:text-gray-500 hover:text-green-500 opacity-0 group-hover:opacity-100 transition-opacity`}
+          className={`absolute top-1 ${onDelete ? 'right-7' : 'right-1'} z-20 p-1 text-gray-300 dark:text-gray-500 hover:text-green-500 opacity-0 group-hover:opacity-100 transition-opacity`}
           title="Advance to next column"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -224,7 +224,7 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
       {onDelete && (
         <button
           onClick={handleDeleteClick}
-          className="absolute top-1 right-1 z-10 p-1 rounded text-gray-300 dark:text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 opacity-0 group-hover:opacity-100 transition-all"
+          className="absolute top-1 right-1 z-20 p-1 rounded text-gray-300 dark:text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 opacity-0 group-hover:opacity-100 transition-all"
           title="Delete card"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
