@@ -1,0 +1,14 @@
+{
+  "_v": 2,
+  "alias": "404-on-docs-endpoint",
+  "alias_explicit": false,
+  "column": "next",
+  "created_at_millis": 1775947158150,
+  "creator": "Alexander Terp",
+  "description": "⏺ Fetch(https://amterp.dev/kan/docs)\n  ⎿  Error: Request failed with status code 404\n\n⏺ Fetch(https://amterp.dev/kan/docs/)\n  ⎿  Error: Request failed with status code 404",
+  "id": "a_x1TZFxwv",
+  "position": "ZUU",
+  "title": "404 on docs endpoint",
+  "type": "bug",
+  "updated_at_millis": 1776023537128
+}

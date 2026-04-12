@@ -2,12 +2,12 @@
   "_v": 2,
   "alias": "include-board-name",
   "alias_explicit": false,
-  "column": "next",
+  "column": "backlog-hi",
   "created_at_millis": 1774133360122,
   "creator": "Alexander Terp",
   "id": "a_kkQOY0pR",
-  "position": "M",
+  "position": "1",
   "title": "include board name in board search, even if only one in a project",
   "type": "feature",
-  "updated_at_millis": 1775532408958
+  "updated_at_millis": 1776023553538
 }

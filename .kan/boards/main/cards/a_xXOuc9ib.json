@@ -1,0 +1,14 @@
+{
+  "_v": 2,
+  "alias": "repeated-f-flag",
+  "alias_explicit": false,
+  "column": "done",
+  "created_at_millis": 1776023244151,
+  "creator": "Alexander Terp",
+  "description": "parseCustomFields in internal/cli/edit.go (lines 202-217, shared by add and edit) collects -f key=value entries into a map[string]string. When the same key is given twice (e.g. -f component=core -f component=cli), the second write overwrites the first and the earlier value is silently lost.\n\nThis breaks set-typed fields (enum-set, free-set) in particular: the --field flag is advertised as 'strs' (repeatable) in help text, so users reasonably assume they can repeat it to add multiple members. Instead, only the last value is kept with no warning. Comma-separated form (-f component=core,cli) works because parseSetValues at internal/service/card_service.go:570 splits on commas for set fields.\n\nHit this while adding kan cards to another repo - created a card with components 'core' and 'cli' but only 'cli' was stored.\n\nProposed fix: in parseCustomFields, when a duplicate key is seen, concatenate with ',' instead of overwriting. Set-typed fields then handle it naturally via parseSetValues. Scalar fields (single enum, string) would fail validation with something like 'core,cli is not a valid enum value' - an explicit error rather than silent data loss, which is the right failure mode.\n\nSecondary: the help text '(key=value format, repeatable)' for -f should mention that set fields accept comma-separated values.\n\nFiles:\n- internal/cli/edit.go (parseCustomFields)\n- internal/cli/add.go (same flag definition)\n- add/update a test in internal/cli/ covering repeated -f for a set field\n- CLI help text update",
+  "id": "a_xXOuc9ib",
+  "position": "!0",
+  "title": "Repeated -f flag silently drops values for set fields",
+  "type": "bug",
+  "updated_at_millis": 1776031983337
+}

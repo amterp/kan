@@ -1,0 +1,14 @@
+{
+  "_v": 2,
+  "alias": "toml-renders",
+  "alias_explicit": false,
+  "column": "next",
+  "created_at_millis": 1775947219288,
+  "creator": "Alexander Terp",
+  "description": "https://amterp.dev/kan/docs/configuration\n\n```toml\nkan_schema = \"board/8\"\nid = \"k7xQ2m\"\nname = \"main\"\n\n[[columns]]\nname = \"todo\"\ncolor = \"#6b7280\"\n\n[[columns]]\nname = \"in-progress\"\ncolor = \"#f59e0b\"\n\n[[columns]]\nname = \"done\"\ncolor = \"#10b981\"\n```",
+  "id": "a_x1V9rCvS",
+  "position": "ZE",
+  "title": "TOML renders strangely in docs",
+  "type": "bug",
+  "updated_at_millis": 1776023555172
+}

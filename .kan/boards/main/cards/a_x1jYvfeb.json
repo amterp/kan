@@ -1,0 +1,14 @@
+{
+  "_v": 2,
+  "alias": "weird-card-title",
+  "alias_explicit": false,
+  "column": "backlog-hi",
+  "created_at_millis": 1775947772984,
+  "creator": "Alexander Terp",
+  "description": "When I was typing a new card with this title:\n\n\u003e !enh Define testing expectations\n\nas I was typing 'expectations' (this was in the loom board), it seem to wrap expectations down, but the box did not expand to show the second line until later",
+  "id": "a_x1jYvfeb",
+  "position": "oQU",
+  "title": "weird card title writing wrapping",
+  "type": "bug",
+  "updated_at_millis": 1776023532978
+}
