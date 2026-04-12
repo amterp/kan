@@ -292,6 +292,7 @@ kan add "Feature" -b features -c todo           # Specify board and column
 kan add "Title" "Description here" -c backlog   # Title + description
 kan add "Subtask" -p 12                         # Add as child of card 12
 kan add "Task" -f priority=high -f type=bug     # Add with custom fields
+kan add "Task" -f component=core -f component=cli  # Set fields: repeat or use -f component=core,cli
 ```
 
 | Flag | Description |
@@ -299,7 +300,7 @@ kan add "Task" -f priority=high -f type=bug     # Add with custom fields
 | `-b, --board` | Target board |
 | `-c, --column` | Target column |
 | `-p, --parent` | Parent card ID or alias |
-| `-f, --field` | Custom field (key=value, repeatable) |
+| `-f, --field` | Custom field (key=value, repeatable; set fields also accept comma-separated values) |
 | `--strict` | Error if wanted fields are missing (default: warn) |
 
 ## Listing Cards
@@ -336,7 +337,7 @@ kan edit fix -f priority=low             # Update custom field
 | `-c, --column` | Move card to column |
 | `-p, --parent` | Set parent card |
 | `-a, --alias` | Set explicit alias |
-| `-f, --field` | Set custom field (key=value, repeatable) |
+| `-f, --field` | Set custom field (key=value, repeatable; set fields also accept comma-separated values) |
 | `--strict` | Error if wanted fields are missing (default: warn) |
 
 ## Deleting Cards

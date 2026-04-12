@@ -175,7 +175,7 @@ kan add "Update docs" "Description goes here"
 | `-b, --board`  | Target board                                  |
 | `-c, --column` | Target column                                 |
 | `-p, --parent` | Parent card ID or alias                       |
-| `-f, --field`  | Custom field in key=value format (repeatable) |
+| `-f, --field`  | Custom field in key=value format (repeatable; set-typed fields also accept comma-separated values) |
 | `--strict`     | Error if wanted fields are missing (default: warn) |
 
 **Examples:**
@@ -229,7 +229,7 @@ kan edit fix-login-bug -t "New title" -c done
 | `-c, --column`      | Move card to column                               |
 | `-p, --parent`      | Set parent card ID or alias                       |
 | `-a, --alias`       | Set explicit alias                                |
-| `-f, --field`       | Set custom field in key=value format (repeatable) |
+| `-f, --field`       | Set custom field in key=value format (repeatable; set-typed fields also accept comma-separated values) |
 | `--strict`          | Error if wanted fields are missing (default: warn) |
 
 ### delete

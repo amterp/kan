@@ -68,7 +68,7 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("f").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Set custom field (key=value format, repeatable)").
+		SetUsage("Set custom field (key=value, repeatable; set fields also accept comma-separated values)").
 		Register(cmd)
 
 	ctx.EditStrict, _ = ra.NewBool("strict").
@@ -199,6 +199,9 @@ func runEditNonInteractive(app *App, boardName string, card *model.Card, boardCf
 }
 
 // parseCustomFields converts ["key=value", ...] to map[string]string.
+// Duplicate keys are concatenated with "," so set-typed fields accumulate
+// values across repeated -f flags; scalar fields then surface a clear
+// validation error downstream rather than silently losing data.
 func parseCustomFields(fields []string) (map[string]string, error) {
 	result := make(map[string]string)
 	for _, f := range fields {
@@ -211,7 +214,11 @@ func parseCustomFields(fields []string) (map[string]string, error) {
 		if key == "" {
 			return nil, fmt.Errorf("empty field name in %q", f)
 		}
-		result[key] = value
+		if existing, ok := result[key]; ok {
+			result[key] = existing + "," + value
+		} else {
+			result[key] = value
+		}
 	}
 	return result, nil
 }

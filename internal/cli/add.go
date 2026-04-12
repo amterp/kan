@@ -50,7 +50,7 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("f").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Set custom field (key=value format, repeatable)").
+		SetUsage("Set custom field (key=value, repeatable; set fields also accept comma-separated values)").
 		Register(cmd)
 
 	ctx.AddStrict, _ = ra.NewBool("strict").
