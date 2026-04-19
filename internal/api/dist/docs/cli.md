@@ -191,7 +191,14 @@ Display card details.
 
 ```bash
 kan show fix-login-bug
+kan show fix-log            # Partial match (fuzzy)
 ```
+
+Card identifiers accept partial substring matches against a card's alias or ID
+(case-insensitive, min 3 chars). A single match resolves; multiple matches
+produce a disambiguation error listing up to 5 candidates. Exact ID or alias
+always wins over fuzzy. This applies to `show`, `edit`, `delete`, and
+`comment add`.
 
 | Flag          | Description |
 |---------------|-------------|

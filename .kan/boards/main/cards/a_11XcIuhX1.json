@@ -1,0 +1,13 @@
+{
+  "_v": 2,
+  "alias": "allow-fuzzy-match",
+  "alias_explicit": false,
+  "column": "done",
+  "created_at_millis": 1776614812371,
+  "creator": "Alexander Terp",
+  "id": "a_11XcIuhX1",
+  "position": "!!U",
+  "title": "allow fuzzy match show",
+  "type": "feature",
+  "updated_at_millis": 1776615821354
+}

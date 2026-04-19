@@ -3,6 +3,7 @@ package errors
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Standard sentinel errors for type checking
@@ -11,6 +12,7 @@ var (
 	ErrAlreadyExists  = errors.New("already exists")
 	ErrNotInitialized = errors.New("not initialized")
 	ErrInvalidInput   = errors.New("invalid input")
+	ErrAmbiguous      = errors.New("ambiguous match")
 )
 
 // NotFoundError indicates a resource doesn't exist.
@@ -58,6 +60,50 @@ func (e *ValidationError) Unwrap() error {
 	return ErrInvalidInput
 }
 
+// AmbiguousMatch is one candidate in an AmbiguousCardError list.
+type AmbiguousMatch struct {
+	Alias string
+	ID    string
+}
+
+// AmbiguousCardError indicates a fuzzy lookup matched multiple cards and
+// the user must disambiguate. Matches contains the full list (pre-sorted);
+// DisplayLimit caps how many entries Error() renders. Storing the full list
+// lets callers like cross-board aggregation reuse the data without losing
+// truncated matches.
+type AmbiguousCardError struct {
+	Input        string
+	Matches      []AmbiguousMatch
+	DisplayLimit int
+}
+
+func (e *AmbiguousCardError) Error() string {
+	shown := e.Matches
+	total := len(e.Matches)
+	if e.DisplayLimit > 0 && total > e.DisplayLimit {
+		shown = e.Matches[:e.DisplayLimit]
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "multiple cards match %q:", e.Input)
+	maxAlias := 0
+	for _, m := range shown {
+		if len(m.Alias) > maxAlias {
+			maxAlias = len(m.Alias)
+		}
+	}
+	for _, m := range shown {
+		fmt.Fprintf(&b, "\n  %-*s  (%s)", maxAlias, m.Alias, m.ID)
+	}
+	if total > len(shown) {
+		fmt.Fprintf(&b, "\n(showing %d of %d)", len(shown), total)
+	}
+	return b.String()
+}
+
+func (e *AmbiguousCardError) Unwrap() error {
+	return ErrAmbiguous
+}
+
 // NotInitializedError indicates Kan isn't set up in the repo.
 type NotInitializedError struct {
 	Path string
@@ -92,6 +138,14 @@ func CommentNotFound(id string) error {
 	return &NotFoundError{Resource: "comment", ID: id}
 }
 
+// NewAmbiguousCardError builds an AmbiguousCardError. The full match list is
+// stored on the error; displayLimit controls how many are shown by Error()
+// (Error() renders "(showing N of M)" when truncation happens). Pass 0 to
+// disable the display cap.
+func NewAmbiguousCardError(input string, matches []AmbiguousMatch, displayLimit int) error {
+	return &AmbiguousCardError{Input: input, Matches: matches, DisplayLimit: displayLimit}
+}
+
 func BoardAlreadyExists(name string) error {
 	return &AlreadyExistsError{Resource: "board", ID: name}
 }
@@ -123,4 +177,9 @@ func IsAlreadyExists(err error) bool {
 // IsValidationError checks if an error is a validation error.
 func IsValidationError(err error) bool {
 	return errors.Is(err, ErrInvalidInput)
+}
+
+// IsAmbiguous reports whether err indicates an ambiguous fuzzy match.
+func IsAmbiguous(err error) bool {
+	return errors.Is(err, ErrAmbiguous)
 }

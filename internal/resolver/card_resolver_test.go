@@ -1,6 +1,8 @@
 package resolver
 
 import (
+	stderrors "errors"
+	"strings"
 	"testing"
 
 	kanerr "github.com/amterp/kan/internal/errors"
@@ -273,6 +275,218 @@ func TestCardResolver_ResolveAcrossBoards_ByAlias(t *testing.T) {
 		t.Errorf("Expected board 'main', got %q", matches[0].BoardName)
 	}
 }
+
+// ============================================================================
+// Fuzzy Resolve Tests
+// ============================================================================
+
+func TestCardResolver_Resolve_FuzzyUniqueMatch(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "abc123", Alias: "allow-fuzzy-matching"})
+	mockStore.addCard("main", &model.Card{ID: "def456", Alias: "unrelated"})
+
+	resolver := NewCardResolver(mockStore)
+	card, err := resolver.Resolve("main", "allow-fuz")
+	if err != nil {
+		t.Fatalf("Resolve failed: %v", err)
+	}
+	if card.ID != "abc123" {
+		t.Errorf("Expected card ID 'abc123', got %q", card.ID)
+	}
+}
+
+func TestCardResolver_Resolve_FuzzyCaseInsensitive(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "abc123", Alias: "allow-fuzzy-matching"})
+
+	resolver := NewCardResolver(mockStore)
+	card, err := resolver.Resolve("main", "ALLOW-FUZ")
+	if err != nil {
+		t.Fatalf("Resolve failed: %v", err)
+	}
+	if card.ID != "abc123" {
+		t.Errorf("Expected card ID 'abc123', got %q", card.ID)
+	}
+}
+
+func TestCardResolver_Resolve_FuzzyMatchesID(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "deadbeef", Alias: "something-else"})
+
+	resolver := NewCardResolver(mockStore)
+	card, err := resolver.Resolve("main", "deadb")
+	if err != nil {
+		t.Fatalf("Resolve failed: %v", err)
+	}
+	if card.ID != "deadbeef" {
+		t.Errorf("Expected card ID 'deadbeef', got %q", card.ID)
+	}
+}
+
+func TestCardResolver_Resolve_FuzzyAmbiguous(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "id1", Alias: "allow-fuzzy-matching"})
+	mockStore.addCard("main", &model.Card{ID: "id2", Alias: "allow-fuzzy-search"})
+
+	resolver := NewCardResolver(mockStore)
+	_, err := resolver.Resolve("main", "allow-fuz")
+	if err == nil {
+		t.Fatal("Expected ambiguous error, got nil")
+	}
+	if !kanerr.IsAmbiguous(err) {
+		t.Fatalf("Expected ambiguous error, got %v", err)
+	}
+	var ambig *kanerr.AmbiguousCardError
+	if !stderrors.As(err, &ambig) {
+		t.Fatalf("Expected *AmbiguousCardError, got %T", err)
+	}
+	if len(ambig.Matches) != 2 {
+		t.Errorf("Expected len(Matches)=2; got %d", len(ambig.Matches))
+	}
+	if ambig.Input != "allow-fuz" {
+		t.Errorf("Expected Input=%q, got %q", "allow-fuz", ambig.Input)
+	}
+}
+
+func TestCardResolver_Resolve_FuzzyAmbiguousCapped(t *testing.T) {
+	mockStore := newMockCardStore()
+	for i, alias := range []string{
+		"fuzzy-a", "fuzzy-b", "fuzzy-c", "fuzzy-d",
+		"fuzzy-e", "fuzzy-f", "fuzzy-g",
+	} {
+		mockStore.addCard("main", &model.Card{ID: string(rune('a' + i)), Alias: alias})
+	}
+
+	resolver := NewCardResolver(mockStore)
+	_, err := resolver.Resolve("main", "fuzzy")
+	if err == nil {
+		t.Fatal("Expected ambiguous error, got nil")
+	}
+	var ambig *kanerr.AmbiguousCardError
+	if !stderrors.As(err, &ambig) {
+		t.Fatalf("Expected *AmbiguousCardError, got %T", err)
+	}
+	if len(ambig.Matches) != 7 {
+		t.Errorf("Expected all 7 matches retained on error, got %d", len(ambig.Matches))
+	}
+	if ambig.DisplayLimit != 5 {
+		t.Errorf("Expected DisplayLimit=5, got %d", ambig.DisplayLimit)
+	}
+	// Error() should render 5 rows + "(showing 5 of 7)" trailer.
+	msg := ambig.Error()
+	if !strings.Contains(msg, "(showing 5 of 7)") {
+		t.Errorf("Expected trailer '(showing 5 of 7)' in error message, got:\n%s", msg)
+	}
+	// Should be sorted alphabetically (all are prefix matches).
+	expected := []string{"fuzzy-a", "fuzzy-b", "fuzzy-c", "fuzzy-d", "fuzzy-e", "fuzzy-f", "fuzzy-g"}
+	for i, want := range expected {
+		if ambig.Matches[i].Alias != want {
+			t.Errorf("Match %d: expected alias %q, got %q", i, want, ambig.Matches[i].Alias)
+		}
+	}
+}
+
+func TestCardResolver_Resolve_FuzzyRankingPrefixFirst(t *testing.T) {
+	mockStore := newMockCardStore()
+	// Midstring match comes alphabetically first, but prefix match must rank ahead.
+	mockStore.addCard("main", &model.Card{ID: "id1", Alias: "alpha-fuz-thing"})
+	mockStore.addCard("main", &model.Card{ID: "id2", Alias: "fuz-cleanup"})
+
+	resolver := NewCardResolver(mockStore)
+	_, err := resolver.Resolve("main", "fuz")
+	if err == nil {
+		t.Fatal("Expected ambiguous error")
+	}
+	var ambig *kanerr.AmbiguousCardError
+	if !stderrors.As(err, &ambig) {
+		t.Fatalf("Expected *AmbiguousCardError, got %T", err)
+	}
+	if ambig.Matches[0].Alias != "fuz-cleanup" {
+		t.Errorf("Expected prefix match 'fuz-cleanup' first, got %q", ambig.Matches[0].Alias)
+	}
+}
+
+func TestCardResolver_Resolve_ExactAliasBeatsFuzzy(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "id1", Alias: "foo"})
+	mockStore.addCard("main", &model.Card{ID: "id2", Alias: "foobar"})
+
+	resolver := NewCardResolver(mockStore)
+	card, err := resolver.Resolve("main", "foo")
+	if err != nil {
+		t.Fatalf("Resolve failed: %v", err)
+	}
+	if card.ID != "id1" {
+		t.Errorf("Expected exact-alias card 'id1', got %q", card.ID)
+	}
+}
+
+func TestCardResolver_Resolve_FuzzyBelowMinQueryLen(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "id1", Alias: "abcd-something"})
+	mockStore.addCard("main", &model.Card{ID: "id2", Alias: "abce-something"})
+
+	resolver := NewCardResolver(mockStore)
+	_, err := resolver.Resolve("main", "ab")
+	if err == nil {
+		t.Fatal("Expected not-found error for short query")
+	}
+	if !kanerr.IsNotFound(err) {
+		t.Errorf("Expected NotFound for short query, got %v", err)
+	}
+}
+
+func TestCardResolver_Resolve_FuzzyNoMatch(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "id1", Alias: "foo"})
+
+	resolver := NewCardResolver(mockStore)
+	_, err := resolver.Resolve("main", "nope")
+	if err == nil {
+		t.Fatal("Expected not-found error")
+	}
+	if !kanerr.IsNotFound(err) {
+		t.Errorf("Expected NotFound, got %v", err)
+	}
+}
+
+func TestCardResolver_ResolveAcrossBoards_FuzzyUniqueInOneBoard(t *testing.T) {
+	mockStore := newMockCardStore()
+	mockStore.addCard("main", &model.Card{ID: "abc123", Alias: "allow-fuzzy-matching"})
+	mockStore.addCard("feature", &model.Card{ID: "def456", Alias: "unrelated"})
+
+	resolver := NewCardResolver(mockStore)
+	matches, err := resolver.ResolveAcrossBoards([]string{"main", "feature"}, "allow-fuz")
+	if err != nil {
+		t.Fatalf("ResolveAcrossBoards failed: %v", err)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("Expected 1 match, got %d", len(matches))
+	}
+	if matches[0].Card.ID != "abc123" || matches[0].BoardName != "main" {
+		t.Errorf("Unexpected match: %+v", matches[0])
+	}
+}
+
+func TestCardResolver_ResolveAcrossBoards_FuzzyAmbiguousFlattens(t *testing.T) {
+	mockStore := newMockCardStore()
+	// Single board has 2 fuzzy matches - should flatten, not error.
+	mockStore.addCard("main", &model.Card{ID: "id1", Alias: "allow-fuzzy-matching"})
+	mockStore.addCard("main", &model.Card{ID: "id2", Alias: "allow-fuzzy-search"})
+
+	resolver := NewCardResolver(mockStore)
+	matches, err := resolver.ResolveAcrossBoards([]string{"main"}, "allow-fuz")
+	if err != nil {
+		t.Fatalf("ResolveAcrossBoards failed: %v", err)
+	}
+	if len(matches) != 2 {
+		t.Fatalf("Expected 2 flattened matches, got %d", len(matches))
+	}
+}
+
+// ============================================================================
+// ResolveAcrossBoards Tests (continued)
+// ============================================================================
 
 func TestCardResolver_ResolveAcrossBoards_EmptyBoardList(t *testing.T) {
 	mockStore := newMockCardStore()
