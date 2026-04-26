@@ -4,6 +4,29 @@ import { listCards, moveCard as apiMoveCard, createCard as apiCreateCard, update
 import type { BoardConfig, Card, CreateCardInput, CreateCardResponse, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
 import { useFileSync, type FileChange } from './useFileSync';
 
+// Insert (or replace) a card so the array stays sorted by position within its column.
+// The cards array is kept ordered to match what the server returns from List, since the
+// rendering layer relies on array order rather than re-sorting by the position field.
+function insertCardSorted(cards: Card[], newCard: Card): Card[] {
+  const existingIdx = cards.findIndex((c) => c.id === newCard.id);
+  if (existingIdx >= 0) {
+    const next = cards.slice();
+    next[existingIdx] = newCard;
+    return next;
+  }
+
+  const newPos = newCard.position ?? '';
+  for (let i = 0; i < cards.length; i++) {
+    const c = cards[i];
+    if (c.column !== newCard.column) continue;
+    const cPos = c.position ?? '';
+    if (cPos > newPos) {
+      return [...cards.slice(0, i), newCard, ...cards.slice(i)];
+    }
+  }
+  return [...cards, newCard];
+}
+
 export function useBoards(refreshKey = 0) {
   const [boards, setBoards] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,16 +113,7 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
       if (change.card_id) {
         try {
           const updatedCard = await apiGetCard(boardName, change.card_id);
-          setCards((prev) => {
-            const existing = prev.find((c) => c.id === change.card_id);
-            if (existing) {
-              // Update existing card
-              return prev.map((c) => (c.id === change.card_id ? updatedCard : c));
-            } else {
-              // Add new card
-              return [...prev, updatedCard];
-            }
-          });
+          setCards((prev) => insertCardSorted(prev, updatedCard));
         } catch (err) {
           // Card might have been deleted between notification and fetch
           console.warn('Failed to fetch updated card:', err);
@@ -206,15 +220,9 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
     if (!boardName) return;
 
     const response = await apiCreateCard(boardName, input);
-    setCards((prev) => {
-      const existing = prev.find((c) => c.id === response.card.id);
-      if (existing) {
-        // Card already added by WebSocket handler - update with API response
-        // (which has the post-hook state and is authoritative)
-        return prev.map((c) => c.id === response.card.id ? response.card : c);
-      }
-      return [...prev, response.card];
-    });
+    // insertCardSorted handles both the replace case (when the WebSocket handler
+    // got there first) and the insert case, keeping the array sorted by position.
+    setCards((prev) => insertCardSorted(prev, response.card));
 
     // Log hook results if any ran
     if (response.hook_results && response.hook_results.length > 0) {
@@ -290,13 +298,7 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
 
   const addCardToState = useCallback((card: Card) => {
     pendingChangesRef.current.add(card.id);
-    setCards((prev) => {
-      const existing = prev.find((c) => c.id === card.id);
-      if (existing) {
-        return prev.map((c) => (c.id === card.id ? card : c));
-      }
-      return [...prev, card];
-    });
+    setCards((prev) => insertCardSorted(prev, card));
     // Clear pending after a short delay to let WebSocket settle
     setTimeout(() => pendingChangesRef.current.delete(card.id), 2000);
   }, []);

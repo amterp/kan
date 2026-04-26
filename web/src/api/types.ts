@@ -19,6 +19,7 @@ export interface Card {
   title: string;
   description?: string;
   column: string;
+  position?: string;
   parent?: string;
   creator: string;
   created_at_millis: number;
