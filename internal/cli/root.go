@@ -279,7 +279,7 @@ func executeCommand(ctx *CommandContext) {
 			*ctx.EditFields, *ctx.EditStrict, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.ServeUsed:
-		runServe(*ctx.ServePort, *ctx.ServeNoOpen)
+		runServe(*ctx.ServePort, ctx.RootCmd.Configured("port"), *ctx.ServeNoOpen)
 
 	case *ctx.MigrateUsed:
 		if *ctx.MigrateAll {

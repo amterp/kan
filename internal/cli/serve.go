@@ -19,7 +19,7 @@ func registerServe(parent *ra.Cmd, ctx *CommandContext) {
 		SetDefault(5260).
 		SetShort("p").
 		SetFlagOnly(true).
-		SetUsage("Port to listen on (will try incrementally if in use)").
+		SetUsage("Port to listen on (auto-increments if unspecified and in use; errors out if explicitly set and unavailable)").
 		Register(cmd)
 
 	ctx.ServeNoOpen, _ = ra.NewBool("no-open").
@@ -31,7 +31,7 @@ func registerServe(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.ServeUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runServe(port int, noOpen bool) {
+func runServe(port int, portExplicit bool, noOpen bool) {
 	app, err := NewApp(false)
 	if err != nil {
 		Fatal(err)
@@ -59,8 +59,16 @@ func runServe(port int, noOpen bool) {
 
 	handler := api.NewHandler(app.GlobalStore, ctx)
 
-	// Find an available port starting from the requested one
-	actualPort := findAvailablePort(port)
+	// If user explicitly set --port, honor it exactly; otherwise auto-increment.
+	var actualPort int
+	if portExplicit {
+		if !isPortAvailable(port) {
+			Fatal(fmt.Errorf("port %d is already in use", port))
+		}
+		actualPort = port
+	} else {
+		actualPort = findAvailablePort(port)
+	}
 
 	server := api.NewServer(handler, actualPort, app.Paths.KanRoot())
 
