@@ -15,7 +15,7 @@ export function fuzzyMatch(query: string, target: string): boolean {
 
 /**
  * Check if a card matches a search query.
- * Searches: title, alias, description, and all custom field values.
+ * Searches: id, title, alias, description, and all custom field values.
  *
  * Query is split on whitespace into words. Each word must appear as a
  * consecutive substring (case-insensitive) in at least one field.
@@ -33,6 +33,7 @@ export function cardMatchesQuery(card: Card, query: string, board: BoardConfig):
 
   // Build searchable texts from all fields
   const searchableTexts: string[] = [
+    card.id.toLowerCase(),
     card.title.toLowerCase(),
     card.alias.toLowerCase(),
     card.description?.toLowerCase() ?? '',

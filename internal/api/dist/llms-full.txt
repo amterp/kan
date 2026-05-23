@@ -401,7 +401,7 @@ kan serve --no-open
 
 | Flag         | Description                       |
 |--------------|-----------------------------------|
-| `-p, --port` | Port to listen on (default: 5260) |
+| `-p, --port` | Port to listen on (default: 5260). When unspecified, auto-increments if in use. When specified explicitly, errors out if unavailable. |
 | `--no-open`  | Don't open browser automatically  |
 
 ### comment
