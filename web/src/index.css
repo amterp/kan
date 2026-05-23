@@ -201,6 +201,14 @@ body {
   position: relative;
 }
 
+/* Prism token classes (.table, .block, .fixed, ...) collide with
+   Tailwind utilities. Force inline display so e.g. a TOML token span
+   <span class="token table">columns</span> doesn't pick up
+   `display: table` and render on its own line. */
+.markdown-body .code-block-wrapper span {
+  display: inline;
+}
+
 .code-copy-button {
   position: absolute;
   top: 0.5rem;
