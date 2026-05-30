@@ -51,6 +51,9 @@ type CommandContext struct {
 	AddBoard       *string
 	AddColumn      *string
 	AddParent      *string
+	AddPosition    *int
+	AddBefore      *string
+	AddAfter       *string
 	AddFields      *[]string
 	AddStrict      *bool
 
@@ -72,6 +75,9 @@ type CommandContext struct {
 	EditDescription *string
 	EditColumn      *string
 	EditParent      *string
+	EditPosition    *int
+	EditBefore      *string
+	EditAfter       *string
 	EditAlias       *string
 	EditFields      *[]string
 	EditStrict      *bool
@@ -161,6 +167,19 @@ type CommandContext struct {
 
 // Run is the main entry point for the CLI.
 func Run() {
+	ctx := buildRootCmd()
+
+	// Parse command line
+	ctx.RootCmd.ParseOrExit(os.Args[1:])
+
+	// Execute the appropriate command
+	executeCommand(ctx)
+}
+
+// buildRootCmd constructs the root command with all subcommands and flags
+// registered. It is split out from Run so tests can parse argument slices and
+// inspect parsed state (e.g. Configured) without triggering command execution.
+func buildRootCmd() *CommandContext {
 	ctx := &CommandContext{}
 
 	cmd := ra.NewCmd("kan")
@@ -199,11 +218,7 @@ func Run() {
 	registerCommit(cmd, ctx)
 	registerCompletion(cmd, ctx)
 
-	// Parse command line
-	cmd.ParseOrExit(os.Args[1:])
-
-	// Execute the appropriate command
-	executeCommand(ctx)
+	return ctx
 }
 
 func executeCommand(ctx *CommandContext) {
@@ -262,7 +277,9 @@ func executeCommand(ctx *CommandContext) {
 		runBoardList(*ctx.Json)
 
 	case *ctx.AddUsed:
-		runAdd(*ctx.AddTitle, *ctx.AddDescription, *ctx.AddBoard, *ctx.AddColumn, *ctx.AddParent, *ctx.AddFields, *ctx.AddStrict, *ctx.NonInteractive, *ctx.Json)
+		runAdd(*ctx.AddTitle, *ctx.AddDescription, *ctx.AddBoard, *ctx.AddColumn, *ctx.AddParent,
+			cardPlacement{*ctx.AddPosition, ctx.RootCmd.Configured("position"), *ctx.AddBefore, *ctx.AddAfter},
+			*ctx.AddFields, *ctx.AddStrict, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.DeleteUsed:
 		runDelete(*ctx.DeleteCard, *ctx.DeleteBoard, *ctx.NonInteractive)
@@ -276,6 +293,7 @@ func executeCommand(ctx *CommandContext) {
 	case *ctx.EditUsed:
 		runEdit(*ctx.EditCard, *ctx.EditBoard, *ctx.EditTitle, *ctx.EditDescription,
 			*ctx.EditColumn, *ctx.EditParent, *ctx.EditAlias,
+			cardPlacement{*ctx.EditPosition, ctx.RootCmd.Configured("position"), *ctx.EditBefore, *ctx.EditAfter},
 			*ctx.EditFields, *ctx.EditStrict, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.ServeUsed:

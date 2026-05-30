@@ -175,14 +175,27 @@ kan add "Update docs" "Description goes here"
 | `-b, --board`  | Target board                                  |
 | `-c, --column` | Target column                                 |
 | `-p, --parent` | Parent card ID or alias                       |
+| `--position`   | Insert at index (0 = top, -1 = end, negatives count from end) |
+| `--before`     | Insert before this card (ID or alias)         |
+| `--after`      | Insert after this card (ID or alias)          |
 | `-f, --field`  | Custom field in key=value format (repeatable; set-typed fields also accept comma-separated values) |
 | `--strict`     | Error if wanted fields are missing (default: warn) |
+
+`--position`, `--before`, and `--after` are mutually exclusive. By default a card
+is appended to the end of its column. Without `-c`, the card is placed in the
+anchor card's column.
+
+`--position` is most useful for the boundaries (`0` = top, `-1` = end). For a spot
+in the middle, prefer `--before`/`--after` with a card you can see in `kan list`,
+since `kan list` does not print numeric indices to count against.
 
 **Examples:**
 
 ```bash
 kan add "Task title" -c backlog
 kan add "Feature" -b features -c todo -f priority=high
+kan add "Urgent" -c backlog --position 0    # top of backlog
+kan add "Follow-up" --after fix-login       # right after fix-login, in its column
 ```
 
 ### show
@@ -235,9 +248,25 @@ kan edit fix-login-bug -t "New title" -c done
 | `-d, --description` | Set card description                              |
 | `-c, --column`      | Move card to column                               |
 | `-p, --parent`      | Set parent card ID or alias                       |
+| `--position`        | Move to index in column (0 = top, -1 = end, negatives count from end) |
+| `--before`          | Move before this card (ID or alias)               |
+| `--after`           | Move after this card (ID or alias)                |
 | `-a, --alias`       | Set explicit alias                                |
 | `-f, --field`       | Set custom field in key=value format (repeatable; set-typed fields also accept comma-separated values) |
 | `--strict`          | Error if wanted fields are missing (default: warn) |
+
+`--position`, `--before`, and `--after` are mutually exclusive and can reorder a
+card within its current column or place it precisely when moving between columns.
+Without `-c`, the card is placed in the anchor card's column. As with `add`,
+prefer `--before`/`--after` over `--position` for non-boundary spots.
+
+**Examples:**
+
+```bash
+kan edit fix-login -c doing --position 0   # top of doing
+kan edit fix-login --before deploy         # reorder relative to deploy
+kan edit fix-login --position -1           # bottom of its column
+```
 
 ### delete
 

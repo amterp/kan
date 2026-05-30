@@ -46,6 +46,29 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 		SetCompletionFunc(completeCards).
 		Register(cmd)
 
+	ctx.AddPosition, _ = ra.NewInt("position").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Insert at index (0 = top, -1 = end, negatives count from end)").
+		SetExcludes([]string{"before", "after"}).
+		Register(cmd)
+
+	ctx.AddBefore, _ = ra.NewString("before").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Insert before this card (ID or alias); uses its column if -c omitted").
+		SetCompletionFunc(completeCards).
+		SetExcludes([]string{"position", "after"}).
+		Register(cmd)
+
+	ctx.AddAfter, _ = ra.NewString("after").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Insert after this card (ID or alias); uses its column if -c omitted").
+		SetCompletionFunc(completeCards).
+		SetExcludes([]string{"position", "before"}).
+		Register(cmd)
+
 	ctx.AddFields, _ = ra.NewStringSlice("field").
 		SetShort("f").
 		SetOptional(true).
@@ -62,7 +85,56 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.AddUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runAdd(title, description, board, column string, parentCard string, fields []string, strict, nonInteractive, jsonOutput bool) {
+// cardPlacement holds the CLI-level request for where a card should go within a
+// column. At most one of (position, before, after) is meaningful; positionSet
+// distinguishes an explicit --position 0 from the flag being omitted.
+type cardPlacement struct {
+	position    int
+	positionSet bool
+	before      string
+	after       string
+}
+
+func (p cardPlacement) isSet() bool {
+	return p.positionSet || p.before != "" || p.after != ""
+}
+
+// resolvePlacement turns a cardPlacement into service-level values: an optional
+// explicit index plus canonical before/after anchor IDs (resolved from the
+// user's ID/alias input). Column inference from the anchor happens in the service
+// layer, so it is intentionally not returned here. excludeID, when set, is the
+// card being moved - it may not anchor to itself.
+func resolvePlacement(app *App, boardName, excludeID string, p cardPlacement) (position *int, beforeID, afterID string, err error) {
+	if p.positionSet {
+		pos := p.position
+		position = &pos
+	}
+
+	anchor, isBefore := p.before, true
+	if p.after != "" {
+		anchor, isBefore = p.after, false
+	}
+	if anchor == "" {
+		return position, "", "", nil
+	}
+
+	card, rerr := app.CardResolver.Resolve(boardName, anchor)
+	if rerr != nil {
+		return nil, "", "", fmt.Errorf("anchor card not found: %s", anchor)
+	}
+	if excludeID != "" && card.ID == excludeID {
+		return nil, "", "", fmt.Errorf("cannot place a card relative to itself; " +
+			"use --before/--after with a different card, or --position for an absolute index")
+	}
+	if isBefore {
+		beforeID = card.ID
+	} else {
+		afterID = card.ID
+	}
+	return position, beforeID, afterID, nil
+}
+
+func runAdd(title, description, board, column string, parentCard string, placement cardPlacement, fields []string, strict, nonInteractive, jsonOutput bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -74,6 +146,13 @@ func runAdd(title, description, board, column string, parentCard string, fields 
 
 	// Resolve board
 	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	if err != nil {
+		Fatal(err)
+	}
+
+	// Resolve placement anchors to canonical IDs. Column inference from an anchor
+	// happens in the service layer.
+	position, beforeID, afterID, err := resolvePlacement(app, boardName, "", placement)
 	if err != nil {
 		Fatal(err)
 	}
@@ -120,6 +199,9 @@ func runAdd(title, description, board, column string, parentCard string, fields 
 		Parent:       parentCard,
 		Creator:      creatorName,
 		CustomFields: customFields,
+		Position:     position,
+		BeforeCard:   beforeID,
+		AfterCard:    afterID,
 	}
 
 	card, hookResults, err := app.CardService.Add(input)

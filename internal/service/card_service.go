@@ -45,6 +45,12 @@ type AddCardInput struct {
 	Parent       string
 	Creator      string
 	CustomFields map[string]string // custom fields to set (parsed from key=value)
+
+	// Placement within the target column. At most one should be set; when none
+	// is set the card is appended to the end (the historical default).
+	Position   *int   // explicit index (0 = top, -1 = end, negatives count from end)
+	BeforeCard string // canonical ID of the card to insert before
+	AfterCard  string // canonical ID of the card to insert after
 }
 
 // EditCardInput contains the input for editing a card.
@@ -58,6 +64,12 @@ type EditCardInput struct {
 	Parent        *string           // nil = no change, empty string = clear parent
 	Alias         *string           // nil = no change
 	CustomFields  map[string]string // fields to set/update (parsed from key=value)
+
+	// Placement within a column. Any of these triggers a move (which may be an
+	// in-place reorder when Column is nil). At most one should be set.
+	Position   *int   // explicit index (0 = top, -1 = end, negatives count from end)
+	BeforeCard string // canonical ID of the card to insert before
+	AfterCard  string // canonical ID of the card to insert after
 }
 
 // Add creates a new card.
@@ -71,10 +83,17 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 		return nil, nil, err // Already wrapped with proper error type by store
 	}
 
-	// Determine column
-	column := input.Column
-	if column == "" {
-		column = boardCfg.GetDefaultColumn()
+	allCards, err := s.cardStore.List(input.BoardName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Determine column: explicit wins, otherwise infer from any anchor, else the
+	// board default. Also validates an anchor lives in the chosen column.
+	column, err := resolveTargetColumn(allCards, input.Column, boardCfg.GetDefaultColumn(),
+		input.BeforeCard, input.AfterCard)
+	if err != nil {
+		return nil, nil, err
 	}
 	if !boardCfg.HasColumn(column) {
 		return nil, nil, kanerr.ColumnNotFound(column, input.BoardName)
@@ -82,18 +101,17 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 
 	// Check column limit by counting existing cards in the column
 	col := boardCfg.GetColumn(column)
-	allCards, err := s.cardStore.List(input.BoardName)
-	if err != nil {
-		return nil, nil, err
-	}
 	colCards := cardsInColumn(allCards, column)
 	if col.Limit > 0 && len(colCards) >= col.Limit {
 		return nil, nil, kanerr.ColumnLimitExceeded(column, col.Limit)
 	}
 
-	// Compute position: append after last card in column
-	position := lastPosition(colCards)
-	position = util.PositionAfter(position)
+	// Compute position from the requested placement (defaults to end).
+	idx, err := resolveInsertIndex(colCards, input.Position, input.BeforeCard, input.AfterCard)
+	if err != nil {
+		return nil, nil, err
+	}
+	position := computePosition(colCards, idx)
 
 	// Generate ID and alias
 	cardID := id.Generate(id.Card)
@@ -231,19 +249,27 @@ func (s *CardService) List(boardName string, columnFilter string) ([]*model.Card
 
 // MoveCard moves a card to a different column at the bottom.
 func (s *CardService) MoveCard(boardName, cardID, targetColumn string) error {
-	return s.MoveCardAt(boardName, cardID, targetColumn, -1)
+	return s.MoveCardWithPlacement(boardName, cardID, targetColumn, nil, "", "")
 }
 
 // MoveCardAt moves a card to a column at a specific index position.
 // Position 0 = top of column, -1 = bottom.
 func (s *CardService) MoveCardAt(boardName, cardID, targetColumn string, position int) error {
+	return s.MoveCardWithPlacement(boardName, cardID, targetColumn, &position, "", "")
+}
+
+// MoveCardWithPlacement moves a card to a target column at a placement determined
+// by exactly one of: an explicit index (position, non-nil), or an anchor card
+// (beforeID/afterID, by canonical ID). When none is given, the card is appended
+// to the end. An empty targetColumn is inferred from the anchor card's column
+// when an anchor is given, otherwise the card stays in its current column (an
+// in-place reorder).
+func (s *CardService) MoveCardWithPlacement(boardName, cardID, targetColumn string,
+	position *int, beforeID, afterID string) error {
+
 	boardCfg, err := s.boardStore.Get(boardName)
 	if err != nil {
 		return err
-	}
-
-	if !boardCfg.HasColumn(targetColumn) {
-		return kanerr.ColumnNotFound(targetColumn, boardName)
 	}
 
 	// Get the card to move
@@ -252,10 +278,30 @@ func (s *CardService) MoveCardAt(boardName, cardID, targetColumn string, positio
 		return err
 	}
 
+	// A card cannot be placed relative to itself. The CLI guards this too, but
+	// keep the invariant here so any direct caller gets a clear error rather than
+	// a confusing "anchor not in column" downstream (the card is excluded from
+	// the destination's card list).
+	if firstNonEmpty(beforeID, afterID) == cardID {
+		return fmt.Errorf("cannot move a card relative to itself")
+	}
+
 	// Load all cards to determine positions and check limits
 	allCards, err := s.cardStore.List(boardName)
 	if err != nil {
 		return err
+	}
+
+	// Resolve the destination column: an explicit targetColumn wins, otherwise
+	// infer from the anchor (if any) or fall back to the card's current column
+	// (an in-place reorder). Also validates the anchor lives in the column.
+	targetColumn, err = resolveTargetColumn(allCards, targetColumn, card.Column, beforeID, afterID)
+	if err != nil {
+		return err
+	}
+
+	if !boardCfg.HasColumn(targetColumn) {
+		return kanerr.ColumnNotFound(targetColumn, boardName)
 	}
 
 	// Get sorted cards in target column (excluding the card being moved)
@@ -269,11 +315,54 @@ func (s *CardService) MoveCardAt(boardName, cardID, targetColumn string, positio
 		}
 	}
 
+	idx, err := resolveInsertIndex(colCards, position, beforeID, afterID)
+	if err != nil {
+		return err
+	}
+
 	// Compute new position
 	card.Column = targetColumn
-	card.Position = computePosition(colCards, position)
+	card.Position = computePosition(colCards, idx)
 	card.UpdatedAtMillis = util.NowMillis()
 	return s.cardStore.Update(boardName, card)
+}
+
+// firstNonEmpty returns the first non-empty string, or "" if all are empty.
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// resolveTargetColumn determines the destination column for a placement and
+// validates that an anchor card (if any) lives there. An empty explicitColumn
+// means "infer": from the anchor's column when an anchor is given, otherwise the
+// supplied fallbackColumn (e.g. the card's current column, or the board default).
+// This keeps column inference identical for both Add and MoveCardWithPlacement.
+func resolveTargetColumn(allCards []*model.Card, explicitColumn, fallbackColumn, beforeID, afterID string) (string, error) {
+	anchorID := firstNonEmpty(beforeID, afterID)
+	if anchorID == "" {
+		if explicitColumn != "" {
+			return explicitColumn, nil
+		}
+		return fallbackColumn, nil
+	}
+
+	idx := indexOfCard(allCards, anchorID)
+	if idx < 0 {
+		return "", kanerr.CardNotFound(anchorID)
+	}
+	anchor := allCards[idx]
+	if explicitColumn == "" {
+		return anchor.Column, nil
+	}
+	if anchor.Column != explicitColumn {
+		return "", fmt.Errorf("anchor card %q is in column %q, not %q", anchor.Alias, anchor.Column, explicitColumn)
+	}
+	return explicitColumn, nil
 }
 
 // FindByIDOrAlias finds a card by ID or alias.
@@ -334,12 +423,18 @@ func (s *CardService) Edit(input EditCardInput) (*model.Card, error) {
 		}
 	}
 
-	// Handle column change
-	if input.Column != nil {
-		if !boardCfg.HasColumn(*input.Column) {
-			return nil, kanerr.ColumnNotFound(*input.Column, input.BoardName)
+	// Handle column change and/or placement (an in-place reorder is possible
+	// when only a placement is given without a column).
+	if input.Column != nil || input.Position != nil || input.BeforeCard != "" || input.AfterCard != "" {
+		targetColumn := "" // empty = infer (anchor's column, else current column)
+		if input.Column != nil {
+			if !boardCfg.HasColumn(*input.Column) {
+				return nil, kanerr.ColumnNotFound(*input.Column, input.BoardName)
+			}
+			targetColumn = *input.Column
 		}
-		if err := s.MoveCard(input.BoardName, card.ID, *input.Column); err != nil {
+		if err := s.MoveCardWithPlacement(input.BoardName, card.ID, targetColumn,
+			input.Position, input.BeforeCard, input.AfterCard); err != nil {
 			return nil, err
 		}
 		// Re-fetch card after move (column and position changed on disk)
@@ -855,25 +950,24 @@ func cardsInColumnExcluding(cards []*model.Card, column, excludeID string) []*mo
 	return result
 }
 
-// lastPosition returns the position of the last card in a sorted slice.
-// Returns "" if the slice is empty. Input should be sorted by position
-// (as returned by cardsInColumn).
-func lastPosition(sortedCards []*model.Card) string {
-	if len(sortedCards) == 0 {
-		return ""
-	}
-	return sortedCards[len(sortedCards)-1].Position
-}
-
 // computePosition generates a fractional index position for inserting at the
 // given index in a sorted slice of column cards.
-// Position 0 = before first card, -1 = after last card.
+// Index 0 = before first card; index >= n appends to the end. Negative indices
+// count back from the end: -1 = end, -2 = before the last card, etc. A negative
+// index that underflows past the top is clamped to the top.
 func computePosition(sortedCards []*model.Card, index int) string {
 	n := len(sortedCards)
 	if n == 0 {
 		return util.PositionBetween("", "")
 	}
-	if index < 0 || index >= n {
+	if index < 0 {
+		// Map -1 -> n (append), -2 -> n-1, ... so negatives count from the end.
+		index = n + 1 + index
+		if index < 0 {
+			index = 0
+		}
+	}
+	if index >= n {
 		// Append to end
 		return util.PositionAfter(sortedCards[n-1].Position)
 	}
@@ -881,4 +975,41 @@ func computePosition(sortedCards []*model.Card, index int) string {
 		return util.PositionBefore(sortedCards[0].Position)
 	}
 	return util.PositionBetween(sortedCards[index-1].Position, sortedCards[index].Position)
+}
+
+// resolveInsertIndex returns the insertion index within colCards for a placement.
+// colCards must be the destination column, sorted, excluding the card being moved.
+// An explicit position (non-nil) takes precedence; otherwise beforeID/afterID
+// anchor against a card already present in colCards (matched by canonical ID).
+// Returns -1 (append to end) when no placement is given. Errors if an anchor card
+// is not present in colCards.
+func resolveInsertIndex(colCards []*model.Card, position *int, beforeID, afterID string) (int, error) {
+	if position != nil {
+		return *position, nil
+	}
+	if beforeID != "" {
+		idx := indexOfCard(colCards, beforeID)
+		if idx < 0 {
+			return 0, fmt.Errorf("anchor card %q is not in the target column", beforeID)
+		}
+		return idx, nil
+	}
+	if afterID != "" {
+		idx := indexOfCard(colCards, afterID)
+		if idx < 0 {
+			return 0, fmt.Errorf("anchor card %q is not in the target column", afterID)
+		}
+		return idx + 1, nil
+	}
+	return -1, nil
+}
+
+// indexOfCard returns the index of the card with the given ID in the slice, or -1.
+func indexOfCard(cards []*model.Card, cardID string) int {
+	for i, c := range cards {
+		if c.ID == cardID {
+			return i
+		}
+	}
+	return -1
 }

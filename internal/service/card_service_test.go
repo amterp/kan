@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 
 	kanerr "github.com/amterp/kan/internal/errors"
@@ -1762,5 +1763,222 @@ func TestCardService_UpdateTitle_AvoidsSelfCollision(t *testing.T) {
 	}
 	if foundCard.ID != card.ID {
 		t.Errorf("Found wrong card by alias")
+	}
+}
+
+// ============================================================================
+// Placement: computePosition / resolveInsertIndex / MoveCardWithPlacement
+// ============================================================================
+
+// orderedColumn returns the card titles in a column, in position order.
+func orderedColumn(t *testing.T, s *CardService, board, column string) []string {
+	t.Helper()
+	all, err := s.cardStore.List(board)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	sorted := cardsInColumn(all, column)
+	titles := make([]string, len(sorted))
+	for i, c := range sorted {
+		titles[i] = c.Title
+	}
+	return titles
+}
+
+func assertOrder(t *testing.T, got, want []string) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("order mismatch: got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("order mismatch: got %v, want %v", got, want)
+		}
+	}
+}
+
+func intPtr(i int) *int { return &i }
+
+// mustAdd adds a card and fails the test on error, returning the created card.
+func mustAdd(t *testing.T, s *CardService, in AddCardInput) *model.Card {
+	t.Helper()
+	card, _, err := s.Add(in)
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	return card
+}
+
+func TestComputePosition_NegativeIndexing(t *testing.T) {
+	s, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	// Build A,B,C in order in in-progress.
+	for _, title := range []string{"A", "B", "C"} {
+		if _, _, err := s.Add(AddCardInput{BoardName: "main", Title: title, Column: "in-progress"}); err != nil {
+			t.Fatalf("Add failed: %v", err)
+		}
+	}
+	all, _ := s.cardStore.List("main")
+	col := cardsInColumn(all, "in-progress") // [A, B, C]
+
+	// -1 = end: sorts after C.
+	if p := computePosition(col, -1); p <= col[2].Position {
+		t.Errorf("-1 should sort after last card; got %q vs %q", p, col[2].Position)
+	}
+	// -2 = before last: sorts between B and C.
+	if p := computePosition(col, -2); p <= col[1].Position || p >= col[2].Position {
+		t.Errorf("-2 should sort between B and C; got %q (B=%q C=%q)", p, col[1].Position, col[2].Position)
+	}
+	// Large underflow clamps to top: sorts before A.
+	if p := computePosition(col, -100); p >= col[0].Position {
+		t.Errorf("underflowing negative should clamp to top; got %q vs %q", p, col[0].Position)
+	}
+}
+
+func TestResolveInsertIndex(t *testing.T) {
+	cards := []*model.Card{
+		{ID: "a"}, {ID: "b"}, {ID: "c"},
+	}
+
+	cases := []struct {
+		name     string
+		position *int
+		before   string
+		after    string
+		want     int
+		wantErr  bool
+	}{
+		{name: "none appends", want: -1},
+		{name: "explicit position wins", position: intPtr(1), before: "c", want: 1},
+		{name: "before middle", before: "b", want: 1},
+		{name: "after middle", after: "b", want: 2},
+		{name: "before first", before: "a", want: 0},
+		{name: "after last", after: "c", want: 3},
+		{name: "anchor not in column", before: "zzz", wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := resolveInsertIndex(cards, tc.position, tc.before, tc.after)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got index %d", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("got %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCardService_Add_WithPosition(t *testing.T) {
+	s, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	mustAdd(t, s, AddCardInput{BoardName: "main", Title: "A", Column: "backlog"})
+	mustAdd(t, s, AddCardInput{BoardName: "main", Title: "B", Column: "backlog"})
+	// Insert at the top.
+	if _, _, err := s.Add(AddCardInput{BoardName: "main", Title: "X", Column: "backlog", Position: intPtr(0)}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	assertOrder(t, orderedColumn(t, s, "main", "backlog"), []string{"X", "A", "B"})
+
+	// Insert at the end explicitly with -1.
+	if _, _, err := s.Add(AddCardInput{BoardName: "main", Title: "Z", Column: "backlog", Position: intPtr(-1)}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	assertOrder(t, orderedColumn(t, s, "main", "backlog"), []string{"X", "A", "B", "Z"})
+}
+
+func TestCardService_Add_WithAnchor(t *testing.T) {
+	s, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	a := mustAdd(t, s, AddCardInput{BoardName: "main", Title: "A", Column: "backlog"})
+	b := mustAdd(t, s, AddCardInput{BoardName: "main", Title: "B", Column: "backlog"})
+
+	// Insert after A.
+	if _, _, err := s.Add(AddCardInput{BoardName: "main", Title: "Y", Column: "backlog", AfterCard: a.ID}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	assertOrder(t, orderedColumn(t, s, "main", "backlog"), []string{"A", "Y", "B"})
+
+	// Insert before B.
+	if _, _, err := s.Add(AddCardInput{BoardName: "main", Title: "W", Column: "backlog", BeforeCard: b.ID}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	assertOrder(t, orderedColumn(t, s, "main", "backlog"), []string{"A", "Y", "W", "B"})
+}
+
+func TestCardService_MoveCardWithPlacement_InPlaceReorder(t *testing.T) {
+	s, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	a := mustAdd(t, s, AddCardInput{BoardName: "main", Title: "A", Column: "backlog"})
+	mustAdd(t, s, AddCardInput{BoardName: "main", Title: "B", Column: "backlog"})
+	mustAdd(t, s, AddCardInput{BoardName: "main", Title: "C", Column: "backlog"})
+
+	// Reorder A to the bottom within its own column (empty target column = infer current).
+	if err := s.MoveCardWithPlacement("main", a.ID, "", intPtr(-1), "", ""); err != nil {
+		t.Fatalf("MoveCardWithPlacement failed: %v", err)
+	}
+	assertOrder(t, orderedColumn(t, s, "main", "backlog"), []string{"B", "C", "A"})
+}
+
+func TestCardService_MoveCardWithPlacement_AnchorInfersColumn(t *testing.T) {
+	s, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	dest := mustAdd(t, s, AddCardInput{BoardName: "main", Title: "Dest", Column: "in-progress"})
+	mover := mustAdd(t, s, AddCardInput{BoardName: "main", Title: "Mover", Column: "backlog"})
+
+	// No target column: should infer in-progress from the anchor and place after it.
+	if err := s.MoveCardWithPlacement("main", mover.ID, "", nil, "", dest.ID); err != nil {
+		t.Fatalf("MoveCardWithPlacement failed: %v", err)
+	}
+	moved, _ := s.cardStore.Get("main", mover.ID)
+	if moved.Column != "in-progress" {
+		t.Fatalf("expected inferred column in-progress, got %q", moved.Column)
+	}
+	assertOrder(t, orderedColumn(t, s, "main", "in-progress"), []string{"Dest", "Mover"})
+}
+
+func TestCardService_MoveCardWithPlacement_AnchorWrongColumn(t *testing.T) {
+	s, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	anchor := mustAdd(t, s, AddCardInput{BoardName: "main", Title: "Anchor", Column: "backlog"})
+	mover := mustAdd(t, s, AddCardInput{BoardName: "main", Title: "Mover", Column: "backlog"})
+
+	// Explicit (different) target column with an anchor that lives elsewhere -> error
+	// that names the anchor's actual column and the requested one (not a raw ID).
+	err := s.MoveCardWithPlacement("main", mover.ID, "in-progress", nil, "", anchor.ID)
+	if err == nil {
+		t.Fatal("expected error when anchor is not in the explicit target column")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "backlog") || !strings.Contains(msg, "in-progress") {
+		t.Errorf("error should name both columns, got: %q", msg)
+	}
+	if !strings.Contains(msg, anchor.Alias) {
+		t.Errorf("error should reference the anchor's alias %q, got: %q", anchor.Alias, msg)
+	}
+}
+
+func TestCardService_MoveCardWithPlacement_SelfAnchor(t *testing.T) {
+	s, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	card := mustAdd(t, s, AddCardInput{BoardName: "main", Title: "Solo", Column: "backlog"})
+
+	// Anchoring a card to itself must error clearly, not produce a confusing
+	// "not in target column" message (the card is excluded from its column list).
+	if err := s.MoveCardWithPlacement("main", card.ID, "", nil, "", card.ID); err == nil {
+		t.Fatal("expected error when a card anchors to itself")
 	}
 }

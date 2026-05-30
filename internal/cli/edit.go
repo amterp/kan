@@ -57,6 +57,29 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 		SetCompletionFunc(completeCards).
 		Register(cmd)
 
+	ctx.EditPosition, _ = ra.NewInt("position").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Move to index in column (0 = top, -1 = end, negatives count from end)").
+		SetExcludes([]string{"before", "after"}).
+		Register(cmd)
+
+	ctx.EditBefore, _ = ra.NewString("before").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Move before this card (ID or alias); uses its column if -c omitted").
+		SetCompletionFunc(completeCards).
+		SetExcludes([]string{"position", "after"}).
+		Register(cmd)
+
+	ctx.EditAfter, _ = ra.NewString("after").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Move after this card (ID or alias); uses its column if -c omitted").
+		SetCompletionFunc(completeCards).
+		SetExcludes([]string{"position", "before"}).
+		Register(cmd)
+
 	ctx.EditAlias, _ = ra.NewString("alias").
 		SetShort("a").
 		SetOptional(true).
@@ -81,14 +104,14 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 }
 
 func runEdit(idOrAlias, board string, title, description, column string,
-	parent, alias string, fields []string, strict, nonInteractive, jsonOutput bool) {
+	parent, alias string, placement cardPlacement, fields []string, strict, nonInteractive, jsonOutput bool) {
 
 	// Check if any flags were provided
 	hasFlags := title != "" || description != "" || column != "" ||
-		parent != "" || alias != "" || len(fields) > 0
+		parent != "" || alias != "" || len(fields) > 0 || placement.isSet()
 
 	if !hasFlags && nonInteractive {
-		Fatal(fmt.Errorf("no fields specified to edit (use -t, -d, -c, -p, -a, or -f flags)"))
+		Fatal(fmt.Errorf("no fields specified to edit (use -t, -d, -c, -p, -a, -f, --position, --before, or --after flags)"))
 	}
 
 	app, err := NewApp(!nonInteractive)
@@ -121,7 +144,7 @@ func runEdit(idOrAlias, board string, title, description, column string,
 	if hasFlags {
 		// Non-interactive path: apply flags directly
 		runEditNonInteractive(app, boardName, card, boardCfg, title, description, column,
-			parent, alias, fields, strict, jsonOutput)
+			parent, alias, placement, fields, strict, jsonOutput)
 	} else {
 		// Interactive path: existing menu-based editing
 		runEditInteractive(app, boardName, card, boardCfg)
@@ -131,7 +154,7 @@ func runEdit(idOrAlias, board string, title, description, column string,
 // runEditNonInteractive applies CLI flag changes to the card.
 func runEditNonInteractive(app *App, boardName string, card *model.Card, boardCfg *model.BoardConfig,
 	title, description, column string,
-	parent, alias string, fields []string, strict, jsonOutput bool) {
+	parent, alias string, placement cardPlacement, fields []string, strict, jsonOutput bool) {
 
 	// Parse custom fields early for validation
 	var parsedFields map[string]string
@@ -151,9 +174,18 @@ func runEditNonInteractive(app *App, boardName string, card *model.Card, boardCf
 		}
 	}
 
+	// Resolve placement anchors to canonical IDs (the card cannot anchor to itself).
+	position, beforeID, afterID, err := resolvePlacement(app, boardName, card.ID, placement)
+	if err != nil {
+		Fatal(err)
+	}
+
 	input := service.EditCardInput{
 		BoardName:     boardName,
 		CardIDOrAlias: card.ID,
+		Position:      position,
+		BeforeCard:    beforeID,
+		AfterCard:     afterID,
 	}
 
 	if title != "" {

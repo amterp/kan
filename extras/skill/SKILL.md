@@ -293,6 +293,8 @@ kan add "Title" "Description here" -c backlog   # Title + description
 kan add "Subtask" -p 12                         # Add as child of card 12
 kan add "Task" -f priority=high -f type=bug     # Add with custom fields
 kan add "Task" -f component=core -f component=cli  # Set fields: repeat or use -f component=core,cli
+kan add "Urgent" -c backlog --position 0        # Insert at top of column
+kan add "Follow-up" --after fix                  # Insert after card "fix" (in its column)
 ```
 
 | Flag | Description |
@@ -300,8 +302,13 @@ kan add "Task" -f component=core -f component=cli  # Set fields: repeat or use -
 | `-b, --board` | Target board |
 | `-c, --column` | Target column |
 | `-p, --parent` | Parent card ID or alias |
+| `--position` | Insert at index (0 = top, -1 = end, negatives count from end) |
+| `--before` | Insert before this card (ID or alias) |
+| `--after` | Insert after this card (ID or alias) |
 | `-f, --field` | Custom field (key=value, repeatable; set fields also accept comma-separated values) |
 | `--strict` | Error if wanted fields are missing (default: warn) |
+
+`--position`/`--before`/`--after` are mutually exclusive; default is end of column. Without `-c`, the card is placed in the anchor card's column. Prefer `--before`/`--after` for non-boundary spots (`kan list` shows no indices to count against).
 
 ## Listing Cards
 
@@ -331,6 +338,8 @@ always wins over fuzzy. This applies to `show`, `edit`, `delete`, and
 kan edit 12                              # Edit interactively
 kan edit fix -t "New title"              # Update title
 kan edit fix -c done                     # Move to column
+kan edit fix -c done --position 0        # Move to top of a column
+kan edit fix --before deploy             # Reorder relative to another card
 kan edit fix -d "New description"        # Update description
 kan edit fix -f priority=low             # Update custom field
 ```
@@ -342,9 +351,14 @@ kan edit fix -f priority=low             # Update custom field
 | `-d, --description` | Set card description |
 | `-c, --column` | Move card to column |
 | `-p, --parent` | Set parent card |
+| `--position` | Move to index in column (0 = top, -1 = end, negatives count from end) |
+| `--before` | Move before this card (ID or alias) |
+| `--after` | Move after this card (ID or alias) |
 | `-a, --alias` | Set explicit alias |
 | `-f, --field` | Set custom field (key=value, repeatable; set fields also accept comma-separated values) |
 | `--strict` | Error if wanted fields are missing (default: warn) |
+
+`--position`/`--before`/`--after` are mutually exclusive. They reorder within the current column or place precisely when moving columns. Without `-c`, the card is placed in the anchor card's column. Prefer `--before`/`--after` for non-boundary spots.
 
 ## Deleting Cards
 
