@@ -1,6 +1,7 @@
 package model
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 )
@@ -20,6 +21,13 @@ type Card struct {
 	UpdatedAtMillis int64     `json:"updated_at_millis"`
 	Comments        []Comment `json:"comments,omitempty"`
 
+	// History is an append-only, chronological log of tracked field changes.
+	// Today only column transitions are recorded; the structure is general so
+	// other fields can be tracked later without a schema migration. See
+	// HistoryEntry. Git tracks content history (title/description); Kan tracks
+	// state-transition timing, which git can't reconstruct from commit cadence.
+	History []HistoryEntry `json:"history,omitempty"`
+
 	// Column is the column this card belongs to. This is the single source of
 	// truth for card-column membership (board config no longer stores card_ids).
 	Column string `json:"column"`
@@ -31,6 +39,22 @@ type Card struct {
 	// CustomFields holds board-defined custom fields (including labels, type, etc.).
 	// These are serialized at the top level of the JSON, not nested.
 	CustomFields map[string]any `json:"-"`
+}
+
+// HistoryEntry records a single tracked field change on a card.
+//
+// Field is the changed field name ("column" for now); Value is the NEW value
+// it became; At is event-time in Unix millis. Entries are append-only and
+// chronological (oldest first). The duration a value was held equals the At of
+// the next entry with the same Field, minus this entry's At (for the latest
+// entry, "now" minus its At).
+//
+// Value is `any` deliberately: it holds a string today, but future set-type
+// fields (enum-set/free-set) can store arrays here without a schema migration.
+type HistoryEntry struct {
+	Field string `json:"field"`
+	Value any    `json:"value"`
+	At    int64  `json:"at"`
 }
 
 // Comment represents a comment on a card.
@@ -91,8 +115,8 @@ func (c *Card) UnmarshalJSON(data []byte) error {
 		"title": true, "description": true,
 		"parent": true, "creator": true,
 		"created_at_millis": true, "updated_at_millis": true,
-		"comments": true,
-		"column":   true, "position": true,
+		"comments": true, "history": true,
+		"column": true, "position": true,
 		// Computed/API-only fields that may appear in JSON from external
 		// sources (e.g. restore endpoint) but aren't custom fields.
 		"missing_wanted_fields": true,
@@ -114,6 +138,65 @@ func (c *Card) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// MarshalFile renders the card as it is stored on disk: pretty-printed with
+// 2-space indentation, except each history entry is collapsed onto a single
+// line. Because history is append-only and chronological, appending a
+// transition is then a clean one-line diff for any VCS, while the rest of the
+// card stays human-readable. Use this (not json.MarshalIndent) for writes.
+func (c Card) MarshalFile() ([]byte, error) {
+	// Render the card without history, pretty-printed. History is spliced back
+	// in below so we control its layout precisely (json.MarshalIndent would
+	// otherwise spread each entry across several lines).
+	withoutHistory := c
+	withoutHistory.History = nil
+	body, err := json.MarshalIndent(withoutHistory, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	if len(c.History) == 0 {
+		return body, nil
+	}
+
+	var block strings.Builder
+	block.WriteString("\"history\": [\n")
+	for i, entry := range c.History {
+		line, err := json.Marshal(entry)
+		if err != nil {
+			return nil, err
+		}
+		block.WriteString("    ")
+		block.Write(line)
+		if i < len(c.History)-1 {
+			block.WriteByte(',')
+		}
+		block.WriteByte('\n')
+	}
+	block.WriteString("  ]")
+
+	// Splice the block in as the last top-level key, before the closing brace.
+	closeIdx := bytes.LastIndexByte(body, '}')
+	prefix := bytes.TrimRight(body[:closeIdx], " \n\t")
+
+	result := make([]byte, 0, len(body)+block.Len()+8)
+	result = append(result, prefix...)
+	result = append(result, ",\n  "...)
+	result = append(result, block.String()...)
+	result = append(result, "\n}"...)
+	return result, nil
+}
+
+// CurrentColumnSinceMillis returns the event-time at which the card entered its
+// current column, derived from history. Falls back to CreatedAtMillis when
+// history is empty (defensive; all cards seed a column entry at creation).
+func (c Card) CurrentColumnSinceMillis() int64 {
+	for i := len(c.History) - 1; i >= 0; i-- {
+		if c.History[i].Field == "column" {
+			return c.History[i].At
+		}
+	}
+	return c.CreatedAtMillis
 }
 
 // ValidateCustomFieldName checks if a custom field name is allowed.

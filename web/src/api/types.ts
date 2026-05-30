@@ -25,6 +25,7 @@ export interface Card {
   created_at_millis: number;
   updated_at_millis: number;
   comments?: Comment[];
+  history?: HistoryEntry[];
   missing_wanted_fields?: MissingWantedField[];
   [key: string]: unknown; // custom fields
 }
@@ -35,6 +36,15 @@ export interface Comment {
   author: string;
   created_at_millis: number;
   updated_at_millis?: number;
+}
+
+// HistoryEntry records one tracked field change on a card (column transitions
+// today). value holds a string now; future set-type fields may store arrays.
+// Mirrors model.HistoryEntry in internal/model/card.go.
+export interface HistoryEntry {
+  field: string;
+  value: unknown;
+  at: number;
 }
 
 export interface Column {

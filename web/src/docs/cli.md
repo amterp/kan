@@ -210,8 +210,27 @@ kan show fix-log            # Partial match (fuzzy)
 Card identifiers accept partial substring matches against a card's alias or ID
 (case-insensitive, min 3 chars). A single match resolves; multiple matches
 produce a disambiguation error listing up to 5 candidates. Exact ID or alias
-always wins over fuzzy. This applies to `show`, `edit`, `delete`, and
+always wins over fuzzy. This applies to `show`, `history`, `edit`, `delete`, and
 `comment add`.
+
+`show` also reports how long the card has been in its current column
+(e.g. `Column: review (3 days)`).
+
+| Flag          | Description |
+|---------------|-------------|
+| `-b, --board` | Board name  |
+
+### history
+
+Show a card's column transition timeline - which columns it has passed through
+and how long it spent in each. Kan records each transition on the card with its
+event time, so this is accurate regardless of your commit cadence. Content edits
+(title/description) are intentionally left to your VCS history.
+
+```bash
+kan history fix-login-bug
+kan history fix-login --json
+```
 
 | Flag          | Description |
 |---------------|-------------|

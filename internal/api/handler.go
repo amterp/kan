@@ -27,6 +27,7 @@ type CardResponse struct {
 	CreatedAtMillis     int64                    `json:"created_at_millis"`
 	UpdatedAtMillis     int64                    `json:"updated_at_millis"`
 	Comments            []model.Comment          `json:"comments,omitempty"`
+	History             []model.HistoryEntry     `json:"history,omitempty"`
 	CustomFields        map[string]any           `json:"-"` // Flattened into top level by MarshalJSON
 	MissingWantedFields []MissingWantedFieldInfo `json:"missing_wanted_fields,omitempty"`
 }
@@ -55,6 +56,9 @@ func (c CardResponse) MarshalJSON() ([]byte, error) {
 	if len(c.Comments) > 0 {
 		m["comments"] = c.Comments
 	}
+	if len(c.History) > 0 {
+		m["history"] = c.History
+	}
 	if len(c.MissingWantedFields) > 0 {
 		m["missing_wanted_fields"] = c.MissingWantedFields
 	}
@@ -81,6 +85,7 @@ func toCardResponse(card *model.Card) CardResponse {
 		CreatedAtMillis: card.CreatedAtMillis,
 		UpdatedAtMillis: card.UpdatedAtMillis,
 		Comments:        card.Comments,
+		History:         card.History,
 		CustomFields:    card.CustomFields,
 	}
 }
@@ -443,7 +448,13 @@ func (h *Handler) UpdateCard(w http.ResponseWriter, r *http.Request) {
 			Error(w, err)
 			return
 		}
-		card.Column = *req.Column // Update in-memory for response
+		// Re-fetch so the response reflects the move (column, position, history)
+		// instead of only patching the column on the stale in-memory card.
+		card, err = h.ctx().CardService.Get(boardName, card.ID)
+		if err != nil {
+			Error(w, err)
+			return
+		}
 	}
 
 	// Apply other updates via Edit
@@ -577,8 +588,13 @@ func (h *Handler) MoveCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set Column to the target column for response
-	card.Column = req.Column
+	// Re-fetch so the response reflects the move (new column, position, and the
+	// appended history entry) rather than the stale pre-move card.
+	card, err = h.ctx().CardService.Get(boardName, card.ID)
+	if err != nil {
+		Error(w, err)
+		return
+	}
 
 	// Get board config for wanted fields check
 	boardCfg, _ := h.ctx().BoardStore.Get(boardName)

@@ -87,7 +87,12 @@ func printCard(card *model.Card, colColor, boardName string, multipleBoards bool
 		fmt.Println(LabelValue("Board", boardName, labelWidth))
 	}
 	fmt.Println(LabelValue("Alias", card.Alias, labelWidth))
-	fmt.Println(LabelValue("Column", RenderColumnColor(card.Column, colColor), labelWidth))
+
+	// Show how long the card has been in its current column - the time git
+	// can't tell you accurately because it only knows your commit cadence.
+	colDuration := util.FormatDuration(util.NowMillis() - card.CurrentColumnSinceMillis())
+	columnValue := RenderColumnColor(card.Column, colColor) + " " + RenderMuted("("+colDuration+")")
+	fmt.Println(LabelValue("Column", columnValue, labelWidth))
 
 	if card.Description != "" {
 		fmt.Println()

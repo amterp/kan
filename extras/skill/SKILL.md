@@ -329,8 +329,25 @@ kan show fix -b myboard  # Specify board
 Card identifiers accept partial substring matches against a card's alias or ID
 (case-insensitive, min 3 chars). A single match resolves; multiple matches
 produce a disambiguation error listing up to 5 candidates. Exact ID or alias
-always wins over fuzzy. This applies to `show`, `edit`, `delete`, and
+always wins over fuzzy. This applies to `show`, `history`, `edit`, `delete`, and
 `comment add`.
+
+`kan show` also displays how long the card has been in its current column
+(e.g. `Column: review (3 days)`), tracked natively by Kan rather than inferred
+from VCS commits.
+
+## Card History
+
+```bash
+kan history 12              # Show the card's column transition timeline
+kan history fix -b myboard  # Specify board
+kan history fix --json      # Machine-readable history entries
+```
+
+Kan records each column transition (with its event time) on the card, so you
+can see the full journey and how long the card spent in each column -
+independent of how often you commit. Title/description edit history is left to
+your VCS (`git log`), which already tracks content changes well.
 
 ## Editing Cards
 

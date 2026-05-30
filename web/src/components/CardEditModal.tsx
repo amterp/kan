@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { Card, BoardConfig, UpdateCardInput, Comment } from '../api/types';
 import { createComment, editComment, deleteComment } from '../api/cards';
 import { toApiFieldValues } from '../utils/customFields';
+import { formatDuration } from '../utils/duration';
 import MarkdownField from './MarkdownField';
 import MarkdownView from './MarkdownView';
 import CustomFieldsEditor from './CustomFieldsEditor';
@@ -39,6 +40,17 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose, 
   const [description, setDescription] = useState(card.description || '');
   const [column, setColumn] = useState(card.column);
   const [saving, setSaving] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Column transitions, oldest first. Reflects the saved card (not the unsaved
+  // dropdown selection) so durations stay accurate. Kan records these natively;
+  // git can't reconstruct them from commit cadence.
+  const columnHistory = useMemo(
+    () => (card.history ?? []).filter((e) => e.field === 'column'),
+    [card.history]
+  );
+  const columnSince =
+    columnHistory.length > 0 ? columnHistory[columnHistory.length - 1].at : card.created_at_millis;
 
   // Comment state
   const [comments, setComments] = useState<Comment[]>(card.comments || []);
@@ -577,6 +589,9 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose, 
                   </option>
                 ))}
               </select>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                In this column for {formatDuration(Date.now() - columnSince)}
+              </p>
             </div>
 
             {/* Custom fields */}
@@ -607,6 +622,47 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose, 
                 <span className="text-gray-900 dark:text-white font-mono text-xs break-all">{card.id}</span>
               </div>
             </div>
+
+            {/* Column history timeline (collapsed by default to keep the
+                default view clean - the journey is one click away) */}
+            {columnHistory.length > 0 && (
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowHistory((v) => !v)}
+                  className="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                >
+                  <svg
+                    className={`w-3 h-3 transition-transform ${showHistory ? 'rotate-90' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  History
+                </button>
+                {showHistory && (
+                  <ol className="mt-2 space-y-2">
+                    {columnHistory.map((entry, i) => {
+                      const isCurrent = i === columnHistory.length - 1;
+                      const end = isCurrent ? Date.now() : columnHistory[i + 1].at;
+                      return (
+                        <li key={`${entry.at}-${i}`} className="text-xs">
+                          <span className="text-gray-900 dark:text-white">{String(entry.value)}</span>
+                          {isCurrent && (
+                            <span className="text-gray-400 dark:text-gray-500"> (current)</span>
+                          )}
+                          <span className="block text-gray-500 dark:text-gray-400">
+                            {formatDate(entry.at)} · {formatDuration(end - entry.at)}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+              </div>
+            )}
 
             {/* Delete */}
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">

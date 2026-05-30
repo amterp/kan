@@ -15,20 +15,21 @@ import (
 // If you add fields to model.Card, add them here too. See TestCardJsonFieldSync.
 type cardJson struct {
 	// Note: Version (_v) is intentionally omitted - it's an internal schema version
-	ID              string          `json:"id"`
-	Alias           string          `json:"alias"`
-	AliasExplicit   bool            `json:"alias_explicit"`
-	Title           string          `json:"title"`
-	Description     string          `json:"description,omitempty"`
-	Parent          string          `json:"parent,omitempty"`
-	Creator         string          `json:"creator"`
-	CreatedAtMillis int64           `json:"created_at_millis"`
-	UpdatedAtMillis int64           `json:"updated_at_millis"`
-	Comments        []model.Comment `json:"comments,omitempty"`
-	Column          string          `json:"column"`
-	Position        string          `json:"position"`
-	Board           string          `json:"board,omitempty"`
-	CustomFields    map[string]any  `json:"-"` // Merged at top level like model.Card
+	ID              string               `json:"id"`
+	Alias           string               `json:"alias"`
+	AliasExplicit   bool                 `json:"alias_explicit"`
+	Title           string               `json:"title"`
+	Description     string               `json:"description,omitempty"`
+	Parent          string               `json:"parent,omitempty"`
+	Creator         string               `json:"creator"`
+	CreatedAtMillis int64                `json:"created_at_millis"`
+	UpdatedAtMillis int64                `json:"updated_at_millis"`
+	Comments        []model.Comment      `json:"comments,omitempty"`
+	History         []model.HistoryEntry `json:"history,omitempty"`
+	Column          string               `json:"column"`
+	Position        string               `json:"position"`
+	Board           string               `json:"board,omitempty"`
+	CustomFields    map[string]any       `json:"-"` // Merged at top level like model.Card
 }
 
 func cardToJson(c *model.Card) cardJson {
@@ -43,6 +44,7 @@ func cardToJson(c *model.Card) cardJson {
 		CreatedAtMillis: c.CreatedAtMillis,
 		UpdatedAtMillis: c.UpdatedAtMillis,
 		Comments:        c.Comments,
+		History:         c.History,
 		Column:          c.Column,
 		Position:        c.Position,
 		CustomFields:    c.CustomFields,

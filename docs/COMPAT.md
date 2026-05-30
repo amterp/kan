@@ -137,6 +137,8 @@ worktree_independent = true
 
 - **v0 (implicit)**: Missing `_v` in card or `kan_schema` in config. This represents legacy data from before versioning was implemented. Cards at v0 may have a `column` field which is no longer used.
 - **v1**: First versioned schema. Cards have `_v: 1`, no `column` field. Board configs have `kan_schema = "board/1"`.
+- **card/2**: Reintroduces `column` and `position` on card files as the single source of truth for membership (paired with board/10). See "Column Membership".
+- **card/3 (current)**: Adds `history`, an append-only log of tracked field changes (column transitions today). See "Card History".
 - **board/2**: Converts labels from first-class `[[labels]]` to custom fields with type `"tags"`. Adds `card_display.badges` for label visibility.
 - **board/3**: Adds optional `[[pattern_hooks]]` for running commands when cards are created with matching titles.
 - **board/4**: Adds optional `wanted` field to custom field schemas. Wanted fields emit warnings when missing from cards.
@@ -148,7 +150,7 @@ worktree_independent = true
 - **board/10**: Moves card-column association from board config (`card_ids` arrays in columns) to card files (`column` + `position` fields using fractional indexing). This eliminates a class of merge conflicts when multiple users add/move cards simultaneously.
 - **board/11 (current)**: Adds `tint` display slot to `card_display`. Points at an `enum` field whose option color is used as a subtle background wash on cards, making them visually stand out on the board.
 
-Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9 -> v10 -> v11.
+Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9 -> v10 -> v11 for boards, and card files migrate to `card/3`.
 
 **Rationale**: Strict versioning—Kan refuses to read files without version stamps (or with incompatible versions). This catches schema drift early and forces explicit migration.
 
@@ -304,6 +306,61 @@ For "wanted" field checking, `false` is considered a valid explicit value (non-e
 Boolean fields are not valid in `type_indicator` (enum only). They can be used in `badges`, where the field name is shown as a badge when the value is `true`, and nothing is shown when `false` or unset.
 
 **Migration**: board/8 -> board/9 only updates the schema version. The `boolean` type is a new option for the existing `type` field in custom field schemas.
+
+### Card History (card/3)
+
+**Added in**: card/3
+
+Cards carry a `history` array: an append-only, chronological log of tracked
+field changes. Today only **column transitions** are recorded - one entry each
+time a card moves to a different column.
+
+```json
+"history": [
+  {"field":"column","value":"backlog","at":1700000000000},
+  {"field":"column","value":"in-progress","at":1700400000000},
+  {"field":"column","value":"review","at":1700900000000}
+]
+```
+
+Each entry is `{field, value, at}`: `field` is the changed field name
+(`"column"` for now), `value` is the new value it became, and `at` is the
+event-time in Unix millis. The duration a value was held is the next same-field
+entry's `at` minus this entry's `at` (for the latest entry, "now" minus its
+`at`). This drives `kan history <card>` and the "in this column for N days"
+display in `kan show` and the web card detail.
+
+**Why track this natively instead of relying on VCS?** A card's column can
+change many times between commits; Git only knows what changed at commit
+boundaries, so it cannot tell you a card has been "In Progress" for one day if
+you haven't committed that move yet. Git also tracks the *file*, not the
+*column* specifically - reconstructing transition timing means diffing every
+revision and parsing JSON. Kan records the true event time when the move
+happens. Content history (title/description edits) is deliberately **not**
+tracked here - that is high-volume, low-structure, and Git already handles it
+well ("your board history is your Git history" still holds for content).
+
+**General by design.** `value` is typed as `any`/`unknown` and entries are
+keyed by `field`, so future opt-in tracking of custom fields (e.g. "how long
+was this card tagged `urgent`") can append entries with other `field` names -
+no further card-schema migration required. Set-type fields would store their
+whole value array per entry; per-member durations are derived by diffing
+consecutive snapshots.
+
+**Storage.** History lives inside the card file (like comments). Each entry is
+written as a single compact line, append-only and oldest-first, so a new
+transition is a clean one-line VCS diff. The only conflict case is two people
+moving the *same* card before syncing - a genuine conflict, the same trade-off
+as one-file-per-card.
+
+**Migration**: card/2 -> card/3 seeds one entry from the card's *current*
+column at its `created_at_millis`. This is necessarily an approximation: card
+files don't record past transition times, so a card created in `backlog` and
+later moved to `review` shows a single `{review, at: created_at}` entry after
+migration - its current-column duration may be overstated and its earlier
+journey is collapsed. History is accurate from migration forward. Seeding is
+idempotent (keyed off history being absent) because the board/9 -> board/10
+migration can already stamp `_v` to the current version without seeding.
 
 ### Pattern Hooks (board/3)
 

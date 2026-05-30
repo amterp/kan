@@ -42,6 +42,28 @@ func writeJSONMap(path string, data map[string]any) error {
 	return os.WriteFile(path, output, 0644)
 }
 
+// writeCardMap writes a migrated card map to disk in the same on-disk format
+// the store uses (model.Card.MarshalFile: pretty-printed, one compact line per
+// history entry). This keeps migrated cards byte-identical to store-written
+// ones, so a migration doesn't produce verbose multi-line history that then
+// reformats on the card's next edit. Falls back to writeJSONMap if the map
+// can't be round-tripped through model.Card (e.g. malformed data mid-migration).
+func writeCardMap(path string, data map[string]any) error {
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return writeJSONMap(path, data)
+	}
+	var card model.Card
+	if err := json.Unmarshal(raw, &card); err != nil {
+		return writeJSONMap(path, data)
+	}
+	output, err := card.MarshalFile()
+	if err != nil {
+		return writeJSONMap(path, data)
+	}
+	return os.WriteFile(path, output, 0644)
+}
+
 // listBoards returns the names of all boards in the given paths.
 func listBoards(paths *config.Paths) ([]string, error) {
 	boardsRoot := paths.BoardsRoot()

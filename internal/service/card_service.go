@@ -133,6 +133,9 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 		UpdatedAtMillis: now,
 		Column:          column,
 		Position:        position,
+		History: []model.HistoryEntry{
+			{Field: "column", Value: column, At: now},
+		},
 	}
 
 	// Apply custom fields if provided
@@ -321,9 +324,21 @@ func (s *CardService) MoveCardWithPlacement(boardName, cardID, targetColumn stri
 	}
 
 	// Compute new position
+	prevColumn := card.Column
 	card.Column = targetColumn
 	card.Position = computePosition(colCards, idx)
 	card.UpdatedAtMillis = util.NowMillis()
+
+	// Record the transition, but only on a genuine column change. Within-column
+	// reorders flow through here too (targetColumn == prevColumn) and must not
+	// append. Moving back to a previously-occupied column appends a fresh entry
+	// by design - history is an append-only log, not a set.
+	if prevColumn != targetColumn {
+		card.History = append(card.History, model.HistoryEntry{
+			Field: "column", Value: targetColumn, At: card.UpdatedAtMillis,
+		})
+	}
+
 	return s.cardStore.Update(boardName, card)
 }
 

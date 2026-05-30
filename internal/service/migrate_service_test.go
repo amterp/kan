@@ -211,6 +211,15 @@ func TestMigrateService_Execute_V0(t *testing.T) {
 		t.Error("Migrated card should have position field")
 	}
 
+	// Should have seeded column history (card/3), even though the v9->v10 board
+	// migration already stamped _v to the current version.
+	history, ok := cardJSON["history"].([]any)
+	if !ok || len(history) != 1 {
+		t.Errorf("Migrated card should have one seeded history entry, got %v", cardJSON["history"])
+	} else if entry := history[0].(map[string]any); entry["field"] != "column" {
+		t.Errorf("Seeded history entry should track column, got %v", entry)
+	}
+
 	// Should preserve custom fields
 	if cardJSON["priority"] != "high" {
 		t.Errorf("Custom field 'priority' not preserved: %v", cardJSON["priority"])
@@ -1607,4 +1616,139 @@ func TestMigrateService_V11_ReadableByStores(t *testing.T) {
 	if card.CustomFields["tint"] != "red" {
 		t.Errorf("Custom field 'tint' = %v, want 'red'", card.CustomFields["tint"])
 	}
+}
+
+// ============================================================================
+// Card v2 -> v3 Migration Tests (column history seeding)
+// ============================================================================
+
+func TestMigrateService_CardV2ToV3_SeedsHistory(t *testing.T) {
+	service, tempDir, cleanup := setupMigrationTest(t, "card_v2_no_history")
+	defer cleanup()
+
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if !plan.HasChanges() {
+		t.Fatal("card/2 data should need migration to card/3")
+	}
+	if err := service.Execute(plan, false); err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	cardPath := filepath.Join(tempDir, ".kan", "boards", "main", "cards", "card-abc.json")
+	data, err := os.ReadFile(cardPath)
+	if err != nil {
+		t.Fatalf("Failed to read migrated card: %v", err)
+	}
+
+	// Migration must produce the same compact one-line-per-entry history format
+	// the store uses, so it doesn't write verbose multi-line history that then
+	// reformats (a noisy diff) on the card's next edit.
+	if !strings.Contains(string(data), `{"field":"column","value":"Done","at":1704307200000}`) {
+		t.Errorf("migrated history not in compact one-line format:\n%s", data)
+	}
+
+	var card map[string]any
+	if err := json.Unmarshal(data, &card); err != nil {
+		t.Fatalf("Failed to parse migrated card: %v", err)
+	}
+
+	if int(card["_v"].(float64)) != version.CurrentCardVersion {
+		t.Errorf("Card _v = %v, want %d", card["_v"], version.CurrentCardVersion)
+	}
+
+	history, ok := card["history"].([]any)
+	if !ok || len(history) != 1 {
+		t.Fatalf("Expected 1 seeded history entry, got %v", card["history"])
+	}
+	entry := history[0].(map[string]any)
+	if entry["field"] != "column" {
+		t.Errorf("Seeded entry field = %v, want 'column'", entry["field"])
+	}
+	if entry["value"] != "Done" {
+		t.Errorf("Seeded entry value = %v, want current column 'Done'", entry["value"])
+	}
+	// Seeded at creation time (approximation for pre-existing cards).
+	if int64(entry["at"].(float64)) != 1704307200000 {
+		t.Errorf("Seeded entry at = %v, want created_at_millis", entry["at"])
+	}
+
+	// The migrated card must be readable by the (strict-version) store.
+	paths := config.NewPaths(tempDir, "")
+	cardStore := store.NewCardStore(paths)
+	got, err := cardStore.Get("main", "card-abc")
+	if err != nil {
+		t.Fatalf("CardStore.Get failed after migration: %v", err)
+	}
+	if len(got.History) != 1 || got.History[0].Value != "Done" {
+		t.Errorf("Store-read history = %+v, want single Done entry", got.History)
+	}
+}
+
+func TestMigrateService_CardV3_NoOp(t *testing.T) {
+	// The v11 fixture card is already card/3 with history; it must not be
+	// re-migrated or have its history altered.
+	service, _, cleanup := setupMigrationTest(t, "v11")
+	defer cleanup()
+
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if plan.HasChanges() {
+		t.Error("card/3 data with history should not need migration")
+	}
+}
+
+func TestSeedCardHistory(t *testing.T) {
+	t.Run("seeds from current column at creation time", func(t *testing.T) {
+		raw := map[string]any{
+			"column":            "review",
+			"created_at_millis": float64(1700000000000),
+		}
+		if !seedCardHistory(raw) {
+			t.Fatal("expected seedCardHistory to report a change")
+		}
+		history := raw["history"].([]map[string]any)
+		if len(history) != 1 {
+			t.Fatalf("expected 1 entry, got %d", len(history))
+		}
+		if history[0]["field"] != "column" || history[0]["value"] != "review" {
+			t.Errorf("unexpected entry: %v", history[0])
+		}
+		if history[0]["at"].(int64) != 1700000000000 {
+			t.Errorf("expected at = created_at, got %v", history[0]["at"])
+		}
+	})
+
+	t.Run("idempotent when history already present", func(t *testing.T) {
+		raw := map[string]any{
+			"column":  "review",
+			"history": []any{map[string]any{"field": "column", "value": "backlog", "at": float64(1)}},
+		}
+		if seedCardHistory(raw) {
+			t.Error("expected no change when history already present")
+		}
+	})
+
+	t.Run("seeds when history is null or empty", func(t *testing.T) {
+		for name, h := range map[string]any{"null": nil, "empty": []any{}} {
+			raw := map[string]any{"column": "review", "created_at_millis": float64(1), "history": h}
+			if !seedCardHistory(raw) {
+				t.Errorf("%s history should be treated as absent and seeded", name)
+			}
+		}
+	})
+
+	t.Run("no-op when column absent", func(t *testing.T) {
+		raw := map[string]any{"created_at_millis": float64(1)}
+		if seedCardHistory(raw) {
+			t.Error("expected no change when column missing")
+		}
+		if _, has := raw["history"]; has {
+			t.Error("should not add history without a column")
+		}
+	})
 }

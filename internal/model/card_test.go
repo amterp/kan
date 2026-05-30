@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -515,5 +516,134 @@ func TestValidateCustomFields(t *testing.T) {
 	err = ValidateCustomFields(nil)
 	if err != nil {
 		t.Errorf("ValidateCustomFields(nil) returned error: %v", err)
+	}
+}
+
+func TestCardMarshalFile_HistoryOneLinePerEntry(t *testing.T) {
+	card := &Card{
+		Version:         3,
+		ID:              "abc123",
+		Alias:           "c1",
+		Title:           "Test",
+		Creator:         "tester",
+		CreatedAtMillis: 1700000000000,
+		UpdatedAtMillis: 1700900000000,
+		Column:          "review",
+		Position:        "V",
+		History: []HistoryEntry{
+			{Field: "column", Value: "backlog", At: 1700000000000},
+			{Field: "column", Value: "in-progress", At: 1700400000000},
+			{Field: "column", Value: "review", At: 1700900000000},
+		},
+	}
+
+	data, err := card.MarshalFile()
+	if err != nil {
+		t.Fatalf("MarshalFile failed: %v", err)
+	}
+	out := string(data)
+
+	// Each history entry must be on its own single line, compact (no newline
+	// inside the entry's braces), so appends are one-line diffs.
+	wantLines := []string{
+		`    {"field":"column","value":"backlog","at":1700000000000},`,
+		`    {"field":"column","value":"in-progress","at":1700400000000},`,
+		`    {"field":"column","value":"review","at":1700900000000}`,
+	}
+	for _, want := range wantLines {
+		if !strings.Contains(out, want) {
+			t.Errorf("MarshalFile output missing expected line:\n%s\n---got---\n%s", want, out)
+		}
+	}
+
+	// The rest of the card stays pretty-printed.
+	if !strings.Contains(out, "\n  \"id\": \"abc123\",") {
+		t.Errorf("expected pretty-printed top-level fields, got:\n%s", out)
+	}
+
+	// Round-trips: history survives and is not swept into custom fields.
+	var restored Card
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+	if len(restored.History) != 3 {
+		t.Fatalf("expected 3 history entries, got %d", len(restored.History))
+	}
+	if restored.CustomFields != nil {
+		t.Errorf("history leaked into custom fields: %v", restored.CustomFields)
+	}
+	if restored.History[1].Field != "column" || restored.History[1].Value != "in-progress" {
+		t.Errorf("history entry corrupted on round-trip: %+v", restored.History[1])
+	}
+}
+
+func TestCardMarshalFile_NoHistory(t *testing.T) {
+	card := &Card{
+		Version:         3,
+		ID:              "abc123",
+		Title:           "Test",
+		Creator:         "tester",
+		CreatedAtMillis: 1700000000000,
+		UpdatedAtMillis: 1700000000000,
+		Column:          "backlog",
+		Position:        "V",
+	}
+	data, err := card.MarshalFile()
+	if err != nil {
+		t.Fatalf("MarshalFile failed: %v", err)
+	}
+	if strings.Contains(string(data), "history") {
+		t.Errorf("expected no history key when history is empty, got:\n%s", data)
+	}
+}
+
+func TestCardMarshalFile_PreservesCustomFields(t *testing.T) {
+	card := &Card{
+		Version:         3,
+		ID:              "abc123",
+		Title:           "Test",
+		Creator:         "tester",
+		CreatedAtMillis: 1700000000000,
+		UpdatedAtMillis: 1700000000000,
+		Column:          "backlog",
+		Position:        "V",
+		CustomFields:    map[string]any{"priority": "high"},
+		History: []HistoryEntry{
+			{Field: "column", Value: "backlog", At: 1700000000000},
+		},
+	}
+	data, err := card.MarshalFile()
+	if err != nil {
+		t.Fatalf("MarshalFile failed: %v", err)
+	}
+	var restored Card
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+	if restored.CustomFields["priority"] != "high" {
+		t.Errorf("custom field lost: %v", restored.CustomFields)
+	}
+	if len(restored.History) != 1 {
+		t.Errorf("expected 1 history entry, got %d", len(restored.History))
+	}
+}
+
+func TestCurrentColumnSinceMillis(t *testing.T) {
+	// Empty history falls back to created_at.
+	c := Card{CreatedAtMillis: 123}
+	if got := c.CurrentColumnSinceMillis(); got != 123 {
+		t.Errorf("empty history: got %d, want 123", got)
+	}
+
+	// Returns the most recent column entry.
+	c = Card{
+		CreatedAtMillis: 100,
+		History: []HistoryEntry{
+			{Field: "column", Value: "backlog", At: 100},
+			{Field: "column", Value: "review", At: 500},
+		},
+	}
+	if got := c.CurrentColumnSinceMillis(); got != 500 {
+		t.Errorf("got %d, want 500", got)
 	}
 }

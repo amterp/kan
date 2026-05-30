@@ -147,7 +147,9 @@ func (s *FileCardStore) writeCard(path string, card *model.Card) error {
 	// Stamp current schema version
 	card.Version = version.CurrentCardVersion
 
-	data, err := json.MarshalIndent(card, "", "  ")
+	// MarshalFile keeps the card pretty-printed but collapses each history
+	// entry onto a single line, so appending a transition is a one-line diff.
+	data, err := card.MarshalFile()
 	if err != nil {
 		return fmt.Errorf("failed to marshal card: %w", err)
 	}

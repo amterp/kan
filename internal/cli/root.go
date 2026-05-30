@@ -62,6 +62,11 @@ type CommandContext struct {
 	ShowCard  *string
 	ShowBoard *string
 
+	// history command
+	HistoryUsed  *bool
+	HistoryCard  *string
+	HistoryBoard *string
+
 	// list command
 	ListUsed   *bool
 	ListBoard  *string
@@ -210,6 +215,7 @@ func buildRootCmd() *CommandContext {
 	registerAdd(cmd, ctx)
 	registerDelete(cmd, ctx)
 	registerShow(cmd, ctx)
+	registerHistory(cmd, ctx)
 	registerList(cmd, ctx)
 	registerEdit(cmd, ctx)
 	registerServe(cmd, ctx)
@@ -286,6 +292,9 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.ShowUsed:
 		runShow(*ctx.ShowCard, *ctx.ShowBoard, *ctx.Json)
+
+	case *ctx.HistoryUsed:
+		runHistory(*ctx.HistoryCard, *ctx.HistoryBoard, *ctx.Json)
 
 	case *ctx.ListUsed:
 		runList(*ctx.ListBoard, *ctx.ListColumn, *ctx.Json)

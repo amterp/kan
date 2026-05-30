@@ -603,9 +603,20 @@ func (s *MigrateService) migrateCard(plan *CardMigration) error {
 		return err
 	}
 
-	// Check if already at target version (e.g., v9->v10 board migration
-	// already bumped card files to v2 via writeCardColumnPosition).
+	// Seed column history (card/3) if absent. Done before the already-at-target
+	// short-circuit below: the v9->v10 board migration runs first and can stamp
+	// _v to the current version (via writeCardColumnPosition) without seeding
+	// history, so the version delta alone can't tell us whether a card still
+	// needs its history seeded.
+	seeded := seedCardHistory(raw)
+
+	// Check if already at target version (e.g., v9->v10 board migration already
+	// bumped card files via writeCardColumnPosition). Still persist if we just
+	// seeded history.
 	if v, ok := raw["_v"].(float64); ok && int(v) == plan.ToVersion {
+		if seeded {
+			return writeCardMap(plan.Path, raw)
+		}
 		return nil
 	}
 
@@ -617,7 +628,40 @@ func (s *MigrateService) migrateCard(plan *CardMigration) error {
 		delete(raw, "column")
 	}
 
-	return writeJSONMap(plan.Path, raw)
+	return writeCardMap(plan.Path, raw)
+}
+
+// seedCardHistory adds an initial column history entry (card/3) to a card map
+// if history is absent, returning true if it modified the map. It is
+// idempotent, so it is safe to call on cards that already carry history.
+//
+// This is necessarily an approximation for pre-existing cards: the card file
+// records only the current column, not when each past transition happened, so
+// we record the current column as if it had been held since the card's
+// creation. A card created in "backlog" and later moved to "review" will, after
+// migration, show a single {column: review, at: created_at} entry - its
+// current-column duration may be overstated and its earlier journey is
+// collapsed. History is accurate from migration forward.
+func seedCardHistory(raw map[string]any) bool {
+	// Treat a present-but-empty history (null or []) as absent so a card that
+	// was hand-edited or written by an external tool still gets seeded.
+	if h, has := raw["history"]; has && h != nil {
+		if arr, ok := h.([]any); !ok || len(arr) > 0 {
+			return false
+		}
+	}
+	column, _ := raw["column"].(string)
+	if column == "" {
+		return false
+	}
+	var at int64
+	if created, ok := raw["created_at_millis"].(float64); ok {
+		at = int64(created)
+	}
+	raw["history"] = []map[string]any{
+		{"field": "column", "value": column, "at": at},
+	}
+	return true
 }
 
 // migrateBoardV9ToV10 moves card-column association from board config to card files.

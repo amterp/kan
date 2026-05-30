@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "id": "card-abc",
   "alias": "test-card",
   "alias_explicit": false,
@@ -15,5 +15,8 @@
   "creator": "tester",
   "created_at_millis": 1704307200000,
   "updated_at_millis": 1704307200000,
-  "priority": "high"
+  "priority": "high",
+  "history": [
+    {"field":"column","value":"Backlog","at":1704307200000}
+  ]
 }
