@@ -4,16 +4,25 @@ package model
 // Stored at ~/.config/kan/config.toml
 // Schema changes require a version bump—see internal/version/version.go.
 type GlobalConfig struct {
-	KanSchema string                `toml:"kan_schema"`
-	Editor    string                `toml:"editor,omitempty"`
-	Projects  map[string]string     `toml:"projects,omitempty"` // name -> path
-	Repos     map[string]RepoConfig `toml:"repos,omitempty"`    // path -> config
+	KanSchema   string                `toml:"kan_schema"`
+	Editor      string                `toml:"editor,omitempty"`
+	Projects    map[string]string     `toml:"projects,omitempty"`     // name -> path
+	Repos       map[string]RepoConfig `toml:"repos,omitempty"`        // path -> config
+	GlobalBoard *GlobalBoardRef       `toml:"global_board,omitempty"` // board reachable from anywhere via -g
 }
 
 // RepoConfig holds per-repository settings.
 type RepoConfig struct {
 	DefaultBoard string `toml:"default_board,omitempty"`
 	DataLocation string `toml:"data_location,omitempty"` // Custom .kan location
+}
+
+// GlobalBoardRef designates a single board that `kan ... -g` targets regardless
+// of the working directory. Path is the project root (a key into Repos, which
+// supplies any custom DataLocation); Board is the board name within it.
+type GlobalBoardRef struct {
+	Path  string `toml:"path"`
+	Board string `toml:"board"`
 }
 
 // GetRepoConfig returns the config for a given repo path, or nil if none.
@@ -41,6 +50,16 @@ func (g *GlobalConfig) RegisterProject(name, path string) {
 		g.Projects = make(map[string]string)
 	}
 	g.Projects[name] = path
+}
+
+// SetGlobalBoard designates the board that `-g` targets.
+func (g *GlobalConfig) SetGlobalBoard(path, board string) {
+	g.GlobalBoard = &GlobalBoardRef{Path: path, Board: board}
+}
+
+// ClearGlobalBoard removes the global board designation.
+func (g *GlobalConfig) ClearGlobalBoard() {
+	g.GlobalBoard = nil
 }
 
 // RemoveRepoConfig removes a repo config and any project entries pointing to that path.

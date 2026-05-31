@@ -295,6 +295,7 @@ kan add "Task" -f priority=high -f type=bug     # Add with custom fields
 kan add "Task" -f component=core -f component=cli  # Set fields: repeat or use -f component=core,cli
 kan add "Urgent" -c backlog --position 0        # Insert at top of column
 kan add "Follow-up" --after fix                  # Insert after card "fix" (in its column)
+kan add "Buy milk" -g                            # Add to the global board from anywhere
 ```
 
 | Flag | Description |
@@ -307,6 +308,7 @@ kan add "Follow-up" --after fix                  # Insert after card "fix" (in i
 | `--after` | Insert after this card (ID or alias) |
 | `-f, --field` | Custom field (key=value, repeatable; set fields also accept comma-separated values) |
 | `--strict` | Error if wanted fields are missing (default: warn) |
+| `-g, --global` | Target the designated global board (see Global Board) |
 
 `--position`/`--before`/`--after` are mutually exclusive; default is end of column. Without `-c`, the card is placed in the anchor card's column. Prefer `--before`/`--after` for non-boundary spots (`kan list` shows no indices to count against).
 
@@ -446,6 +448,23 @@ kan commit -m "update board"   # Custom commit message
 | `-m, --message` | Commit message (default: "chore: update kan files")      |
 
 Only kan data files are committed, leaving any other staged changes untouched. Requires being inside a git repository.
+
+## Global Board
+
+Designate one board as the *global board* so you can act on it from any working directory with `-g`/`--global` - useful for an "inbox" board captured to from anywhere.
+
+```bash
+kan global set            # designate the current project's board (interactive / single-board)
+kan global set inbox      # designate a specific board by name
+kan global show           # show the current designation (warns if stale)
+kan global unset          # clear the designation
+
+kan add -g "Buy milk"     # from anywhere, lands on the global board
+kan list -g               # the global board's cards
+kan edit -g buy-milk -c done
+```
+
+`-g` works on `add`, `list`, `show`, `history`, `edit`, `delete`, and `comment add`/`edit`/`delete`. It targets the global board's project with the designated board as default; an explicit `-b` overrides it (`kan add -g -b other "..."`). There is no implicit fallback - `-g` must be explicit, and bare commands outside a project still error rather than capturing to the global board.
 
 ## Web Interface
 

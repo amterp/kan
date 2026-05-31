@@ -318,6 +318,7 @@ kan add "Update docs" "Description goes here"
 | `--after`      | Insert after this card (ID or alias)          |
 | `-f, --field`  | Custom field in key=value format (repeatable; set-typed fields also accept comma-separated values) |
 | `--strict`     | Error if wanted fields are missing (default: warn) |
+| `-g, --global` | Target the designated global board (see [global](#global)) |
 
 `--position`, `--before`, and `--after` are mutually exclusive. By default a card
 is appended to the end of its column. Without `-c`, the card is placed in the
@@ -334,6 +335,7 @@ kan add "Task title" -c backlog
 kan add "Feature" -b features -c todo -f priority=high
 kan add "Urgent" -c backlog --position 0    # top of backlog
 kan add "Follow-up" --after fix-login       # right after fix-login, in its column
+kan add "Buy milk" -g                       # add to the global board from anywhere
 ```
 
 ### show
@@ -354,9 +356,10 @@ always wins over fuzzy. This applies to `show`, `history`, `edit`, `delete`, and
 `show` also reports how long the card has been in its current column
 (e.g. `Column: review (3 days)`).
 
-| Flag          | Description |
-|---------------|-------------|
-| `-b, --board` | Board name  |
+| Flag           | Description                                                |
+|----------------|------------------------------------------------------------|
+| `-b, --board`  | Board name                                                 |
+| `-g, --global` | Target the designated global board (see [global](#global)) |
 
 ### history
 
@@ -370,9 +373,10 @@ kan history fix-login-bug
 kan history fix-login --json
 ```
 
-| Flag          | Description |
-|---------------|-------------|
-| `-b, --board` | Board name  |
+| Flag           | Description                                                |
+|----------------|------------------------------------------------------------|
+| `-b, --board`  | Board name                                                 |
+| `-g, --global` | Target the designated global board (see [global](#global)) |
 
 ### list
 
@@ -384,10 +388,11 @@ kan list -b features
 kan list -c done
 ```
 
-| Flag           | Description      |
-|----------------|------------------|
-| `-b, --board`  | Filter by board  |
-| `-c, --column` | Filter by column |
+| Flag           | Description                                                |
+|----------------|------------------------------------------------------------|
+| `-b, --board`  | Filter by board                                            |
+| `-c, --column` | Filter by column                                           |
+| `-g, --global` | Target the designated global board (see [global](#global)) |
 
 ### edit
 
@@ -411,6 +416,7 @@ kan edit fix-login-bug -t "New title" -c done
 | `-a, --alias`       | Set explicit alias                                |
 | `-f, --field`       | Set custom field in key=value format (repeatable; set-typed fields also accept comma-separated values) |
 | `--strict`          | Error if wanted fields are missing (default: warn) |
+| `-g, --global`      | Target the designated global board (see [global](#global)) |
 
 `--position`, `--before`, and `--after` are mutually exclusive and can reorder a
 card within its current column or place it precisely when moving between columns.
@@ -433,9 +439,10 @@ Delete a card.
 kan delete fix-login-bug
 ```
 
-| Flag          | Description                                  |
-|---------------|----------------------------------------------|
-| `-b, --board` | Board name                                   |
+| Flag           | Description                                                |
+|----------------|------------------------------------------------------------|
+| `-b, --board`  | Board name                                                 |
+| `-g, --global` | Target the designated global board (see [global](#global)) |
 
 ### serve
 
@@ -463,9 +470,10 @@ kan comment add fix-login-bug "Found the issue in session.go"
 kan comment add fix-login-bug  # Opens editor for body
 ```
 
-| Flag          | Description |
-|---------------|-------------|
-| `-b, --board` | Board name  |
+| Flag           | Description                                                |
+|----------------|------------------------------------------------------------|
+| `-b, --board`  | Board name                                                 |
+| `-g, --global` | Target the designated global board (see [global](#global)) |
 
 The first argument is the card ID or alias. The second argument is the comment body - if omitted, your editor opens to
 write the comment.
@@ -477,9 +485,10 @@ kan comment edit c_9kL2x "Updated comment text"
 kan comment edit c_9kL2x  # Opens editor with existing text
 ```
 
-| Flag          | Description |
-|---------------|-------------|
-| `-b, --board` | Board name  |
+| Flag           | Description                                                |
+|----------------|------------------------------------------------------------|
+| `-b, --board`  | Board name                                                 |
+| `-g, --global` | Target the designated global board (see [global](#global)) |
 
 **Delete a comment:**
 
@@ -487,9 +496,10 @@ kan comment edit c_9kL2x  # Opens editor with existing text
 kan comment delete c_9kL2x
 ```
 
-| Flag          | Description |
-|---------------|-------------|
-| `-b, --board` | Board name  |
+| Flag           | Description                                                |
+|----------------|------------------------------------------------------------|
+| `-b, --board`  | Board name                                                 |
+| `-g, --global` | Target the designated global board (see [global](#global)) |
 
 ### commit
 
@@ -507,6 +517,37 @@ kan commit -m "update board"           # Custom commit message
 Only kan data files are committed - any other staged changes are left untouched.
 
 Fails if not in a git repository or if kan is not initialized.
+
+### global
+
+Designate a single board as the *global board* so you can act on it from any
+working directory with the `-g`/`--global` flag - handy for an "inbox" board you
+capture to from anywhere, without `cd`-ing to its project.
+
+```bash
+kan global set            # designate the current project's board (interactive / single-board)
+kan global set inbox      # designate a specific board by name
+kan global show           # show the current designation (and warn if it's stale)
+kan global unset          # clear the designation
+```
+
+Once set, `-g` works across the card commands - `add`, `list`, `show`, `history`,
+`edit`, `delete`, and `comment add`/`edit`/`delete`:
+
+```bash
+kan add -g "Buy milk"        # from anywhere, lands on the global board
+kan list -g                  # list the global board's cards
+kan edit -g buy-milk -c done # move a global-board card
+```
+
+`-g` targets the global board's *project*, with the designated board as its
+default. An explicit `-b` still overrides it, so `kan add -g -b other "..."`
+adds to a different board in the same project. Commands print which board they
+acted on so a mistaken target is visible.
+
+There is **no implicit fallback**: commands never silently use the global board
+based on your working directory - `-g` must be explicit. Running a bare command
+outside any kan project still errors rather than capturing to the global board.
 
 ### migrate
 

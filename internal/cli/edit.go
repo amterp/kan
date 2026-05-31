@@ -100,11 +100,13 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Error if wanted fields are missing (default: warn)").
 		Register(cmd)
 
+	ctx.EditGlobal = registerGlobalFlag(cmd)
+
 	ctx.EditUsed, _ = parent.RegisterCmd(cmd)
 }
 
 func runEdit(idOrAlias, board string, title, description, column string,
-	parent, alias string, placement cardPlacement, fields []string, strict, nonInteractive, jsonOutput bool) {
+	parent, alias string, placement cardPlacement, fields []string, strict, global, nonInteractive, jsonOutput bool) {
 
 	// Check if any flags were provided
 	hasFlags := title != "" || description != "" || column != "" ||
@@ -114,7 +116,7 @@ func runEdit(idOrAlias, board string, title, description, column string,
 		Fatal(fmt.Errorf("no fields specified to edit (use -t, -d, -c, -p, -a, -f, --position, --before, or --after flags)"))
 	}
 
-	app, err := NewApp(!nonInteractive)
+	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, UseGlobalBoard: global})
 	if err != nil {
 		Fatal(err)
 	}
@@ -130,6 +132,7 @@ func runEdit(idOrAlias, board string, title, description, column string,
 	}
 	boardName := result.BoardName
 	card := result.Card
+	app.PrintGlobalTarget(boardName)
 
 	if result.CrossBoard && !jsonOutput {
 		PrintInfo("Found card in board %q", boardName)

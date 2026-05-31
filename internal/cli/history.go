@@ -25,6 +25,8 @@ func registerHistory(parent *ra.Cmd, ctx *CommandContext) {
 		SetCompletionFunc(completeBoards).
 		Register(cmd)
 
+	ctx.HistoryGlobal = registerGlobalFlag(cmd)
+
 	ctx.HistoryUsed, _ = parent.RegisterCmd(cmd)
 }
 
@@ -35,8 +37,8 @@ type historyOutput struct {
 	History []model.HistoryEntry `json:"history"`
 }
 
-func runHistory(idOrAlias, board string, jsonOutput bool) {
-	app, err := NewApp(true)
+func runHistory(idOrAlias, board string, global, jsonOutput bool) {
+	app, err := NewAppWithOptions(AppOptions{Interactive: true, UseGlobalBoard: global})
 	if err != nil {
 		Fatal(err)
 	}
@@ -50,6 +52,7 @@ func runHistory(idOrAlias, board string, jsonOutput bool) {
 	}
 	boardName := result.BoardName
 	card := result.Card
+	app.PrintGlobalTarget(boardName)
 
 	columnEntries := columnHistory(card)
 

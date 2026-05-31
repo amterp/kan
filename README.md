@@ -38,6 +38,7 @@ kan add "Fix login bug"        # Add a card
 kan edit fix-login-bug -c done # Move to column
 kan list                       # List all cards
 kan show fix-login-bug         # View card details
+kan add -g "Buy milk"          # Add to your global board from any directory
 ```
 
 Kan also ships with a skill file (`extras/skill/`) following the [Agent Skills](https://agentskills.io) standard, so AI coding agents like Claude Code, Codex, and others can manage your board out of the box. See the [AI Agents docs](https://amterp.dev/kan/docs/ai-agents) for details.

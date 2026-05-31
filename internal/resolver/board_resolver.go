@@ -14,6 +14,10 @@ type BoardResolver struct {
 	globalStore store.GlobalStore
 	prompter    prompt.Prompter
 	projectPath string
+	// preferredBoard, when set, is used ahead of default_board and the
+	// interactive picker. It is how `-g` pins resolution to the designated
+	// global board while still letting an explicit -b override.
+	preferredBoard string
 }
 
 // NewBoardResolver creates a new board resolver.
@@ -29,6 +33,12 @@ func NewBoardResolver(
 		prompter:    prompter,
 		projectPath: projectPath,
 	}
+}
+
+// SetPreferredBoard pins resolution to a specific board (when no explicit board
+// is given), used by `-g` to target the designated global board.
+func (r *BoardResolver) SetPreferredBoard(board string) {
+	r.preferredBoard = board
 }
 
 // InferBoard resolves which board to use without user interaction.
@@ -78,6 +88,12 @@ func (r *BoardResolver) Resolve(explicitBoard string, interactive bool) (string,
 	}
 	if len(boards) == 0 {
 		return "", fmt.Errorf("no boards found; run 'kan init' first")
+	}
+
+	// 2.5. Preferred board (e.g. the designated global board under -g) wins over
+	// default_board and the picker, but yields to an explicit -b (handled above).
+	if r.preferredBoard != "" && r.boardStore.Exists(r.preferredBoard) {
+		return r.preferredBoard, nil
 	}
 
 	// 3-4. Try non-interactive inference (single board or default)

@@ -19,11 +19,13 @@ func registerDelete(parent *ra.Cmd, ctx *CommandContext) {
 		SetCompletionFunc(completeBoards).
 		Register(cmd)
 
+	ctx.DeleteGlobal = registerGlobalFlag(cmd)
+
 	ctx.DeleteUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runDelete(cardArg, board string, nonInteractive bool) {
-	app, err := NewApp(!nonInteractive)
+func runDelete(cardArg, board string, global, nonInteractive bool) {
+	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, UseGlobalBoard: global})
 	if err != nil {
 		Fatal(err)
 	}
@@ -39,6 +41,7 @@ func runDelete(cardArg, board string, nonInteractive bool) {
 	}
 	boardName := result.BoardName
 	card := result.Card
+	app.PrintGlobalTarget(boardName)
 
 	if result.CrossBoard {
 		PrintInfo("Found card in board %q", boardName)

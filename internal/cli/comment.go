@@ -34,6 +34,8 @@ func registerComment(parent *ra.Cmd, ctx *CommandContext) {
 		SetCompletionFunc(completeBoards).
 		Register(addCmd)
 
+	ctx.CommentAddGlobal = registerGlobalFlag(addCmd)
+
 	ctx.CommentAddUsed, _ = cmd.RegisterCmd(addCmd)
 
 	// comment edit
@@ -57,6 +59,8 @@ func registerComment(parent *ra.Cmd, ctx *CommandContext) {
 		SetCompletionFunc(completeBoards).
 		Register(editCmd)
 
+	ctx.CommentEditGlobal = registerGlobalFlag(editCmd)
+
 	ctx.CommentEditUsed, _ = cmd.RegisterCmd(editCmd)
 
 	// comment delete
@@ -75,13 +79,15 @@ func registerComment(parent *ra.Cmd, ctx *CommandContext) {
 		SetCompletionFunc(completeBoards).
 		Register(deleteCmd)
 
+	ctx.CommentDeleteGlobal = registerGlobalFlag(deleteCmd)
+
 	ctx.CommentDeleteUsed, _ = cmd.RegisterCmd(deleteCmd)
 
 	ctx.CommentUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runCommentAdd(card, body, board string, nonInteractive, jsonOutput bool) {
-	app, err := NewApp(!nonInteractive)
+func runCommentAdd(card, body, board string, global, nonInteractive, jsonOutput bool) {
+	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, UseGlobalBoard: global})
 	if err != nil {
 		Fatal(err)
 	}
@@ -97,6 +103,7 @@ func runCommentAdd(card, body, board string, nonInteractive, jsonOutput bool) {
 	}
 	boardName := result.BoardName
 	card = result.Card.ID
+	app.PrintGlobalTarget(boardName)
 
 	if result.CrossBoard && !jsonOutput {
 		PrintInfo("Found card in board %q", boardName)
@@ -146,8 +153,8 @@ func runCommentAdd(card, body, board string, nonInteractive, jsonOutput bool) {
 	PrintSuccess("Added comment %s", RenderID(comment.ID))
 }
 
-func runCommentEdit(commentID, body, board string, nonInteractive bool) {
-	app, err := NewApp(!nonInteractive)
+func runCommentEdit(commentID, body, board string, global, nonInteractive bool) {
+	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, UseGlobalBoard: global})
 	if err != nil {
 		Fatal(err)
 	}
@@ -161,6 +168,7 @@ func runCommentEdit(commentID, body, board string, nonInteractive bool) {
 	if err != nil {
 		Fatal(err)
 	}
+	app.PrintGlobalTarget(boardName)
 
 	// Find the card containing this comment to get the existing body
 	card, err := app.CardService.FindCommentCard(boardName, commentID)
@@ -213,8 +221,8 @@ func runCommentEdit(commentID, body, board string, nonInteractive bool) {
 	PrintSuccess("Updated comment %s", RenderID(comment.ID))
 }
 
-func runCommentDelete(commentID, board string, nonInteractive bool) {
-	app, err := NewApp(!nonInteractive)
+func runCommentDelete(commentID, board string, global, nonInteractive bool) {
+	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, UseGlobalBoard: global})
 	if err != nil {
 		Fatal(err)
 	}
@@ -228,6 +236,7 @@ func runCommentDelete(commentID, board string, nonInteractive bool) {
 	if err != nil {
 		Fatal(err)
 	}
+	app.PrintGlobalTarget(boardName)
 
 	// Delete comment
 	if err := app.CardService.DeleteComment(boardName, commentID); err != nil {

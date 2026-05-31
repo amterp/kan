@@ -120,6 +120,26 @@ func (e *NotInitializedError) Unwrap() error {
 	return ErrNotInitialized
 }
 
+// NoGlobalBoardError indicates -g was used but no global board is designated.
+type NoGlobalBoardError struct{}
+
+func (e *NoGlobalBoardError) Error() string {
+	return "no global board set; run 'kan global set' from a project to designate one"
+}
+
+// StaleGlobalBoardError indicates the designated global board no longer exists
+// (its project moved/was deleted, or the board itself was removed).
+type StaleGlobalBoardError struct {
+	Board string
+	Path  string
+}
+
+func (e *StaleGlobalBoardError) Error() string {
+	return fmt.Sprintf("global board %q no longer exists at %s; "+
+		"run 'kan global set' to re-designate or 'kan global unset' to clear it",
+		e.Board, e.Path)
+}
+
 // Helper constructors for common cases
 
 func CardNotFound(idOrAlias string) error {

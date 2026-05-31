@@ -25,6 +25,11 @@ func setupDoctorTest(t *testing.T, fixtureName string) (*DoctorService, string, 
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 
+	// Isolate HOME so the global-config check reads an (absent) temp config
+	// rather than the developer's real ~/.config/kan/config.toml, which would
+	// otherwise leak schema-version warnings into these project-scoped tests.
+	t.Setenv("HOME", tempDir)
+
 	if err := copyDir(fixtureDir, tempDir); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to copy test fixtures: %v", err)

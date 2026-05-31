@@ -36,9 +36,10 @@ type CommandContext struct {
 	BoardDescribeBoard *string
 
 	// delete command
-	DeleteUsed  *bool
-	DeleteCard  *string
-	DeleteBoard *string
+	DeleteUsed   *bool
+	DeleteCard   *string
+	DeleteBoard  *string
+	DeleteGlobal *bool
 
 	// board delete
 	BoardDeleteUsed *bool
@@ -56,21 +57,25 @@ type CommandContext struct {
 	AddAfter       *string
 	AddFields      *[]string
 	AddStrict      *bool
+	AddGlobal      *bool
 
 	// show command
-	ShowUsed  *bool
-	ShowCard  *string
-	ShowBoard *string
+	ShowUsed   *bool
+	ShowCard   *string
+	ShowBoard  *string
+	ShowGlobal *bool
 
 	// history command
-	HistoryUsed  *bool
-	HistoryCard  *string
-	HistoryBoard *string
+	HistoryUsed   *bool
+	HistoryCard   *string
+	HistoryBoard  *string
+	HistoryGlobal *bool
 
 	// list command
 	ListUsed   *bool
 	ListBoard  *string
 	ListColumn *string
+	ListGlobal *bool
 
 	// edit command
 	EditUsed        *bool
@@ -86,6 +91,7 @@ type CommandContext struct {
 	EditAlias       *string
 	EditFields      *[]string
 	EditStrict      *bool
+	EditGlobal      *bool
 
 	// serve command
 	ServeUsed   *bool
@@ -143,21 +149,24 @@ type CommandContext struct {
 	CommentUsed *bool
 
 	// comment add
-	CommentAddUsed  *bool
-	CommentAddCard  *string
-	CommentAddBody  *string
-	CommentAddBoard *string
+	CommentAddUsed   *bool
+	CommentAddCard   *string
+	CommentAddBody   *string
+	CommentAddBoard  *string
+	CommentAddGlobal *bool
 
 	// comment edit
-	CommentEditUsed  *bool
-	CommentEditID    *string
-	CommentEditBody  *string
-	CommentEditBoard *string
+	CommentEditUsed   *bool
+	CommentEditID     *string
+	CommentEditBody   *string
+	CommentEditBoard  *string
+	CommentEditGlobal *bool
 
 	// comment delete
-	CommentDeleteUsed  *bool
-	CommentDeleteID    *string
-	CommentDeleteBoard *string
+	CommentDeleteUsed   *bool
+	CommentDeleteID     *string
+	CommentDeleteBoard  *string
+	CommentDeleteGlobal *bool
 
 	// doctor command
 	DoctorUsed   *bool
@@ -168,6 +177,19 @@ type CommandContext struct {
 	// commit command
 	CommitUsed    *bool
 	CommitMessage *string
+
+	// global command
+	GlobalUsed *bool
+
+	// global set
+	GlobalSetUsed  *bool
+	GlobalSetBoard *string
+
+	// global show
+	GlobalShowUsed *bool
+
+	// global unset
+	GlobalUnsetUsed *bool
 }
 
 // Run is the main entry point for the CLI.
@@ -222,6 +244,7 @@ func buildRootCmd() *CommandContext {
 	registerMigrate(cmd, ctx)
 	registerDoctor(cmd, ctx)
 	registerCommit(cmd, ctx)
+	registerGlobal(cmd, ctx)
 	registerCompletion(cmd, ctx)
 
 	return ctx
@@ -285,25 +308,25 @@ func executeCommand(ctx *CommandContext) {
 	case *ctx.AddUsed:
 		runAdd(*ctx.AddTitle, *ctx.AddDescription, *ctx.AddBoard, *ctx.AddColumn, *ctx.AddParent,
 			cardPlacement{*ctx.AddPosition, ctx.RootCmd.Configured("position"), *ctx.AddBefore, *ctx.AddAfter},
-			*ctx.AddFields, *ctx.AddStrict, *ctx.NonInteractive, *ctx.Json)
+			*ctx.AddFields, *ctx.AddStrict, *ctx.AddGlobal, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.DeleteUsed:
-		runDelete(*ctx.DeleteCard, *ctx.DeleteBoard, *ctx.NonInteractive)
+		runDelete(*ctx.DeleteCard, *ctx.DeleteBoard, *ctx.DeleteGlobal, *ctx.NonInteractive)
 
 	case *ctx.ShowUsed:
-		runShow(*ctx.ShowCard, *ctx.ShowBoard, *ctx.Json)
+		runShow(*ctx.ShowCard, *ctx.ShowBoard, *ctx.ShowGlobal, *ctx.Json)
 
 	case *ctx.HistoryUsed:
-		runHistory(*ctx.HistoryCard, *ctx.HistoryBoard, *ctx.Json)
+		runHistory(*ctx.HistoryCard, *ctx.HistoryBoard, *ctx.HistoryGlobal, *ctx.Json)
 
 	case *ctx.ListUsed:
-		runList(*ctx.ListBoard, *ctx.ListColumn, *ctx.Json)
+		runList(*ctx.ListBoard, *ctx.ListColumn, *ctx.ListGlobal, *ctx.Json)
 
 	case *ctx.EditUsed:
 		runEdit(*ctx.EditCard, *ctx.EditBoard, *ctx.EditTitle, *ctx.EditDescription,
 			*ctx.EditColumn, *ctx.EditParent, *ctx.EditAlias,
 			cardPlacement{*ctx.EditPosition, ctx.RootCmd.Configured("position"), *ctx.EditBefore, *ctx.EditAfter},
-			*ctx.EditFields, *ctx.EditStrict, *ctx.NonInteractive, *ctx.Json)
+			*ctx.EditFields, *ctx.EditStrict, *ctx.EditGlobal, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.ServeUsed:
 		runServe(*ctx.ServePort, ctx.RootCmd.Configured("port"), *ctx.ServeNoOpen)
@@ -334,19 +357,28 @@ func executeCommand(ctx *CommandContext) {
 		runColumnMove(*ctx.ColumnMoveName, *ctx.ColumnMoveBoard, *ctx.ColumnMovePosition, *ctx.ColumnMoveAfter, *ctx.NonInteractive)
 
 	case *ctx.CommentAddUsed:
-		runCommentAdd(*ctx.CommentAddCard, *ctx.CommentAddBody, *ctx.CommentAddBoard, *ctx.NonInteractive, *ctx.Json)
+		runCommentAdd(*ctx.CommentAddCard, *ctx.CommentAddBody, *ctx.CommentAddBoard, *ctx.CommentAddGlobal, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.CommentEditUsed:
-		runCommentEdit(*ctx.CommentEditID, *ctx.CommentEditBody, *ctx.CommentEditBoard, *ctx.NonInteractive)
+		runCommentEdit(*ctx.CommentEditID, *ctx.CommentEditBody, *ctx.CommentEditBoard, *ctx.CommentEditGlobal, *ctx.NonInteractive)
 
 	case *ctx.CommentDeleteUsed:
-		runCommentDelete(*ctx.CommentDeleteID, *ctx.CommentDeleteBoard, *ctx.NonInteractive)
+		runCommentDelete(*ctx.CommentDeleteID, *ctx.CommentDeleteBoard, *ctx.CommentDeleteGlobal, *ctx.NonInteractive)
 
 	case *ctx.DoctorUsed:
 		runDoctor(*ctx.DoctorBoard, *ctx.DoctorFix, *ctx.DoctorDryRun, *ctx.Json)
 
 	case *ctx.CommitUsed:
 		runCommit(*ctx.CommitMessage)
+
+	case *ctx.GlobalSetUsed:
+		runGlobalSet(*ctx.GlobalSetBoard, *ctx.NonInteractive)
+
+	case *ctx.GlobalShowUsed:
+		runGlobalShow()
+
+	case *ctx.GlobalUnsetUsed:
+		runGlobalUnset()
 
 	case *ctx.CompletionUsed:
 		runCompletion(*ctx.CompletionShell, ctx.RootCmd)

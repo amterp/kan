@@ -82,12 +82,38 @@ name = "Backlog"
 ### Global Configuration (TOML)
 
 ```toml
-kan_schema = "global/1"
+kan_schema = "global/2"
 editor = "vim"
+
+[global_board]
+path = "/home/me/personal"
+board = "inbox"
 ...
 ```
 
 Same pattern as board config.
+
+### Global Board (global/2)
+
+**Added in**: global/2
+
+A single board can be designated as the *global board* so it's reachable from any working directory via the `-g`/`--global` flag (e.g. `kan add -g "buy milk"`), without `cd`-ing to its project. Managed with `kan global set` / `show` / `unset`.
+
+```toml
+[global_board]
+path = "/home/me/personal"  # project root (a key into [repos], for any custom data_location)
+board = "inbox"
+```
+
+**Why store the project root path (not the project name)?** The path is the robust key into the existing `[repos]` table, which supplies the project's `data_location`. Project names are mutable and not guaranteed unique.
+
+**Decision**: `-g` retargets command execution at the designated board's project, with the designated board acting as that project's preferred default. An explicit `-b` still overrides it (`kan add -g -b other`), so `-g` selects the project and the designation selects the default board within it.
+
+**No implicit fallback**: commands never fall back to the global board based on the working directory - `-g` must be explicit. cwd-based routing fails silently and bidirectionally (a card lands on the wrong board when you're not where you think you are), which is hard to notice and annoying to clean up. An opt-in fallback may be added later.
+
+**Migration (global/1 → global/2)**: a no-op transform. The `global_board` field is purely additive, so migration only stamps the new schema version (in place, preserving all existing fields).
+
+**Backward compatibility**: configs without `[global_board]` simply have no global board designated; `-g` reports a clear "run kan global set" error.
 
 ### Project Configuration (TOML)
 

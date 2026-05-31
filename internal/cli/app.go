@@ -38,11 +38,30 @@ type App struct {
 	BoardResolver *resolver.BoardResolver
 	CardResolver  *resolver.CardResolver
 	ProjectRoot   string
+	// UsingGlobalBoard is true when the App was built via -g (targeting the
+	// designated global board). Handlers use it to surface the target in output.
+	UsingGlobalBoard bool
+}
+
+// AppOptions configures how NewAppWithOptions wires up the App.
+type AppOptions struct {
+	// Interactive selects the HuhPrompter (vs the NoopPrompter that fails on prompts).
+	Interactive bool
+	// UseGlobalBoard bypasses cwd discovery and targets the designated global
+	// board's project instead (see `kan global set`). Errors if none is set.
+	UseGlobalBoard bool
 }
 
 // NewApp creates a new App with all dependencies wired up.
 // If interactive is false, uses NoopPrompter that fails on prompts.
 func NewApp(interactive bool) (*App, error) {
+	return NewAppWithOptions(AppOptions{Interactive: interactive})
+}
+
+// NewAppWithOptions creates a new App, optionally retargeted at the designated
+// global board instead of the project discovered from the cwd.
+func NewAppWithOptions(opts AppOptions) (*App, error) {
+	interactive := opts.Interactive
 	gitClient := git.NewClient()
 	globalStore := store.NewGlobalStore()
 
@@ -64,41 +83,57 @@ func NewApp(interactive bool) (*App, error) {
 		globalCfg = nil
 	}
 
-	// Discover project root (VCS-agnostic)
-	var projectRoot, dataLocation string
-	result, err := discovery.DiscoverProject(globalCfg)
-	if err != nil {
-		// This is a real error (e.g., global config says path exists but it doesn't)
-		return nil, err
-	}
+	var projectRoot, dataLocation, globalBoardName string
 
-	// If we're in a git worktree, redirect to the main worktree's board
-	if result != nil {
-		result, err = discovery.ResolveWorktree(result, gitClient, globalCfg, isWorktreeIndependent)
-		if err != nil {
-			return nil, err
+	if opts.UseGlobalBoard {
+		// Global mode: resolve the designated board's project instead of the cwd.
+		// We deliberately skip worktree resolution and auto-registration - the
+		// recorded path is already a canonical project root.
+		if globalCfg == nil || globalCfg.GlobalBoard == nil {
+			return nil, &kanerr.NoGlobalBoardError{}
 		}
-	}
+		ref := globalCfg.GlobalBoard
+		projectRoot = ref.Path
+		globalBoardName = ref.Board
+		if repoCfg := globalCfg.GetRepoConfig(ref.Path); repoCfg != nil {
+			dataLocation = repoCfg.DataLocation
+		}
+	} else {
+		// Discover project root (VCS-agnostic)
+		result, derr := discovery.DiscoverProject(globalCfg)
+		if derr != nil {
+			// This is a real error (e.g., global config says path exists but it doesn't)
+			return nil, derr
+		}
 
-	if result != nil {
-		projectRoot = result.ProjectRoot
-		dataLocation = result.DataLocation
-
-		if result.ResolvedFromWorktree {
-			PrintInfo("Using board from main worktree at %s", result.ProjectRoot)
-
-			// Clean up stale global config entry for the worktree path
-			if globalCfg != nil && result.OriginalWorktreeRoot != "" {
-				cleanupStaleWorktreeEntry(globalStore, globalCfg, result.OriginalWorktreeRoot)
+		// If we're in a git worktree, redirect to the main worktree's board
+		if result != nil {
+			result, derr = discovery.ResolveWorktree(result, gitClient, globalCfg, isWorktreeIndependent)
+			if derr != nil {
+				return nil, derr
 			}
 		}
 
-		// Auto-register unregistered projects (but not worktree paths)
-		if !result.WasRegistered && !result.ResolvedFromWorktree && globalCfg != nil {
-			registerProject(globalStore, globalCfg, projectRoot, dataLocation)
+		if result != nil {
+			projectRoot = result.ProjectRoot
+			dataLocation = result.DataLocation
+
+			if result.ResolvedFromWorktree {
+				PrintInfo("Using board from main worktree at %s", result.ProjectRoot)
+
+				// Clean up stale global config entry for the worktree path
+				if globalCfg != nil && result.OriginalWorktreeRoot != "" {
+					cleanupStaleWorktreeEntry(globalStore, globalCfg, result.OriginalWorktreeRoot)
+				}
+			}
+
+			// Auto-register unregistered projects (but not worktree paths)
+			if !result.WasRegistered && !result.ResolvedFromWorktree && globalCfg != nil {
+				registerProject(globalStore, globalCfg, projectRoot, dataLocation)
+			}
 		}
+		// projectRoot may be empty - that's OK, RequireKan() will catch it
 	}
-	// projectRoot may be empty - that's OK, RequireKan() will catch it
 
 	// Auto-migrate project data before creating stores (which do strict
 	// version validation on reads).
@@ -117,6 +152,13 @@ func NewApp(interactive bool) (*App, error) {
 	boardStore := store.NewBoardStore(paths)
 	cardStore := store.NewCardStore(paths)
 	projectStore := store.NewProjectStore(paths)
+
+	// In global mode, fail early with a clear message if the designation has gone
+	// stale (project moved/deleted, or board removed) rather than surfacing a
+	// generic "not initialized" later.
+	if opts.UseGlobalBoard && !boardStore.Exists(globalBoardName) {
+		return nil, &kanerr.StaleGlobalBoardError{Board: globalBoardName, Path: prettyPath(projectRoot)}
+	}
 
 	// Ensure project config exists with ID (graceful upgrade for older projects)
 	if projectRoot != "" {
@@ -139,6 +181,9 @@ func NewApp(interactive bool) (*App, error) {
 	boardService := service.NewBoardService(boardStore, cardStore)
 	cardService := service.NewCardService(cardStore, boardStore, aliasService)
 	boardResolver := resolver.NewBoardResolver(boardStore, globalStore, prompter, projectRoot)
+	if opts.UseGlobalBoard {
+		boardResolver.SetPreferredBoard(globalBoardName)
+	}
 	cardResolver := resolver.NewCardResolver(cardStore)
 
 	// Set up hook service if we have a project root
@@ -149,21 +194,22 @@ func NewApp(interactive bool) (*App, error) {
 	}
 
 	return &App{
-		GitClient:     gitClient,
-		GlobalStore:   globalStore,
-		ProjectStore:  projectStore,
-		Paths:         paths,
-		BoardStore:    boardStore,
-		CardStore:     cardStore,
-		Prompter:      prompter,
-		InitService:   initService,
-		BoardService:  boardService,
-		CardService:   cardService,
-		AliasService:  aliasService,
-		HookService:   hookService,
-		BoardResolver: boardResolver,
-		CardResolver:  cardResolver,
-		ProjectRoot:   projectRoot,
+		GitClient:        gitClient,
+		GlobalStore:      globalStore,
+		ProjectStore:     projectStore,
+		Paths:            paths,
+		BoardStore:       boardStore,
+		CardStore:        cardStore,
+		Prompter:         prompter,
+		InitService:      initService,
+		BoardService:     boardService,
+		CardService:      cardService,
+		AliasService:     aliasService,
+		HookService:      hookService,
+		BoardResolver:    boardResolver,
+		CardResolver:     cardResolver,
+		ProjectRoot:      projectRoot,
+		UsingGlobalBoard: opts.UseGlobalBoard,
 	}, nil
 }
 
@@ -271,6 +317,27 @@ func autoMigrateProject(paths *config.Paths) error {
 	return nil
 }
 
+// PrintGlobalTarget surfaces which global board a command acted on, so a
+// mistaken -g designation is immediately visible. No-op outside global mode.
+// Writes to stderr (like other status output), so it never pollutes --json.
+func (a *App) PrintGlobalTarget(boardName string) {
+	if !a.UsingGlobalBoard {
+		return
+	}
+	PrintInfo("global board %q %s", boardName, RenderMuted("("+prettyPath(a.ProjectRoot)+")"))
+}
+
+// prettyPath abbreviates the user's home directory to ~ for friendlier output.
+func prettyPath(p string) string {
+	home, err := os.UserHomeDir()
+	// Require a path-segment boundary so /home/alice doesn't match
+	// /home/alicewonderland.
+	if err == nil && home != "" && (p == home || strings.HasPrefix(p, home+string(os.PathSeparator))) {
+		return "~" + p[len(home):]
+	}
+	return p
+}
+
 // RequireKan ensures Kan is initialized in the current project.
 func (a *App) RequireKan() error {
 	if a.ProjectRoot == "" {
@@ -301,6 +368,23 @@ type CardResolution struct {
 // a card ID/alias. When no board is specified and there are fewer than
 // MaxBoardsForCrossSearch boards, searches across all boards automatically.
 func (a *App) ResolveCardWithBoard(explicitBoard, idOrAlias string, interactive bool) (*CardResolution, error) {
+	// In global mode (-g), scope strictly to the resolved board (the designated
+	// global board, or an explicit -b). Cross-board search would defeat the
+	// "-g means this board" contract - a card on another board in the same
+	// project must not resolve, and PrintGlobalTarget must report the real
+	// designated board, not wherever a stray match was found.
+	if a.UsingGlobalBoard {
+		boardName, err := a.BoardResolver.Resolve(explicitBoard, false)
+		if err != nil {
+			return nil, err
+		}
+		card, cardErr := a.CardResolver.Resolve(boardName, idOrAlias)
+		if cardErr != nil {
+			return nil, cardErr
+		}
+		return &CardResolution{Card: card, BoardName: boardName, MultipleBoards: a.hasMultipleBoards()}, nil
+	}
+
 	// 1. If explicit board flag provided, use it strictly - no fallback.
 	if explicitBoard != "" {
 		boardName, err := a.BoardResolver.Resolve(explicitBoard, false)

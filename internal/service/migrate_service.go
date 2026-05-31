@@ -117,7 +117,13 @@ func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
 	// Migrate global config
 	if plan.GlobalConfig != nil && plan.GlobalConfig.NeedsMigration {
 		if dryRun {
-			fmt.Fprintf(w, "Would migrate global config: add kan_schema = %q\n", plan.GlobalConfig.ToSchema)
+			// A config with an existing schema is updated in place; only a
+			// pre-schema (legacy) config has the field added.
+			verb := "update"
+			if plan.GlobalConfig.FromSchema == "" {
+				verb = "add"
+			}
+			fmt.Fprintf(w, "Would migrate global config: %s kan_schema = %q\n", verb, plan.GlobalConfig.ToSchema)
 		} else {
 			if err := s.migrateGlobalConfig(plan.GlobalConfig); err != nil {
 				return fmt.Errorf("failed to migrate global config: %w", err)
@@ -374,8 +380,32 @@ func (s *MigrateService) planCardMigration(path string) (*CardMigration, error) 
 }
 
 func (s *MigrateService) migrateGlobalConfig(plan *GlobalMigration) error {
-	// Prepend kan_schema to preserve existing file formatting
+	// global/1 -> global/2 and onward: bumping the schema is a no-op transform
+	// (the global_board field is purely additive). When the file already declares
+	// a schema, update it in place; prepending would create a duplicate
+	// kan_schema key and break TOML decoding. Only the pre-schema case (no
+	// FromSchema) prepends, to preserve formatting of legacy configs.
+	if plan.FromSchema != "" {
+		return s.updateTOMLSchema(plan.Path, plan.ToSchema)
+	}
 	return s.prependTOMLField(plan.Path, "kan_schema", plan.ToSchema)
+}
+
+// updateTOMLSchema rewrites a TOML file's kan_schema value in place, preserving
+// all other fields.
+func (s *MigrateService) updateTOMLSchema(path, newSchema string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var raw map[string]any
+	if _, err := toml.Decode(string(data), &raw); err != nil {
+		return fmt.Errorf("invalid TOML: %w", err)
+	}
+
+	raw["kan_schema"] = newSchema
+	return writeTOMLMap(path, raw)
 }
 
 func (s *MigrateService) migrateBoardConfig(plan *BoardMigration) error {
@@ -472,18 +502,7 @@ func (s *MigrateService) migrateBoardConfig(plan *BoardMigration) error {
 
 // updateBoardSchema updates only the kan_schema field in a board config file.
 func (s *MigrateService) updateBoardSchema(path, newSchema string) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	var raw map[string]any
-	if _, err := toml.Decode(string(data), &raw); err != nil {
-		return fmt.Errorf("invalid TOML: %w", err)
-	}
-
-	raw["kan_schema"] = newSchema
-	return writeTOMLMap(path, raw)
+	return s.updateTOMLSchema(path, newSchema)
 }
 
 // migrateBoardV1ToV2 converts a v1 board config to v2 format.

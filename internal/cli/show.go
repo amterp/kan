@@ -26,11 +26,13 @@ func registerShow(parent *ra.Cmd, ctx *CommandContext) {
 		SetCompletionFunc(completeBoards).
 		Register(cmd)
 
+	ctx.ShowGlobal = registerGlobalFlag(cmd)
+
 	ctx.ShowUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runShow(idOrAlias, board string, jsonOutput bool) {
-	app, err := NewApp(true)
+func runShow(idOrAlias, board string, global, jsonOutput bool) {
+	app, err := NewAppWithOptions(AppOptions{Interactive: true, UseGlobalBoard: global})
 	if err != nil {
 		Fatal(err)
 	}
@@ -46,6 +48,7 @@ func runShow(idOrAlias, board string, jsonOutput bool) {
 	}
 	boardName := result.BoardName
 	card := result.Card
+	app.PrintGlobalTarget(boardName)
 
 	// Don't print CrossBoard info for show - the Board field in card output covers it
 

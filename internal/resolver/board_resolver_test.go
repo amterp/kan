@@ -161,6 +161,52 @@ func TestBoardResolver_Resolve_ExplicitBoard_NotFound(t *testing.T) {
 	}
 }
 
+func TestBoardResolver_Resolve_PreferredBoard(t *testing.T) {
+	boardStore := newMockBoardStore()
+	boardStore.addBoard("main")
+	boardStore.addBoard("inbox")
+
+	resolver := NewBoardResolver(boardStore, newMockGlobalStore(), &prompt.NoopPrompter{}, "/repo")
+	resolver.SetPreferredBoard("inbox")
+
+	// With multiple boards and no explicit -b, the preferred board (the -g
+	// designated board) wins over the default/picker - non-interactively.
+	board, err := resolver.Resolve("", false)
+	if err != nil {
+		t.Fatalf("Resolve failed: %v", err)
+	}
+	if board != "inbox" {
+		t.Errorf("Expected preferred board 'inbox', got %q", board)
+	}
+
+	// An explicit -b still overrides the preferred board.
+	board, err = resolver.Resolve("main", false)
+	if err != nil {
+		t.Fatalf("Resolve failed: %v", err)
+	}
+	if board != "main" {
+		t.Errorf("Expected explicit 'main' to override preferred, got %q", board)
+	}
+}
+
+func TestBoardResolver_Resolve_PreferredBoard_StaleFallsThrough(t *testing.T) {
+	boardStore := newMockBoardStore()
+	boardStore.addBoard("only-board")
+
+	resolver := NewBoardResolver(boardStore, newMockGlobalStore(), &prompt.NoopPrompter{}, "/repo")
+	resolver.SetPreferredBoard("gone") // designation no longer exists
+
+	// A stale preferred board is ignored; resolution falls through (here, the
+	// single remaining board is auto-selected).
+	board, err := resolver.Resolve("", false)
+	if err != nil {
+		t.Fatalf("Resolve failed: %v", err)
+	}
+	if board != "only-board" {
+		t.Errorf("Expected fallthrough to 'only-board', got %q", board)
+	}
+}
+
 func TestBoardResolver_Resolve_SingleBoard(t *testing.T) {
 	boardStore := newMockBoardStore()
 	boardStore.addBoard("only-board")

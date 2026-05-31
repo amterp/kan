@@ -328,15 +328,24 @@ func runBoardDelete(name string, nonInteractive bool) {
 		Fatal(err)
 	}
 
-	// Best-effort cleanup: clear default_board if it pointed to the deleted board
+	// Best-effort cleanup: clear default_board and/or the global board if either
+	// pointed to the deleted board.
 	globalCfg, loadErr := app.GlobalStore.Load()
 	if loadErr == nil && app.ProjectRoot != "" {
+		dirty := false
 		if repoCfg := globalCfg.GetRepoConfig(app.ProjectRoot); repoCfg != nil {
 			if repoCfg.DefaultBoard == name {
 				repoCfg.DefaultBoard = ""
 				globalCfg.SetRepoConfig(app.ProjectRoot, *repoCfg)
-				_ = app.GlobalStore.Save(globalCfg)
+				dirty = true
 			}
+		}
+		if gb := globalCfg.GlobalBoard; gb != nil && gb.Path == app.ProjectRoot && gb.Board == name {
+			globalCfg.ClearGlobalBoard()
+			dirty = true
+		}
+		if dirty {
+			_ = app.GlobalStore.Save(globalCfg)
 		}
 	}
 

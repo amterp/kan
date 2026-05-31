@@ -101,6 +101,94 @@ func setupMigrationTest(t *testing.T, fixtureName string) (*MigrateService, stri
 }
 
 // ============================================================================
+// Global config migration tests
+// ============================================================================
+
+// writeGlobalConfig writes raw TOML to the (HOME-isolated) global config path.
+func writeGlobalConfig(t *testing.T, contents string) string {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	path := config.GlobalConfigPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
+		t.Fatalf("write global config: %v", err)
+	}
+	return path
+}
+
+func TestMigrateService_GlobalConfig_V1ToCurrent(t *testing.T) {
+	// A global/1 config with real content. Migration must bump the schema in
+	// place (not prepend a duplicate kan_schema key) and preserve every field.
+	path := writeGlobalConfig(t, `kan_schema = "global/1"
+editor = "vim"
+
+[projects]
+myproj = "/home/me/myproj"
+
+[repos."/home/me/myproj"]
+default_board = "main"
+data_location = ".kan"
+`)
+
+	svc := NewQuietMigrateService(config.NewPaths("", ""))
+	plan, err := svc.PlanGlobalMigration()
+	if err != nil {
+		t.Fatalf("PlanGlobalMigration: %v", err)
+	}
+	if plan == nil || !plan.NeedsMigration {
+		t.Fatalf("expected global/1 to need migration, got %+v", plan)
+	}
+	if plan.FromSchema != "global/1" {
+		t.Errorf("FromSchema = %q, want global/1", plan.FromSchema)
+	}
+
+	if err := svc.Execute(&MigrationPlan{GlobalConfig: plan}, false); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	// File must decode cleanly (no duplicate kan_schema) and carry the new
+	// schema with all original fields intact.
+	cfg, err := store.NewGlobalStore().Load()
+	if err != nil {
+		t.Fatalf("Load migrated config: %v", err)
+	}
+	if cfg.KanSchema != version.CurrentGlobalSchema() {
+		t.Errorf("KanSchema = %q, want %q", cfg.KanSchema, version.CurrentGlobalSchema())
+	}
+	if cfg.Editor != "vim" {
+		t.Errorf("Editor = %q, want vim", cfg.Editor)
+	}
+	if cfg.Projects["myproj"] != "/home/me/myproj" {
+		t.Errorf("Projects not preserved: %+v", cfg.Projects)
+	}
+	if rc := cfg.GetRepoConfig("/home/me/myproj"); rc == nil || rc.DefaultBoard != "main" {
+		t.Errorf("Repos not preserved: %+v", cfg.Repos)
+	}
+
+	// Guard against duplicate-key regression explicitly.
+	data, _ := os.ReadFile(path)
+	if strings.Count(string(data), "kan_schema") != 1 {
+		t.Errorf("expected exactly one kan_schema key, file:\n%s", data)
+	}
+}
+
+func TestMigrateService_GlobalConfig_Current_NoOp(t *testing.T) {
+	writeGlobalConfig(t, fmt.Sprintf("kan_schema = %q\neditor = \"nano\"\n", version.CurrentGlobalSchema()))
+
+	svc := NewQuietMigrateService(config.NewPaths("", ""))
+	plan, err := svc.PlanGlobalMigration()
+	if err != nil {
+		t.Fatalf("PlanGlobalMigration: %v", err)
+	}
+	if plan != nil && plan.NeedsMigration {
+		t.Errorf("current global schema should not need migration, got %+v", plan)
+	}
+}
+
+// ============================================================================
 // V0 -> V1 Migration Tests (Legacy data without version stamps)
 // ============================================================================
 

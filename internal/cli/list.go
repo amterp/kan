@@ -28,11 +28,13 @@ func registerList(parent *ra.Cmd, ctx *CommandContext) {
 		SetCompletionFunc(completeColumns).
 		Register(cmd)
 
+	ctx.ListGlobal = registerGlobalFlag(cmd)
+
 	ctx.ListUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runList(board, column string, jsonOutput bool) {
-	app, err := NewApp(true)
+func runList(board, column string, global, jsonOutput bool) {
+	app, err := NewAppWithOptions(AppOptions{Interactive: true, UseGlobalBoard: global})
 	if err != nil {
 		Fatal(err)
 	}
@@ -46,6 +48,7 @@ func runList(board, column string, jsonOutput bool) {
 	if err != nil {
 		Fatal(err)
 	}
+	app.PrintGlobalTarget(boardName)
 
 	// Get board config for column ordering
 	boardCfg, err := app.BoardService.Get(boardName)

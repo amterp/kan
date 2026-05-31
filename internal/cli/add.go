@@ -82,6 +82,8 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Error if wanted fields are missing (default: warn)").
 		Register(cmd)
 
+	ctx.AddGlobal = registerGlobalFlag(cmd)
+
 	ctx.AddUsed, _ = parent.RegisterCmd(cmd)
 }
 
@@ -134,8 +136,8 @@ func resolvePlacement(app *App, boardName, excludeID string, p cardPlacement) (p
 	return position, beforeID, afterID, nil
 }
 
-func runAdd(title, description, board, column string, parentCard string, placement cardPlacement, fields []string, strict, nonInteractive, jsonOutput bool) {
-	app, err := NewApp(!nonInteractive)
+func runAdd(title, description, board, column string, parentCard string, placement cardPlacement, fields []string, strict, global, nonInteractive, jsonOutput bool) {
+	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, UseGlobalBoard: global})
 	if err != nil {
 		Fatal(err)
 	}
@@ -220,6 +222,7 @@ func runAdd(title, description, board, column string, parentCard string, placeme
 	}
 
 	PrintSuccess("Created card %s (%s)", RenderID(card.ID), card.Alias)
+	app.PrintGlobalTarget(boardName)
 
 	// Display hook results
 	printHookResults(hookResults)
