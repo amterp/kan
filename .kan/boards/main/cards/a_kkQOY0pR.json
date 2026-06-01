@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "include-board-name",
   "alias_explicit": false,
   "column": "backlog-hi",
@@ -9,5 +9,8 @@
   "position": "1",
   "title": "include board name in board search, even if only one in a project",
   "type": "feature",
-  "updated_at_millis": 1776023553538
+  "updated_at_millis": 1776023553538,
+  "history": [
+    {"field":"column","value":"backlog-hi","at":1774133360122}
+  ]
 }

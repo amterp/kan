@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "cross-board-kanban",
   "alias_explicit": false,
   "column": "backlog-hi",
@@ -9,5 +9,8 @@
   "position": "AQ",
   "title": "cross-board kanban view ?",
   "type": "feature",
-  "updated_at_millis": 1774791312440
+  "updated_at_millis": 1774791312440,
+  "history": [
+    {"field":"column","value":"backlog-hi","at":1774791312335}
+  ]
 }

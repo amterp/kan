@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "in-built-way-to-switch-2",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "Sr",
   "title": "in-built way to switch between kan serves from other kan serves",
   "type": "feature",
-  "updated_at_millis": 1769264254730
+  "updated_at_millis": 1769264254730,
+  "history": [
+    {"field":"column","value":"done","at":1769264055378}
+  ]
 }

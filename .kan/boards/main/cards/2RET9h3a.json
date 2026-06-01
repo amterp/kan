@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "updating-tags-on-cards",
   "alias_explicit": false,
   "column": "backlog-hi",
@@ -9,5 +9,8 @@
   "position": "XH",
   "title": "Updating tags on cards generates new slug",
   "type": "bug",
-  "updated_at_millis": 1767586031512
+  "updated_at_millis": 1767586031512,
+  "history": [
+    {"field":"column","value":"backlog-hi","at":1767586031512}
+  ]
 }

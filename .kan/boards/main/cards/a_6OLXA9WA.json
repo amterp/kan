@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "keep-description-box-2",
   "alias_explicit": false,
   "column": "backlog-lo",
@@ -9,5 +9,8 @@
   "position": "nH",
   "title": "keep description box consistent size between rendered \u0026 editing",
   "type": "enhancement",
-  "updated_at_millis": 1768170210559
+  "updated_at_millis": 1768170210559,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1768170206701}
+  ]
 }

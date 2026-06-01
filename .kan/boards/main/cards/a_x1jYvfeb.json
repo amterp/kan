@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "weird-card-title",
   "alias_explicit": false,
   "column": "backlog-hi",
@@ -10,5 +10,8 @@
   "position": "oQU",
   "title": "weird card title writing wrapping",
   "type": "bug",
-  "updated_at_millis": 1776023532978
+  "updated_at_millis": 1776023532978,
+  "history": [
+    {"field":"column","value":"backlog-hi","at":1775947772984}
+  ]
 }

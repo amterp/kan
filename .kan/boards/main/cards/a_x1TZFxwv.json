@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "404-on-docs-endpoint",
   "alias_explicit": false,
   "column": "next",
@@ -10,5 +10,8 @@
   "position": "ZUU",
   "title": "404 on docs endpoint",
   "type": "bug",
-  "updated_at_millis": 1776023537128
+  "updated_at_millis": 1776023537128,
+  "history": [
+    {"field":"column","value":"next","at":1775947158150}
+  ]
 }

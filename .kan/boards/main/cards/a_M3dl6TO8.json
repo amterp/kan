@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "give-fields-descriptions-2",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "FH",
   "title": "give fields descriptions",
   "type": "feature",
-  "updated_at_millis": 1770485185340
+  "updated_at_millis": 1770485185340,
+  "history": [
+    {"field":"column","value":"done","at":1770485072138}
+  ]
 }

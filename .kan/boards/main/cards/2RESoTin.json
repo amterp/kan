@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "how-to-deal-with-merge",
   "alias_explicit": false,
   "column": "backlog-lo",
@@ -9,5 +9,8 @@
   "position": "Fl",
   "title": "How to deal with merge conflicts",
   "type": "chore",
-  "updated_at_millis": 1767586031306
+  "updated_at_millis": 1767586031306,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1767586031306}
+  ]
 }

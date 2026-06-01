@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "split-window-for-different-2",
   "alias_explicit": false,
   "column": "backlog-lo",
@@ -10,5 +10,8 @@
   "position": "rT",
   "title": "split window for different boards?",
   "type": "feature",
-  "updated_at_millis": 1769373177296
+  "updated_at_millis": 1769373177296,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1769373134232}
+  ]
 }

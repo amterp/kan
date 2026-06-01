@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "max-cards-2",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "EN",
   "title": "max cards",
   "type": "feature",
-  "updated_at_millis": 1770513672503
+  "updated_at_millis": 1770513672503,
+  "history": [
+    {"field":"column","value":"done","at":1767586052927}
+  ]
 }

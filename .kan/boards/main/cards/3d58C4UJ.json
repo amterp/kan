@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "allow-re-naming-columns-2",
   "alias_explicit": false,
   "column": "done",
@@ -9,5 +9,8 @@
   "position": "di",
   "title": "allow re-naming columns",
   "type": "feature",
-  "updated_at_millis": 1767762040095
+  "updated_at_millis": 1767762040095,
+  "history": [
+    {"field":"column","value":"done","at":1767762035291}
+  ]
 }

@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "cmd-e-for-recent",
   "alias_explicit": false,
   "column": "done",
@@ -18,5 +18,8 @@
   "position": "!6",
   "title": "Cmd+E for recent boards",
   "type": "feature",
-  "updated_at_millis": 1775423346076
+  "updated_at_millis": 1775423346076,
+  "history": [
+    {"field":"column","value":"done","at":1775235530973}
+  ]
 }

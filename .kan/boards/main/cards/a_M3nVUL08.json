@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "cmd-enter-for-new",
   "alias_explicit": false,
   "column": "next",
@@ -10,5 +10,8 @@
   "position": "A",
   "title": "cmd+enter for new cards brings up modal, but dont reflect pattern hook modifications",
   "type": "bug",
-  "updated_at_millis": 1775532416099
+  "updated_at_millis": 1775532416099,
+  "history": [
+    {"field":"column","value":"next","at":1770485446865}
+  ]
 }

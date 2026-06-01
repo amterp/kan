@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "clicking-outside-of-edit",
   "alias_explicit": false,
   "column": "done",
@@ -9,5 +9,8 @@
   "position": "VZ",
   "title": "clicking outside of edit modal should save it",
   "type": "bug",
-  "updated_at_millis": 1768964302075
+  "updated_at_millis": 1768964302075,
+  "history": [
+    {"field":"column","value":"done","at":1768168976595}
+  ]
 }

@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "implement-comments-2",
   "alias_explicit": false,
   "column": "done",
@@ -17,5 +17,8 @@
   "position": "b!",
   "title": "implement comments",
   "type": "feature",
-  "updated_at_millis": 1768100195307
+  "updated_at_millis": 1768100195307,
+  "history": [
+    {"field":"column","value":"done","at":1768100028406}
+  ]
 }

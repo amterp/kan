@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "dark-theme",
   "alias_explicit": false,
   "column": "done",
@@ -9,5 +9,8 @@
   "position": "ml",
   "title": "Dark theme",
   "type": "feature",
-  "updated_at_millis": 1767586019699
+  "updated_at_millis": 1767586019699,
+  "history": [
+    {"field":"column","value":"done","at":1767586019699}
+  ]
 }

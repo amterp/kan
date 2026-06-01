@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "web-ui-support-for-string",
   "alias_explicit": false,
   "column": "done",
@@ -11,5 +11,8 @@
   "position": "H5",
   "title": "Web UI support for string-list fields",
   "type": "feature",
-  "updated_at_millis": 1770434145643
+  "updated_at_millis": 1770434145643,
+  "history": [
+    {"field":"column","value":"done","at":1770434145643}
+  ]
 }

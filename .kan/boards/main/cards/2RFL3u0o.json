@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "add-default-labels",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "qN",
   "title": "Add default labels",
   "type": "feature",
-  "updated_at_millis": 1767586064935
+  "updated_at_millis": 1767586064935,
+  "history": [
+    {"field":"column","value":"done","at":1767586064935}
+  ]
 }

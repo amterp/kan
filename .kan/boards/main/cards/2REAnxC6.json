@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "corner-in-card-edit-is-hard",
   "alias_explicit": false,
   "column": "backlog-lo",
@@ -9,5 +9,8 @@
   "position": "O8",
   "title": "Corner in card edit is hard to see",
   "type": "bug",
-  "updated_at_millis": 1767586020134
+  "updated_at_millis": 1767586020134,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1767586020134}
+  ]
 }

@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "add-string-list-custom-field",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "Iu",
   "title": "Add string-list custom field type",
   "type": "feature",
-  "updated_at_millis": 1770434136948
+  "updated_at_millis": 1770434136948,
+  "history": [
+    {"field":"column","value":"done","at":1770434136948}
+  ]
 }

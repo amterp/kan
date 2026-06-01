@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "shell-autocomplete-2",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "Bf",
   "title": "shell autocomplete",
   "type": "feature",
-  "updated_at_millis": 1770485976914
+  "updated_at_millis": 1770485976914,
+  "history": [
+    {"field":"column","value":"done","at":1770485947294}
+  ]
 }

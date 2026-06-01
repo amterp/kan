@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "add-a-copy-button-to-code-2",
   "alias_explicit": false,
   "column": "done",
@@ -9,5 +9,8 @@
   "position": "XN",
   "title": "add a 'copy' button to code blocks",
   "type": "feature",
-  "updated_at_millis": 1768168606901
+  "updated_at_millis": 1768168606901,
+  "history": [
+    {"field":"column","value":"done","at":1768168601825}
+  ]
 }

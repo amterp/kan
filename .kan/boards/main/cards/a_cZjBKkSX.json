@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "slim-mode",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "!R",
   "title": "Slim Mode",
   "type": "feature",
-  "updated_at_millis": 1775423265307
+  "updated_at_millis": 1775423265307,
+  "history": [
+    {"field":"column","value":"done","at":1772925759327}
+  ]
 }

@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "making-new-columns-doesn-t-2",
   "alias_explicit": false,
   "column": "backlog-hi",
@@ -9,5 +9,8 @@
   "position": "RZ",
   "title": "making new columns, doesn't seem to allow spaces in column name",
   "type": "bug",
-  "updated_at_millis": 1767760206561
+  "updated_at_millis": 1767760206561,
+  "history": [
+    {"field":"column","value":"backlog-hi","at":1767760180071}
+  ]
 }

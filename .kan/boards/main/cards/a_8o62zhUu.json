@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "links-in-titles-should-be-2",
   "alias_explicit": false,
   "column": "done",
@@ -9,5 +9,8 @@
   "position": "ZB",
   "title": "links in titles should be clickable",
   "type": "enhancement",
-  "updated_at_millis": 1768527137885
+  "updated_at_millis": 1768527137885,
+  "history": [
+    {"field":"column","value":"done","at":1768527103384}
+  ]
 }

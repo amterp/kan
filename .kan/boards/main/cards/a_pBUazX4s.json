@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "think-of-ways-to",
   "alias_explicit": false,
   "column": "done",
@@ -9,5 +9,8 @@
   "position": "0o",
   "title": "think of ways to make kan work better in worktrees",
   "type": "feature",
-  "updated_at_millis": 1774788923675
+  "updated_at_millis": 1774788923675,
+  "history": [
+    {"field":"column","value":"done","at":1774788923599}
+  ]
 }

@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "plus-new-card-in-the-top-left-2",
   "alias_explicit": false,
   "column": "backlog-lo",
@@ -9,5 +9,8 @@
   "position": "eu",
   "title": "plus new card in the top left, and then not editing anything should not actually save the card, but it currently does.",
   "type": "bug",
-  "updated_at_millis": 1767586551328
+  "updated_at_millis": 1767586551328,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1767586333977}
+  ]
 }

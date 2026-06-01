@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "pressing-enter-on-title-in-2",
   "alias_explicit": false,
   "column": "done",
@@ -9,5 +9,8 @@
   "position": "bu",
   "title": "pressing enter on title in modal doesn't actually submit it",
   "type": "bug",
-  "updated_at_millis": 1767926830404
+  "updated_at_millis": 1767926830404,
+  "history": [
+    {"field":"column","value":"done","at":1767760235031}
+  ]
 }

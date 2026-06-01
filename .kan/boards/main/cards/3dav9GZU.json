@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "parents-epics",
   "alias_explicit": false,
   "column": "backlog-lo",
@@ -10,5 +10,8 @@
   "position": "7N",
   "title": "parents/epics",
   "type": "feature",
-  "updated_at_millis": 1770519259854
+  "updated_at_millis": 1770519259854,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1767763257283}
+  ]
 }

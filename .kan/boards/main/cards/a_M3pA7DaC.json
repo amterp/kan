@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "skill-md-wizard-2",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "DT",
   "title": "SKILL.md wizard",
   "type": "enhancement",
-  "updated_at_millis": 1770485680598
+  "updated_at_millis": 1770485680598,
+  "history": [
+    {"field":"column","value":"done","at":1770485510506}
+  ]
 }

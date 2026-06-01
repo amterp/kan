@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "revamp-labeling-ui-2",
   "alias_explicit": false,
   "column": "backlog-lo",
@@ -10,5 +10,8 @@
   "position": "0",
   "title": "revamp labeling UI",
   "type": "enhancement",
-  "updated_at_millis": 1776023519912
+  "updated_at_millis": 1776023519912,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1767586053172}
+  ]
 }

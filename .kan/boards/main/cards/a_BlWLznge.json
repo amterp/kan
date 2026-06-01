@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "cache-comments",
   "alias_explicit": false,
   "column": "backlog-hi",
@@ -9,5 +9,8 @@
   "position": "oQ",
   "title": "cache comments before submitting, to remember (in case of accidental crash/close/refresh)",
   "type": "feature",
-  "updated_at_millis": 1775532167068
+  "updated_at_millis": 1775532167068,
+  "history": [
+    {"field":"column","value":"backlog-hi","at":1768964254847}
+  ]
 }

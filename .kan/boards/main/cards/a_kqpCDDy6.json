@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "shortcuts-for-moving",
   "alias_explicit": false,
   "column": "backlog-hi",
@@ -9,5 +9,8 @@
   "position": "4i",
   "title": "shortcuts for moving cards around",
   "type": "feature",
-  "updated_at_millis": 1774148613281
+  "updated_at_millis": 1774148613281,
+  "history": [
+    {"field":"column","value":"backlog-hi","at":1774148613160}
+  ]
 }

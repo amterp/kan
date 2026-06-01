@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "pattern-hooks",
   "alias_explicit": false,
   "column": "done",
@@ -9,5 +9,8 @@
   "position": "Ki",
   "title": "pattern hooks",
   "type": "feature",
-  "updated_at_millis": 1769891789830
+  "updated_at_millis": 1769891789830,
+  "history": [
+    {"field":"column","value":"done","at":1769655362580}
+  ]
 }

@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "lowercase-default-list-names",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "pT",
   "title": "Lowercase default list names",
   "type": "enhancement",
-  "updated_at_millis": 1767586065484
+  "updated_at_millis": 1767586065484,
+  "history": [
+    {"field":"column","value":"done","at":1767586065484}
+  ]
 }

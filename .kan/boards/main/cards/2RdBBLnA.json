@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "make-the-card-edit-modal-2",
   "alias_explicit": false,
   "column": "done",
@@ -9,5 +9,8 @@
   "position": "k2",
   "title": "Make the card edit modal larger by default.",
   "type": "enhancement",
-  "updated_at_millis": 1767586985960
+  "updated_at_millis": 1767586985960,
+  "history": [
+    {"field":"column","value":"done","at":1767586981381}
+  ]
 }

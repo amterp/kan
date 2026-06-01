@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "quicker-way-to-set-properties",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "Rx",
   "title": "quicker way to set properties e.g. type on cards",
   "type": "feature",
-  "updated_at_millis": 1767846330250
+  "updated_at_millis": 1767846330250,
+  "history": [
+    {"field":"column","value":"done","at":1767836644116}
+  ]
 }

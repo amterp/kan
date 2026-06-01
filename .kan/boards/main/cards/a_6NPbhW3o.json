@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "allow-changing-column-colors-2",
   "alias_explicit": false,
   "column": "backlog-lo",
@@ -9,5 +9,8 @@
   "position": "1",
   "title": "allow changing column colors in frontend",
   "type": "feature",
-  "updated_at_millis": 1775423361569
+  "updated_at_millis": 1775423361569,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1768167979985}
+  ]
 }

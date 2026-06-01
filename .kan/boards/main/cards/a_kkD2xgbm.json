@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "hooks-cause-new",
   "alias_explicit": false,
   "column": "done",
@@ -9,5 +9,8 @@
   "position": "4Q",
   "title": "hooks cause new cards to appear twice",
   "type": "bug",
-  "updated_at_millis": 1774132847330
+  "updated_at_millis": 1774132847330,
+  "history": [
+    {"field":"column","value":"done","at":1774132847030}
+  ]
 }

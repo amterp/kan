@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "remove-metadata-from",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "!u",
   "title": "Remove metadata from card_display docs",
   "type": "chore",
-  "updated_at_millis": 1775242585194
+  "updated_at_millis": 1775242585194,
+  "history": [
+    {"field":"column","value":"done","at":1775242576955}
+  ]
 }

@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "new-cards-sometimes-appear",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "CZ",
   "title": "new cards sometimes appear twice",
   "type": "bug",
-  "updated_at_millis": 1770485346749
+  "updated_at_millis": 1770485346749,
+  "history": [
+    {"field":"column","value":"done","at":1770485225138}
+  ]
 }

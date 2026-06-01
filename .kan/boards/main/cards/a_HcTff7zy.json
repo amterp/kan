@@ -1,12 +1,15 @@
 {
-  "_v": 2,
+  "_v": 3,
+  "id": "a_HcTff7zy",
   "alias": "another-test-bug",
   "alias_explicit": false,
-  "column": "done",
-  "created_at_millis": 1769829282355,
-  "creator": "Alexander Terp",
-  "id": "a_HcTff7zy",
-  "position": "uu",
   "title": "Another test !bug",
-  "updated_at_millis": 1769829282355
+  "creator": "Alexander Terp",
+  "created_at_millis": 1769829282355,
+  "updated_at_millis": 1769829282355,
+  "column": "done",
+  "position": "uu",
+  "history": [
+    {"field":"column","value":"done","at":1769829282355}
+  ]
 }

@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "creating-new-cards-via-cli-2",
   "alias_explicit": false,
   "column": "backlog-lo",
@@ -9,5 +9,8 @@
   "position": "ai",
   "title": "creating new cards via cli/web -\u003e automatically add to git tracking?",
   "type": "enhancement",
-  "updated_at_millis": 1767586517996
+  "updated_at_millis": 1767586517996,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1767586513587}
+  ]
 }

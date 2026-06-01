@@ -1,12 +1,15 @@
 {
-  "_v": 2,
+  "_v": 3,
+  "id": "a_HcSky7NT",
   "alias": "test-type-shortcut-bug-2",
   "alias_explicit": false,
-  "column": "done",
-  "created_at_millis": 1769829247226,
-  "creator": "Alexander Terp",
-  "id": "a_HcSky7NT",
-  "position": "u!",
   "title": "Test type shortcut !bug",
-  "updated_at_millis": 1769829247226
+  "creator": "Alexander Terp",
+  "created_at_millis": 1769829247226,
+  "updated_at_millis": 1769829247226,
+  "column": "done",
+  "position": "u!",
+  "history": [
+    {"field":"column","value":"done","at":1769829247226}
+  ]
 }

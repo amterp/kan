@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "add-markdown-rendering-to-2",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "lr",
   "title": "Add markdown rendering to description/comments",
   "type": "feature",
-  "updated_at_millis": 1767671750150
+  "updated_at_millis": 1767671750150,
+  "history": [
+    {"field":"column","value":"done","at":1767586030746}
+  ]
 }

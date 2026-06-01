@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "erroneous-card-select-w-omni-2",
   "alias_explicit": false,
   "column": "backlog-lo",
@@ -10,5 +10,8 @@
   "position": "vf",
   "title": "erroneous card select w/ omni filter",
   "type": "bug",
-  "updated_at_millis": 1767925530660
+  "updated_at_millis": 1767925530660,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1767846535663}
+  ]
 }

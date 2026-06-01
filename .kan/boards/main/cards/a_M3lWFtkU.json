@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "make-slugs-shorter-2",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "GB",
   "title": "make slugs shorter",
   "type": "enhancement",
-  "updated_at_millis": 1770485412483
+  "updated_at_millis": 1770485412483,
+  "history": [
+    {"field":"column","value":"done","at":1770485370440}
+  ]
 }

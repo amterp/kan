@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "make-edit-modal-larger",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "Uf",
   "title": "make edit modal larger",
   "type": "enhancement",
-  "updated_at_millis": 1768169062062
+  "updated_at_millis": 1768169062062,
+  "history": [
+    {"field":"column","value":"done","at":1768169009895}
+  ]
 }

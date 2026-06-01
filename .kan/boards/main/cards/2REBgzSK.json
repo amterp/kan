@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "kan-edit-description-doesn-t",
   "alias_explicit": false,
   "column": "backlog-hi",
@@ -9,5 +9,8 @@
   "position": "Lr",
   "title": "kan edit description doesn't load existing description",
   "type": "bug",
-  "updated_at_millis": 1767586020688
+  "updated_at_millis": 1767586020688,
+  "history": [
+    {"field":"column","value":"backlog-hi","at":1767586020688}
+  ]
 }

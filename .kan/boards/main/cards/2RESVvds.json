@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "git-hook-integration",
   "alias_explicit": false,
   "column": "backlog-lo",
@@ -9,5 +9,8 @@
   "position": "SK",
   "title": "Git hook integration?",
   "type": "feature",
-  "updated_at_millis": 1775614102292
+  "updated_at_millis": 1775614102292,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1767586031119}
+  ]
 }

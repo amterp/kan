@@ -1,10 +1,12 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "replace-field",
   "alias_explicit": false,
+  "column": "",
   "created_at_millis": 1770500996994,
   "creator": "Alexander Terp",
   "id": "a_MAK2MK3r",
+  "position": "",
   "title": "replace field descriptions in full card modal with tooltip instead of always visible description",
   "type": "enhancement",
   "updated_at_millis": 1770500997058

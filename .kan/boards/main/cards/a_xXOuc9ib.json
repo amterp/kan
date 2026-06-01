@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "repeated-f-flag",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "!0",
   "title": "Repeated -f flag silently drops values for set fields",
   "type": "bug",
-  "updated_at_millis": 1776031983337
+  "updated_at_millis": 1776031983337,
+  "history": [
+    {"field":"column","value":"done","at":1776023244151}
+  ]
 }

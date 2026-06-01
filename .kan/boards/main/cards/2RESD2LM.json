@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "ability-to-create-new-lists-2",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "gQ",
   "title": "Ability to create new lists from web/cli",
   "type": "feature",
-  "updated_at_millis": 1767586633320
+  "updated_at_millis": 1767586633320,
+  "history": [
+    {"field":"column","value":"done","at":1767586030932}
+  ]
 }

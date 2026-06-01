@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "pressing-enter-on-title-edit",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "WT",
   "title": "pressing enter on title edit should \"submit\" it",
   "type": "enhancement",
-  "updated_at_millis": 1767846232721
+  "updated_at_millis": 1767846232721,
+  "history": [
+    {"field":"column","value":"done","at":1767846215070}
+  ]
 }

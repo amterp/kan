@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "auto-refresh-to-reflect-cli-2",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "Q8",
   "title": "Auto-refresh to reflect CLI commands",
   "type": "feature",
-  "updated_at_millis": 1769263987762
+  "updated_at_millis": 1769263987762,
+  "history": [
+    {"field":"column","value":"done","at":1767586020324}
+  ]
 }

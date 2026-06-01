@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "kan-edit-c-should-move-into",
   "alias_explicit": false,
   "column": "done",
@@ -9,5 +9,8 @@
   "position": "Lc",
   "title": "kan edit -c should move into TOP of column",
   "type": "enhancement",
-  "updated_at_millis": 1769831947778
+  "updated_at_millis": 1769831947778,
+  "history": [
+    {"field":"column","value":"done","at":1769831945596}
+  ]
 }

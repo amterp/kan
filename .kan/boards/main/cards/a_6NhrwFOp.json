@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "down-hold-up-click-should-not-2",
   "alias_explicit": false,
   "column": "backlog-lo",
@@ -9,5 +9,8 @@
   "position": "Jx",
   "title": "down-hold-up click should not trigger editing",
   "type": "enhancement",
-  "updated_at_millis": 1775614104796
+  "updated_at_millis": 1775614104796,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1768168681977}
+  ]
 }

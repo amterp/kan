@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "make-omni-search-stricter",
   "alias_explicit": false,
   "column": "done",
@@ -10,5 +10,8 @@
   "position": "MW",
   "title": "make omni search stricter",
   "type": "enhancement",
-  "updated_at_millis": 1769376691370
+  "updated_at_millis": 1769376691370,
+  "history": [
+    {"field":"column","value":"done","at":1769376670431}
+  ]
 }

@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "card-type-select-should-have-2",
   "alias_explicit": false,
   "column": "backlog-lo",
@@ -10,5 +10,8 @@
   "position": "3B",
   "title": "card type select should have colors",
   "type": "bug",
-  "updated_at_millis": 1767846364207
+  "updated_at_millis": 1767846364207,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1767760215079}
+  ]
 }

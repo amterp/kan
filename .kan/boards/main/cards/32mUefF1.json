@@ -1,5 +1,5 @@
 {
-  "_v": 2,
+  "_v": 3,
   "alias": "slight-flicker-when-switching",
   "alias_explicit": false,
   "column": "backlog-lo",
@@ -9,5 +9,8 @@
   "position": "j5",
   "title": "slight flicker when switching between board and docs",
   "type": "enhancement",
-  "updated_at_millis": 1767675529861
+  "updated_at_millis": 1767675529861,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1767675520776}
+  ]
 }
