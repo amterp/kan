@@ -22,6 +22,7 @@ type CardResponse struct {
 	Title               string                   `json:"title"`
 	Description         string                   `json:"description,omitempty"`
 	Column              string                   `json:"column"`
+	Position            string                   `json:"position"`
 	Parent              string                   `json:"parent,omitempty"`
 	Creator             string                   `json:"creator"`
 	CreatedAtMillis     int64                    `json:"created_at_millis"`
@@ -41,6 +42,7 @@ func (c CardResponse) MarshalJSON() ([]byte, error) {
 		"alias_explicit":    c.AliasExplicit,
 		"title":             c.Title,
 		"column":            c.Column,
+		"position":          c.Position,
 		"creator":           c.Creator,
 		"created_at_millis": c.CreatedAtMillis,
 		"updated_at_millis": c.UpdatedAtMillis,
@@ -80,6 +82,7 @@ func toCardResponse(card *model.Card) CardResponse {
 		Title:           card.Title,
 		Description:     card.Description,
 		Column:          card.Column,
+		Position:        card.Position,
 		Parent:          card.Parent,
 		Creator:         card.Creator,
 		CreatedAtMillis: card.CreatedAtMillis,

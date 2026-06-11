@@ -763,6 +763,34 @@ func TestHandler_ListCards_WithColumnFilter(t *testing.T) {
 	}
 }
 
+// TestHandler_CardResponse_IncludesPosition guards the wire format: card
+// responses must carry the `position` field. Without it, a live web client
+// can't order cards changed outside the open tab and drops them to the bottom
+// of the column (GitHub #5). Checked at both the decoded-struct and raw-JSON
+// levels so a future MarshalJSON regression can't slip past the struct decode.
+func TestHandler_CardResponse_IncludesPosition(t *testing.T) {
+	api := setupTestAPI(t)
+	api.createBoard(t, "main")
+
+	createResp := api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "Card", "column": "backlog"})
+	created := createCardFromResponse(t, createResp)
+
+	w := api.request("GET", "/api/v1/boards/main/cards/"+created.ID, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	if !bytes.Contains(w.Body.Bytes(), []byte(`"position"`)) {
+		t.Errorf("Expected response JSON to include a \"position\" key, got: %s", w.Body.String())
+	}
+
+	var resp CardResponse
+	decodeJSON(t, w, &resp)
+	if resp.Position == "" {
+		t.Errorf("Expected non-empty position on card response, got empty")
+	}
+}
+
 // ============================================================================
 // Cross-Project Endpoint Tests
 // ============================================================================
