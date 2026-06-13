@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -13,9 +14,32 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for local development
-	},
+	CheckOrigin:     checkOrigin,
+}
+
+// checkOrigin reports whether a WebSocket upgrade request should be allowed.
+// Browsers send an Origin header for cross-origin requests (and same-origin
+// ones); non-browser clients (curl, scripts) typically don't send one at all,
+// so we allow those through. For browser requests, only same-origin
+// connections (matching the request's Host) and the known dev-server origins
+// (see cors.go/cors_dev.go) are permitted - previously this always returned
+// true, letting any website the user had open connect and receive the file
+// change feed.
+func checkOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+
+	if devOrigins[origin] {
+		return true
+	}
+
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	return u.Host == r.Host
 }
 
 // WebSocketHub manages WebSocket connections and broadcasts file changes.
