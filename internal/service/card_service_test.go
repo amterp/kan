@@ -1,6 +1,7 @@
 package service
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -498,6 +499,79 @@ func TestCardService_List_OrderedByBoardConfig(t *testing.T) {
 	if cards[2].ID != card1.ID {
 		t.Error("Third card should be from done column")
 	}
+}
+
+func TestCardService_ListSorted_ByCustomField(t *testing.T) {
+	service, cardStore, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	// Seed cards directly so positions and field values are fully controlled.
+	// "type" is an enum ordered feature(0), bug(1), task(2) in the board config.
+	// Within each column, manual position order does NOT match type order.
+	seed := []*model.Card{
+		{ID: "b_task", Column: "backlog", Position: "A", CustomFields: map[string]any{"type": "task"}},
+		{ID: "b_feat", Column: "backlog", Position: "B", CustomFields: map[string]any{"type": "feature"}},
+		{ID: "b_bug", Column: "backlog", Position: "C", CustomFields: map[string]any{"type": "bug"}},
+		{ID: "p_bug", Column: "in-progress", Position: "A", CustomFields: map[string]any{"type": "bug"}},
+		{ID: "p_feat", Column: "in-progress", Position: "B", CustomFields: map[string]any{"type": "feature"}},
+	}
+	for _, c := range seed {
+		if err := cardStore.Create("main", c); err != nil {
+			t.Fatalf("seed Create failed: %v", err)
+		}
+	}
+
+	t.Run("ascending sorts within each column, preserves column order", func(t *testing.T) {
+		cards, err := service.ListSorted("main", "", "type", false)
+		if err != nil {
+			t.Fatalf("ListSorted failed: %v", err)
+		}
+		want := []string{"b_feat", "b_bug", "b_task", "p_feat", "p_bug"}
+		if got := serviceCardIDs(cards); !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v, want %v", got, want)
+		}
+	})
+
+	t.Run("reverse flips the field order only", func(t *testing.T) {
+		cards, err := service.ListSorted("main", "", "type", true)
+		if err != nil {
+			t.Fatalf("ListSorted failed: %v", err)
+		}
+		want := []string{"b_task", "b_bug", "b_feat", "p_bug", "p_feat"}
+		if got := serviceCardIDs(cards); !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v, want %v", got, want)
+		}
+	})
+
+	t.Run("column filter scopes the sort", func(t *testing.T) {
+		cards, err := service.ListSorted("main", "backlog", "type", false)
+		if err != nil {
+			t.Fatalf("ListSorted failed: %v", err)
+		}
+		want := []string{"b_feat", "b_bug", "b_task"}
+		if got := serviceCardIDs(cards); !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v, want %v", got, want)
+		}
+	})
+
+	t.Run("empty sort field falls back to position order", func(t *testing.T) {
+		cards, err := service.ListSorted("main", "backlog", "", false)
+		if err != nil {
+			t.Fatalf("ListSorted failed: %v", err)
+		}
+		want := []string{"b_task", "b_feat", "b_bug"} // positions A, B, C
+		if got := serviceCardIDs(cards); !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v, want %v", got, want)
+		}
+	})
+}
+
+func serviceCardIDs(cards []*model.Card) []string {
+	out := make([]string, len(cards))
+	for i, c := range cards {
+		out[i] = c.ID
+	}
+	return out
 }
 
 // ============================================================================

@@ -315,10 +315,14 @@ kan add "Buy milk" -g                            # Add to the global board from 
 ## Listing Cards
 
 ```bash
-kan list                     # List all cards grouped by column
-kan list -c done             # Filter by column
-kan list -b myboard          # Filter by board
+kan list                          # List all cards grouped by column
+kan list -c done                  # Filter by column
+kan list -b myboard               # Filter by board
+kan list --sort priority          # Sort each column by a custom field
+kan list --sort priority --reverse  # Reverse the sort order
 ```
+
+`--sort <field>` orders cards within each column by a custom field instead of by manual position. For `enum`/`enum-set` fields the order follows the option order in the board config (not alphabetical); cards with no value are listed last. It's a view sort — saved card positions are unchanged.
 
 ## Showing Card Details
 
