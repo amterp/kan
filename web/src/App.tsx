@@ -10,6 +10,7 @@ import type { SlashCommand } from './hooks/omnibarConstants';
 import { useProject, usePageTitle, useFavicon, bustFaviconCache } from './hooks/useProject';
 import { useUrlState } from './hooks/useUrlState';
 import { cardMatchesQuery } from './utils/fuzzyMatch';
+import { sortCards } from './utils/cardSort';
 import Header from './components/Header';
 import Board from './components/Board';
 import CardEditModal from './components/CardEditModal';
@@ -69,6 +70,36 @@ function BoardApp() {
   const { isSlim, toggleSlim } = useSlimMode();
   const [searchParams, setSearchParams] = useSearchParams();
   const { project } = useProject(refreshKey);
+
+  // Custom-field view sort, persisted in the URL (?sort=<field>&sortDir=desc) so
+  // it's shareable and survives reloads. Empty sort field == manual order.
+  const sortField = searchParams.get('sort') ?? '';
+  const sortDescending = searchParams.get('sortDir') === 'desc';
+
+  const handleSortFieldChange = useCallback((field: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (field) {
+        next.set('sort', field);
+      } else {
+        next.delete('sort');
+        next.delete('sortDir');
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const handleToggleSortDir = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get('sortDir') === 'desc') {
+        next.delete('sortDir');
+      } else {
+        next.set('sortDir', 'desc');
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   // Keep URL ?slim param in sync with slim mode state.
   // Initial state is read from URL in SlimModeContext (URL wins over localStorage).
@@ -130,16 +161,21 @@ function BoardApp() {
     return cards.filter((card) => cardMatchesQuery(card, omnibar.query.trim(), board));
   }, [cards, omnibar.query, omnibar.mode, board, slashAutocomplete.isActive]);
 
-  // Group filtered cards by column (in column order) for navigation
+  // Group filtered cards by column (in column order) for navigation. Mirror the
+  // board's view sort so keyboard nav follows the same order shown on screen.
   const filteredCardsByColumn = useMemo(() => {
     if (!board) return [];
+    const activeSort = sortField && board.custom_fields?.[sortField] ? sortField : '';
     return board.columns
-      .map((col) => ({
-        column: col,
-        cards: filteredCards.filter((c) => c.column === col.name),
-      }))
+      .map((col) => {
+        const colCards = filteredCards.filter((c) => c.column === col.name);
+        return {
+          column: col,
+          cards: activeSort ? sortCards(colCards, board, activeSort, sortDescending) : colCards,
+        };
+      })
       .filter((group) => group.cards.length > 0);
-  }, [board, filteredCards]);
+  }, [board, filteredCards, sortField, sortDescending]);
 
   // Auto-highlight first card when omnibar opens or filter changes
   useEffect(() => {
@@ -554,6 +590,11 @@ function BoardApp() {
           reconnecting: fileSyncReconnecting,
           failed: fileSyncFailed,
         }}
+        customFields={board?.custom_fields}
+        sortField={sortField}
+        sortDescending={sortDescending}
+        onSortFieldChange={handleSortFieldChange}
+        onToggleSortDir={handleToggleSortDir}
       />
       <main className="flex-1 overflow-hidden">
         {loading ? (
@@ -582,6 +623,8 @@ function BoardApp() {
             onOpenCard={handleOpenCard}
             isOmnibarOpen={omnibar.isOpen}
             isCardModalOpen={!!cardId}
+            sortField={sortField}
+            sortDescending={sortDescending}
           />
         ) : (
           <HomeLauncher onOpen={openBoardEntry} />

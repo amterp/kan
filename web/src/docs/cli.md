@@ -248,13 +248,24 @@ List cards, grouped by column.
 kan list
 kan list -b features
 kan list -c done
+kan list --sort priority            # order each column by the priority field
+kan list --sort priority --reverse  # high → low instead of low → high
 ```
 
-| Flag           | Description                                                |
-|----------------|------------------------------------------------------------|
-| `-b, --board`  | Filter by board                                            |
-| `-c, --column` | Filter by column                                           |
-| `-g, --global` | Target the designated global board (see [global](#global)) |
+| Flag            | Description                                                |
+|-----------------|------------------------------------------------------------|
+| `-b, --board`   | Filter by board                                            |
+| `-c, --column`  | Filter by column                                           |
+| `-s, --sort`    | Sort cards within each column by a custom field (e.g. `priority`) instead of by manual position |
+| `-r, --reverse` | Reverse the sort order (use with `--sort`)                 |
+| `-g, --global`  | Target the designated global board (see [global](#global)) |
+
+`--sort` orders cards by a custom field's value. For `enum`/`enum-set` fields
+the order follows the option order defined in your board config (so
+`priority` sorts `low → medium → high` when that's how the options are listed),
+not alphabetically. Cards missing a value for the field are always listed last,
+in both directions. Sorting is non-destructive — it only changes the listing
+order, never the cards' saved positions.
 
 ### edit
 

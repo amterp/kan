@@ -189,6 +189,19 @@ func (s *CardService) Update(boardName string, card *model.Card) error {
 // Cards are returned in column order (as defined in board config), sorted
 // by position within each column.
 func (s *CardService) List(boardName string, columnFilter string) ([]*model.Card, error) {
+	return s.listSorted(boardName, columnFilter, "", false)
+}
+
+// ListSorted is like List, but within each column the cards are ordered by the
+// given custom field instead of by their manual position. This is a
+// non-destructive view sort—card positions on disk are left untouched. An empty
+// sortField behaves exactly like List. See model.SortCardsByField for the
+// ordering rules (enum option order, unset-last, etc.).
+func (s *CardService) ListSorted(boardName, columnFilter, sortField string, descending bool) ([]*model.Card, error) {
+	return s.listSorted(boardName, columnFilter, sortField, descending)
+}
+
+func (s *CardService) listSorted(boardName, columnFilter, sortField string, descending bool) ([]*model.Card, error) {
 	cards, err := s.cardStore.List(boardName)
 	if err != nil {
 		return nil, err
@@ -213,15 +226,20 @@ func (s *CardService) List(boardName string, columnFilter string) ([]*model.Card
 		grouped[card.Column] = append(grouped[card.Column], card)
 	}
 
-	// Sort each group by position
+	// Order each group: by the requested custom field if one was given,
+	// otherwise by manual position (the default).
 	for col := range grouped {
 		grp := grouped[col]
-		sort.Slice(grp, func(i, j int) bool {
-			if grp[i].Position == grp[j].Position {
-				return grp[i].ID < grp[j].ID // tiebreaker
-			}
-			return grp[i].Position < grp[j].Position
-		})
+		if sortField != "" {
+			model.SortCardsByField(grp, boardCfg, sortField, descending)
+		} else {
+			sort.Slice(grp, func(i, j int) bool {
+				if grp[i].Position == grp[j].Position {
+					return grp[i].ID < grp[j].ID // tiebreaker
+				}
+				return grp[i].Position < grp[j].Position
+			})
+		}
 	}
 
 	// Build result in column order (as defined in board config)
