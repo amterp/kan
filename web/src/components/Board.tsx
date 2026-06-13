@@ -6,6 +6,7 @@ import type { BoardConfig, Card, Column as ColumnType, CreateCardInput, CreateCa
 import type { UndoAction } from '../hooks/useUndo';
 import { cardMatchesQuery } from '../utils/fuzzyMatch';
 import { toApiFieldValue } from '../utils/customFields';
+import { sortCards } from '../utils/cardSort';
 import { BoardConfigProvider } from '../contexts/BoardConfigContext';
 import { useToast } from '../contexts/ToastContext';
 import Column from './Column';
@@ -41,6 +42,10 @@ interface BoardProps {
   onPushUndo?: (action: UndoAction) => void;
   isOmnibarOpen?: boolean;
   isCardModalOpen?: boolean;
+  // Custom-field view sort. When sortField is set, cards within each column are
+  // ordered by that field instead of by manual position (non-destructive).
+  sortField?: string;
+  sortDescending?: boolean;
 }
 
 export default function Board({
@@ -60,6 +65,8 @@ export default function Board({
   onPushUndo,
   isOmnibarOpen = false,
   isCardModalOpen = false,
+  sortField = '',
+  sortDescending = false,
 }: BoardProps) {
   const { showToast } = useToast();
   const { isSlim } = useSlimMode();
@@ -102,12 +109,19 @@ export default function Board({
     return cards.filter((card) => cardMatchesQuery(card, filterQuery.trim(), board));
   }, [cards, filterQuery, board]);
 
+  // Only honor a sort field the current board actually defines (the field may
+  // be carried over in the URL from another board, or removed from config).
+  const activeSortField = sortField && board.custom_fields?.[sortField] ? sortField : '';
+
   const cardsByColumn = useMemo(() =>
     board.columns.reduce<Record<string, Card[]>>((acc, column) => {
-      acc[column.name] = filteredCards.filter((card) => card.column === column.name);
+      const colCards = filteredCards.filter((card) => card.column === column.name);
+      acc[column.name] = activeSortField
+        ? sortCards(colCards, board, activeSortField, sortDescending)
+        : colCards;
       return acc;
     }, {}),
-    [board.columns, filteredCards]
+    [board, filteredCards, activeSortField, sortDescending]
   );
 
   // Unfiltered card counts for column limit checks (filter must not bypass limits)
@@ -364,6 +378,17 @@ export default function Board({
         // Different column - insert at target card's position
         position = targetIndex;
       }
+    }
+
+    // A custom-field sort owns in-column ordering, so manual reordering within a
+    // column would have no visible effect — block it and tell the user. Moving a
+    // card to a different column still works: it appends and re-sorts by field.
+    if (activeSortField) {
+      if (draggedCard.column === targetColumn) {
+        showToast('info', `Sorted by "${activeSortField}" — clear the sort to reorder cards by hand.`);
+        return;
+      }
+      position = undefined; // cross-column: let the field sort place it
     }
 
     // Skip if same column and no position (no real move)

@@ -138,6 +138,33 @@ func completeColumns(toComplete string) ([]string, ra.CompletionDirective) {
 	return result, ra.CompletionDirectiveNoFileComp
 }
 
+// completeCustomFields returns custom field names matching the given prefix,
+// for completing the "list --sort" flag.
+func completeCustomFields(toComplete string) ([]string, ra.CompletionDirective) {
+	initCompletionCtx()
+	if compCtx.err != nil {
+		return nil, ra.CompletionDirectiveNoFileComp
+	}
+
+	board := hintBoard()
+	if board == "" {
+		return nil, ra.CompletionDirectiveNoFileComp
+	}
+
+	boardCfg, err := compCtx.boardStore.Get(board)
+	if err != nil {
+		return nil, ra.CompletionDirectiveNoFileComp
+	}
+
+	var result []string
+	for name := range boardCfg.CustomFields {
+		if strings.HasPrefix(name, toComplete) {
+			result = append(result, name)
+		}
+	}
+	return result, ra.CompletionDirectiveNoFileComp
+}
+
 // hintBoard resolves which board to use for completion context.
 // Scans os.Args for -b/--board, falls back to resolver.InferBoard
 // for single-board auto-detect and default board from global config.
