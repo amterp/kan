@@ -2,11 +2,26 @@ package cli
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/ra"
 )
+
+// customFieldNames returns the board's custom field names, sorted, joined for
+// display in error messages.
+func customFieldNames(boardCfg *model.BoardConfig) string {
+	names := make([]string, 0, len(boardCfg.CustomFields))
+	for name := range boardCfg.CustomFields {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	if len(names) == 0 {
+		return "(none defined)"
+	}
+	return strings.Join(names, ", ")
+}
 
 func registerList(parent *ra.Cmd, ctx *CommandContext) {
 	cmd := ra.NewCmd("list")
@@ -28,12 +43,27 @@ func registerList(parent *ra.Cmd, ctx *CommandContext) {
 		SetCompletionFunc(completeColumns).
 		Register(cmd)
 
+	ctx.ListSort, _ = ra.NewString("sort").
+		SetShort("s").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Sort cards within each column by a custom field (e.g. priority)").
+		SetCompletionFunc(completeCustomFields).
+		Register(cmd)
+
+	ctx.ListReverse, _ = ra.NewBool("reverse").
+		SetShort("r").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Reverse the sort order (use with --sort)").
+		Register(cmd)
+
 	ctx.ListGlobal = registerGlobalFlag(cmd)
 
 	ctx.ListUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runList(board, column string, global, jsonOutput bool) {
+func runList(board, column, sortField string, global, reverse, jsonOutput bool) {
 	app, err := NewAppWithOptions(AppOptions{Interactive: true, UseGlobalBoard: global})
 	if err != nil {
 		Fatal(err)
@@ -56,8 +86,16 @@ func runList(board, column string, global, jsonOutput bool) {
 		Fatal(err)
 	}
 
+	// Validate the sort field (if any) names a defined custom field.
+	if sortField != "" {
+		if _, ok := boardCfg.CustomFields[sortField]; !ok {
+			Fatal(fmt.Errorf("unknown sort field %q; valid fields: %s",
+				sortField, customFieldNames(boardCfg)))
+		}
+	}
+
 	// Get cards
-	cards, err := app.CardService.List(boardName, column)
+	cards, err := app.CardService.ListSorted(boardName, column, sortField, reverse)
 	if err != nil {
 		Fatal(err)
 	}
