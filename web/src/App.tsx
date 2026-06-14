@@ -71,20 +71,25 @@ function BoardApp() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { project } = useProject(refreshKey);
 
-  // Custom-field view sort, persisted in the URL (?sort=<field>&sortDir=desc) so
-  // it's shareable and survives reloads. Empty sort field == manual order.
-  const sortField = searchParams.get('sort') ?? '';
-  const sortDescending = searchParams.get('sortDir') === 'desc';
+  // Custom-field view sort, persisted in the URL (?sort=<field>&sortDir=asc|desc)
+  // so it's shareable and survives reloads. When the URL has no sort param, fall
+  // back to the board's configured default (card_display.default_sort); an empty
+  // value means manual (position) order. The URL always wins when present, so a
+  // user can still pick "Manual order" even on a board that has a default.
+  const defaultSort = board?.card_display?.default_sort ?? '';
+  const defaultSortDesc = board?.card_display?.default_sort_desc ?? false;
+  const sortField = searchParams.has('sort') ? (searchParams.get('sort') ?? '') : defaultSort;
+  const sortDescending = searchParams.has('sortDir')
+    ? searchParams.get('sortDir') === 'desc'
+    : defaultSortDesc;
 
   const handleSortFieldChange = useCallback((field: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      if (field) {
-        next.set('sort', field);
-      } else {
-        next.delete('sort');
-        next.delete('sortDir');
-      }
+      // Set explicitly (even to '' for manual) so the choice overrides any
+      // configured default_sort rather than falling back to it.
+      next.set('sort', field);
+      if (!field) next.delete('sortDir'); // direction is irrelevant for manual
       return next;
     }, { replace: true });
   }, [setSearchParams]);
@@ -92,14 +97,11 @@ function BoardApp() {
   const handleToggleSortDir = useCallback(() => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      if (next.get('sortDir') === 'desc') {
-        next.delete('sortDir');
-      } else {
-        next.set('sortDir', 'desc');
-      }
+      const currentDesc = next.has('sortDir') ? next.get('sortDir') === 'desc' : defaultSortDesc;
+      next.set('sortDir', currentDesc ? 'asc' : 'desc'); // explicit, overrides default
       return next;
     }, { replace: true });
-  }, [setSearchParams]);
+  }, [setSearchParams, defaultSortDesc]);
 
   // Keep URL ?slim param in sync with slim mode state.
   // Initial state is read from URL in SlimModeContext (URL wins over localStorage).

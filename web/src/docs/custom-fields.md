@@ -191,6 +191,20 @@ sort is active in the web UI, dragging a card within its column is disabled
 (the order is owned by the field); drag a card to another column to move it, or
 switch back to **Manual order** to reorder by hand.
 
+### Default sort (web)
+
+To make the board open already sorted, set a default in `[card_display]`:
+
+```toml
+[card_display]
+default_sort = "priority"   # custom field to sort by on load
+default_sort_desc = true    # descending (omit for ascending)
+```
+
+This applies to the **web board view** only. The header **Sort** control still
+overrides it for the session (including picking **Manual order**), and it
+doesn't affect `kan list` (use `--sort` there).
+
 ## Setting Fields via CLI
 
 Use the `-f` flag on `kan add` or `kan edit` to set custom field values:
