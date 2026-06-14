@@ -895,9 +895,10 @@ func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 
 // BoardEntry represents a single board across all registered projects.
 type BoardEntry struct {
-	ProjectName string `json:"project_name"`
-	ProjectPath string `json:"project_path"`
-	BoardName   string `json:"board_name"`
+	ProjectName string              `json:"project_name"`
+	ProjectPath string              `json:"project_path"`
+	BoardName   string              `json:"board_name"`
+	Favicon     model.FaviconConfig `json:"favicon"`
 }
 
 // SkippedProject describes a registered project that couldn't be listed.
@@ -955,11 +956,17 @@ func (h *Handler) ListAllBoards(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Try to get display name from project config
+		// Try to get display name and favicon from project config. On failure we
+		// fall back to the registry name and a zero-value favicon (the frontend
+		// derives a placeholder tile from the board name in that case).
 		displayName := projectName
+		var favicon model.FaviconConfig
 		projectStore := store.NewProjectStore(paths)
-		if projCfg, err := projectStore.Load(); err == nil && projCfg.Name != "" {
-			displayName = projCfg.Name
+		if projCfg, err := projectStore.Load(); err == nil {
+			if projCfg.Name != "" {
+				displayName = projCfg.Name
+			}
+			favicon = projCfg.Favicon
 		}
 
 		for _, bn := range boardNames {
@@ -967,6 +974,7 @@ func (h *Handler) ListAllBoards(w http.ResponseWriter, r *http.Request) {
 				ProjectName: displayName,
 				ProjectPath: projectPath,
 				BoardName:   bn,
+				Favicon:     favicon,
 			})
 		}
 	}

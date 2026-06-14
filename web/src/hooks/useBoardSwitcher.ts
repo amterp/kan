@@ -1,43 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { listAllBoards, switchProject } from '../api/projects';
 import { fuzzyMatch } from '../utils/fuzzyMatch';
+import { recordRecency, sortByRecency } from '../utils/boardRecency';
 import { BOARD_PREFIX } from './omnibarConstants';
 import type { BoardEntry, SkippedProject } from '../api/types';
-
-const RECENCY_KEY = 'kan-board-recency';
-const MAX_RECENCY_ENTRIES = 50;
-
-interface RecencyMap {
-  [key: string]: number; // "path:board" -> timestamp
-}
-
-function loadRecency(): RecencyMap {
-  try {
-    const raw = localStorage.getItem(RECENCY_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveRecency(map: RecencyMap) {
-  // Prune to the most recent entries to prevent unbounded growth
-  const entries = Object.entries(map);
-  if (entries.length > MAX_RECENCY_ENTRIES) {
-    entries.sort((a, b) => b[1] - a[1]); // Most recent first
-    const pruned: RecencyMap = {};
-    for (const [key, val] of entries.slice(0, MAX_RECENCY_ENTRIES)) {
-      pruned[key] = val;
-    }
-    localStorage.setItem(RECENCY_KEY, JSON.stringify(pruned));
-    return;
-  }
-  localStorage.setItem(RECENCY_KEY, JSON.stringify(map));
-}
-
-function recencyKey(entry: BoardEntry): string {
-  return `${entry.project_path}:${entry.board_name}`;
-}
 
 function displayLabel(entry: BoardEntry, allBoards: BoardEntry[]): string {
   // If the project has exactly one board, omit the board name
@@ -109,16 +75,8 @@ export function useBoardSwitcher(query: string, isActive: boolean): UseBoardSwit
       });
     }
 
-    // Sort by recency, then alphabetical
-    const recency = loadRecency();
-    return filtered.sort((a, b) => {
-      const aTime = recency[recencyKey(a)] || 0;
-      const bTime = recency[recencyKey(b)] || 0;
-      if (aTime !== bTime) return bTime - aTime; // More recent first
-      const aLabel = displayLabel(a, boards);
-      const bLabel = displayLabel(b, boards);
-      return aLabel.localeCompare(bLabel);
-    });
+    // Sort by recency, then alphabetical by label
+    return sortByRecency(filtered, (entry) => displayLabel(entry, boards));
   }, [boards, query]);
 
   // Reset highlight to second row (first non-current board) when switcher opens
@@ -157,10 +115,7 @@ export function useBoardSwitcher(query: string, isActive: boolean): UseBoardSwit
         ? entry.board_name
         : resp.boards[0];
 
-      // Update recency
-      const recency = loadRecency();
-      recency[recencyKey(entry)] = Date.now();
-      saveRecency(recency);
+      recordRecency(entry);
 
       return { projectPath: entry.project_path, boardName };
     } catch (e) {

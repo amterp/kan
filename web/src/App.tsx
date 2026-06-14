@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom';
 import { useBoards, useBoard } from './hooks/useBoards';
 import { useOmnibar } from './hooks/useOmnibar';
@@ -13,11 +13,13 @@ import { cardMatchesQuery } from './utils/fuzzyMatch';
 import Header from './components/Header';
 import Board from './components/Board';
 import CardEditModal from './components/CardEditModal';
+import HomeLauncher from './components/HomeLauncher';
 import LandingPage from './pages/LandingPage';
 import Omnibar, { type NavigationDirection } from './components/Omnibar';
 import DocsPage from './pages/DocsPage';
 import { switchProject } from './api/projects';
-import type { UpdateCardInput } from './api/types';
+import { recordRecency } from './utils/boardRecency';
+import type { BoardEntry, UpdateCardInput } from './api/types';
 import { restoreCard as apiRestoreCard } from './api/cards';
 import { useUndo } from './hooks/useUndo';
 import { useCompactMode } from './contexts/CompactModeContext';
@@ -308,29 +310,36 @@ function BoardApp() {
       toggleSlim();
       omnibar.close();
     }
-  }, [omnibar, boardSwitcher, cards, setBoard, openCard, toggleCompact, toggleSlim, executeSlashCommand, slashAutocomplete, setProjectPath]);
+  }, [omnibar, boardSwitcher, themeSwitcher, cards, setBoard, openCard, toggleCompact, toggleSlim, executeSlashCommand, slashAutocomplete, setProjectPath]);
 
-  // Handle clicking a board entry in the list
-  const handleBoardSelect = useCallback(async (index: number) => {
-    boardSwitcher.setHighlightedIndex(index);
-    const entry = boardSwitcher.filteredBoards[index];
-    if (!entry) return;
-
+  // Switch to a board's project (if needed) and open it. Shared by the home
+  // launcher and the omnibar's click handler so both record recency and refresh
+  // the favicon consistently.
+  const openBoardEntry = useCallback(async (entry: BoardEntry) => {
     try {
       await switchProject(entry.project_path);
       setProjectPath(entry.project_path);
-      omnibar.close();
       setBoard(entry.board_name);
       setRefreshKey((k) => k + 1);
-      // Bust favicon cache
+      recordRecency(entry);
+      // Bust favicon cache so the new project's icon loads
       const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
       if (link) {
         link.href = '/favicon.svg?t=' + Date.now();
       }
     } catch {
-      // Error is handled by the switcher hook
+      // Error surfaced via the switcher hook / toast elsewhere
     }
-  }, [boardSwitcher, omnibar, setBoard, setProjectPath]);
+  }, [setBoard, setProjectPath]);
+
+  // Handle clicking a board entry in the omnibar list
+  const handleBoardSelect = useCallback(async (index: number) => {
+    boardSwitcher.setHighlightedIndex(index);
+    const entry = boardSwitcher.filteredBoards[index];
+    if (!entry) return;
+    omnibar.close();
+    await openBoardEntry(entry);
+  }, [boardSwitcher, omnibar, openBoardEntry]);
 
   // Handle clicking a theme option in the list
   const handleThemeSelect = useCallback((index: number) => {
@@ -410,9 +419,14 @@ function BoardApp() {
     openCard(id);
   }, [openCard]);
 
-  // Auto-select first board if only one exists (replace so no extra history entry)
+  // Auto-select first board if only one exists (replace so no extra history
+  // entry). Only on the initial load, not on every visit to "/", so clicking the
+  // logo to reach the launcher isn't instantly bounced back to the lone board.
+  const didInitialAutoSelect = useRef(false);
   useEffect(() => {
+    if (didInitialAutoSelect.current) return;
     if (!boardName && !boardsLoading && boards.length === 1) {
+      didInitialAutoSelect.current = true;
       setBoard(boards[0], { replace: true });
     }
   }, [boardName, boardsLoading, boards, setBoard]);
@@ -571,9 +585,7 @@ function BoardApp() {
             isCardModalOpen={!!cardId}
           />
         ) : (
-          <div className="h-full flex items-center justify-center">
-            <p className="text-gray-500 dark:text-gray-400">Select a board to get started</p>
-          </div>
+          <HomeLauncher onOpen={openBoardEntry} />
         )}
       </main>
       {modalCard && board && (

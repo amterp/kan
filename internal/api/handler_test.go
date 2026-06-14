@@ -928,6 +928,49 @@ func TestHandler_ListAllBoards_MultipleProjects(t *testing.T) {
 	}
 }
 
+func TestHandler_ListAllBoards_IncludesFavicon(t *testing.T) {
+	projDir := createProjectDir(t, "main")
+
+	// Give the project a config with a known favicon so the home launcher can
+	// render the project's identity on its tile.
+	favicon := model.FaviconConfig{
+		Background: "#3b82f6",
+		IconType:   model.IconTypeLetter,
+		Letter:     "M",
+	}
+	projectStore := store.NewProjectStore(config.NewPaths(projDir, ""))
+	if err := projectStore.Save(&model.ProjectConfig{
+		Name:    "My Project",
+		Favicon: favicon,
+	}); err != nil {
+		t.Fatalf("Failed to save project config: %v", err)
+	}
+
+	globalCfg := &model.GlobalConfig{
+		Projects: map[string]string{"project-a": projDir},
+		Repos:    map[string]model.RepoConfig{projDir: {}},
+	}
+	api, _ := setupCrossProjectAPI(t, globalCfg)
+
+	w := api.request("GET", "/api/v1/all-boards", nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp AllBoardsResponse
+	decodeJSON(t, w, &resp)
+	if len(resp.Boards) != 1 {
+		t.Fatalf("Expected 1 board, got %d", len(resp.Boards))
+	}
+	got := resp.Boards[0]
+	if got.ProjectName != "My Project" {
+		t.Errorf("Expected project name %q, got %q", "My Project", got.ProjectName)
+	}
+	if got.Favicon != favicon {
+		t.Errorf("Expected favicon %+v, got %+v", favicon, got.Favicon)
+	}
+}
+
 func TestHandler_ListAllBoards_SkipsInvalidProjects(t *testing.T) {
 	validDir := createProjectDir(t, "main")
 	invalidDir := filepath.Join(os.TempDir(), "nonexistent-kan-project-xyz")
