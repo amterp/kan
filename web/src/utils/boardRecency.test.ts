@@ -76,6 +76,16 @@ describe('boardRecency', () => {
     expect(loadRecency()['/repo/a:main']).toBe(1234);
   });
 
+  it('preserves existing entries when stamping a new board', () => {
+    saveRecency({ '/other:main': 999 });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(1234));
+    recordRecency(entry('/repo/a', 'main'));
+    const map = loadRecency();
+    expect(map['/repo/a:main']).toBe(1234);
+    expect(map['/other:main']).toBe(999);
+  });
+
   describe('sortByRecency', () => {
     const label = (e: BoardEntry) => `${e.project_name}/${e.board_name}`;
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { listAllBoards, switchProject } from '../api/projects';
+import { listAllBoards } from '../api/projects';
 import { fuzzyMatch } from '../utils/fuzzyMatch';
-import { recordRecency, sortByRecency } from '../utils/boardRecency';
+import { sortByRecency } from '../utils/boardRecency';
 import { BOARD_PREFIX } from './omnibarConstants';
 import type { BoardEntry, SkippedProject } from '../api/types';
 
@@ -22,10 +22,8 @@ interface UseBoardSwitcherReturn {
   skipped: SkippedProject[];
   loading: boolean;
   fetchError: string | null;
-  switchError: string | null;
   setHighlightedIndex: (idx: number) => void;
   moveHighlight: (delta: number) => void;
-  selectHighlighted: () => Promise<{ projectPath: string; boardName: string } | null>;
   displayLabel: (entry: BoardEntry) => string;
   refresh: () => void;
 }
@@ -37,7 +35,6 @@ export function useBoardSwitcher(query: string, isActive: boolean): UseBoardSwit
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [switchError, setSwitchError] = useState<string | null>(null);
 
   const fetchBoards = useCallback(async () => {
     setLoading(true);
@@ -102,28 +99,6 @@ export function useBoardSwitcher(query: string, isActive: boolean): UseBoardSwit
     });
   }, [filteredBoards.length]);
 
-  const selectHighlighted = useCallback(async (): Promise<{ projectPath: string; boardName: string } | null> => {
-    const entry = filteredBoards[highlightedIndex];
-    if (!entry) return null;
-
-    setSwitchError(null);
-    try {
-      const resp = await switchProject(entry.project_path);
-
-      // Verify the selected board exists in the new project; fall back to first board
-      const boardName = resp.boards.includes(entry.board_name)
-        ? entry.board_name
-        : resp.boards[0];
-
-      recordRecency(entry);
-
-      return { projectPath: entry.project_path, boardName };
-    } catch (e) {
-      setSwitchError(e instanceof Error ? e.message : 'Failed to switch project');
-      return null;
-    }
-  }, [filteredBoards, highlightedIndex]);
-
   const getDisplayLabel = useCallback((entry: BoardEntry) => {
     return displayLabel(entry, boards);
   }, [boards]);
@@ -136,10 +111,8 @@ export function useBoardSwitcher(query: string, isActive: boolean): UseBoardSwit
     skipped,
     loading,
     fetchError,
-    switchError,
     setHighlightedIndex,
     moveHighlight,
-    selectHighlighted,
     displayLabel: getDisplayLabel,
     refresh: fetchBoards,
   };

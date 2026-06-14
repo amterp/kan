@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"sync"
 
 	"github.com/amterp/kan/internal/config"
@@ -967,6 +968,12 @@ func (h *Handler) ListAllBoards(w http.ResponseWriter, r *http.Request) {
 				displayName = projCfg.Name
 			}
 			favicon = projCfg.Favicon
+			// Mirror GetProject: derive the default favicon when none is set so a
+			// tile's color/letter matches the project's browser-tab icon instead
+			// of the frontend inventing a different placeholder.
+			if favicon.Background == "" {
+				favicon = model.DefaultFaviconConfig(projCfg.ID, displayName)
+			}
 		}
 
 		for _, bn := range boardNames {
@@ -978,6 +985,16 @@ func (h *Handler) ListAllBoards(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
+
+	// Map iteration above is randomized; sort so the response is stable across
+	// requests (the frontend re-sorts by recency, but a deterministic base order
+	// keeps never-opened boards from shuffling and keeps the API predictable).
+	sort.Slice(boards, func(i, j int) bool {
+		if boards[i].ProjectName != boards[j].ProjectName {
+			return boards[i].ProjectName < boards[j].ProjectName
+		}
+		return boards[i].BoardName < boards[j].BoardName
+	})
 
 	if boards == nil {
 		boards = []BoardEntry{}

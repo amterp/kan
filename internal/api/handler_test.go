@@ -971,6 +971,73 @@ func TestHandler_ListAllBoards_IncludesFavicon(t *testing.T) {
 	}
 }
 
+func TestHandler_ListAllBoards_DefaultsFaviconWhenUnset(t *testing.T) {
+	projDir := createProjectDir(t, "main")
+
+	// Project config with an ID and name but no favicon set - the handler should
+	// derive the default favicon so the tile matches the browser-tab icon.
+	projectStore := store.NewProjectStore(config.NewPaths(projDir, ""))
+	if err := projectStore.Save(&model.ProjectConfig{
+		ID:   "proj-id-123",
+		Name: "My Project",
+	}); err != nil {
+		t.Fatalf("Failed to save project config: %v", err)
+	}
+
+	globalCfg := &model.GlobalConfig{
+		Projects: map[string]string{"project-a": projDir},
+		Repos:    map[string]model.RepoConfig{projDir: {}},
+	}
+	api, _ := setupCrossProjectAPI(t, globalCfg)
+
+	w := api.request("GET", "/api/v1/all-boards", nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp AllBoardsResponse
+	decodeJSON(t, w, &resp)
+	if len(resp.Boards) != 1 {
+		t.Fatalf("Expected 1 board, got %d", len(resp.Boards))
+	}
+	want := model.DefaultFaviconConfig("proj-id-123", "My Project")
+	if resp.Boards[0].Favicon != want {
+		t.Errorf("Expected defaulted favicon %+v, got %+v", want, resp.Boards[0].Favicon)
+	}
+}
+
+func TestHandler_ListAllBoards_NoProjectConfigUsesDefaults(t *testing.T) {
+	// A project with a board but no project config file: Load returns defaults
+	// (no error), so the handler uses the registry name and a derived default
+	// favicon - matching what the browser tab shows for that project.
+	projDir := createProjectDir(t, "main")
+
+	globalCfg := &model.GlobalConfig{
+		Projects: map[string]string{"project-a": projDir},
+		Repos:    map[string]model.RepoConfig{projDir: {}},
+	}
+	api, _ := setupCrossProjectAPI(t, globalCfg)
+
+	w := api.request("GET", "/api/v1/all-boards", nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp AllBoardsResponse
+	decodeJSON(t, w, &resp)
+	if len(resp.Boards) != 1 {
+		t.Fatalf("Expected 1 board, got %d", len(resp.Boards))
+	}
+	got := resp.Boards[0]
+	if got.ProjectName != "project-a" {
+		t.Errorf("Expected registry name %q, got %q", "project-a", got.ProjectName)
+	}
+	want := model.DefaultFaviconConfig("", "project-a")
+	if got.Favicon != want {
+		t.Errorf("Expected defaulted favicon %+v, got %+v", want, got.Favicon)
+	}
+}
+
 func TestHandler_ListAllBoards_SkipsInvalidProjects(t *testing.T) {
 	validDir := createProjectDir(t, "main")
 	invalidDir := filepath.Join(os.TempDir(), "nonexistent-kan-project-xyz")

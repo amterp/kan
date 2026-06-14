@@ -7,7 +7,7 @@ import { useSlashCommandAutocomplete } from './hooks/useSlashCommandAutocomplete
 import { useThemeSwitcher } from './hooks/useThemeSwitcher';
 import { COMPACT_COMMAND, SLIM_COMMAND } from './hooks/omnibarConstants';
 import type { SlashCommand } from './hooks/omnibarConstants';
-import { useProject, usePageTitle, useFavicon } from './hooks/useProject';
+import { useProject, usePageTitle, useFavicon, bustFaviconCache } from './hooks/useProject';
 import { useUrlState } from './hooks/useUrlState';
 import { cardMatchesQuery } from './utils/fuzzyMatch';
 import Header from './components/Header';
@@ -257,6 +257,33 @@ function BoardApp() {
     [filteredCardsByColumn, omnibar, boardSwitcher, themeSwitcher, slashAutocomplete, isSlim]
   );
 
+  // Switch to a board's project (if needed) and open it. The single canonical
+  // path for opening a board from anywhere - the home launcher, an omnibar
+  // click, or an omnibar keyboard-select - so recency, the favicon refresh, and
+  // the stale-board fallback stay consistent across all of them.
+  const openBoardEntry = useCallback(async (entry: BoardEntry) => {
+    try {
+      const resp = await switchProject(entry.project_path);
+      // The launcher/omnibar list can be stale (a board renamed or deleted on
+      // disk since it loaded); fall back to the project's first board.
+      const boardName = resp.boards.includes(entry.board_name)
+        ? entry.board_name
+        : resp.boards[0];
+      if (!boardName) {
+        showToast('error', `${entry.project_name} has no boards`);
+        return;
+      }
+      setProjectPath(entry.project_path);
+      omnibar.close();
+      setBoard(boardName);
+      setRefreshKey((k) => k + 1);
+      recordRecency(entry);
+      bustFaviconCache();
+    } catch (e) {
+      showToast('error', e instanceof Error ? e.message : 'Failed to open board');
+    }
+  }, [setBoard, setProjectPath, omnibar, showToast]);
+
   // Handle Enter to select
   const handleSelect = useCallback(async () => {
     // Slash command autocomplete selection
@@ -276,17 +303,9 @@ function BoardApp() {
     }
 
     if (omnibar.mode === 'boards') {
-      const result = await boardSwitcher.selectHighlighted();
-      if (result) {
-        setProjectPath(result.projectPath);
-        omnibar.close();
-        setBoard(result.boardName);
-        setRefreshKey((k) => k + 1);
-        // Force favicon refresh by changing the URL (triggers a new fetch)
-        const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-        if (link) {
-          link.href = '/favicon.svg?' + Date.now();
-        }
+      const entry = boardSwitcher.filteredBoards[boardSwitcher.highlightedIndex];
+      if (entry) {
+        await openBoardEntry(entry);
       }
       return;
     }
@@ -310,36 +329,16 @@ function BoardApp() {
       toggleSlim();
       omnibar.close();
     }
-  }, [omnibar, boardSwitcher, themeSwitcher, cards, setBoard, openCard, toggleCompact, toggleSlim, executeSlashCommand, slashAutocomplete, setProjectPath]);
-
-  // Switch to a board's project (if needed) and open it. Shared by the home
-  // launcher and the omnibar's click handler so both record recency and refresh
-  // the favicon consistently.
-  const openBoardEntry = useCallback(async (entry: BoardEntry) => {
-    try {
-      await switchProject(entry.project_path);
-      setProjectPath(entry.project_path);
-      setBoard(entry.board_name);
-      setRefreshKey((k) => k + 1);
-      recordRecency(entry);
-      // Bust favicon cache so the new project's icon loads
-      const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-      if (link) {
-        link.href = '/favicon.svg?t=' + Date.now();
-      }
-    } catch {
-      // Error surfaced via the switcher hook / toast elsewhere
-    }
-  }, [setBoard, setProjectPath]);
+  }, [omnibar, boardSwitcher, themeSwitcher, openBoardEntry, cards, openCard, toggleCompact, toggleSlim, executeSlashCommand, slashAutocomplete]);
 
   // Handle clicking a board entry in the omnibar list
   const handleBoardSelect = useCallback(async (index: number) => {
     boardSwitcher.setHighlightedIndex(index);
     const entry = boardSwitcher.filteredBoards[index];
-    if (!entry) return;
-    omnibar.close();
-    await openBoardEntry(entry);
-  }, [boardSwitcher, omnibar, openBoardEntry]);
+    if (entry) {
+      await openBoardEntry(entry);
+    }
+  }, [boardSwitcher, openBoardEntry]);
 
   // Handle clicking a theme option in the list
   const handleThemeSelect = useCallback((index: number) => {
@@ -612,7 +611,7 @@ function BoardApp() {
           boardCurrentBoardName={boardName}
           boardSkipped={boardSwitcher.skipped}
           boardLoading={boardSwitcher.loading}
-          boardError={boardSwitcher.fetchError || boardSwitcher.switchError}
+          boardError={boardSwitcher.fetchError}
           boardDisplayLabel={boardSwitcher.displayLabel}
           themeOptions={themeSwitcher.filteredOptions}
           themeHighlightedIndex={themeSwitcher.highlightedIndex}
