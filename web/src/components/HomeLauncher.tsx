@@ -1,38 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { listAllBoards } from '../api/projects';
 import { sortByRecency } from '../utils/boardRecency';
-import { stringToColor } from '../utils/badgeColors';
+import { resolveFavicon } from '../utils/favicon';
 import type { BoardEntry, SkippedProject } from '../api/types';
 
 interface HomeLauncherProps {
   onOpen: (entry: BoardEntry) => void;
-}
-
-interface ResolvedFavicon {
-  background: string;
-  glyph: string;
-  isEmoji: boolean;
-}
-
-// Resolve the visual identity for a tile. Prefers the project's configured
-// favicon (the same identity shown in the browser tab); falls back to a
-// deterministic color + initial when a project's config couldn't be read.
-function resolveFavicon(entry: BoardEntry): ResolvedFavicon {
-  const fav = entry.favicon;
-  if (fav?.background) {
-    if (fav.icon_type === 'emoji' && fav.emoji) {
-      return { background: fav.background, glyph: fav.emoji, isEmoji: true };
-    }
-    if (fav.letter) {
-      return { background: fav.background, glyph: fav.letter, isEmoji: false };
-    }
-  }
-  const name = entry.project_name || entry.board_name || 'K';
-  return {
-    background: stringToColor(entry.project_path || name),
-    glyph: (name.charAt(0) || 'K').toUpperCase(),
-    isEmoji: false,
-  };
 }
 
 function boardLabel(entry: BoardEntry): string {
@@ -118,13 +91,14 @@ export default function HomeLauncher({ onOpen }: HomeLauncherProps) {
     };
   }, []);
 
-  const { currentBoards, otherBoards, currentProjectName } = useMemo(() => {
+  const { currentBoards, otherBoards, allBoards, currentProjectName } = useMemo(() => {
     const current = boards.filter((b) => b.project_path === currentProjectPath);
     const others = boards.filter((b) => b.project_path !== currentProjectPath);
     return {
       currentBoards: sortByRecency(current, boardLabel),
       otherBoards: sortByRecency(others, boardLabel),
-      currentProjectName: current[0]?.project_name ?? '',
+      allBoards: sortByRecency(boards, boardLabel),
+      currentProjectName: current[0]?.project_name || 'This project',
     };
   }, [boards, currentProjectPath]);
 
@@ -168,15 +142,11 @@ export default function HomeLauncher({ onOpen }: HomeLauncherProps) {
 
         {splitCurrentProject ? (
           <>
-            <Section title={currentProjectName || 'This project'} entries={currentBoards} onOpen={onOpen} />
+            <Section title={currentProjectName} entries={currentBoards} onOpen={onOpen} />
             <Section title="Other boards" entries={otherBoards} onOpen={onOpen} />
           </>
         ) : (
-          <Section
-            title="All boards"
-            entries={sortByRecency(boards, boardLabel)}
-            onOpen={onOpen}
-          />
+          <Section title="All boards" entries={allBoards} onOpen={onOpen} />
         )}
 
         {skipped.length > 0 && (

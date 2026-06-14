@@ -64,3 +64,12 @@ export function useFavicon() {
     link.href = '/favicon.svg';
   }, []);
 }
+
+// Force the browser to re-fetch the dynamic favicon after a project switch,
+// where the same '/favicon.svg' URL now resolves to a different icon.
+export function bustFaviconCache() {
+  const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  if (link) {
+    link.href = '/favicon.svg?t=' + Date.now();
+  }
+}
