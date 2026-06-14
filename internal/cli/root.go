@@ -96,6 +96,7 @@ type CommandContext struct {
 	// serve command
 	ServeUsed   *bool
 	ServePort   *int
+	ServeHost   *string
 	ServeNoOpen *bool
 
 	// migrate command
@@ -329,7 +330,7 @@ func executeCommand(ctx *CommandContext) {
 			*ctx.EditFields, *ctx.EditStrict, *ctx.EditGlobal, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.ServeUsed:
-		runServe(*ctx.ServePort, ctx.RootCmd.Configured("port"), *ctx.ServeNoOpen)
+		runServe(*ctx.ServeHost, *ctx.ServePort, ctx.RootCmd.Configured("port"), *ctx.ServeNoOpen)
 
 	case *ctx.MigrateUsed:
 		if *ctx.MigrateAll {

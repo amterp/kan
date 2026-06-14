@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -185,5 +186,56 @@ func TestWebSocketHub_BroadcastFullBuffer(t *testing.T) {
 	// Client should be removed
 	if hub.ClientCount() != 0 {
 		t.Errorf("Expected client to be removed due to full buffer, got %d clients", hub.ClientCount())
+	}
+}
+
+// ============================================================================
+// checkOrigin Tests
+//
+// Previously CheckOrigin always returned true, allowing any website the user
+// had open in their browser to open a WebSocket connection to the local
+// server and receive the live file-change feed (board/card contents). These
+// tests cover the build-tag-independent cases; dev-server-origin handling is
+// covered in cors_test.go / cors_dev_test.go alongside the rest of
+// devOrigins.
+// ============================================================================
+
+func TestCheckOrigin_NoOriginHeader(t *testing.T) {
+	req := httptest.NewRequest("GET", "/api/v1/ws", nil)
+	req.Host = "127.0.0.1:5260"
+	// No Origin header set - typical for non-browser clients (curl, scripts).
+
+	if !checkOrigin(req) {
+		t.Error("expected request with no Origin header to be allowed")
+	}
+}
+
+func TestCheckOrigin_SameOrigin(t *testing.T) {
+	req := httptest.NewRequest("GET", "/api/v1/ws", nil)
+	req.Host = "127.0.0.1:5260"
+	req.Header.Set("Origin", "http://127.0.0.1:5260")
+
+	if !checkOrigin(req) {
+		t.Error("expected same-origin request to be allowed")
+	}
+}
+
+func TestCheckOrigin_CrossOrigin(t *testing.T) {
+	req := httptest.NewRequest("GET", "/api/v1/ws", nil)
+	req.Host = "127.0.0.1:5260"
+	req.Header.Set("Origin", "http://evil.com")
+
+	if checkOrigin(req) {
+		t.Error("expected cross-origin request to be rejected")
+	}
+}
+
+func TestCheckOrigin_InvalidOrigin(t *testing.T) {
+	req := httptest.NewRequest("GET", "/api/v1/ws", nil)
+	req.Host = "127.0.0.1:5260"
+	req.Header.Set("Origin", "http://[invalid")
+
+	if checkOrigin(req) {
+		t.Error("expected unparseable Origin header to be rejected")
 	}
 }

@@ -17,9 +17,10 @@ type Server struct {
 	watcherMu  sync.Mutex // Protects watcher during project switches
 }
 
-// NewServer creates a new server with the given handler, port, and kan root.
+// NewServer creates a new server with the given handler, host, port, and kan root.
+// host is the interface to bind to (e.g. "127.0.0.1" or "0.0.0.0").
 // kanRoot is the resolved .kan/ directory path. If empty, file watching is disabled.
-func NewServer(handler *Handler, port int, kanRoot string) *Server {
+func NewServer(handler *Handler, host string, port int, kanRoot string) *Server {
 	mux := http.NewServeMux()
 	handler.RegisterRoutes(mux)
 
@@ -44,7 +45,7 @@ func NewServer(handler *Handler, port int, kanRoot string) *Server {
 
 	s := &Server{
 		httpServer: &http.Server{
-			Addr:         fmt.Sprintf(":%d", port),
+			Addr:         fmt.Sprintf("%s:%d", host, port),
 			Handler:      wrapped,
 			ReadTimeout:  15 * time.Second,
 			WriteTimeout: 15 * time.Second,
