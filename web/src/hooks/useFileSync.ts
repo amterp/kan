@@ -51,6 +51,9 @@ export function useFileSync(options: UseFileSyncOptions = {}): UseFileSyncResult
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Lets the reconnect timer call the latest connect() without connect having
+  // to reference its own binding before it's declared.
+  const connectRef = useRef<(() => void) | null>(null);
 
   // Store callbacks in refs to avoid reconnecting when callbacks change
   const onCardChangeRef = useRef(onCardChange);
@@ -126,7 +129,7 @@ export function useFileSync(options: UseFileSyncOptions = {}): UseFileSyncResult
         if (enabled && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
           setReconnecting(true);
           reconnectAttemptsRef.current++;
-          reconnectTimeoutRef.current = setTimeout(connect, RECONNECT_DELAY);
+          reconnectTimeoutRef.current = setTimeout(() => connectRef.current?.(), RECONNECT_DELAY);
         } else if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
           setReconnecting(false);
           setFailed(true);
@@ -143,6 +146,11 @@ export function useFileSync(options: UseFileSyncOptions = {}): UseFileSyncResult
       console.error('Failed to create WebSocket:', err);
     }
   }, [enabled, handleMessage]);
+
+  // Keep the reconnect timer pointing at the current connect().
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   useEffect(() => {
     if (enabled) {

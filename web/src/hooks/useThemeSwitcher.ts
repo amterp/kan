@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import type { Theme } from '../contexts/ThemeContext';
 import { fuzzyMatch } from '../utils/fuzzyMatch';
@@ -38,10 +38,14 @@ export function useThemeSwitcher(query: string, isActive: boolean): UseThemeSwit
     return THEME_OPTIONS.filter((opt) => fuzzyMatch(searchQuery, opt.label));
   }, [query, isActive]);
 
-  // Reset highlight when filtered list changes
-  useEffect(() => {
+  // Reset the highlight to the top when the filtered list changes. Done during
+  // render (React's recommended pattern) rather than in an effect, so the
+  // highlight never lags a frame behind the list.
+  const [prevLen, setPrevLen] = useState(filteredOptions.length);
+  if (prevLen !== filteredOptions.length) {
+    setPrevLen(filteredOptions.length);
     setHighlightedIndex(0);
-  }, [filteredOptions.length]);
+  }
 
   const moveHighlight = useCallback((delta: number) => {
     setHighlightedIndex((prev) => {

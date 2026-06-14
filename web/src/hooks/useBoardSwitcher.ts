@@ -76,11 +76,15 @@ export function useBoardSwitcher(query: string, isActive: boolean): UseBoardSwit
     return sortByRecency(filtered, (entry) => displayLabel(entry, boards));
   }, [boards, query]);
 
-  // Reset highlight to second row (first non-current board) when switcher opens
+  // Reset highlight to second row (first non-current board) when the switcher
+  // opens. This must fire only on open, not on every list change (that's the
+  // effect below), so reading the current length here without depending on it
+  // is intentional.
   useEffect(() => {
     if (isActive) {
       setHighlightedIndex(filteredBoards.length > 1 ? 1 : 0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive]);
 
   // Reset highlight when filtered results change (e.g. typing a filter)

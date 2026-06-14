@@ -149,18 +149,23 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
     }
   }, [isEditing]);
 
-  // Cancel edit if slim mode is turned off (onSaveTitle disappears)
+  // Cancel edit if slim mode is turned off (onSaveTitle disappears). This
+  // intentionally syncs editing state to a prop change, which is what an effect
+  // is for here.
   useEffect(() => {
     if (isEditing && !onSaveTitle) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       cancelEdit();
     }
   }, [isEditing, onSaveTitle, cancelEdit]);
 
-  // Enter edit mode when triggered externally (e.g. context menu Rename).
-  // Same pattern as cancelEdit() above - responding to a prop change.
+  // Enter edit mode when triggered externally (e.g. context menu Rename) - an
+  // imperative command from the parent via the forceEdit prop, acknowledged by
+  // calling onForceEditDone. Reacting to that prop in an effect is intentional.
   useEffect(() => {
     if (forceEdit && onSaveTitle && !isEditing) {
       editDoneRef.current = false;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEditTitle(card.title);
       setIsEditing(true);
       onForceEditDone?.();
