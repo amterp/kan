@@ -92,6 +92,9 @@ export interface CardDisplayConfig {
   tint?: string;
   badges?: string[];
   metadata?: string[];
+  // Custom field the board view sorts by on load (the Sort control overrides it).
+  default_sort?: string;
+  default_sort_desc?: boolean;
 }
 
 export interface LinkRule {

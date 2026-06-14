@@ -76,6 +76,12 @@ type CardDisplayConfig struct {
 	Tint          string   `toml:"tint,omitempty" json:"tint,omitempty"`                     // enum field → card background color
 	Badges        []string `toml:"badges,omitempty" json:"badges,omitempty"`                 // set/boolean fields shown as chips
 	Metadata      []string `toml:"metadata,omitempty" json:"metadata,omitempty"`             // fields shown as small text
+
+	// DefaultSort names a custom field the board view is sorted by on load (the
+	// web Sort control still overrides it). Empty means manual (position) order.
+	// DefaultSortDesc selects descending order; ascending is the default.
+	DefaultSort     string `toml:"default_sort,omitempty" json:"default_sort,omitempty"`
+	DefaultSortDesc bool   `toml:"default_sort_desc,omitempty" json:"default_sort_desc,omitempty"`
 }
 
 // LinkRule defines a pattern-based auto-link rule.
@@ -344,7 +350,7 @@ func (b *BoardConfig) ValidateCardDisplay() []string {
 	var warnings []string
 
 	cd := b.CardDisplay
-	if cd.TypeIndicator == "" && cd.Tint == "" && len(cd.Badges) == 0 && len(cd.Metadata) == 0 {
+	if cd.TypeIndicator == "" && cd.Tint == "" && len(cd.Badges) == 0 && len(cd.Metadata) == 0 && cd.DefaultSort == "" {
 		return nil // Empty config, nothing to validate
 	}
 
@@ -382,6 +388,13 @@ func (b *BoardConfig) ValidateCardDisplay() []string {
 	for _, fieldName := range cd.Metadata {
 		if _, exists := b.CustomFields[fieldName]; !exists {
 			warnings = append(warnings, "card_display.metadata references non-existent field: "+fieldName)
+		}
+	}
+
+	// Validate default_sort references an existing field (any type is sortable)
+	if cd.DefaultSort != "" {
+		if _, exists := b.CustomFields[cd.DefaultSort]; !exists {
+			warnings = append(warnings, "card_display.default_sort references non-existent field: "+cd.DefaultSort)
 		}
 	}
 

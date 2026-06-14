@@ -24,22 +24,28 @@ export function useUrlState(): UrlState {
     [navigate]
   );
 
+  // Open/close the card modal by toggling only the `card` query param, leaving
+  // any other params (e.g. sort, sortDir, slim) intact — rebuilding the URL from
+  // scratch here would silently reset the active board sort.
   const openCard = useCallback(
     (id: string) => {
-      if (boardName) {
-        navigate(`/board/${encodeURIComponent(boardName)}?card=${encodeURIComponent(id)}`);
-      }
+      if (!boardName) return;
+      const params = new URLSearchParams(searchParams);
+      params.set('card', id);
+      navigate(`/board/${encodeURIComponent(boardName)}?${params.toString()}`);
     },
-    [navigate, boardName]
+    [navigate, boardName, searchParams]
   );
 
   const closeCard = useCallback(
     (options?: { replace?: boolean }) => {
-      if (boardName) {
-        navigate(`/board/${encodeURIComponent(boardName)}`, { replace: options?.replace });
-      }
+      if (!boardName) return;
+      const params = new URLSearchParams(searchParams);
+      params.delete('card');
+      const qs = params.toString();
+      navigate(`/board/${encodeURIComponent(boardName)}${qs ? `?${qs}` : ''}`, { replace: options?.replace });
     },
-    [navigate, boardName]
+    [navigate, boardName, searchParams]
   );
 
   return { boardName, cardId, setBoard, openCard, closeCard };
