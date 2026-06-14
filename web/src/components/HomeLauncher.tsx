@@ -8,11 +8,36 @@ interface HomeLauncherProps {
   onOpen: (entry: BoardEntry) => void;
 }
 
+// A board entry plus its display labels. The project is the unit you navigate
+// to, so a single-board project leads with the project name and drops the
+// (usually "main") board name; a project with several boards leads with the
+// board name and keeps the project name as context to disambiguate.
+interface LauncherTile {
+  entry: BoardEntry;
+  primary: string;
+  secondary: string | null;
+}
+
 function boardLabel(entry: BoardEntry): string {
   return `${entry.project_name}/${entry.board_name}`;
 }
 
-function BoardTile({ entry, onOpen }: { entry: BoardEntry; onOpen: (entry: BoardEntry) => void }) {
+// The project is what you scan for, so it leads. In a section already headed by
+// the project name (the current-project section), that's redundant, so show the
+// board name instead. Elsewhere the project name is the headline, with the board
+// name beneath only when a project has several boards to tell apart.
+function toTile(entry: BoardEntry, projectBoardCount: number, projectScoped: boolean): LauncherTile {
+  if (projectScoped) {
+    return { entry, primary: entry.board_name, secondary: null };
+  }
+  if (projectBoardCount <= 1) {
+    return { entry, primary: entry.project_name, secondary: null };
+  }
+  return { entry, primary: entry.project_name, secondary: entry.board_name };
+}
+
+function BoardTile({ tile, onOpen }: { tile: LauncherTile; onOpen: (entry: BoardEntry) => void }) {
+  const { entry, primary, secondary } = tile;
   const { background, glyph, isEmoji } = resolveFavicon(entry);
   return (
     <button
@@ -28,11 +53,13 @@ function BoardTile({ entry, onOpen }: { entry: BoardEntry; onOpen: (entry: Board
       </span>
       <span className="min-w-0">
         <span className="block font-medium text-gray-900 dark:text-white truncate">
-          {entry.board_name}
+          {primary}
         </span>
-        <span className="block text-xs text-gray-500 dark:text-gray-400 truncate">
-          {entry.project_name}
-        </span>
+        {secondary && (
+          <span className="block text-sm text-gray-600 dark:text-gray-300 truncate">
+            {secondary}
+          </span>
+        )}
       </span>
     </button>
   );
@@ -40,22 +67,26 @@ function BoardTile({ entry, onOpen }: { entry: BoardEntry; onOpen: (entry: Board
 
 function Section({
   title,
-  entries,
+  tiles,
   onOpen,
 }: {
   title: string;
-  entries: BoardEntry[];
+  tiles: LauncherTile[];
   onOpen: (entry: BoardEntry) => void;
 }) {
-  if (entries.length === 0) return null;
+  if (tiles.length === 0) return null;
   return (
     <section className="mb-8">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3">
         {title}
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {entries.map((entry) => (
-          <BoardTile key={`${entry.project_path}:${entry.board_name}`} entry={entry} onOpen={onOpen} />
+        {tiles.map((tile) => (
+          <BoardTile
+            key={`${tile.entry.project_path}:${tile.entry.board_name}`}
+            tile={tile}
+            onOpen={onOpen}
+          />
         ))}
       </div>
     </section>
@@ -91,13 +122,24 @@ export default function HomeLauncher({ onOpen }: HomeLauncherProps) {
     };
   }, []);
 
-  const { currentBoards, otherBoards, allBoards, currentProjectName } = useMemo(() => {
+  const { currentTiles, otherTiles, allTiles, currentProjectName } = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const b of boards) {
+      counts[b.project_path] = (counts[b.project_path] || 0) + 1;
+    }
+    const tilesOf = (entries: BoardEntry[], projectScoped: boolean) =>
+      sortByRecency(entries, boardLabel).map((e) =>
+        toTile(e, counts[e.project_path] || 1, projectScoped)
+      );
+
     const current = boards.filter((b) => b.project_path === currentProjectPath);
     const others = boards.filter((b) => b.project_path !== currentProjectPath);
     return {
-      currentBoards: sortByRecency(current, boardLabel),
-      otherBoards: sortByRecency(others, boardLabel),
-      allBoards: sortByRecency(boards, boardLabel),
+      // The current-project section is headed by the project name, so its tiles
+      // show the board name; everywhere else the project name leads.
+      currentTiles: tilesOf(current, true),
+      otherTiles: tilesOf(others, false),
+      allTiles: tilesOf(boards, false),
       currentProjectName: current[0]?.project_name || 'This project',
     };
   }, [boards, currentProjectPath]);
@@ -128,7 +170,7 @@ export default function HomeLauncher({ onOpen }: HomeLauncherProps) {
 
   // Surface the current project's boards as their own section only when it has
   // several; otherwise a single recency-ordered grid reads cleaner.
-  const splitCurrentProject = currentBoards.length >= 2;
+  const splitCurrentProject = currentTiles.length >= 2;
 
   return (
     <div className="h-full overflow-y-auto">
@@ -142,11 +184,11 @@ export default function HomeLauncher({ onOpen }: HomeLauncherProps) {
 
         {splitCurrentProject ? (
           <>
-            <Section title={currentProjectName} entries={currentBoards} onOpen={onOpen} />
-            <Section title="Other boards" entries={otherBoards} onOpen={onOpen} />
+            <Section title={currentProjectName} tiles={currentTiles} onOpen={onOpen} />
+            <Section title="Other boards" tiles={otherTiles} onOpen={onOpen} />
           </>
         ) : (
-          <Section title="All boards" entries={allBoards} onOpen={onOpen} />
+          <Section title="All boards" tiles={allTiles} onOpen={onOpen} />
         )}
 
         {skipped.length > 0 && (
