@@ -174,6 +174,7 @@ export interface BoardEntry {
   project_name: string;
   project_path: string;
   board_name: string;
+  favicon?: FaviconConfig;
 }
 
 export interface SkippedProject {

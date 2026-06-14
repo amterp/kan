@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
 import CompactToggle from './CompactToggle';
 import SlimToggle from './SlimToggle';
@@ -52,7 +53,13 @@ export default function Header({ boards, selectedBoard, onSelectBoard, onRefresh
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Kan</h1>
+        <Link
+          to="/"
+          className="text-4xl font-bold text-gray-900 dark:text-white hover:opacity-80 transition-opacity"
+          title="Home"
+        >
+          Kan
+        </Link>
         {boards.length > 1 && (
           <select
             value={selectedBoard || ''}
