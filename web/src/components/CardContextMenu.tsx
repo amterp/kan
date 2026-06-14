@@ -29,6 +29,9 @@ export default function CardContextMenu({ columns, currentColumn, hasCustomField
     if (rect.right > window.innerWidth) {
       el.style.left = `${Math.max(0, x - rect.width)}px`;
     }
+    // Reveal only after measuring/clamping position - the standard
+    // measure-then-show layout effect, where setting state is the point.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPositioned(true);
   }, [x, y]);
 
