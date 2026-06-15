@@ -81,6 +81,12 @@ Kan stores data in a `.kan/` directory:
 
 Cards are JSON. Board config is TOML. Version control tracks changes like any other file.
 
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for how to build,
+test, and submit changes, and [AI_POLICY.md](AI_POLICY.md) for the rules on
+AI-assisted contributions.
+
 ## Status
 
 Kan is usable and actively developed. Core features are solid - boards, cards, columns, custom fields, comments, drag-and-drop, and a full CLI.

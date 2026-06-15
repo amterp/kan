@@ -25,6 +25,8 @@ Kan is a file-based kanban board CLI tool. All data lives as plain files in `.ka
 ./dev -s          # Build, validate, run ./kan serve
 ```
 
+In environments without Rad (e.g. an outside contributor's PR), use the `Makefile` instead—`./dev` delegates to it: `make build`, `make test`, `make validate-go`, `make verify-dist`. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 Manual commands (for reference):
 
 ```bash
@@ -56,6 +58,8 @@ After a frontend change:
 git add internal/api/dist/ web/src/...  # include both source AND build output
 git commit -m "Your message"
 ```
+
+CI enforces this: it rebuilds the frontend from source and fails if the committed `internal/api/dist/` doesn't match (run `make verify-dist` to check locally). Build with the `.nvmrc` Node version so the output is reproducible.
 
 ## Architecture
 

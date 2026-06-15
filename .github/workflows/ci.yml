@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (fmt, vet, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Uses the committed internal/api/dist for the go:embed, so no Node needed here.
+      - name: Validate Go
+        run: make validate-go
+
+  frontend:
+    name: Frontend (lint, test, build, verify embed)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: web
+
+      - name: Test
+        run: npm run test
+        working-directory: web
+
+      # Delete the committed dist first, so the gate verifies that a fresh build
+      # *reproduces* it - not merely that the build didn't change it. The build runs
+      # the PR's own vite.config/package.json, so a PR could redirect the build outDir
+      # (or no-op its build script) and ship a backdoored committed bundle that a
+      # "didn't change" check would never regenerate. Removing it forces a real rebuild.
+      - name: Remove committed dist (the build must fully reproduce it)
+        run: rm -rf internal/api/dist
+
+      # Bare build (no VITE_BASE_PATH/SITE_URL) - this must reproduce the committed
+      # internal/api/dist. npm run build also runs eslint + tsc. Note: deploy-docs.yml
+      # builds with a different base path for GitHub Pages and does not commit; do not
+      # copy its env here.
+      - name: Build frontend
+        run: npm run build
+        working-directory: web
+
+      - name: Check embedded dist matches a fresh build
+        id: distcheck
+        run: |
+          mkdir -p dist-check
+          echo "${{ github.event.pull_request.number }}" > dist-check/pr-number.txt
+          if [ -z "$(git status --porcelain internal/api/dist)" ]; then
+            echo "ok" > dist-check/status.txt
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale" > dist-check/status.txt
+            git status --short -- internal/api/dist > dist-check/diff.txt || true
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Hand the result to the dist-comment workflow, which has the write permission
+      # needed to comment on fork PRs (this workflow runs with a read-only token).
+      - name: Upload dist-check result
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-check
+          path: dist-check/
+          retention-days: 1
+
+      - name: Fail if embedded dist is stale
+        if: steps.distcheck.outputs.stale == 'true'
+        run: |
+          echo "::error::Embedded frontend assets are out of date. Run 'cd web && npm ci && npm run build', then 'git add internal/api/dist' and commit."
+          exit 1
