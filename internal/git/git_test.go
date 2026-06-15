@@ -205,6 +205,11 @@ func initTestRepo(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	runGit(t, dir, "init")
+	// Set a repo-local identity so the production Commit code (which doesn't pass
+	// GIT_AUTHOR_*/GIT_COMMITTER_* like runGit does) can commit without relying on
+	// the machine's global git config - which CI runners don't have.
+	runGit(t, dir, "config", "user.email", "test@test.com")
+	runGit(t, dir, "config", "user.name", "test")
 	runGit(t, dir, "commit", "--allow-empty", "-m", "init")
 	return dir
 }
