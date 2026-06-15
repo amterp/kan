@@ -65,6 +65,11 @@ jobs:
         run: |
           mkdir -p dist-check
           echo "${{ github.event.pull_request.number }}" > dist-check/pr-number.txt
+          # Bundle sizes for the PR summary comment (from the freshly-built dist).
+          js=$(cat internal/api/dist/assets/*.js | wc -c)
+          css=$(cat internal/api/dist/assets/*.css | wc -c)
+          echo "$((js))" > dist-check/pr-js-bytes.txt
+          echo "$((css))" > dist-check/pr-css-bytes.txt
           if [ -z "$(git status --porcelain internal/api/dist)" ]; then
             echo "ok" > dist-check/status.txt
             echo "stale=false" >> "$GITHUB_OUTPUT"

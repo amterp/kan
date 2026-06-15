@@ -64,7 +64,7 @@ git add internal/api/dist
 ```
 
 CI verifies this by rebuilding from source and diffing against the committed assets.
-If they don't match, the frontend check fails and a bot leaves a comment telling you
+If they don't match, the frontend check fails and the PR summary comment tells you
 exactly what to run. Build with the `.nvmrc` Node version (`nvm use`) and `npm ci` so
 the output is reproducible - a different Node version can produce a different bundle
 that fails the check.
