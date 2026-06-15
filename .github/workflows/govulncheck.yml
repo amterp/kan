@@ -1,0 +1,30 @@
+name: govulncheck
+
+# Scans Go dependencies for known vulnerabilities. Runs on PRs that touch Go code and
+# weekly to catch newly disclosed CVEs out of band. This is kan's Go vuln story in
+# place of Dependabot (which is disabled in repo settings).
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'  # Weekly, Monday ~10:00 UTC
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    name: Vulnerability Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-file: go.mod

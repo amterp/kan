@@ -16,25 +16,18 @@ args:
     release enum ["patch", "minor", "major"]
 
 if format:
-    $`gofmt -w .`
+    $`make fmt`
 
 if website:
     $`cd web && VITE_BASE_PATH=/kan/ npx vite`
 
 if build or validate or push or re_serve or release:
-    // Build frontend first (required for go:embed)
-    $`cd web && npm run build`
-    $`mkdir -p bin`
-    $`go build -o bin/kan ./cmd/kan`
+    // Build frontend + binary (see Makefile; binary embeds the frontend via go:embed)
+    $`make build`
 
 if validate or push or re_serve or release:
-    stdout = quiet $`gofmt -l .`
-    if stdout != "":
-        print_err("Go files need formatting. Run './dev -f' to fix:")
-        print_err(stdout)
-        exit(1)
-    $`go vet ./...`
-    $`go test ./...`
+    // Go gate: gofmt check, vet, tests, build (see Makefile)
+    $`make validate-go`
 
 if push:
     code, stdout = quiet $`git status --porcelain -uno`
@@ -99,10 +92,6 @@ if release:
     releases_dir = "{repo}/releases"
     formula_path = "{repo}/{tap_path}/Formula/kan.rb"
     tag = "v{release}"
-
-    // Build frontend (required for go:embed)
-    print("Building frontend...")
-    $`cd web && npm run build`
 
     // Build for darwin-arm64
     print("Building darwin-arm64...")

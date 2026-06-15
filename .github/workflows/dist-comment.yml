@@ -1,0 +1,107 @@
+name: Dist Check Comment
+
+# Posts/updates a sticky PR comment when the committed embedded frontend assets are
+# out of date. Split from CI via workflow_run so it works on fork PRs: the CI run
+# (read-only token) only uploads a result artifact, and this workflow - running in the
+# base repo with write permission - reads that artifact and comments. It checks out
+# only the trusted base branch and never executes PR code.
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'pull_request'
+    steps:
+      - name: Checkout base branch (trusted scripts only)
+        uses: actions/checkout@v4
+
+      - name: Download dist-check artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-check
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dist-check
+
+      - name: Parse result
+        id: result
+        run: |
+          if [ ! -f dist-check/status.txt ]; then
+            echo "state=none" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "pr=$(cat dist-check/pr-number.txt)" >> "$GITHUB_OUTPUT"
+          if grep -q stale dist-check/status.txt; then
+            echo "state=stale" >> "$GITHUB_OUTPUT"
+          else
+            echo "state=ok" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Rad
+        if: steps.result.outputs.state == 'stale'
+        run: ./ci/install-rad.sh
+
+      - name: Generate comment body (Rad)
+        if: steps.result.outputs.state == 'stale'
+        run: rad ci/dist-comment.rad
+
+      - name: Post or clear sticky comment
+        if: steps.result.outputs.state != 'none'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            // Must match the marker emitted by ci/dist-comment.rad - it's how we find
+            // and update/delete our own sticky comment. Keep the two in sync.
+            const marker = '<!-- kan-ci-dist-check -->';
+            const prNumber = parseInt('${{ steps.result.outputs.pr }}', 10);
+            const state = '${{ steps.result.outputs.state }}';
+            if (!prNumber) {
+              core.info('No PR number in artifact; nothing to do.');
+              return;
+            }
+            // Paginate so the marker is found even on PRs with >100 comments.
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (state === 'ok') {
+              if (existing) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                });
+                core.info('Embedded dist is in sync; cleared previous comment.');
+              }
+              return;
+            }
+            const body = fs.readFileSync('/tmp/dist-comment.md', 'utf8');
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }

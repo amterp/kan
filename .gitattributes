@@ -1,0 +1,9 @@
+# The embedded frontend bundle under internal/api/dist/ is generated from web/ by
+# `npm run build` and verified in CI (it must byte-match a fresh build). Mark it as
+# generated so GitHub collapses it in PR diffs, and suppress local textual diffs on
+# the large minified/derived artifacts so they don't drown out real changes.
+internal/api/dist/**            linguist-generated=true
+internal/api/dist/assets/*.js   -diff
+internal/api/dist/assets/*.css  -diff
+internal/api/dist/llms.txt      -diff
+internal/api/dist/llms-full.txt -diff
