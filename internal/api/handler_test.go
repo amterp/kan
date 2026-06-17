@@ -1186,3 +1186,109 @@ func TestHandler_SwitchProject_MissingBody(t *testing.T) {
 		t.Errorf("Expected 400, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+// ============================================================================
+// Path Traversal / Input Validation Tests
+//
+// Go's http.ServeMux only redirects requests containing a literal ".."
+// segment (e.g. "/api/v1/boards/.."); it never reaches the handler. However,
+// a percent-encoded segment such as "%2e%2e" is NOT redirected, and
+// r.PathValue("name") returns the *decoded* value "..". Similarly,
+// "..%2fother" is not redirected and decodes to "../other" - a single
+// PathValue containing an embedded "/" that was never a distinct segment as
+// far as the router's redirect logic is concerned. The validated() wrapper
+// (see validate.go) rejects all such values via isSafePathSegment before
+// they reach store code that joins them onto filesystem paths with
+// filepath.Join.
+// ============================================================================
+
+func TestHandler_PathTraversal_DeleteBoard_EncodedDotDot(t *testing.T) {
+	api := setupTestAPI(t)
+	api.createBoard(t, "main")
+
+	// Without validation, "%2e%2e" decodes to "..", and DeleteBoard("..")
+	// resolves to the project's .kan directory (which has its own
+	// config.toml, so the existence check passes), causing the entire .kan
+	// directory - all boards, cards, and history - to be removed.
+	w := api.request("DELETE", "/api/v1/boards/%2e%2e", nil)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+
+	if _, err := os.Stat(filepath.Join(api.tempDir, ".kan")); err != nil {
+		t.Errorf(".kan directory should still exist: %v", err)
+	}
+}
+
+func TestHandler_PathTraversal_GetBoard_EncodedDotDot(t *testing.T) {
+	api := setupTestAPI(t)
+
+	w := api.request("GET", "/api/v1/boards/%2e%2e", nil)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestHandler_PathTraversal_BoardName_DeepEncodedTraversal(t *testing.T) {
+	api := setupTestAPI(t)
+
+	// "..%2f..%2f..%2fetc%2fpasswd" decodes to "../../../etc/passwd": a
+	// single PathValue containing multiple traversal segments and embedded
+	// slashes, demonstrating that the bypass isn't limited to one "../" per
+	// URL segment.
+	w := api.request("GET", "/api/v1/boards/..%2f..%2f..%2fetc%2fpasswd", nil)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestHandler_PathTraversal_CardID_EncodedDotDot(t *testing.T) {
+	api := setupTestAPI(t)
+	api.createBoard(t, "main")
+
+	w := api.request("GET", "/api/v1/boards/main/cards/%2e%2e", nil)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestHandler_PathTraversal_CardID_EncodedSlash(t *testing.T) {
+	api := setupTestAPI(t)
+	api.createBoard(t, "main")
+
+	w := api.request("GET", "/api/v1/boards/main/cards/..%2fsecret", nil)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestHandler_PathTraversal_ColumnName_EncodedDotDot(t *testing.T) {
+	api := setupTestAPI(t)
+	api.createBoard(t, "main")
+
+	w := api.request("DELETE", "/api/v1/boards/main/columns/%2e%2e", nil)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestHandler_PathTraversal_CommentID_EncodedDotDot(t *testing.T) {
+	api := setupTestAPI(t)
+	api.createBoard(t, "main")
+
+	body := map[string]any{"title": "Card", "column": "backlog"}
+	createResp := api.request("POST", "/api/v1/boards/main/cards", body)
+	created := createCardFromResponse(t, createResp)
+
+	w := api.request("DELETE", "/api/v1/boards/main/cards/"+created.ID+"/comments/%2e%2e", nil)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}

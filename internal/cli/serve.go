@@ -22,6 +22,13 @@ func registerServe(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Port to listen on (auto-increments if unspecified and in use; errors out if explicitly set and unavailable)").
 		Register(cmd)
 
+	ctx.ServeHost, _ = ra.NewString("host").
+		SetOptional(true).
+		SetDefault("127.0.0.1").
+		SetFlagOnly(true).
+		SetUsage("Interface to bind to. Defaults to 127.0.0.1 (local only). Use 0.0.0.0 to allow other devices on your network to connect - only do this on trusted networks.").
+		Register(cmd)
+
 	ctx.ServeNoOpen, _ = ra.NewBool("no-open").
 		SetOptional(true).
 		SetFlagOnly(true).
@@ -31,7 +38,7 @@ func registerServe(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.ServeUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runServe(port int, portExplicit bool, noOpen bool) {
+func runServe(host string, port int, portExplicit bool, noOpen bool) {
 	app, err := NewApp(false)
 	if err != nil {
 		Fatal(err)
@@ -62,21 +69,32 @@ func runServe(port int, portExplicit bool, noOpen bool) {
 	// If user explicitly set --port, honor it exactly; otherwise auto-increment.
 	var actualPort int
 	if portExplicit {
-		if !isPortAvailable(port) {
+		if !isPortAvailable(host, port) {
 			Fatal(fmt.Errorf("port %d is already in use", port))
 		}
 		actualPort = port
 	} else {
-		actualPort = findAvailablePort(port)
+		actualPort = findAvailablePort(host, port)
 	}
 
-	server := api.NewServer(handler, actualPort, app.Paths.KanRoot())
+	server := api.NewServer(handler, host, actualPort, app.Paths.KanRoot())
 
-	url := fmt.Sprintf("http://localhost:%d", actualPort)
+	// "0.0.0.0" / "::" aren't connectable hostnames on most systems; show
+	// "localhost" instead since it resolves to the loopback interface that's
+	// always included in those binds.
+	displayHost := host
+	if host == "0.0.0.0" || host == "::" {
+		displayHost = "localhost"
+	}
+	url := fmt.Sprintf("http://%s:%d", displayHost, actualPort)
 
 	// Display styled server info
 	content := fmt.Sprintf("Kan Web Server\n\n%s %s\n\nPress Ctrl+C to stop",
 		RenderMuted("→"), RenderURL(url))
+	if host == "0.0.0.0" || host == "::" {
+		content = fmt.Sprintf("Kan Web Server\n\n%s %s\n\n%s This is reachable from other devices on your network.\n\nPress Ctrl+C to stop",
+			RenderMuted("→"), RenderURL(url), RenderMuted("Warning:"))
+	}
 	fmt.Println(Box(content))
 
 	if !noOpen {
@@ -88,12 +106,13 @@ func runServe(port int, portExplicit bool, noOpen bool) {
 	}
 }
 
-// findAvailablePort tries ports starting from startPort until it finds one that's available.
-func findAvailablePort(startPort int) int {
+// findAvailablePort tries ports starting from startPort until it finds one that's available
+// on the given host.
+func findAvailablePort(host string, startPort int) int {
 	maxAttempts := 100
 	for i := 0; i < maxAttempts; i++ {
 		port := startPort + i
-		if isPortAvailable(port) {
+		if isPortAvailable(host, port) {
 			return port
 		}
 	}
@@ -101,9 +120,9 @@ func findAvailablePort(startPort int) int {
 	return startPort
 }
 
-// isPortAvailable checks if a port is available by attempting to listen on it.
-func isPortAvailable(port int) bool {
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+// isPortAvailable checks if a port is available on the given host by attempting to listen on it.
+func isPortAvailable(host string, port int) bool {
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
 		return false
 	}

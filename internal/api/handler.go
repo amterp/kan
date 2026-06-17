@@ -176,28 +176,28 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	// Board routes
 	mux.HandleFunc("GET /api/v1/boards", h.ListBoards)
-	mux.HandleFunc("GET /api/v1/boards/{name}", h.GetBoard)
-	mux.HandleFunc("DELETE /api/v1/boards/{name}", h.DeleteBoard)
+	mux.HandleFunc("GET /api/v1/boards/{name}", validated(h.GetBoard, "name"))
+	mux.HandleFunc("DELETE /api/v1/boards/{name}", validated(h.DeleteBoard, "name"))
 
 	// Column routes
-	mux.HandleFunc("POST /api/v1/boards/{board}/columns", h.CreateColumn)
-	mux.HandleFunc("DELETE /api/v1/boards/{board}/columns/{name}", h.DeleteColumn)
-	mux.HandleFunc("PATCH /api/v1/boards/{board}/columns/{name}", h.UpdateColumn)
-	mux.HandleFunc("PUT /api/v1/boards/{board}/columns/order", h.ReorderColumns)
+	mux.HandleFunc("POST /api/v1/boards/{board}/columns", validated(h.CreateColumn, "board"))
+	mux.HandleFunc("DELETE /api/v1/boards/{board}/columns/{name}", validated(h.DeleteColumn, "board", "name"))
+	mux.HandleFunc("PATCH /api/v1/boards/{board}/columns/{name}", validated(h.UpdateColumn, "board", "name"))
+	mux.HandleFunc("PUT /api/v1/boards/{board}/columns/order", validated(h.ReorderColumns, "board"))
 
 	// Card routes
-	mux.HandleFunc("GET /api/v1/boards/{board}/cards", h.ListCards)
-	mux.HandleFunc("POST /api/v1/boards/{board}/cards", h.CreateCard)
-	mux.HandleFunc("GET /api/v1/boards/{board}/cards/{id}", h.GetCard)
-	mux.HandleFunc("PUT /api/v1/boards/{board}/cards/{id}", h.UpdateCard)
-	mux.HandleFunc("DELETE /api/v1/boards/{board}/cards/{id}", h.DeleteCard)
-	mux.HandleFunc("PATCH /api/v1/boards/{board}/cards/{id}/move", h.MoveCard)
-	mux.HandleFunc("POST /api/v1/boards/{board}/cards/restore", h.RestoreCard)
+	mux.HandleFunc("GET /api/v1/boards/{board}/cards", validated(h.ListCards, "board"))
+	mux.HandleFunc("POST /api/v1/boards/{board}/cards", validated(h.CreateCard, "board"))
+	mux.HandleFunc("GET /api/v1/boards/{board}/cards/{id}", validated(h.GetCard, "board", "id"))
+	mux.HandleFunc("PUT /api/v1/boards/{board}/cards/{id}", validated(h.UpdateCard, "board", "id"))
+	mux.HandleFunc("DELETE /api/v1/boards/{board}/cards/{id}", validated(h.DeleteCard, "board", "id"))
+	mux.HandleFunc("PATCH /api/v1/boards/{board}/cards/{id}/move", validated(h.MoveCard, "board", "id"))
+	mux.HandleFunc("POST /api/v1/boards/{board}/cards/restore", validated(h.RestoreCard, "board"))
 
 	// Comment routes
-	mux.HandleFunc("POST /api/v1/boards/{board}/cards/{id}/comments", h.CreateComment)
-	mux.HandleFunc("PATCH /api/v1/boards/{board}/cards/{id}/comments/{cid}", h.EditComment)
-	mux.HandleFunc("DELETE /api/v1/boards/{board}/cards/{id}/comments/{cid}", h.DeleteComment)
+	mux.HandleFunc("POST /api/v1/boards/{board}/cards/{id}/comments", validated(h.CreateComment, "board", "id"))
+	mux.HandleFunc("PATCH /api/v1/boards/{board}/cards/{id}/comments/{cid}", validated(h.EditComment, "board", "id", "cid"))
+	mux.HandleFunc("DELETE /api/v1/boards/{board}/cards/{id}/comments/{cid}", validated(h.DeleteComment, "board", "id", "cid"))
 
 	// Static files (frontend)
 	mux.Handle("/", h.StaticHandler())
