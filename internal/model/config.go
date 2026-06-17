@@ -9,6 +9,11 @@ type GlobalConfig struct {
 	Projects    map[string]string     `toml:"projects,omitempty"`     // name -> path
 	Repos       map[string]RepoConfig `toml:"repos,omitempty"`        // path -> config
 	GlobalBoard *GlobalBoardRef       `toml:"global_board,omitempty"` // board reachable from anywhere via -g
+	// MergeDriver opts every project in or out of the git merge driver. nil
+	// means unset (default: enabled); a per-project setting overrides it.
+	// Optional+omitempty by design: absent on existing configs, so adding it
+	// needs no schema bump.
+	MergeDriver *bool `toml:"merge_driver,omitempty"`
 }
 
 // RepoConfig holds per-repository settings.

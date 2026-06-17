@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/amterp/kan/internal/gitdriver"
 	"github.com/amterp/kan/internal/service"
 	"github.com/amterp/ra"
 )
@@ -83,11 +84,59 @@ func runDoctor(boardName string, fix bool, dryRun bool, jsonOutput bool) {
 		}
 	} else {
 		printDoctorReport(report, fix, dryRun)
+		checkMergeDriver(app, fix)
 	}
 
 	// Exit with status 1 if there are errors
 	if report.HasErrors() {
 		os.Exit(1)
+	}
+}
+
+// checkMergeDriver reports (and, with --fix, repairs) the git merge driver
+// setup. It's a git-config concern rather than a data-consistency one, so it
+// lives here in the CLI layer where the git client is available rather than in
+// DoctorService. No-op outside a git repository.
+func checkMergeDriver(app *App, fix bool) {
+	repoRoot, kanRel, kanExe, ok, err := driverPaths(app.GitClient, app.ProjectRoot, app.Paths.KanRoot())
+	if !ok || err != nil {
+		return
+	}
+
+	fmt.Println()
+	if !app.mergeDriverEnabled() {
+		PrintInfo("Git merge driver: disabled in config (enable with `kan config merge-driver on`)")
+		return
+	}
+
+	st := gitdriver.GetStatus(app.GitClient, repoRoot, kanRel, kanExe)
+	if st.OptedIn && st.ConfigPresent && st.ConfigUpToDate {
+		PrintSuccess("Git merge driver: installed")
+		return
+	}
+
+	switch {
+	case !st.OptedIn:
+		PrintWarning("Git merge driver: not enabled (card merge conflicts won't auto-resolve)")
+	case !st.ConfigPresent:
+		PrintWarning("Git merge driver: this clone hasn't registered the driver command")
+	default: // present but stale
+		PrintWarning("Git merge driver: registered command is stale (kan binary moved)")
+	}
+
+	if !fix {
+		PrintInfo("Run 'kan doctor --fix' to set up the merge driver")
+		return
+	}
+
+	res, err := gitdriver.Install(app.GitClient, repoRoot, kanRel, kanExe)
+	if err != nil {
+		PrintError("failed to set up merge driver: %v", err)
+		return
+	}
+	PrintSuccess("Git merge driver: installed")
+	if res.WroteAttributes {
+		fmt.Fprintln(os.Stderr, RenderMuted("  Commit .gitattributes to share it with collaborators."))
 	}
 }
 

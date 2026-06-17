@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/amterp/kan/internal/gitdriver"
 	"github.com/amterp/ra"
 )
 
@@ -47,7 +48,15 @@ func runCommit(message string) {
 		Fatal(fmt.Errorf("failed to resolve kan path: %w", err))
 	}
 
-	status, err := app.GitClient.StatusPorcelain(app.ProjectRoot, kanRelPath)
+	// Include the .gitattributes opt-in so collaborators receive the merge
+	// driver config. It lives at the repo root (outside .kan), so kan has to add
+	// it explicitly - but it's a kan-managed file in spirit.
+	paths := []string{kanRelPath}
+	if gaRel, ok := managedGitAttributesPath(app); ok {
+		paths = append(paths, gaRel)
+	}
+
+	status, err := app.GitClient.StatusPorcelain(app.ProjectRoot, paths...)
 	if err != nil {
 		Fatal(fmt.Errorf("failed to check git status: %w", err))
 	}
@@ -68,12 +77,34 @@ func runCommit(message string) {
 		message = "chore: update kan files"
 	}
 
-	if err := app.GitClient.Add(app.ProjectRoot, kanRelPath); err != nil {
+	if err := app.GitClient.Add(app.ProjectRoot, paths...); err != nil {
 		Fatal(err)
 	}
-	if err := app.GitClient.Commit(app.ProjectRoot, message, kanRelPath); err != nil {
+	if err := app.GitClient.Commit(app.ProjectRoot, message, paths...); err != nil {
 		Fatal(err)
 	}
 
 	PrintSuccess("Committed kan files: %q", message)
+}
+
+// managedGitAttributesPath returns the repo's .gitattributes path (relative to
+// the project root) when it carries Kan's merge-driver opt-in, so kan commit can
+// include it. Returns ok=false when there's no git repo or no opt-in.
+func managedGitAttributesPath(app *App) (string, bool) {
+	repoRoot, err := app.GitClient.GetRepoRootAt(app.ProjectRoot)
+	if err != nil {
+		return "", false
+	}
+	kanRel, err := relResolved(repoRoot, app.Paths.KanRoot())
+	if err != nil {
+		return "", false
+	}
+	if !gitdriver.OptedIn(repoRoot, kanRel) {
+		return "", false
+	}
+	gaRel, err := relResolved(app.ProjectRoot, filepath.Join(repoRoot, ".gitattributes"))
+	if err != nil {
+		return "", false
+	}
+	return gaRel, true
 }

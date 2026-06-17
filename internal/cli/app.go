@@ -50,6 +50,10 @@ type AppOptions struct {
 	// UseGlobalBoard bypasses cwd discovery and targets the designated global
 	// board's project instead (see `kan global set`). Errors if none is set.
 	UseGlobalBoard bool
+	// SkipMergeDriverAutoHeal disables the startup merge-driver install/heal.
+	// Used by `kan config merge-driver` so it can toggle the setting itself
+	// rather than the auto-heal racing ahead and installing first.
+	SkipMergeDriverAutoHeal bool
 }
 
 // NewApp creates a new App with all dependencies wired up.
@@ -166,6 +170,20 @@ func NewAppWithOptions(opts AppOptions) (*App, error) {
 		if err := projectStore.EnsureInitialized(defaultName); err != nil {
 			// Non-fatal: log warning but continue
 			PrintWarning("failed to initialize project config: %v", err)
+		}
+
+		// Auto-install/heal the git merge driver (opt-out; resolve project over
+		// global setting). Best-effort, never blocks the command.
+		if !opts.SkipMergeDriverAutoHeal {
+			var projMD *bool
+			if pc, perr := projectStore.Load(); perr == nil && pc != nil {
+				projMD = pc.MergeDriver
+			}
+			var globMD *bool
+			if globalCfg != nil {
+				globMD = globalCfg.MergeDriver
+			}
+			ensureMergeDriver(gitClient, projectRoot, paths.KanRoot(), mergeDriverEnabled(projMD, globMD))
 		}
 	}
 

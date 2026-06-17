@@ -23,6 +23,7 @@ type CommandContext struct {
 	InitColumns     *string
 	InitName        *string
 	InitProjectName *string
+	InitGit         *bool
 
 	// board command
 	BoardUsed       *bool
@@ -180,6 +181,12 @@ type CommandContext struct {
 	CommitUsed    *bool
 	CommitMessage *string
 
+	// config command
+	ConfigUsed              *bool
+	ConfigMergeDriverUsed   *bool
+	ConfigMergeDriverState  *string
+	ConfigMergeDriverGlobal *bool
+
 	// global command
 	GlobalUsed *bool
 
@@ -196,6 +203,15 @@ type CommandContext struct {
 
 // Run is the main entry point for the CLI.
 func Run() {
+	// The git merge driver is an integration point for git, not a user command.
+	// Dispatch it directly so it stays out of the command tree, help, and
+	// completion, and so git's fixed "%O %A %B %P %L" arguments are parsed
+	// verbatim rather than through ra.
+	if len(os.Args) >= 2 && os.Args[1] == "merge-driver" {
+		runMergeDriver(os.Args[2:])
+		return
+	}
+
 	ctx := buildRootCmd()
 
 	// Parse command line
@@ -246,6 +262,7 @@ func buildRootCmd() *CommandContext {
 	registerMigrate(cmd, ctx)
 	registerDoctor(cmd, ctx)
 	registerCommit(cmd, ctx)
+	registerConfig(cmd, ctx)
 	registerGlobal(cmd, ctx)
 	registerCompletion(cmd, ctx)
 
@@ -293,7 +310,7 @@ func executeCommand(ctx *CommandContext) {
 
 	switch {
 	case *ctx.InitUsed:
-		runInit(*ctx.InitLocation, *ctx.InitName, *ctx.InitColumns, *ctx.InitProjectName, *ctx.NonInteractive)
+		runInit(*ctx.InitLocation, *ctx.InitName, *ctx.InitColumns, *ctx.InitProjectName, *ctx.InitGit, *ctx.NonInteractive)
 
 	case *ctx.BoardCreateUsed:
 		runBoardCreate(*ctx.BoardCreateName)
@@ -372,6 +389,9 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.CommitUsed:
 		runCommit(*ctx.CommitMessage)
+
+	case *ctx.ConfigMergeDriverUsed:
+		runConfigMergeDriver(*ctx.ConfigMergeDriverState, *ctx.ConfigMergeDriverGlobal)
 
 	case *ctx.GlobalSetUsed:
 		runGlobalSet(*ctx.GlobalSetBoard, *ctx.NonInteractive)

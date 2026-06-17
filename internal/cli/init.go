@@ -3,12 +3,17 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/discovery"
 	"github.com/amterp/kan/internal/git"
+	"github.com/amterp/kan/internal/gitdriver"
 	"github.com/amterp/kan/internal/prompt"
+	"github.com/amterp/kan/internal/store"
 	"github.com/amterp/ra"
 )
 
@@ -47,6 +52,12 @@ func registerInit(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Project name for favicon and page title (default: git repo or directory name)").
 		Register(cmd)
 
+	ctx.InitGit, _ = ra.NewBool("git").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Run `git init` here first if this directory isn't a git repo yet").
+		Register(cmd)
+
 	ctx.InitUsed, _ = parent.RegisterCmd(cmd)
 }
 
@@ -81,7 +92,7 @@ func parseColumns(columnsStr string) ([]string, error) {
 	return columns, nil
 }
 
-func runInit(location, boardName, columnsStr, projectName string, nonInteractive bool) {
+func runInit(location, boardName, columnsStr, projectName string, gitFlag, nonInteractive bool) {
 	columns, err := parseColumns(columnsStr)
 	if err != nil {
 		Fatal(err)
@@ -158,7 +169,72 @@ func runInit(location, boardName, columnsStr, projectName string, nonInteractive
 	}
 	fmt.Println(LabelValue("Location", displayLoc, 10))
 
+	// Set up the git merge driver so collaborators' card edits merge cleanly.
+	// With --git we also create the repo first; otherwise we only act inside an
+	// existing one.
+	setupInitDriver(gitFlag, location)
+
 	// Helpful hint
 	fmt.Println()
 	fmt.Printf("Run %s to open the web interface\n", RenderBold("kan serve"))
+}
+
+// setupInitDriver installs the Kan git merge driver as part of `kan init`. It is
+// best-effort: failures warn but never abort init. With gitFlag it first runs
+// `git init` when the directory isn't already a repo (the `kan init --git`
+// one-shot bootstrap for brand-new directories).
+func setupInitDriver(gitFlag bool, location string) {
+	gitClient := git.NewClient()
+	cwd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+
+	if gitFlag && !gitClient.IsRepoAt(cwd) {
+		if err := gitClient.Init(cwd); err != nil {
+			PrintWarning("failed to initialize git repository: %v", err)
+		} else {
+			fmt.Println()
+			PrintSuccess("Initialized git repository")
+		}
+	}
+
+	// Respect a global opt-out. (A brand-new project's config can't override yet;
+	// the per-project setting takes effect on later commands via auto-heal.)
+	var globMD *bool
+	if gc, gerr := store.NewGlobalStore().Load(); gerr == nil && gc != nil {
+		globMD = gc.MergeDriver
+	}
+	if !mergeDriverEnabled(nil, globMD) {
+		return
+	}
+
+	kanDir := filepath.Join(cwd, config.DefaultKanDir)
+	if location != "" {
+		kanDir = filepath.Join(cwd, location)
+	}
+
+	repoRoot, kanRel, kanExe, ok, err := driverPaths(gitClient, cwd, kanDir)
+	if err != nil {
+		PrintWarning("failed to resolve paths for merge-driver setup: %v", err)
+		return
+	}
+	if !ok {
+		if gitFlag {
+			PrintWarning("not in a git repository; skipped merge-driver setup")
+		}
+		return
+	}
+
+	res, err := gitdriver.Install(gitClient, repoRoot, kanRel, kanExe)
+	if err != nil {
+		PrintWarning("failed to install Kan merge driver: %v", err)
+		return
+	}
+	if res.WroteAttributes || res.WroteConfig {
+		PrintInfo("Installed the Kan git merge driver (card conflicts resolve automatically).")
+		if res.WroteAttributes {
+			fmt.Fprintln(os.Stderr, RenderMuted("  Commit .gitattributes to share it with collaborators."))
+		}
+	}
 }

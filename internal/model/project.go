@@ -19,6 +19,10 @@ type ProjectConfig struct {
 	Name                string        `toml:"name" json:"name"`
 	Favicon             FaviconConfig `toml:"favicon" json:"favicon"`
 	WorktreeIndependent bool          `toml:"worktree_independent,omitempty" json:"worktree_independent,omitempty"`
+	// MergeDriver opts this project in or out of the git merge driver, overriding
+	// the global setting. nil means defer to global (and ultimately the
+	// enabled-by-default). Optional+omitempty, so it needs no schema bump.
+	MergeDriver *bool `toml:"merge_driver,omitempty" json:"merge_driver,omitempty"`
 }
 
 // FaviconConfig holds the favicon appearance settings.
