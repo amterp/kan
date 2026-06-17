@@ -44,6 +44,18 @@ func (c *Client) IsRepo() bool {
 	return cmd.Run() == nil
 }
 
+// GetRepoRootAt returns the repository root for the given directory. Returns an
+// error if dir is not inside a git repository.
+func (c *Client) GetRepoRootAt(dir string) (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return "", errors.New("not in a git repository")
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 // IsRepoAt returns true if the given directory is inside a git repository.
 func (c *Client) IsRepoAt(dir string) bool {
 	cmd := exec.Command("git", "rev-parse", "--git-dir")
@@ -143,6 +155,57 @@ func (c *Client) Commit(dir string, message string, paths ...string) error {
 		return fmt.Errorf("git commit failed: %s", strings.TrimSpace(string(out)))
 	}
 	return nil
+}
+
+// Init runs `git init` in dir, creating a new repository there.
+func (c *Client) Init(dir string) error {
+	cmd := exec.Command("git", "init")
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git init failed: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// GetConfigLocal returns a repo-local git config value, or "" if unset or git
+// is unavailable. dir sets the working directory for the command.
+func (c *Client) GetConfigLocal(dir, key string) string {
+	cmd := exec.Command("git", "config", "--local", "--get", key)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// SetConfigLocal sets a repo-local git config value. dir sets the working
+// directory for the command.
+func (c *Client) SetConfigLocal(dir, key, value string) error {
+	cmd := exec.Command("git", "config", "--local", key, value)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git config %s failed: %s", key, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// UnsetConfigLocal removes a repo-local git config key. A missing key is not an
+// error. dir sets the working directory for the command.
+func (c *Client) UnsetConfigLocal(dir, key string) error {
+	cmd := exec.Command("git", "config", "--local", "--unset", key)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		return nil
+	}
+	// Exit code 5 = key was not present; treat as success (idempotent).
+	if ee, ok := err.(*exec.ExitError); ok && ee.ExitCode() == 5 {
+		return nil
+	}
+	return fmt.Errorf("git config --unset %s failed: %s", key, strings.TrimSpace(string(out)))
 }
 
 func (c *Client) gitRevParse(arg string) (string, error) {
