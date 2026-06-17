@@ -125,6 +125,7 @@ Configure how fields appear on cards in the web UI and CLI output. Apply sensibl
 - Any `enum-set` or `free-set` fields (like `labels`) should go in `badges` (chip-style labels on cards).
 - Other fields like dates or effort can go in `metadata` (small text below the card).
 - If the user has an enum field they want to use for visual emphasis (like priority or urgency), it can be assigned to `tint` to wash the card's background with that option's color.
+- To make the board **open already sorted** by a field (instead of manual order), set `default_sort = "<field>"` under `[card_display]`, plus `default_sort_desc = true` for descending. This affects the web board view on load; anyone can still re-sort or switch to Manual order for their own session, and it never changes saved card positions. Only set it if the user asks for a default ordering - don't apply it proactively.
 
 For new users, just set these defaults and briefly mention that their type will show as a colored badge on cards and any tags will show as labels. Don't expose config key names like `type_indicator` or `badges` unless the user asks for details.
 
@@ -249,14 +250,12 @@ Column descriptions and limits are added to the `[[columns]]` entries:
 name = "backlog"
 color = "#6b7280"
 description = "Planned work not yet started"
-card_ids = []
 
 [[columns]]
 name = "in-progress"
 color = "#f59e0b"
 description = "Currently being worked on"
 limit = 5
-card_ids = []
 ```
 
 ## Git Worktree Support
