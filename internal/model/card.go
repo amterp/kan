@@ -110,21 +110,9 @@ func (c *Card) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	knownFields := map[string]bool{
-		"_v": true, "id": true, "alias": true, "alias_explicit": true,
-		"title": true, "description": true,
-		"parent": true, "creator": true,
-		"created_at_millis": true, "updated_at_millis": true,
-		"comments": true, "history": true,
-		"column": true, "position": true,
-		// Computed/API-only fields that may appear in JSON from external
-		// sources (e.g. restore endpoint) but aren't custom fields.
-		"missing_wanted_fields": true,
-	}
-
 	c.CustomFields = make(map[string]any)
 	for k, v := range raw {
-		if !knownFields[k] {
+		if !reservedCardFieldNames[k] {
 			var val any
 			if err := json.Unmarshal(v, &val); err != nil {
 				return err
@@ -199,14 +187,35 @@ func (c Card) CurrentColumnSinceMillis() int64 {
 	return c.CreatedAtMillis
 }
 
-// ValidateCustomFieldName checks if a custom field name is allowed.
-// Returns an error if the name uses a reserved prefix.
+// reservedCardFieldNames are the built-in card JSON keys. A custom field must
+// not use one of these names: it would collide with a built-in property when the
+// card is (un)marshaled, silently breaking storage, sorting, and display. This
+// is the single source of truth for "built-in field" - UnmarshalJSON uses it to
+// separate custom fields from built-ins, and validation uses it to reject
+// colliding names up front.
+var reservedCardFieldNames = map[string]bool{
+	"_v": true, "id": true, "alias": true, "alias_explicit": true,
+	"title": true, "description": true,
+	"parent": true, "creator": true,
+	"created_at_millis": true, "updated_at_millis": true,
+	"comments": true, "history": true,
+	"column": true, "position": true,
+	// Computed/API-only fields that may appear in JSON from external sources
+	// (e.g. the restore endpoint) but aren't custom fields.
+	"missing_wanted_fields": true,
+}
+
+// ValidateCustomFieldName checks if a custom field name is allowed. Returns an
+// error if the name uses a reserved prefix or collides with a built-in field.
 func ValidateCustomFieldName(name string) error {
 	if strings.HasPrefix(name, "_") {
 		return &ReservedFieldPrefixError{FieldName: name, Prefix: "_"}
 	}
 	if strings.HasPrefix(name, "kan_") {
 		return &ReservedFieldPrefixError{FieldName: name, Prefix: "kan_"}
+	}
+	if reservedCardFieldNames[name] {
+		return &ReservedFieldNameError{FieldName: name}
 	}
 	return nil
 }
@@ -235,4 +244,16 @@ func (e *ReservedFieldPrefixError) Error() string {
 	}
 	return "custom field \"" + e.FieldName + "\" uses reserved prefix \"" + e.Prefix +
 		"\" (reserved for Kan internal use). Try \"" + suggestion + "\" instead."
+}
+
+// ReservedFieldNameError indicates a custom field name collides with a built-in
+// card property (e.g. "title", "description", "position"). Such a field would
+// be silently dropped or overwritten when the card is (un)marshaled.
+type ReservedFieldNameError struct {
+	FieldName string
+}
+
+func (e *ReservedFieldNameError) Error() string {
+	return "custom field \"" + e.FieldName + "\" collides with a built-in card field " +
+		"(reserved for Kan internal use). Try \"x_" + e.FieldName + "\" instead."
 }

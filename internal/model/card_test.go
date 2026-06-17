@@ -473,6 +473,11 @@ func TestValidateCustomFieldName(t *testing.T) {
 		{"reserved _v", "_v", true},
 		{"reserved kan prefix", "kan_status", true},
 		{"reserved kan_schema", "kan_schema", true},
+		{"reserved builtin title", "title", true},
+		{"reserved builtin description", "description", true},
+		{"reserved builtin position", "position", true},
+		{"reserved builtin column", "column", true},
+		{"x-escaped builtin name ok", "x_title", false},
 	}
 
 	for _, tt := range tests {

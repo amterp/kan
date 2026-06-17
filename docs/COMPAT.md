@@ -419,9 +419,9 @@ timeout = 60  # Optional, defaults to 30s
 
 ## Reserved Field Prefixes
 
-**Decision**: Reserve `_*` and `kan_*` prefixes for Kan's internal use.
+**Decision**: Reserve `_*` and `kan_*` prefixes for Kan's internal use, and reserve the exact names of built-in card fields (`title`, `description`, `position`, `column`, `creator`, `parent`, `comments`, `history`, etc.).
 
-**Enforcement**: Validate on write. If a user tries to create a custom field named `_priority` or `kan_status`, Kan rejects it with a terse error.
+**Enforcement**: Validate on write. If a user tries to create a custom field named `_priority` or `kan_status`, Kan rejects it with a terse error. The same validation rejects names that collide with a built-in card field: because custom fields are stored flat at the top level of the card JSON, a field named `title` would be silently dropped or overwritten by the built-in on (un)marshal (and would sort/display inconsistently). Use the `x_` escape hatch (e.g. `x_title`) if you need a similarly-named field.
 
 **Rationale**: Protects Kan's ability to add new core fields in the future without colliding with user-defined custom fields. This is internal namespace hygiene—we don't need to explain the "why" to users, just prevent the collision.
 
