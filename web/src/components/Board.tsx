@@ -570,21 +570,26 @@ export default function Board({
     const fromColumnCards = allCardsByColumn[columnName] || [];
     const fromPosition = Math.max(0, fromColumnCards.findIndex((c) => c.id === cardId));
 
+    // A field sort owns in-column ordering, so don't pin the card to the top of
+    // the next column - append and let the sort place it (matches cross-column
+    // drag). Otherwise the card lands at position 0, visible once the sort clears.
+    const toPosition = activeSortField ? undefined : 0;
+
     try {
-      await onMoveCard(cardId, nextColumn.name, 0);
+      await onMoveCard(cardId, nextColumn.name, toPosition);
       onPushUndo?.({
         type: 'move',
         cardId,
         fromColumn: columnName,
         fromPosition,
         toColumn: nextColumn.name,
-        toPosition: 0,
+        toPosition,
       });
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to advance card';
       showToast('error', message);
     }
-  }, [board.columns, allCardsByColumn, onMoveCard, onPushUndo, showToast]);
+  }, [board.columns, allCardsByColumn, activeSortField, onMoveCard, onPushUndo, showToast]);
 
   // State for externally triggering card rename via context menu
   const [forceEditCardId, setForceEditCardId] = useState<string | null>(null);
