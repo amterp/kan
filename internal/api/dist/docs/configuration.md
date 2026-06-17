@@ -118,7 +118,6 @@ limit = 5
 | `color` | Yes | Hex color for column header |
 | `description` | No | Purpose of this workflow stage |
 | `limit` | No | Max cards allowed (0 or omitted = no limit) |
-| `card_ids` | No | Ordered list of card IDs (managed by Kan) |
 
 **Default columns** when creating a new board: `backlog`, `next`, `in-progress`, `done`.
 
@@ -157,9 +156,14 @@ Controls how custom fields appear on cards in the board view:
 type_indicator = "type"      # enum field shown as badge
 tint = "priority"      # enum field for card background color
 badges = ["labels"]          # set fields shown as chips
+default_sort = "priority"    # open the board sorted by this field (web view)
+default_sort_desc = true     # sort descending (omit for ascending)
 ```
 
-See [Custom Fields](/docs/custom-fields#card-display) for details on display slots.
+`default_sort` makes the web board view open already sorted by a custom field
+instead of manual order; it never changes saved card positions, and the header
+**Sort** control still overrides it per session. See
+[Custom Fields](/docs/custom-fields#card-display) for details on display slots.
 
 ### Link Rules
 

@@ -163,6 +163,48 @@ The `tint` slot colors the entire card's background using the assigned option's 
   ↑ entire card background is tinted
 ```
 
+## Sorting by Custom Fields
+
+You can order the cards within each column by any custom field, instead of by
+their manual drag order.
+
+- **Web UI**: use the **Sort** dropdown in the header to pick a field, and the
+  arrow button to flip between ascending and descending. Pick **Manual order**
+  to return to your hand-arranged order. The choice is remembered in the URL, so
+  it's shareable and survives a reload.
+- **CLI**: `kan list --sort <field>` (add `--descending` to sort high to low).
+
+Ordering rules:
+
+- **enum / enum-set** fields sort by the **option order defined in your board
+  config** — not alphabetically. So if `priority` lists `low, medium, high`,
+  ascending order is `low → medium → high`. An enum-set card is ranked by its
+  highest-ranked value.
+- **string / date** fields sort lexicographically (ISO dates sort
+  chronologically); **boolean** sorts `false` before `true`.
+- Cards with **no value** for the field always sort to the end, in both
+  directions.
+- Cards with the same value keep their manual order relative to each other.
+
+Sorting is a **view only** — it never changes the cards' saved positions. While a
+sort is active in the web UI, dragging a card within its column is disabled
+(the order is owned by the field); drag a card to another column to move it, or
+switch back to **Manual order** to reorder by hand.
+
+### Default sort (web)
+
+To make the board open already sorted, set a default in `[card_display]`:
+
+```toml
+[card_display]
+default_sort = "priority"   # custom field to sort by on load
+default_sort_desc = true    # descending (omit for ascending)
+```
+
+This applies to the **web board view** only. The header **Sort** control still
+overrides it for the session (including picking **Manual order**), and it
+doesn't affect `kan list` (use `--sort` there).
+
 ## Setting Fields via CLI
 
 Use the `-f` flag on `kan add` or `kan edit` to set custom field values:
