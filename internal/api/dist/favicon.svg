@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="6" fill="#e7eced"/>
+  <!-- blue column -->
+  <rect x="3"    y="4.5"  width="7" height="6" rx="1.5" fill="#8ba2ba"/>
+  <rect x="3"    y="13"   width="7" height="6" rx="1.5" fill="#8ba2ba"/>
+  <rect x="3"    y="21.5" width="7" height="6" rx="1.5" fill="#8ba2ba"/>
+  <!-- orange column -->
+  <rect x="12.5" y="4.5"  width="7" height="6" rx="1.5" fill="#e7b074"/>
+  <rect x="12.5" y="13"   width="7" height="6" rx="1.5" fill="#e7b074"/>
+  <!-- green column -->
+  <rect x="22"   y="4.5"  width="7" height="6" rx="1.5" fill="#96bb99"/>
+  <rect x="22"   y="13"   width="7" height="6" rx="1.5" fill="#96bb99"/>
+  <rect x="22"   y="21.5" width="7" height="6" rx="1.5" fill="#96bb99"/>
+</svg>
