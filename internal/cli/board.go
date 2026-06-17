@@ -247,7 +247,7 @@ func printBoardDescribeHuman(cfg *model.BoardConfig, cardCounts map[string]int) 
 
 	// Card Display
 	cd := cfg.CardDisplay
-	if cd.TypeIndicator != "" || cd.Tint != "" || len(cd.Badges) > 0 || len(cd.Metadata) > 0 {
+	if cd.TypeIndicator != "" || cd.Tint != "" || len(cd.Badges) > 0 || len(cd.Metadata) > 0 || cd.DefaultSort != "" {
 		fmt.Println()
 		fmt.Println("Card Display:")
 		if cd.TypeIndicator != "" {
@@ -261,6 +261,13 @@ func printBoardDescribeHuman(cfg *model.BoardConfig, cardCounts map[string]int) 
 		}
 		if len(cd.Metadata) > 0 {
 			fmt.Printf("  Metadata: %s\n", strings.Join(cd.Metadata, ", "))
+		}
+		if cd.DefaultSort != "" {
+			order := "ascending"
+			if cd.DefaultSortDesc {
+				order = "descending"
+			}
+			fmt.Printf("  Default sort: %s (%s)\n", cd.DefaultSort, order)
 		}
 	}
 

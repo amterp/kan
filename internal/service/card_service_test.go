@@ -532,7 +532,7 @@ func TestCardService_ListSorted_ByCustomField(t *testing.T) {
 		}
 	})
 
-	t.Run("reverse flips the field order only", func(t *testing.T) {
+	t.Run("descending reverses the field order only", func(t *testing.T) {
 		cards, err := service.ListSorted("main", "", "type", true)
 		if err != nil {
 			t.Fatalf("ListSorted failed: %v", err)
