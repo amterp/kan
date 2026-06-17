@@ -72,12 +72,12 @@ type CommandContext struct {
 	HistoryGlobal *bool
 
 	// list command
-	ListUsed    *bool
-	ListBoard   *string
-	ListColumn  *string
-	ListGlobal  *bool
-	ListSort    *string
-	ListReverse *bool
+	ListUsed       *bool
+	ListBoard      *string
+	ListColumn     *string
+	ListGlobal     *bool
+	ListSort       *string
+	ListDescending *bool
 
 	// edit command
 	EditUsed        *bool
@@ -322,7 +322,7 @@ func executeCommand(ctx *CommandContext) {
 		runHistory(*ctx.HistoryCard, *ctx.HistoryBoard, *ctx.HistoryGlobal, *ctx.Json)
 
 	case *ctx.ListUsed:
-		runList(*ctx.ListBoard, *ctx.ListColumn, *ctx.ListSort, *ctx.ListGlobal, *ctx.ListReverse, *ctx.Json)
+		runList(*ctx.ListBoard, *ctx.ListColumn, *ctx.ListSort, *ctx.ListGlobal, *ctx.ListDescending, *ctx.Json)
 
 	case *ctx.EditUsed:
 		runEdit(*ctx.EditCard, *ctx.EditBoard, *ctx.EditTitle, *ctx.EditDescription,

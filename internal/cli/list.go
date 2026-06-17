@@ -18,7 +18,7 @@ func customFieldNames(boardCfg *model.BoardConfig) string {
 	}
 	sort.Strings(names)
 	if len(names) == 0 {
-		return "(none defined)"
+		return "(none defined; add custom fields to the board config to enable sorting)"
 	}
 	return strings.Join(names, ", ")
 }
@@ -47,15 +47,15 @@ func registerList(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("s").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Sort cards within each column by a custom field (e.g. priority)").
+		SetUsage("Sort cards within each column by a custom field (e.g. priority; see 'kan board describe')").
 		SetCompletionFunc(completeCustomFields).
 		Register(cmd)
 
-	ctx.ListReverse, _ = ra.NewBool("reverse").
-		SetShort("r").
+	ctx.ListDescending, _ = ra.NewBool("descending").
+		SetShort("d").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Reverse the sort order (use with --sort)").
+		SetUsage("Sort descending (use with --sort)").
 		Register(cmd)
 
 	ctx.ListGlobal = registerGlobalFlag(cmd)
@@ -63,7 +63,7 @@ func registerList(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.ListUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runList(board, column, sortField string, global, reverse, jsonOutput bool) {
+func runList(board, column, sortField string, global, descending, jsonOutput bool) {
 	app, err := NewAppWithOptions(AppOptions{Interactive: true, UseGlobalBoard: global})
 	if err != nil {
 		Fatal(err)
@@ -94,8 +94,13 @@ func runList(board, column, sortField string, global, reverse, jsonOutput bool) 
 		}
 	}
 
+	// --descending only affects a field sort; warn rather than silently ignore it.
+	if descending && sortField == "" {
+		PrintWarning("--descending has no effect without --sort")
+	}
+
 	// Get cards
-	cards, err := app.CardService.ListSorted(boardName, column, sortField, reverse)
+	cards, err := app.CardService.ListSorted(boardName, column, sortField, descending)
 	if err != nil {
 		Fatal(err)
 	}

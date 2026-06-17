@@ -172,7 +172,7 @@ their manual drag order.
   arrow button to flip between ascending and descending. Pick **Manual order**
   to return to your hand-arranged order. The choice is remembered in the URL, so
   it's shareable and survives a reload.
-- **CLI**: `kan list --sort <field>` (add `--reverse` for descending).
+- **CLI**: `kan list --sort <field>` (add `--descending` to sort high to low).
 
 Ordering rules:
 
