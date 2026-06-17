@@ -350,7 +350,7 @@ func (b *BoardConfig) ValidateCardDisplay() []string {
 	var warnings []string
 
 	cd := b.CardDisplay
-	if cd.TypeIndicator == "" && cd.Tint == "" && len(cd.Badges) == 0 && len(cd.Metadata) == 0 && cd.DefaultSort == "" {
+	if cd.TypeIndicator == "" && cd.Tint == "" && len(cd.Badges) == 0 && len(cd.Metadata) == 0 && cd.DefaultSort == "" && !cd.DefaultSortDesc {
 		return nil // Empty config, nothing to validate
 	}
 
@@ -396,6 +396,11 @@ func (b *BoardConfig) ValidateCardDisplay() []string {
 		if _, exists := b.CustomFields[cd.DefaultSort]; !exists {
 			warnings = append(warnings, "card_display.default_sort references non-existent field: "+cd.DefaultSort)
 		}
+	}
+
+	// default_sort_desc only has meaning alongside default_sort
+	if cd.DefaultSortDesc && cd.DefaultSort == "" {
+		warnings = append(warnings, "card_display.default_sort_desc has no effect without default_sort")
 	}
 
 	return warnings

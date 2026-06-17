@@ -1535,11 +1535,87 @@ func TestMigrateService_V10ToV11_Idempotent(t *testing.T) {
 }
 
 // ============================================================================
-// V11 Tests (Current schema - no migration needed)
+// V11 Tests (board/11 -> board/12, schema-only bump for default_sort fields)
 // ============================================================================
 
-func TestMigrateService_Plan_V11_NoChanges(t *testing.T) {
+func TestMigrateService_V11ToV12_UpdatesSchema(t *testing.T) {
+	service, tempDir, cleanup := setupMigrationTest(t, "v11")
+	defer cleanup()
+
+	// Migrate
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if !plan.HasChanges() {
+		t.Fatal("v11 data should need migration to v12")
+	}
+	if err := service.Execute(plan, false); err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	// Verify stores can read the migrated data
+	paths := config.NewPaths(tempDir, "")
+	boardStore := store.NewBoardStore(paths)
+
+	boardCfg, err := boardStore.Get("main")
+	if err != nil {
+		t.Fatalf("BoardStore.Get failed after migration: %v", err)
+	}
+
+	// Verify schema was updated
+	if boardCfg.KanSchema != version.CurrentBoardSchema() {
+		t.Errorf("Expected KanSchema %q, got %q", version.CurrentBoardSchema(), boardCfg.KanSchema)
+	}
+
+	// Existing fields should be preserved
+	if boardCfg.Name != "main" {
+		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
+	}
+	if len(boardCfg.CustomFields) == 0 {
+		t.Error("CustomFields should be preserved")
+	}
+	if len(boardCfg.PatternHooks) != 1 {
+		t.Error("PatternHooks should be preserved")
+	}
+	// Tint display slot (added in v11) should survive the v12 bump.
+	if boardCfg.CardDisplay.Tint != "tint" {
+		t.Errorf("Expected CardDisplay.Tint = 'tint', got %q", boardCfg.CardDisplay.Tint)
+	}
+}
+
+func TestMigrateService_V11ToV12_Idempotent(t *testing.T) {
 	service, _, cleanup := setupMigrationTest(t, "v11")
+	defer cleanup()
+
+	// First migration
+	plan1, err := service.Plan()
+	if err != nil {
+		t.Fatalf("First Plan failed: %v", err)
+	}
+	if !plan1.HasChanges() {
+		t.Fatal("First plan should have changes")
+	}
+	if err := service.Execute(plan1, false); err != nil {
+		t.Fatalf("First Execute failed: %v", err)
+	}
+
+	// Second migration should be no-op
+	plan2, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Second Plan failed: %v", err)
+	}
+	if plan2.HasChanges() {
+		t.Error("Second plan should have no changes (migration is idempotent)")
+	}
+}
+
+// ============================================================================
+// V12 Tests (Current schema - no migration needed)
+// ============================================================================
+
+func TestMigrateService_Plan_V12_NoChanges(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v12")
 	defer cleanup()
 
 	plan, err := service.Plan()
@@ -1547,15 +1623,15 @@ func TestMigrateService_Plan_V11_NoChanges(t *testing.T) {
 		t.Fatalf("Plan failed: %v", err)
 	}
 	if plan.HasChanges() {
-		t.Error("Current schema (v11) data should not need migration")
+		t.Error("Current schema (v12) data should not need migration")
 	}
 }
 
-func TestMigrateService_V11_ReadableByStores(t *testing.T) {
-	_, tempDir, cleanup := setupMigrationTest(t, "v11")
+func TestMigrateService_V12_ReadableByStores(t *testing.T) {
+	_, tempDir, cleanup := setupMigrationTest(t, "v12")
 	defer cleanup()
 
-	// V11 fixtures should be directly readable by stores without migration
+	// V12 fixtures should be directly readable by stores without migration
 	paths := config.NewPaths(tempDir, "")
 	cardStore := store.NewCardStore(paths)
 	boardStore := store.NewBoardStore(paths)
@@ -1563,7 +1639,7 @@ func TestMigrateService_V11_ReadableByStores(t *testing.T) {
 	// Board store should read without error
 	boardCfg, err := boardStore.Get("main")
 	if err != nil {
-		t.Fatalf("BoardStore.Get failed on v11 fixtures: %v", err)
+		t.Fatalf("BoardStore.Get failed on v12 fixtures: %v", err)
 	}
 	if boardCfg.Name != "main" {
 		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
@@ -1674,10 +1750,18 @@ func TestMigrateService_V11_ReadableByStores(t *testing.T) {
 		t.Errorf("Expected CardDisplay.Tint = 'tint', got %q", boardCfg.CardDisplay.Tint)
 	}
 
+	// Default sort fields should be present (new in v12)
+	if boardCfg.CardDisplay.DefaultSort != "type" {
+		t.Errorf("Expected CardDisplay.DefaultSort = 'type', got %q", boardCfg.CardDisplay.DefaultSort)
+	}
+	if !boardCfg.CardDisplay.DefaultSortDesc {
+		t.Error("Expected CardDisplay.DefaultSortDesc = true")
+	}
+
 	// Card store should read without error
 	card, err := cardStore.Get("main", "card-abc")
 	if err != nil {
-		t.Fatalf("CardStore.Get failed on v11 fixtures: %v", err)
+		t.Fatalf("CardStore.Get failed on v12 fixtures: %v", err)
 	}
 	if card.ID != "card-abc" {
 		t.Errorf("Card ID = %q, want 'card-abc'", card.ID)
@@ -1776,9 +1860,9 @@ func TestMigrateService_CardV2ToV3_SeedsHistory(t *testing.T) {
 }
 
 func TestMigrateService_CardV3_NoOp(t *testing.T) {
-	// The v11 fixture card is already card/3 with history; it must not be
-	// re-migrated or have its history altered.
-	service, _, cleanup := setupMigrationTest(t, "v11")
+	// The v12 fixture card is already card/3 with history on a current-schema
+	// board, so nothing (card or board) should need migration.
+	service, _, cleanup := setupMigrationTest(t, "v12")
 	defer cleanup()
 
 	plan, err := service.Plan()

@@ -174,9 +174,10 @@ worktree_independent = true
 - **board/8**: Adds optional `limit` field to columns. Column limits cap the number of cards in a column. Adding or moving cards to a full column is refused. Column headers show `(X/Y)` when a limit is set.
 - **board/9**: Adds `boolean` custom field type for simple yes/no flags. Boolean values are stored as JSON `true`/`false` in card files.
 - **board/10**: Moves card-column association from board config (`card_ids` arrays in columns) to card files (`column` + `position` fields using fractional indexing). This eliminates a class of merge conflicts when multiple users add/move cards simultaneously.
-- **board/11 (current)**: Adds `tint` display slot to `card_display`. Points at an `enum` field whose option color is used as a subtle background wash on cards, making them visually stand out on the board.
+- **board/11**: Adds `tint` display slot to `card_display`. Points at an `enum` field whose option color is used as a subtle background wash on cards, making them visually stand out on the board.
+- **board/12 (current)**: Adds optional `default_sort` and `default_sort_desc` to `card_display`. When set, the board view sorts cards within each column by the named field on load (ascending unless `default_sort_desc = true`); the CLI `--sort`/`--descending` flags and the web Sort control still override it per view. Migration is schema-only - both fields are optional with zero-value defaults (empty = manual/position order).
 
-Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9 -> v10 -> v11 for boards, and card files migrate to `card/3`.
+Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9 -> v10 -> v11 -> v12 for boards, and card files migrate to `card/3`.
 
 **Rationale**: Strict versioning—Kan refuses to read files without version stamps (or with incompatible versions). This catches schema drift early and forces explicit migration.
 
