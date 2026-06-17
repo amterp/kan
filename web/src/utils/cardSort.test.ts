@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BoardConfig, Card } from '../api/types';
-import { sortCards, sortableFieldNames } from './cardSort';
+import { groupCardsByColumn, resolveSortField, sortCards, sortableFieldNames } from './cardSort';
 
 const board: BoardConfig = {
   id: 'b1',
@@ -182,5 +182,59 @@ describe('sortableFieldNames', () => {
   it('returns empty array when no custom fields', () => {
     const bare: BoardConfig = { ...board, custom_fields: undefined };
     expect(sortableFieldNames(bare)).toEqual([]);
+  });
+});
+
+describe('resolveSortField', () => {
+  it('returns the field when the board defines it', () => {
+    expect(resolveSortField(board, 'priority')).toBe('priority');
+  });
+
+  it('returns empty string for an unknown/stale field', () => {
+    expect(resolveSortField(board, 'nonexistent')).toBe('');
+  });
+
+  it('returns empty string when no field is requested', () => {
+    expect(resolveSortField(board, '')).toBe('');
+  });
+});
+
+describe('groupCardsByColumn', () => {
+  const multiCol: BoardConfig = {
+    ...board,
+    columns: [
+      { name: 'todo', color: '#000' },
+      { name: 'doing', color: '#111' },
+      { name: 'done', color: '#222' },
+    ],
+  };
+
+  it('groups cards by column and sorts each by the field', () => {
+    const cards = [
+      mkCard('t-low', 'A', { column: 'todo', priority: 'low' }),
+      mkCard('t-high', 'B', { column: 'todo', priority: 'high' }),
+      mkCard('d-med', 'C', { column: 'doing', priority: 'medium' }),
+    ];
+    const groups = groupCardsByColumn(cards, multiCol, 'priority', false);
+    expect(ids(groups.todo)).toEqual(['t-low', 't-high']); // ascending option order
+    expect(ids(groups.doing)).toEqual(['d-med']);
+    expect(groups.done).toEqual([]); // empty column still present
+  });
+
+  it('preserves incoming (manual) order when the field is empty or stale', () => {
+    const cards = [
+      mkCard('b', 'B', { column: 'todo', priority: 'low' }),
+      mkCard('a', 'A', { column: 'todo', priority: 'high' }),
+    ];
+    expect(ids(groupCardsByColumn(cards, multiCol, '', false).todo)).toEqual(['b', 'a']);
+    expect(ids(groupCardsByColumn(cards, multiCol, 'nope', false).todo)).toEqual(['b', 'a']);
+  });
+
+  it('returns every column key, including empty ones', () => {
+    expect(Object.keys(groupCardsByColumn([], multiCol, 'priority', false)).sort()).toEqual([
+      'doing',
+      'done',
+      'todo',
+    ]);
   });
 });

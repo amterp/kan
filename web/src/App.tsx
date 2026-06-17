@@ -10,7 +10,7 @@ import type { SlashCommand } from './hooks/omnibarConstants';
 import { useProject, usePageTitle, useFavicon, bustFaviconCache } from './hooks/useProject';
 import { useUrlState } from './hooks/useUrlState';
 import { cardMatchesQuery } from './utils/fuzzyMatch';
-import { sortCards } from './utils/cardSort';
+import { groupCardsByColumn } from './utils/cardSort';
 import Header from './components/Header';
 import Board from './components/Board';
 import CardEditModal from './components/CardEditModal';
@@ -167,15 +167,9 @@ function BoardApp() {
   // board's view sort so keyboard nav follows the same order shown on screen.
   const filteredCardsByColumn = useMemo(() => {
     if (!board) return [];
-    const activeSort = sortField && board.custom_fields?.[sortField] ? sortField : '';
+    const grouped = groupCardsByColumn(filteredCards, board, sortField, sortDescending);
     return board.columns
-      .map((col) => {
-        const colCards = filteredCards.filter((c) => c.column === col.name);
-        return {
-          column: col,
-          cards: activeSort ? sortCards(colCards, board, activeSort, sortDescending) : colCards,
-        };
-      })
+      .map((col) => ({ column: col, cards: grouped[col.name] }))
       .filter((group) => group.cards.length > 0);
   }, [board, filteredCards, sortField, sortDescending]);
 
