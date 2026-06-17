@@ -379,7 +379,7 @@ export default function Board({
     // card to a different column still works: it appends and re-sorts by field.
     if (activeSortField) {
       if (draggedCard.column === targetColumn) {
-        showToast('info', `Sorted by "${activeSortField}" — clear the sort to reorder cards by hand.`);
+        showToast('info', `Sorted by "${activeSortField}" - switch to Manual order to drag cards within a column.`);
         return;
       }
       position = undefined; // cross-column: let the field sort place it

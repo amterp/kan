@@ -18,7 +18,20 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-const TOAST_DURATION = 4000; // Auto-dismiss after 4 seconds
+// Auto-dismiss timing scales with reading time so long messages aren't rushed
+// off-screen and short ones don't linger. BASE is "time to notice the toast"
+// before reading begins; MS_PER_WORD is an unhurried glance-read (~170 wpm).
+// MIN/MAX keep both extremes sane.
+const TOAST_MIN_DURATION = 4000;
+const TOAST_MAX_DURATION = 10000;
+const TOAST_BASE_DURATION = 2000;
+const TOAST_MS_PER_WORD = 350;
+
+function durationForMessage(message: string): number {
+  const words = message.trim().split(/\s+/).filter(Boolean).length;
+  const estimate = TOAST_BASE_DURATION + words * TOAST_MS_PER_WORD;
+  return Math.min(TOAST_MAX_DURATION, Math.max(TOAST_MIN_DURATION, estimate));
+}
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -33,10 +46,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
     setToasts((prev) => [...prev, toast]);
 
-    // Auto-dismiss
+    // Auto-dismiss after a reading-time-scaled delay.
     setTimeout(() => {
       dismissToast(id);
-    }, TOAST_DURATION);
+    }, durationForMessage(message));
   }, [dismissToast]);
 
   return (

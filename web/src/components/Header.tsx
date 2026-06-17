@@ -115,25 +115,54 @@ export default function Header({
       <div className="flex items-center gap-2">
         {sortFieldNames.length > 0 && onSortFieldChange && (
           <div className="flex items-center gap-1" title="Sort cards within each column by a custom field (view only — does not change saved order)">
-            <select
-              value={effectiveSortField}
-              onChange={(e) => onSortFieldChange(e.target.value)}
-              aria-label="Sort cards by field"
-              className="border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Manual order</option>
-              {sortFieldNames.map((name) => (
-                <option key={name} value={name}>
-                  Sort: {name}
-                </option>
-              ))}
-            </select>
-            {effectiveSortField && onToggleSortDir && (
+            <div className="relative">
+              {/* appearance-none + our own chevron so the left text padding and
+                  the right chevron gap stay symmetric; native select arrows are
+                  browser-controlled and render asymmetric against px-2. */}
+              <select
+                value={effectiveSortField}
+                onChange={(e) => onSortFieldChange(e.target.value)}
+                aria-label="Sort cards by field"
+                className="appearance-none border border-gray-300 dark:border-gray-600 rounded-md pl-2 pr-7 py-1.5 text-sm bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Manual order</option>
+                {sortFieldNames.map((name) => (
+                  <option key={name} value={name}>
+                    Sort: {name}
+                  </option>
+                ))}
+              </select>
+              <svg
+                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+            {/* Always render the direction toggle so switching the sort dropdown
+                doesn't shift the layout. With no field selected it stays visible
+                but disabled (greyed out) to signal it belongs to the sort
+                control; `disabled` also drops it from the tab order. */}
+            {onToggleSortDir && (
               <button
                 onClick={onToggleSortDir}
-                title={sortDescending ? 'Descending — click for ascending' : 'Ascending — click for descending'}
-                aria-label={sortDescending ? 'Sort descending' : 'Sort ascending'}
-                className="text-gray-500 hover:text-gray-700 p-2 rounded-md hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+                disabled={!effectiveSortField}
+                title={
+                  !effectiveSortField
+                    ? 'Pick a field to sort by'
+                    : sortDescending
+                      ? 'Descending - click for ascending'
+                      : 'Ascending - click for descending'
+                }
+                aria-label={sortDescending ? 'Switch to ascending sort' : 'Switch to descending sort'}
+                className={
+                  effectiveSortField
+                    ? 'p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700'
+                    : 'p-2 rounded-md text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                }
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {sortDescending ? (
