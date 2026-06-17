@@ -6,7 +6,7 @@ import type { BoardConfig, Card, Column as ColumnType, CreateCardInput, CreateCa
 import type { UndoAction } from '../hooks/useUndo';
 import { cardMatchesQuery } from '../utils/fuzzyMatch';
 import { toApiFieldValue } from '../utils/customFields';
-import { sortCards } from '../utils/cardSort';
+import { groupCardsByColumn, resolveSortField } from '../utils/cardSort';
 import { BoardConfigProvider } from '../contexts/BoardConfigContext';
 import { useToast } from '../contexts/ToastContext';
 import Column from './Column';
@@ -111,17 +111,11 @@ export default function Board({
 
   // Only honor a sort field the current board actually defines (the field may
   // be carried over in the URL from another board, or removed from config).
-  const activeSortField = sortField && board.custom_fields?.[sortField] ? sortField : '';
+  const activeSortField = resolveSortField(board, sortField);
 
-  const cardsByColumn = useMemo(() =>
-    board.columns.reduce<Record<string, Card[]>>((acc, column) => {
-      const colCards = filteredCards.filter((card) => card.column === column.name);
-      acc[column.name] = activeSortField
-        ? sortCards(colCards, board, activeSortField, sortDescending)
-        : colCards;
-      return acc;
-    }, {}),
-    [board, filteredCards, activeSortField, sortDescending]
+  const cardsByColumn = useMemo(
+    () => groupCardsByColumn(filteredCards, board, sortField, sortDescending),
+    [filteredCards, board, sortField, sortDescending]
   );
 
   // Unfiltered card counts for column limit checks (filter must not bypass limits)

@@ -33,6 +33,38 @@ export function sortableFieldNames(board: BoardConfig): string[] {
   return Object.keys(board.custom_fields ?? {});
 }
 
+/**
+ * Resolves the sort field to honor for a board: the given field if the board
+ * actually defines it, otherwise '' (manual order). A field may be stale - e.g.
+ * carried in the URL from another board, or removed from config - so callers
+ * funnel the raw value through here rather than trusting it directly.
+ */
+export function resolveSortField(board: BoardConfig, sortField: string): string {
+  return sortField && board.custom_fields?.[sortField] ? sortField : '';
+}
+
+/**
+ * Groups cards by column name, ordering each column by the active custom-field
+ * sort and falling back to the incoming (manual) order. This is the single
+ * source of truth shared by the board render and keyboard navigation, so the
+ * two never disagree about ordering. Every column is returned, including empty
+ * ones (callers that only want non-empty groups filter afterward).
+ */
+export function groupCardsByColumn(
+  cards: Card[],
+  board: BoardConfig,
+  sortField: string,
+  descending: boolean
+): Record<string, Card[]> {
+  const activeSort = resolveSortField(board, sortField);
+  const groups: Record<string, Card[]> = {};
+  for (const column of board.columns) {
+    const colCards = cards.filter((c) => c.column === column.name);
+    groups[column.name] = activeSort ? sortCards(colCards, board, activeSort, descending) : colCards;
+  }
+  return groups;
+}
+
 /** Returns a sorted copy of cards. An empty field returns the input order. */
 export function sortCards(
   cards: Card[],
