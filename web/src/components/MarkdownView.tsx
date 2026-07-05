@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight, oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useTheme } from '../contexts/ThemeContext';
@@ -107,6 +108,9 @@ function CodeBlock({ code, language, isDark }: CodeBlockProps) {
 interface MarkdownViewProps {
   content: string;
   className?: string;
+  // Render single newlines as <br> (GitHub-comment style). On by default for
+  // user-typed content; turn off for hard-wrapped markdown like the docs.
+  softBreaks?: boolean;
 }
 
 // Check if a link should be handled by React Router (internal docs links)
@@ -115,7 +119,7 @@ function isInternalDocsLink(href: string | undefined): boolean {
   return href === '/docs' || href.startsWith('/docs/');
 }
 
-export default function MarkdownView({ content, className = '' }: MarkdownViewProps) {
+export default function MarkdownView({ content, className = '', softBreaks = true }: MarkdownViewProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const board = useBoardConfigOptional();
@@ -134,7 +138,7 @@ export default function MarkdownView({ content, className = '' }: MarkdownViewPr
   return (
     <div className={`markdown-body ${className}`}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={softBreaks ? [remarkGfm, remarkBreaks] : [remarkGfm]}
         components={{
           a: ({ href, children }) => {
             if (isInternalDocsLink(href)) {

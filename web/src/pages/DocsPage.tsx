@@ -178,7 +178,7 @@ export default function DocsPage() {
                 </Link>
               </div>
             ) : (
-              <MarkdownView content={content} />
+              <MarkdownView content={content} softBreaks={false} />
             )}
           </div>
         </main>

@@ -27,6 +27,8 @@ Kan supports [GitHub Flavored Markdown](https://github.github.com/gfm/) (GFM):
 - Blockquotes
 - ~~Strikethrough~~
 
+Line breaks work like GitHub comments: a single newline renders as a line break, and a blank line starts a new paragraph.
+
 ### Example
 
 ```markdown
