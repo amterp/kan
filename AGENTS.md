@@ -59,7 +59,19 @@ git add internal/api/dist/ web/src/...  # include both source AND build output
 git commit -m "Your message"
 ```
 
-CI enforces this: it rebuilds the frontend from source and fails if the committed `internal/api/dist/` doesn't match (run `make verify-dist` to check locally). Build with the `.nvmrc` Node version so the output is reproducible.
+CI enforces this: it rebuilds the frontend from source and fails if the committed `internal/api/dist/` doesn't match (run `make verify-dist` to check locally).
+
+Build with the `.nvmrc` Node version, or the bundle may differ from the one CI produces. `make build` / `make verify-dist` check this and stop if the active Node is the wrong major version, so you don't discover it from a red CI run after committing. Your shell's default `node` is often *not* the pinned one — switch first:
+
+```bash
+nvm use && make build
+```
+
+`nvm` is a shell function, so a non-interactive shell must source it. Don't pipe `nvm use` (a pipe runs it in a subshell and the PATH change is lost):
+
+```bash
+. "$NVM_DIR/nvm.sh" && nvm use && make build
+```
 
 ## Architecture
 

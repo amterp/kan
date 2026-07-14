@@ -67,7 +67,9 @@ CI verifies this by rebuilding from source and diffing against the committed ass
 If they don't match, the frontend check fails and the PR summary comment tells you
 exactly what to run. Build with the `.nvmrc` Node version (`nvm use`) and `npm ci` so
 the output is reproducible - a different Node version can produce a different bundle
-that fails the check.
+that fails the check. `make build` and `make verify-dist` stop with an explanation if
+the active Node is the wrong major version, so you find out before committing rather
+than from a red CI run (`KAN_SKIP_NODE_CHECK=1` bypasses it if you know better).
 
 ## Schema changes and migrations
 
