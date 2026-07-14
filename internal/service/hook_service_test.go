@@ -4,7 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/amterp/kan/internal/model"
 )
@@ -168,6 +170,96 @@ func TestExecuteHook_NotFound(t *testing.T) {
 	}
 	if result.Error == nil {
 		t.Error("Expected error for nonexistent command")
+	}
+	// The command is what an operator needs to act on an exec failure, so it must
+	// survive on the result rather than only living in the config.
+	if result.Command != "/nonexistent/command/path" {
+		t.Errorf("Expected command to be recorded, got %q", result.Command)
+	}
+}
+
+// A timed-out hook is SIGKILLed, and a signalled process still yields an *exec.ExitError.
+// Reporting must therefore name the timeout rather than surfacing a bare "signal: killed".
+//
+// The hook here spawns a child that outlives it. The child inherits the output pipes, so
+// without a WaitDelay the read would block for the child's full lifetime and the timeout
+// would bound nothing - hence the wall-clock assertion.
+func TestExecuteHook_Timeout(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping on Windows")
+	}
+
+	tmpDir := t.TempDir()
+	service := NewHookService(tmpDir)
+
+	script := filepath.Join(tmpDir, "hang.sh")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nsleep 30\n"), 0o755); err != nil {
+		t.Fatalf("failed to write script: %v", err)
+	}
+
+	hook := model.PatternHook{
+		Name:         "test-timeout",
+		PatternTitle: ".*",
+		Command:      script,
+		Timeout:      1,
+	}
+
+	start := time.Now()
+	result := service.ExecuteHook(hook, "card-123", "main")
+	elapsed := time.Since(start)
+
+	if result.Success {
+		t.Error("Expected failure for timed-out hook")
+	}
+	if result.Error == nil {
+		t.Fatal("Expected error for timed-out hook")
+	}
+	if !strings.Contains(result.Error.Error(), "timed out") {
+		t.Errorf("Expected a timeout error, got %q", result.Error.Error())
+	}
+	if result.ExitCode != -1 {
+		t.Errorf("Expected exit code -1 for timeout, got %d", result.ExitCode)
+	}
+	// Must return shortly after the deadline, not after the orphaned child's 30s sleep.
+	if maxWait := 10 * time.Second; elapsed > maxWait {
+		t.Errorf("1s timeout took %v to return, want under %v - the timeout is not bounding execution", elapsed, maxWait)
+	}
+}
+
+// A hook that backgrounds work and exits 0 is a legitimate fire-and-forget pattern. The
+// lingering child keeps the output pipes open, which trips WaitDelay - but the hook
+// itself succeeded, so it must not be reported as a failure.
+func TestExecuteHook_BackgroundChildStillSucceeds(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping on Windows")
+	}
+
+	tmpDir := t.TempDir()
+	service := NewHookService(tmpDir)
+
+	script := filepath.Join(tmpDir, "fire-and-forget.sh")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\n(sleep 5) &\necho done\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("failed to write script: %v", err)
+	}
+
+	result := service.ExecuteHook(model.PatternHook{
+		Name:         "fire-and-forget",
+		PatternTitle: ".*",
+		Command:      script,
+		Timeout:      30,
+	}, "card-123", "main")
+
+	if !result.Success {
+		t.Errorf("Expected success for a hook that exits 0 while a child lives on, got error: %v", result.Error)
+	}
+	if result.ExitCode != 0 {
+		t.Errorf("Expected exit code 0, got %d", result.ExitCode)
+	}
+	if result.Error != nil {
+		t.Errorf("Expected no error, got %v", result.Error)
+	}
+	if result.Stdout != "done" {
+		t.Errorf("Expected stdout %q, got %q", "done", result.Stdout)
 	}
 }
 

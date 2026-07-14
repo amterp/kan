@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -17,9 +18,14 @@ import (
 // DefaultHookTimeout is the default timeout for hook execution in seconds.
 const DefaultHookTimeout = 30
 
+// hookWaitDelay is the grace period allowed for a killed hook's output to be flushed
+// before its pipes are force-closed.
+const hookWaitDelay = 2 * time.Second
+
 // HookResult contains the result of executing a hook.
 type HookResult struct {
 	HookName string
+	Command  string
 	Success  bool
 	Stdout   string
 	Stderr   string
@@ -59,10 +65,6 @@ func (s *HookService) FindMatchingHooks(hooks []model.PatternHook, title string)
 // ExecuteHook runs a hook command with the card ID and board name as arguments.
 // Returns the hook result including stdout, stderr, exit code, and any error.
 func (s *HookService) ExecuteHook(hook model.PatternHook, cardID, boardName string) *HookResult {
-	result := &HookResult{
-		HookName: hook.Name,
-	}
-
 	// Determine timeout
 	timeout := hook.Timeout
 	if timeout <= 0 {
@@ -71,6 +73,13 @@ func (s *HookService) ExecuteHook(hook model.PatternHook, cardID, boardName stri
 
 	// Expand ~ in command path
 	command := expandTilde(hook.Command)
+
+	// Record the expanded command: when an exec fails, the path that was actually
+	// attempted is what the operator needs, not the tilde form from the config.
+	result := &HookResult{
+		HookName: hook.Name,
+		Command:  command,
+	}
 
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
@@ -87,6 +96,11 @@ func (s *HookService) ExecuteHook(hook model.PatternHook, cardID, boardName stri
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
+	// Killing the hook on timeout doesn't kill any grandchildren it spawned, and those
+	// inherit the output pipes - so Run would otherwise block reading from them long
+	// after the deadline, making the timeout unenforceable. WaitDelay caps that wait.
+	cmd.WaitDelay = hookWaitDelay
+
 	// Run the command
 	start := time.Now()
 	err := cmd.Run()
@@ -99,14 +113,28 @@ func (s *HookService) ExecuteHook(hook model.PatternHook, cardID, boardName stri
 		result.Error = err
 		result.Success = false
 
-		// Try to get exit code
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			result.ExitCode = exitErr.ExitCode()
-		} else if ctx.Err() == context.DeadlineExceeded {
+		switch {
+		// Checked before *exec.ExitError: killing the process on deadline still yields
+		// an ExitError, so testing that first would report a bare "signal: killed".
+		case ctx.Err() == context.DeadlineExceeded:
 			result.Error = fmt.Errorf("hook timed out after %ds", timeout)
 			result.ExitCode = -1
-		} else {
-			result.ExitCode = -1
+
+		// ErrWaitDelay means the hook itself exited successfully but something it
+		// spawned outlived it still holding the output pipes. That's a legitimate
+		// fire-and-forget hook, not a failure - at most we dropped a tail of output.
+		case errors.Is(err, exec.ErrWaitDelay):
+			result.Success = true
+			result.ExitCode = 0
+			result.Error = nil
+
+		default:
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
+				result.ExitCode = exitErr.ExitCode()
+			} else {
+				result.ExitCode = -1
+			}
 		}
 	} else {
 		result.Success = true
@@ -114,6 +142,30 @@ func (s *HookService) ExecuteHook(hook model.PatternHook, cardID, boardName stri
 	}
 
 	return result
+}
+
+// exitCodeCommandNotFound is the shell convention for "command not found".
+const exitCodeCommandNotFound = 127
+
+// HookPathHint explains the most common way a hook fails. Exit 127 and a bare ENOENT
+// are opaque unless you already know the convention, and the leap from there to "my
+// background service has a different PATH than my shell" is exactly what costs hours.
+const HookPathHint = "The command or its interpreter was not found. " +
+	"Hooks inherit the environment of whatever started Kan, and a background service " +
+	"(launchd, systemd) gets a minimal PATH - set PATH explicitly in the service definition."
+
+// CommandNotFound reports whether the hook failed because its command - or the
+// interpreter named in its shebang - could not be found. This is the signature of a
+// PATH problem, which is easy to hit when Kan runs as a background service and
+// inherits a minimal PATH rather than a shell's.
+func (r *HookResult) CommandNotFound() bool {
+	if r.Success {
+		return false
+	}
+	if r.ExitCode == exitCodeCommandNotFound {
+		return true
+	}
+	return errors.Is(r.Error, exec.ErrNotFound) || errors.Is(r.Error, os.ErrNotExist)
 }
 
 // ExecuteHooks runs all matching hooks sequentially and returns their results.

@@ -28,6 +28,12 @@ func NewPaths(projectRoot string, dataLocation string) *Paths {
 	}
 }
 
+// ProjectRoot returns the project root directory. Pattern hooks run with this as
+// their working directory, so relative hook commands must be resolved against it.
+func (p *Paths) ProjectRoot() string {
+	return p.projectRoot
+}
+
 // KanRoot returns the root directory for Kan data.
 func (p *Paths) KanRoot() string {
 	if p.dataLocation != "" {

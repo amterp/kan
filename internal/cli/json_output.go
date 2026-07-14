@@ -89,17 +89,20 @@ func NewCardOutput(card *model.Card) CardOutput {
 type hookResultJson struct {
 	Name       string `json:"name"`
 	Success    bool   `json:"success"`
+	Command    string `json:"command,omitempty"`
 	Stdout     string `json:"stdout,omitempty"`
 	Stderr     string `json:"stderr,omitempty"`
 	ExitCode   int    `json:"exit_code,omitempty"`
 	DurationMs int64  `json:"duration_ms,omitempty"`
 	Error      string `json:"error,omitempty"`
+	Hint       string `json:"hint,omitempty"`
 }
 
 func hookResultToJson(r *service.HookResult) hookResultJson {
 	result := hookResultJson{
 		Name:       r.HookName,
 		Success:    r.Success,
+		Command:    r.Command,
 		Stdout:     r.Stdout,
 		Stderr:     r.Stderr,
 		ExitCode:   r.ExitCode,
@@ -107,6 +110,9 @@ func hookResultToJson(r *service.HookResult) hookResultJson {
 	}
 	if r.Error != nil {
 		result.Error = r.Error.Error()
+	}
+	if r.CommandNotFound() {
+		result.Hint = service.HookPathHint
 	}
 	return result
 }

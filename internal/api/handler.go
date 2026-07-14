@@ -341,10 +341,14 @@ type CreateCardResponse struct {
 
 // HookInfo contains information about a hook execution for API response.
 type HookInfo struct {
-	Name    string `json:"name"`
-	Success bool   `json:"success"`
-	Output  string `json:"output,omitempty"`
-	Error   string `json:"error,omitempty"`
+	Name     string `json:"name"`
+	Success  bool   `json:"success"`
+	Output   string `json:"output,omitempty"`
+	Error    string `json:"error,omitempty"`
+	Stderr   string `json:"stderr,omitempty"`
+	ExitCode int    `json:"exit_code,omitempty"`
+	Command  string `json:"command,omitempty"`
+	Hint     string `json:"hint,omitempty"`
 }
 
 // CreateCard creates a new card.
@@ -385,15 +389,28 @@ func (h *Handler) CreateCard(w http.ResponseWriter, r *http.Request) {
 	var hookInfos []HookInfo
 	for _, result := range hookResults {
 		info := HookInfo{
-			Name:    result.HookName,
-			Success: result.Success,
-			Output:  result.Stdout,
+			Name:     result.HookName,
+			Success:  result.Success,
+			Output:   result.Stdout,
+			Stderr:   result.Stderr,
+			ExitCode: result.ExitCode,
+			Command:  result.Command,
 		}
 		if result.Error != nil {
 			info.Error = result.Error.Error()
 		}
+		// Sent rather than re-derived in the browser, so the log and the UI explain the
+		// failure the same way and exit-code semantics stay in one place.
+		if result.CommandNotFound() {
+			info.Hint = service.HookPathHint
+		}
 		hookInfos = append(hookInfos, info)
 	}
+
+	// A failing hook doesn't fail the request - the card was still created - so
+	// without this the failure would only ever reach the browser. When serve runs
+	// as a background service, the log is the one place an operator can look.
+	logHookFailures(boardName, card.ID, hookResults)
 
 	// Build card response with wanted fields check
 	cardResp := toCardResponseWithWanted(card, boardCfg)
@@ -403,6 +420,37 @@ func (h *Handler) CreateCard(w http.ResponseWriter, r *http.Request) {
 		HookResults:         hookInfos,
 		MissingWantedFields: cardResp.MissingWantedFields, // Same data at both levels for compatibility
 	})
+}
+
+// logHookFailures reports failed hooks to the server log. Hooks inherit serve's
+// environment, so a hook that works in a shell can still fail under a background
+// service with a bare PATH - the exec error is the only clue, and it must land
+// somewhere an operator can find it.
+func logHookFailures(boardName, cardID string, results []*service.HookResult) {
+	for _, result := range results {
+		if result.Success {
+			continue
+		}
+		msg := fmt.Sprintf("Warning: pattern hook %q failed on board %q (card %s): command %q",
+			result.HookName, boardName, cardID, result.Command)
+
+		// A negative exit code is an internal "no exit code" sentinel, not something to
+		// show. The error only carries information in that case: for a real non-zero
+		// exit it just restates it as "exit status N".
+		if result.ExitCode >= 0 {
+			msg += fmt.Sprintf(", exit code %d", result.ExitCode)
+		} else if result.Error != nil {
+			msg += fmt.Sprintf(", error: %v", result.Error)
+		}
+
+		if result.Stderr != "" {
+			msg += fmt.Sprintf(", stderr: %s", result.Stderr)
+		}
+		if result.CommandNotFound() {
+			msg += ". " + service.HookPathHint
+		}
+		log.Print(msg)
+	}
 }
 
 // GetCard returns a single card by ID.

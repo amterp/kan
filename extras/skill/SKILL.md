@@ -195,6 +195,14 @@ pattern_title = "![a-zA-Z]+"
 command = ".kan/hooks/type-shortcut.rad"  # or .sh for bash
 ```
 
+5. **Warn about background services**: hooks inherit the environment of whatever started
+   Kan. If the user runs `kan serve` as a background service (launchd, systemd) rather
+   than from a terminal, it gets a bare `PATH` (`/usr/bin:/bin:/usr/sbin:/sbin`). The Rad
+   hook needs `rad` on that `PATH`, and *both* variants shell back into `kan` — so a hook
+   that works from the CLI can still fail under `kan serve`. Tell them to set an explicit
+   `PATH` in the service definition if they run Kan that way. The failure is reported in
+   the server log and as an error toast in the web UI.
+
 ### Step 6: Execute and Verify
 
 1. **Create the board**:

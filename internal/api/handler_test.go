@@ -3,10 +3,12 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/amterp/kan/internal/config"
@@ -1184,5 +1186,95 @@ func TestHandler_SwitchProject_MissingBody(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// The whole point of this feature is that a failing hook must be visible. These tests
+// pin the two surfaces a user actually has: the JSON the browser gets, and the log an
+// operator reads when no browser is open.
+
+// withHook rewrites the board config to add a pattern hook running the given script body.
+func (api *testAPI) withHook(t *testing.T, boardName, hookName, script string) {
+	t.Helper()
+
+	hookPath := filepath.Join(api.tempDir, hookName)
+	if err := os.WriteFile(hookPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("Failed to write hook script: %v", err)
+	}
+
+	cfg, err := api.boardStore.Get(boardName)
+	if err != nil {
+		t.Fatalf("Failed to read board: %v", err)
+	}
+	cfg.PatternHooks = []model.PatternHook{
+		{Name: hookName, PatternTitle: ".*", Command: hookPath, Timeout: 5},
+	}
+	if err := api.boardStore.Update(cfg); err != nil {
+		t.Fatalf("Failed to update board: %v", err)
+	}
+
+	api.handler.ctx().CardService.SetHookService(service.NewHookService(api.tempDir))
+}
+
+func TestHandler_CreateCard_FailingHookIsReported(t *testing.T) {
+	api := setupTestAPI(t)
+	api.createBoard(t, "main")
+	api.withHook(t, "main", "boom", "#!/bin/sh\necho 'it broke' >&2\nexit 3\n")
+
+	var logs bytes.Buffer
+	log.SetOutput(&logs)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+
+	w := api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "hook card"})
+	if w.Code != http.StatusCreated {
+		t.Fatalf("Expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp CreateCardResponse
+	decodeJSON(t, w, &resp)
+
+	if len(resp.HookResults) != 1 {
+		t.Fatalf("Expected 1 hook result, got %d", len(resp.HookResults))
+	}
+	hook := resp.HookResults[0]
+	if hook.Success {
+		t.Error("Expected hook to be reported as failed")
+	}
+	if hook.ExitCode != 3 {
+		t.Errorf("Expected exit code 3, got %d", hook.ExitCode)
+	}
+	if hook.Stderr != "it broke" {
+		t.Errorf("Expected stderr %q, got %q", "it broke", hook.Stderr)
+	}
+	if hook.Command == "" {
+		t.Error("Expected the failing command to be reported")
+	}
+
+	// Without this, a background `kan serve` leaves no trace of the failure at all.
+	if logged := logs.String(); !strings.Contains(logged, "boom") || !strings.Contains(logged, "it broke") {
+		t.Errorf("Expected the failure to be logged with name and stderr, got: %q", logged)
+	}
+}
+
+// Exit 127 is opaque unless you know the shell convention, and the leap to "my
+// background service has a different PATH" is the one that cost real debugging time.
+func TestHandler_CreateCard_CommandNotFoundGetsPathHint(t *testing.T) {
+	api := setupTestAPI(t)
+	api.createBoard(t, "main")
+	api.withHook(t, "main", "missing-interp", "#!/nonexistent/interpreter\n")
+
+	w := api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "hook card"})
+	if w.Code != http.StatusCreated {
+		t.Fatalf("Expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp CreateCardResponse
+	decodeJSON(t, w, &resp)
+
+	if len(resp.HookResults) != 1 {
+		t.Fatalf("Expected 1 hook result, got %d", len(resp.HookResults))
+	}
+	if hint := resp.HookResults[0].Hint; !strings.Contains(hint, "PATH") {
+		t.Errorf("Expected a PATH hint for a not-found command, got %q", hint)
 	}
 }

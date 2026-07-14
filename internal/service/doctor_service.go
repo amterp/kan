@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -38,6 +40,8 @@ const (
 	CodeInvalidLinkRule    = "INVALID_LINK_RULE"
 	CodeInvalidPatternHook = "INVALID_PATTERN_HOOK"
 	CodeMissingHookFile    = "MISSING_HOOK_FILE"
+	CodeHookNotExecutable  = "HOOK_NOT_EXECUTABLE"
+	CodeHookCommandArgs    = "HOOK_COMMAND_ARGS"
 
 	// Priority 3: Referential integrity (warnings)
 	CodeInvalidParentRef = "INVALID_PARENT_REF"
@@ -69,6 +73,17 @@ type BoardDiagnostic struct {
 	CardFiles       int    `json:"card_files"`
 	CardsReferenced int    `json:"cards_referenced"`
 	Columns         int    `json:"columns"`
+	PatternHooks    int    `json:"pattern_hooks"`
+}
+
+// HasPatternHooks reports whether any checked board configures a pattern hook.
+func (r *DiagnosticReport) HasPatternHooks() bool {
+	for _, b := range r.Boards {
+		if b.PatternHooks > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // ReportSummary summarizes the diagnostic results.
@@ -282,6 +297,7 @@ func (s *DoctorService) checkBoard(report *DiagnosticReport, boardName string) {
 	}
 
 	diag.Columns = len(boardConfig.Columns)
+	diag.PatternHooks = len(boardConfig.PatternHooks)
 
 	// Check schema version
 	s.checkBoardSchema(report, boardName, &boardConfig)
@@ -483,38 +499,101 @@ func (s *DoctorService) checkPatternHooks(report *DiagnosticReport, boardName st
 			})
 		}
 
-		// Check if command file exists (for file-based commands)
-		cmd := hook.Command
-		if cmd == "" {
+		if hook.Command == "" {
 			continue
 		}
 
-		// Expand ~ to home directory
-		if strings.HasPrefix(cmd, "~/") {
-			home, err := os.UserHomeDir()
-			if err == nil {
-				cmd = filepath.Join(home, cmd[2:])
-			}
+		warn := func(code, message, fixAction string) {
+			report.Issues = append(report.Issues, Issue{
+				Severity:  SeverityWarning,
+				Code:      code,
+				Board:     boardName,
+				Message:   fmt.Sprintf("Pattern hook '%s' %s", hook.Name, message),
+				Fixable:   false,
+				FixAction: fixAction,
+			})
 		}
 
-		// Only check if it looks like a file path (starts with / or ~/ or ./)
-		if strings.HasPrefix(cmd, "/") || strings.HasPrefix(cmd, "./") {
-			// Extract the first word (the executable)
-			parts := strings.Fields(cmd)
-			if len(parts) > 0 {
-				execPath := parts[0]
-				if _, err := os.Stat(execPath); os.IsNotExist(err) {
-					report.Issues = append(report.Issues, Issue{
-						Severity: SeverityWarning,
-						Code:     CodeMissingHookFile,
-						Board:    boardName,
-						Message:  fmt.Sprintf("Pattern hook '%s' references non-existent file: %s", hook.Name, execPath),
-						Fixable:  false,
-					})
+		// Mirrors how ExecuteHook resolves the command: no shell, no argument splitting,
+		// bare names via PATH, and anything path-like relative to the project root
+		// (the hook's working directory). Keep the two in step.
+		command := expandTilde(hook.Command)
+
+		if !isPathLike(command) {
+			// Resolved via PATH, exactly as exec does. Note this is *doctor's* PATH,
+			// which may differ from the one a background `kan serve` inherits.
+			if _, err := exec.LookPath(command); err != nil {
+				if looksLikeArgs(command) {
+					warn(CodeHookCommandArgs,
+						fmt.Sprintf("command takes arguments: %q", command),
+						"Hooks are executed directly, not via a shell. Use a wrapper script.")
+				} else {
+					warn(CodeMissingHookFile,
+						fmt.Sprintf("command not found on PATH: %s", command), "")
 				}
 			}
+			continue
+		}
+
+		execPath := command
+		if !filepath.IsAbs(execPath) {
+			execPath = filepath.Join(s.paths.ProjectRoot(), execPath)
+		}
+
+		info, err := os.Stat(execPath)
+		if err != nil {
+			// A path with a space is only a mistake if the path itself doesn't exist and
+			// the leading token does - otherwise it's just a directory name with a space.
+			if looksLikeArgs(command) && s.hookFileExists(strings.Fields(command)[0]) {
+				warn(CodeHookCommandArgs,
+					fmt.Sprintf("command takes arguments: %q", command),
+					"Hooks are executed directly, not via a shell. Use a wrapper script.")
+				continue
+			}
+			warn(CodeMissingHookFile,
+				fmt.Sprintf("references non-existent file: %s", execPath), "")
+			continue
+		}
+
+		if info.IsDir() {
+			warn(CodeHookNotExecutable,
+				fmt.Sprintf("command is a directory, not an executable: %s", execPath), "")
+			continue
+		}
+
+		// The executable bit is meaningless on Windows, where Mode().Perm() never
+		// reports it for a regular file - checking it there flags every valid hook.
+		if runtime.GOOS != "windows" && info.Mode().Perm()&0o111 == 0 {
+			warn(CodeHookNotExecutable,
+				fmt.Sprintf("is not executable: %s", execPath),
+				fmt.Sprintf("chmod +x %s", execPath))
 		}
 	}
+}
+
+// isPathLike reports whether a hook command names a file rather than something to be
+// looked up on PATH. Forward slashes count on every platform: that's the form the docs
+// recommend, and Go's Windows LookPath treats them as separators too.
+func isPathLike(command string) bool {
+	return strings.ContainsRune(command, '/') || strings.ContainsRune(command, filepath.Separator)
+}
+
+// looksLikeArgs reports whether a command appears to carry arguments. Hooks are exec'd
+// without a shell, so the whole string is the executable and arguments never work - but
+// a path may legitimately contain a space, so this is only a hint, never proof.
+func looksLikeArgs(command string) bool {
+	return len(strings.Fields(command)) > 1
+}
+
+// hookFileExists reports whether a hook path resolves to an existing file, applying the
+// same project-root-relative resolution hooks are executed with.
+func (s *DoctorService) hookFileExists(command string) bool {
+	path := expandTilde(command)
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(s.paths.ProjectRoot(), path)
+	}
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func (s *DoctorService) checkCardFile(report *DiagnosticReport, boardName, cardID string) {

@@ -134,6 +134,11 @@ export interface HookInfo {
   success: boolean;
   output?: string;
   error?: string;
+  stderr?: string;
+  exit_code?: number;
+  command?: string;
+  // Server-supplied explanation of a likely cause (e.g. a PATH problem).
+  hint?: string;
 }
 
 // Response from creating a card (includes hook results)

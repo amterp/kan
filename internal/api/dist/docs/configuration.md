@@ -223,6 +223,27 @@ The `~` prefix is expanded to your home directory. Relative paths are resolved f
 - Hooks can use `kan` CLI commands to modify the card
 - Hook stdout is shown to the user
 - Non-zero exit code shows a warning but doesn't roll back card creation
+- Hooks run with the project root as their working directory
+
+**Hooks inherit the environment of the process that started Kan.**
+
+This is a sharp edge when `kan serve` runs as a **background service** (launchd, systemd)
+rather than from your terminal. Such services get a minimal `PATH` — typically just
+`/usr/bin:/bin:/usr/sbin:/sbin` — which does *not* include Homebrew, `~/.local/bin`,
+`~/go/bin`, or wherever you keep your own tools. A hook that works perfectly from the
+CLI can therefore fail under `kan serve` if:
+
+- its shebang names an interpreter that isn't on that bare `PATH`
+  (e.g. `#!/usr/bin/env python3` is usually fine, `#!/usr/bin/env rad` is not), or
+- it shells back into `kan` itself, which likewise must be found on `PATH`.
+
+The fix is to set an explicit `PATH` in your service definition (launchd
+`EnvironmentVariables`, systemd `Environment=`), or to use absolute paths inside the hook.
+
+When a hook fails, `kan serve` logs the command, exit code, and stderr, and the web UI
+shows an error notification — check the server log first if a hook seems to do nothing.
+Note that `kan doctor` validates hooks using *your shell's* `PATH`, so it cannot detect
+a `PATH` that is only missing inside a background service.
 
 **Example hook script** (`.kan/hooks/jira-sync.sh`):
 ```bash

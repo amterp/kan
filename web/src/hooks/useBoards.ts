@@ -1,8 +1,23 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { listBoards, getBoard, createColumn as apiCreateColumn, deleteColumn as apiDeleteColumn, updateColumn as apiUpdateColumn, reorderColumns as apiReorderColumns } from '../api/boards';
 import { listCards, moveCard as apiMoveCard, createCard as apiCreateCard, updateCard as apiUpdateCard, deleteCard as apiDeleteCard, getCard as apiGetCard } from '../api/cards';
-import type { BoardConfig, Card, CreateCardInput, CreateCardResponse, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
+import type { BoardConfig, Card, CreateCardInput, CreateCardResponse, HookInfo, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
 import { useFileSync, type FileChange } from './useFileSync';
+import { useToast } from '../contexts/ToastContext';
+
+// A failed hook still creates the card, so the board looks entirely normal. Without a
+// visible message the only symptom is the hook's effect not happening, which reads as
+// "my pattern didn't match" rather than "my hook could not run".
+function hookFailureMessage(hook: HookInfo): string {
+  // A negative exit code is an internal "no exit code" sentinel, not a real status.
+  const exit = hook.exit_code && hook.exit_code > 0 ? ` (exit ${hook.exit_code})` : '';
+  const detail = hook.stderr || hook.error;
+
+  let message = `Hook '${hook.name}' failed${exit}`;
+  if (detail) message += `: ${detail}`;
+  if (hook.hint) message += `. ${hook.hint}`;
+  return message;
+}
 
 // Insert (or replace) a card so the array stays sorted by position within its column.
 // The cards array is kept ordered to match what the server returns from List, since the
@@ -56,6 +71,7 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   // Track pending local changes to avoid overwriting optimistic updates
   const pendingChangesRef = useRef<Set<string>>(new Set());
@@ -224,7 +240,8 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
     // got there first) and the insert case, keeping the array sorted by position.
     setCards((prev) => insertCardSorted(prev, response.card));
 
-    // Log hook results if any ran
+    // Report hook results. Successes stay quiet in the console; failures get a toast,
+    // since a hook that never ran is otherwise indistinguishable from one that didn't match.
     if (response.hook_results && response.hook_results.length > 0) {
       for (const hook of response.hook_results) {
         if (hook.success) {
@@ -233,12 +250,13 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
           }
         } else {
           console.warn(`[hook: ${hook.name}] failed:`, hook.error);
+          showToast('error', hookFailureMessage(hook));
         }
       }
     }
 
     return response;
-  }, [boardName]);
+  }, [boardName, showToast]);
 
   const updateCard = useCallback(async (cardId: string, updates: UpdateCardInput) => {
     if (!boardName) return;

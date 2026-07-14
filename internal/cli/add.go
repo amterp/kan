@@ -248,11 +248,16 @@ func printHookResults(results []*service.HookResult) {
 				msg += fmt.Sprintf(" (exit code %d)", result.ExitCode)
 			}
 			PrintWarning("%s", msg)
+			fmt.Fprintf(os.Stderr, "  command: %s\n", result.Command)
 			if result.Stderr != "" {
 				fmt.Fprintf(os.Stderr, "  stderr: %s\n", result.Stderr)
 			}
-			if result.Error != nil {
+			// For a plain non-zero exit the error just restates the code shown above.
+			if result.Error != nil && result.ExitCode <= 0 {
 				fmt.Fprintf(os.Stderr, "  error: %v\n", result.Error)
+			}
+			if result.CommandNotFound() {
+				fmt.Fprintf(os.Stderr, "  hint: %s\n", service.HookPathHint)
 			}
 		}
 	}

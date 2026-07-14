@@ -476,7 +476,9 @@ kan doctor --json
   - `INVALID_CARD_DISPLAY`: References missing custom field (fixable)
   - `INVALID_LINK_RULE`: Regex doesn't compile
   - `INVALID_PATTERN_HOOK`: Regex doesn't compile
-  - `MISSING_HOOK_FILE`: Pattern hook references non-existent file
+  - `MISSING_HOOK_FILE`: Pattern hook command not found (missing file, or not on `PATH`)
+  - `HOOK_NOT_EXECUTABLE`: Pattern hook file exists but lacks the executable bit
+  - `HOOK_COMMAND_ARGS`: Pattern hook command appears to take arguments (hooks take none)
   - `INVALID_PARENT_REF`: Parent points to non-existent card (fixable)
   - `MISSING_WANTED_FIELDS`: Card is missing fields marked as `wanted`
   - `MALFORMED_GLOBAL_CONFIG`: Global config.toml fails to parse

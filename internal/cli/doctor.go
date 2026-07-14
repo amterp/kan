@@ -91,6 +91,20 @@ func runDoctor(boardName string, fix bool, dryRun bool, jsonOutput bool) {
 	}
 }
 
+// printHookPathCaveat qualifies a clean bill of health for hooks. Hook commands are
+// checked against the PATH of whoever ran doctor, but they *execute* with the PATH of
+// whoever started Kan - and a background `kan serve` gets a minimal one. Staying silent
+// here reads as "your hooks are fine", which is exactly the false confidence that makes
+// a PATH problem so hard to find.
+func printHookPathCaveat(report *service.DiagnosticReport) {
+	if !report.HasPatternHooks() {
+		return
+	}
+	fmt.Println()
+	PrintInfo("Hook commands were checked against this shell's PATH. If `kan serve` runs as a")
+	fmt.Fprintln(os.Stderr, "  background service (launchd, systemd), it may have a different, minimal PATH.")
+}
+
 func printDoctorReport(report *service.DiagnosticReport, didFix bool, dryRun bool) {
 	// Print board stats
 	for _, board := range report.Boards {
@@ -136,6 +150,7 @@ func printDoctorReport(report *service.DiagnosticReport, didFix bool, dryRun boo
 		} else {
 			PrintSuccess("All issues resolved")
 		}
+		printHookPathCaveat(report)
 		return
 	}
 

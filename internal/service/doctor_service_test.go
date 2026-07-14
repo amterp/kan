@@ -3,10 +3,12 @@ package service
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/amterp/kan/internal/config"
+	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/store"
 )
 
@@ -404,6 +406,121 @@ func TestDoctorService_SchemaOutdated(t *testing.T) {
 	}
 	if !found {
 		t.Error("Expected SCHEMA_OUTDATED issue")
+	}
+}
+
+// Hooks run with the project root as their working directory, so doctor must resolve
+// relative commands against it too. Bare relative paths like ".kan/hooks/x.rad" - the
+// form the docs recommend - previously escaped every check.
+func TestDoctorService_PatternHooks(t *testing.T) {
+	tmpDir := t.TempDir()
+	hooksDir := filepath.Join(tmpDir, ".kan", "hooks")
+	if err := os.MkdirAll(hooksDir, 0o755); err != nil {
+		t.Fatalf("Failed to create hooks dir: %v", err)
+	}
+
+	executable := filepath.Join(hooksDir, "runnable.sh")
+	if err := os.WriteFile(executable, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatalf("Failed to write hook: %v", err)
+	}
+	notExecutable := filepath.Join(hooksDir, "plain.sh")
+	if err := os.WriteFile(notExecutable, []byte("#!/bin/sh\n"), 0o644); err != nil {
+		t.Fatalf("Failed to write hook: %v", err)
+	}
+	spaced := filepath.Join(hooksDir, "with space.sh")
+	if err := os.WriteFile(spaced, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatalf("Failed to write hook: %v", err)
+	}
+
+	service := NewDoctorService(config.NewPaths(tmpDir, ""), nil)
+
+	tests := []struct {
+		name     string
+		hook     model.PatternHook
+		wantCode string // empty means no issue expected
+		unixOnly bool   // relies on the executable bit, which Windows doesn't report
+	}{
+		{
+			name: "relative path, executable",
+			hook: model.PatternHook{Name: "ok", PatternTitle: ".*", Command: ".kan/hooks/runnable.sh"},
+		},
+		{
+			name:     "relative path, not executable",
+			hook:     model.PatternHook{Name: "perm", PatternTitle: ".*", Command: ".kan/hooks/plain.sh"},
+			wantCode: CodeHookNotExecutable,
+			unixOnly: true,
+		},
+		{
+			name:     "relative path, missing",
+			hook:     model.PatternHook{Name: "gone", PatternTitle: ".*", Command: ".kan/hooks/absent.sh"},
+			wantCode: CodeMissingHookFile,
+		},
+		{
+			name:     "absolute path, missing",
+			hook:     model.PatternHook{Name: "abs", PatternTitle: ".*", Command: "/nonexistent/hook.sh"},
+			wantCode: CodeMissingHookFile,
+		},
+		{
+			name: "bare command on PATH",
+			hook: model.PatternHook{Name: "bare", PatternTitle: ".*", Command: "sh"},
+		},
+		{
+			name:     "bare command not on PATH",
+			hook:     model.PatternHook{Name: "nope", PatternTitle: ".*", Command: "kan-definitely-not-a-real-binary"},
+			wantCode: CodeMissingHookFile,
+		},
+		{
+			name:     "command with arguments",
+			hook:     model.PatternHook{Name: "args", PatternTitle: ".*", Command: "python script.py"},
+			wantCode: CodeHookCommandArgs,
+		},
+		{
+			name:     "path-like command with arguments",
+			hook:     model.PatternHook{Name: "relargs", PatternTitle: ".*", Command: ".kan/hooks/runnable.sh --verbose"},
+			wantCode: CodeHookCommandArgs,
+		},
+		{
+			// A space in a path is not an argument. exec runs this fine, so doctor must not
+			// cry wolf - "Application Support" and "/Users/John Doe" are everyday paths.
+			name: "existing path containing a space",
+			hook: model.PatternHook{Name: "spacey", PatternTitle: ".*", Command: ".kan/hooks/with space.sh"},
+		},
+		{
+			name:     "command is a directory",
+			hook:     model.PatternHook{Name: "dir", PatternTitle: ".*", Command: ".kan/hooks"},
+			wantCode: CodeHookNotExecutable,
+		},
+		{
+			name:     "invalid regex",
+			hook:     model.PatternHook{Name: "regex", PatternTitle: "[invalid", Command: ".kan/hooks/runnable.sh"},
+			wantCode: CodeInvalidPatternHook,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.unixOnly && runtime.GOOS == "windows" {
+				t.Skip("Executable bit is not meaningful on Windows")
+			}
+
+			report := &DiagnosticReport{}
+			cfg := &model.BoardConfig{PatternHooks: []model.PatternHook{tt.hook}}
+			service.checkPatternHooks(report, "main", cfg)
+
+			if tt.wantCode == "" {
+				if len(report.Issues) != 0 {
+					t.Errorf("Expected no issues, got %d: %v", len(report.Issues), report.Issues)
+				}
+				return
+			}
+
+			if len(report.Issues) != 1 {
+				t.Fatalf("Expected 1 issue with code %s, got %d: %v", tt.wantCode, len(report.Issues), report.Issues)
+			}
+			if report.Issues[0].Code != tt.wantCode {
+				t.Errorf("Expected code %s, got %s (%s)", tt.wantCode, report.Issues[0].Code, report.Issues[0].Message)
+			}
+		})
 	}
 }
 
