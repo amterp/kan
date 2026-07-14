@@ -61,17 +61,9 @@ git commit -m "Your message"
 
 CI enforces this: it rebuilds the frontend from source and fails if the committed `internal/api/dist/` doesn't match (run `make verify-dist` to check locally).
 
-Build with the `.nvmrc` Node version, or the bundle may differ from the one CI produces. `make build` / `make verify-dist` check this and stop if the active Node is the wrong major version, so you don't discover it from a red CI run after committing. Your shell's default `node` is often *not* the pinned one — switch first:
+The bundle must be built with the `.nvmrc` Node version or it may differ from the one CI produces. You don't have to arrange that yourself: `make build`, `make test`, and `make verify-dist` run the frontend through `ci/with-node.sh`, which activates the pinned version (via nvm or fnm) regardless of your shell's default `node`. Use them rather than a bare `npm run build`, which will happily build on the wrong Node.
 
-```bash
-nvm use && make build
-```
-
-`nvm` is a shell function, so a non-interactive shell must source it. Don't pipe `nvm use` (a pipe runs it in a subshell and the PATH change is lost):
-
-```bash
-. "$NVM_DIR/nvm.sh" && nvm use && make build
-```
+`make node-version` reports the Node a frontend build will actually use. `KAN_SKIP_NODE_CHECK=1` opts out of the whole mechanism.
 
 ## Architecture
 
