@@ -1,0 +1,17 @@
+{
+  "_v": 3,
+  "alias": "skill-doc-references",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1781802543130,
+  "creator": "Alexander Terp",
+  "description": "Commit 75b5f33 (\"remove confirmation prompts from delete commands\")\nremoved the `--force`/`-f` flag and confirmation prompts from `kan\ndelete`, `kan board delete`, and `kan column delete`, since Kan is\ngit-backed and deletes are recoverable. That commit updated the\npublished CLI docs (cli.md) but missed the Claude skill doc, which\nstill documents the flag and the old confirmation behavior.\n\nThe skill is the contract agents follow, so the stale flag actively\nmisleads them. Concretely: following the skill, an agent ran\n`kan delete \u003ccard\u003e --force` and hit `unknown flag: --force`, then had\nto discover the real behavior by reading source.\n\nStale references in extras/skill/SKILL.md:\n  - L388: `kan delete 12` comment claims \"prompts for confirmation\"\n  - L390: `kan delete 12 --force` example\n  - L397: `-f, --force | Skip confirmation ...` row in the flags table\n  - L404: `kan board delete` comment claims \"prompts for confirmation\"\n  - L405: `kan board delete features -f` example\n\nFix: bring the skill's delete / board-delete / column-delete docs in\nline with cli.md (no `--force`, no confirmation prompt). Worth a quick\ngrep of SKILL.md for any other drift from the same commit.",
+  "id": "a_1aeKsaZQe",
+  "position": "vfU",
+  "title": "Skill doc references removed 'kan delete --force' flag",
+  "type": "bug",
+  "updated_at_millis": 1781802543130,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1781802543130}
+  ]
+}

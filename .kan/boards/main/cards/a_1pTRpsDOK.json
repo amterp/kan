@@ -1,0 +1,27 @@
+{
+  "_v": 3,
+  "alias": "kan-serve-should",
+  "alias_explicit": false,
+  "column": "done",
+  "comments": [
+    {
+      "author": "Alexander Terp",
+      "body": "Validated: **not a bug**. Nothing caches board config - `FileBoardStore.Get` does a fresh `os.ReadFile` + TOML parse per call, and every API handler calls it per request. The frontend also refetches the board when the fsnotify watcher sees `config.toml` change.\n\nVerified empirically end-to-end: started `kan serve` against a board with **no** pattern hook configured, and created a card via the web UI - title kept `!bug` literally, no type. Then appended a `[[pattern_hooks]]` block to `config.toml` with the server still running (same PID, never restarted), and created a second card in the same browser tab: the hook fired, stripping `!bug` and setting `type=bug`. No restart involved.\n\nThe original symptom was the sibling silent-hook-failure bug, not a stale config cache.\n\nAdjacent gap found but **not** fixed here (worth its own card): project-level `.kan/config.toml` changes (project name, favicon) are watched and broadcast, but the frontend never wires `onProjectChange` - so those alone still need a page reload.",
+      "created_at_millis": 1783994702760,
+      "id": "c_1pU8xwe9Y"
+    }
+  ],
+  "created_at_millis": 1783993044848,
+  "creator": "Alexander Terp",
+  "description": "Suspected, not yet proven: a running `kan serve` doesn't notice edits to a board's config.toml, and you have to restart it before the changes take effect.\n\nFirst step of this ticket is to validate the claim, because the evidence so far is genuinely inconclusive. While setting up a type-shortcut pattern hook in chat-notes, hooks weren't firing from the web UI, and a stale config cache was my initial theory. It turned out the actual cause was something else entirely (the hook exec was failing silently on a bare launchd PATH - see the sibling card on silent hook failures). That bug masked everything else, so I never got a clean read on whether config is genuinely cached at startup or re-read per request. I claimed at one point that serve reads config fine; I hadn't actually tested it.\n\nSo: first determine empirically whether serve re-reads config.toml. Edit a config while serve is running - change a column description, add a custom field option, add a pattern hook - and see what the running server does. If it already picks changes up live, close this. If it doesn't, make it: watch the file, or re-read per request if that's cheap enough at kan's scale.\n\nThe motivation either way is that config edits are a normal thing to do - adding a field, tweaking columns, wiring a hook - and `kan serve` is often a long-lived background service you don't think about restarting. If it silently serves stale config, the failure looks like \"my config change is broken\" rather than \"my server is old\", which is the same class of misdirection as the silent-hook-failure bug.",
+  "id": "a_1pTRpsDOK",
+  "position": "yWU",
+  "title": "kan serve should pick up board config changes live",
+  "type": "enhancement",
+  "updated_at_millis": 1783995862956,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1783993044848},
+    {"field":"column","value":"in-progress","at":1783993086491},
+    {"field":"column","value":"done","at":1783995862956}
+  ]
+}

@@ -1,6 +1,6 @@
 default_column = "backlog-hi"
 id = "2R9nzEvz"
-kan_schema = "board/11"
+kan_schema = "board/12"
 name = "main"
 
 [card_display]
@@ -38,6 +38,29 @@ name = "main"
   name = "done"
 
 [custom_fields]
+  [custom_fields.tint]
+    description = "Card background tint color"
+    type = "enum"
+
+    [[custom_fields.tint.options]]
+      color = "#ef4444"
+      value = "red"
+
+    [[custom_fields.tint.options]]
+      color = "#f59e0b"
+      value = "amber"
+
+    [[custom_fields.tint.options]]
+      color = "#22c55e"
+      value = "green"
+
+    [[custom_fields.tint.options]]
+      color = "#3b82f6"
+      value = "blue"
+
+    [[custom_fields.tint.options]]
+      color = "#a855f7"
+      value = "purple"
   [custom_fields.type]
     description = "The category of work this card represents"
     type = "enum"
@@ -62,30 +85,6 @@ name = "main"
       color = "#4b5563"
       description = "Maintenance, refactoring, or tooling work"
       value = "chore"
-
-  [custom_fields.tint]
-    description = "Card background tint color"
-    type = "enum"
-
-    [[custom_fields.tint.options]]
-      color = "#ef4444"
-      value = "red"
-
-    [[custom_fields.tint.options]]
-      color = "#f59e0b"
-      value = "amber"
-
-    [[custom_fields.tint.options]]
-      color = "#22c55e"
-      value = "green"
-
-    [[custom_fields.tint.options]]
-      color = "#3b82f6"
-      value = "blue"
-
-    [[custom_fields.tint.options]]
-      color = "#a855f7"
-      value = "purple"
 
 [[pattern_hooks]]
   command = ".kan/hooks/type-shortcut.rad"
