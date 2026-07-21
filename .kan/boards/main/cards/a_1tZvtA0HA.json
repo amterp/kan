@@ -1,0 +1,17 @@
+{
+  "_v": 3,
+  "alias": "failed-edit-still",
+  "alias_explicit": false,
+  "column": "backlog-hi",
+  "created_at_millis": 1784599553213,
+  "creator": "Alexander Terp",
+  "description": "Editing a card with both a title and an invalid custom field value applies the title anyway:\n\n    kan edit \u003ccard\u003e -t \"MUTATED\" -f type=bogus\n    -\u003e exit 1, stderr: invalid type: must be one of: feature, enhancement, bug, chore, ...\n    -\u003e but the card is now titled \"MUTATED\", with type left unset\n\nSo the card ends up renamed, the field unset, and an error printed - the worst of the three possible outcomes, and the one hardest to notice. Reproduced on board/12 against a wanted enum field.\n\nWhy this matters beyond the typo case: it makes edit unsafe for any script or hook that sets a field and a title in one call. The type-shortcut pattern hook shipped in the Claude skill now has to fetch board describe --json and validate the type itself before it dares call edit - purely so that a title like \"Fix the important override\" (with a bang in front of \"important\") does not get silently renamed when the bang turns out not to name a real type. That is an extra CLI round-trip on every hook invocation, existing only to work around this.\n\nIf a failed edit left the card untouched, that validation step and its cost would disappear, and callers could treat a nonzero exit as \"nothing happened\".\n\nOpen question whether the right shape is validating every input before applying any of them, or applying and rolling back on failure.",
+  "id": "a_1tZvtA0HA",
+  "position": "oQUU",
+  "title": "Failed edit still applies the title change",
+  "type": "bug",
+  "updated_at_millis": 1784599553213,
+  "history": [
+    {"field":"column","value":"backlog-hi","at":1784599553213}
+  ]
+}
