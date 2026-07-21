@@ -158,31 +158,50 @@ type_aliases = {
     "enh": "enhancement",
 }
 
-code, stdout = quiet $`kan show {card_id} -b {board_name} --json`
-if code != 0:
+// Rad propagates a non-zero exit as an error, so a failed command is handled
+// with a catch: block - testing the exit code on the next line never runs.
+code, stdout = quiet $`kan show {card_id} -b {board_name} --json` catch:
+    print_err("type-shortcut: cannot read card {card_id} (exit {code})")
     exit(1)
 
-card_data = parse_json(stdout)
-title = card_data["card"]["title"]
+title = parse_json(stdout)["card"]["title"]
 
 if not matches(title, "![a-zA-Z]+", partial=true):
     exit(0)
 
-match_result = replace(title, "(?i).*!([a-z]+).*", "$1")
-type_keyword = lower(match_result)
+keyword = replace(title, ".*?!([a-zA-Z]+).*", "$1").lower()
+card_type = keyword in type_aliases ? type_aliases[keyword] : keyword
 
-card_type = type_keyword
-if type_keyword in type_aliases:
-    card_type = type_aliases[type_keyword]
+code, stdout = quiet $`kan board describe -b {board_name} --json` catch:
+    print_err("type-shortcut: cannot read board {board_name} (exit {code})")
+    exit(1)
 
-new_title = replace(title, "(?i)\\s*![a-z]+\\s*", " ")
-new_title = trim(new_title)
+options = parse_json(stdout)["board"]["custom_fields"]["type"]["options"]
+valid_types = [o["value"] for o in options]
+
+// Bail before editing on an unrelated bang ("Fix the !important override").
+// kan edit still applies -t when -f fails validation, so an unchecked edit
+// would rename the card and leave the type unset.
+if card_type not in valid_types:
+    exit(0)
+
+new_title = replace(title, "(?i)\\s*!{keyword}\\b\\s*", " ").trim()
 new_title = replace(new_title, "\\s+", " ")
 
-quiet $`kan edit {card_id} -b {board_name} -t "{new_title}" -f type={card_type}`
+// A title that was nothing but the shortcut keeps its original text.
+title_arg = new_title == "" ? "" : `-t "{new_title}"`
+
+quiet $`kan edit {card_id} -b {board_name} {title_arg} -f type={card_type}` catch:
+    print_err("type-shortcut: failed to set type={card_type} on card {card_id}")
+    exit(1)
 
 print("Set type to '{card_type}'")
 ```
+
+The hook only strips the token it matched, and only after confirming it names a
+real type on that board - so a title carrying an unrelated bang is left exactly
+as typed. A Bash port needs `jq` to read the two JSON responses; keep the
+validation step either way, since skipping it renames cards on a typo.
 
 3. **Make executable**: `chmod +x .kan/hooks/type-shortcut.rad` (or `.sh`)
 
@@ -393,16 +412,20 @@ kan edit fix -f priority=low             # Update custom field
 ## Deleting Cards
 
 ```bash
-kan delete 12                # Delete card by ID (prompts for confirmation)
-kan delete fix-login         # Delete card by alias
-kan delete 12 --force        # Skip confirmation
-kan delete 12 -b myboard    # Specify board
+kan delete 12                  # Delete card by ID (prompts for confirmation)
+kan delete fix-login           # Delete card by alias
+kan delete 12 -b myboard       # Specify board
+printf 'y\n' | kan delete 12   # Scripted: pipe the confirmation in
 ```
 
 | Flag | Description |
 |------|-------------|
 | `-b, --board` | Board name |
-| `-f, --force` | Skip confirmation (required in non-interactive mode) |
+| `-g, --global` | Target the designated global board |
+
+`kan delete` always prompts - there is no `--force` or `--yes` flag to skip it,
+and `-I` makes it fail rather than proceed. Pipe the confirmation in to delete
+non-interactively.
 
 ## Board Management
 
@@ -410,10 +433,12 @@ kan delete 12 -b myboard    # Specify board
 kan board create features    # Create a new board
 kan board list               # List all boards
 kan board delete features    # Delete board and all its cards (prompts for confirmation)
-kan board delete features -f # Skip confirmation
 kan board describe           # Show board documentation (columns, fields, settings)
 kan board describe --json    # Machine-readable board docs
 ```
+
+`kan board delete` prompts and has no skip flag, same as `kan delete` - pipe the
+confirmation in (`printf 'y\n' | kan board delete features`) to script it.
 
 ## Column Management
 
@@ -531,7 +556,7 @@ Completion supports commands, flags, board names, card IDs/aliases, and column n
 | Flag | Description |
 |------|-------------|
 | `-I, --non-interactive` | Fail instead of prompting for input |
-| `--json` | Output results as JSON (supported by: show, list, add, edit, board list, column list, comment add, doctor) |
+| `--json` | Output results as JSON (supported by: show, list, add, edit, history, board list, board describe, column list, comment add, doctor) |
 
 ## Board Configuration
 
