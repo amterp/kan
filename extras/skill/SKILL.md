@@ -7,7 +7,7 @@ description: Manage kanban boards using the Kan CLI. Use when working with tasks
 
 [Kan](https://github.com/amterp/kan) is a file-based kanban board CLI. All data lives in `.kan/` as plain files.
 
-Full documentation is available at [amterp.dev/kan/docs](https://amterp.dev/kan/docs).
+Full documentation ships inside the binary: run `kan docs` for the topic list, `kan docs <topic>` for a page, `kan docs all` for everything. Prefer it over fetching the web copy at [amterp.dev/kan/docs](https://amterp.dev/kan/docs), which is only a fallback for builds older than the command.
 
 ## Getting Help
 
@@ -23,7 +23,7 @@ kan column --help
 
 When a user asks to create a new board (`kan board create`) or initialize a new Kan project (`kan init`), run this interactive setup process rather than creating a board with defaults. This applies to both new projects and additional boards.
 
-Before writing any config, consult the [Kan documentation](https://amterp.dev/kan/docs) to double-check available options and TOML structure.
+Before writing any config, run `kan docs configuration` and `kan docs custom-fields` to double-check available options and TOML structure.
 
 ### Step 1: Understand the Project and User
 
@@ -556,7 +556,7 @@ Completion supports commands, flags, board names, card IDs/aliases, and column n
 | Flag | Description |
 |------|-------------|
 | `-I, --non-interactive` | Fail instead of prompting for input |
-| `--json` | Output results as JSON (supported by: show, list, add, edit, history, board list, board describe, column list, comment add, doctor) |
+| `--json` | Output results as JSON (supported by: show, list, add, edit, history, board list, board describe, column list, comment add, doctor, docs) |
 
 ## Board Configuration
 
@@ -608,4 +608,10 @@ kan comment add fix-login "Note" --json | jq .comment.id
 
 ## Documentation
 
-Full documentation is available at [amterp.dev/kan/docs](https://amterp.dev/kan/docs). Consult the docs when setting up boards or editing config files to verify available options and TOML structure.
+```bash
+kan docs                # List topics, each with its sections
+kan docs configuration  # Print one page
+kan docs all            # Print every page
+```
+
+Consult these when setting up boards or editing config files to verify available options and TOML structure. They ship in the binary, so they match the installed version - read them instead of fetching the web copy at [amterp.dev/kan/docs](https://amterp.dev/kan/docs), which is the fallback if `kan docs` is unavailable.

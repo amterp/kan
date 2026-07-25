@@ -484,6 +484,25 @@ kan doctor --json
   - `MALFORMED_GLOBAL_CONFIG`: Global config.toml fails to parse
   - `GLOBAL_SCHEMA_OUTDATED`: Global config needs migration
 
+### docs
+
+Print these docs from the binary. They match the version of `kan` you're running, and work offline and outside any project.
+
+```bash
+kan docs                # topic index: every page, its command, and its sections
+kan docs cli            # print one page
+kan docs index          # the docs landing page (not the generated index above)
+kan docs all            # the index plus every page
+```
+
+| Flag     | Description                                    |
+|----------|------------------------------------------------|
+| `--json` | Print the topic index as JSON instead of a list |
+
+Pages print as raw Markdown. Links to other pages are rewritten into the command that prints them, so a link to the Custom Fields page reads as `Custom Fields (see: kan docs custom-fields)`.
+
+`--json` covers the topic index only, as `{"topics": [{slug, title, sections}]}`. Pages are Markdown, so `kan docs cli --json` warns and prints the page unchanged.
+
 ### completion
 
 Output shell completion scripts for TAB completion of commands, flags, board names, card IDs/aliases, and column names.
@@ -505,7 +524,7 @@ eval "$(kan completion bash)"
 | Flag                    | Description                                                                              |
 |-------------------------|------------------------------------------------------------------------------------------|
 | `-I, --non-interactive` | Fail instead of prompting for missing input                                              |
-| `--json`                | Output results as JSON (supported by: show, list, add, edit, board list, column list, comment add, doctor) |
+| `--json`                | Output results as JSON (supported by: show, list, add, edit, board list, column list, comment add, doctor, docs) |
 
 ## JSON Output
 

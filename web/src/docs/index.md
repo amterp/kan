@@ -45,6 +45,8 @@ For scripting or automation (CI, AI agents, etc.), there's a full [CLI](/docs/cl
 - [CLI Reference](/docs/cli) - Full command line tool usage
 - [AI Agents](/docs/ai-agents) - Using Kan with AI coding agents
 
+Every page here also ships inside the binary: run `kan docs` in a terminal for the topic list, or `kan docs <topic>` to print one.
+
 ## Roadmap
 
 Kan is usable today. Current focus areas:

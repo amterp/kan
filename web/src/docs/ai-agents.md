@@ -12,6 +12,7 @@ This means an AI agent can:
 - **Create cards in bulk** - `kan add` in a loop, with custom fields, descriptions, and column placement
 - **Triage and organize** - move cards between columns, update fields, add comments
 - **Query the board** - `kan list`, `kan show`, and `--json` output for structured data
+- **Read these docs** - `kan docs` lists the topics and `kan docs all` prints the whole corpus, straight from the binary, so an agent reads the version it's running instead of fetching a URL
 - **Do mass edits** - rename fields, re-categorize cards, update descriptions across dozens of cards at once
 
 Things that would take you 20 minutes of clicking are a single prompt away.

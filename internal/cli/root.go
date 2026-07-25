@@ -192,6 +192,10 @@ type CommandContext struct {
 
 	// global unset
 	GlobalUnsetUsed *bool
+
+	// docs command
+	DocsUsed  *bool
+	DocsTopic *string
 }
 
 // Run is the main entry point for the CLI.
@@ -247,6 +251,7 @@ func buildRootCmd() *CommandContext {
 	registerDoctor(cmd, ctx)
 	registerCommit(cmd, ctx)
 	registerGlobal(cmd, ctx)
+	registerDocs(cmd, ctx)
 	registerCompletion(cmd, ctx)
 
 	return ctx
@@ -285,6 +290,9 @@ func executeCommand(ctx *CommandContext) {
 			unsupportedCommand = "board delete"
 		case *ctx.CommitUsed:
 			unsupportedCommand = "commit"
+		case *ctx.DocsUsed && *ctx.DocsTopic != "":
+			// Bare 'docs' emits a JSON index; a page is markdown either way.
+			unsupportedCommand = "docs <topic>"
 		}
 		if unsupportedCommand != "" {
 			warnJsonNotSupported(unsupportedCommand)
@@ -381,6 +389,9 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.GlobalUnsetUsed:
 		runGlobalUnset()
+
+	case *ctx.DocsUsed:
+		runDocs(*ctx.DocsTopic, *ctx.Json)
 
 	case *ctx.CompletionUsed:
 		runCompletion(*ctx.CompletionShell, ctx.RootCmd)
