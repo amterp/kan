@@ -21,6 +21,35 @@ if format:
 if website:
     $`cd web && VITE_BASE_PATH=/kan/ npx vite`
 
+// Release preflight. Runs before the build so a bad setup fails in seconds rather
+// than a minute in, and before anything irreversible. All read-only.
+if release:
+    stdout = quiet $`git branch --show-current`
+    branch = stdout.trim()
+    if branch != "main":
+        print_err("Release must be run from main branch (currently on '{branch}')")
+        exit(1)
+
+    // The tap is pushed last, after the GitHub release is already public, so a
+    // problem found then strands a released version that `brew upgrade` can't see.
+    quiet $`test -d {tap_path}` catch:
+        print_err("No homebrew tap at '{tap_path}'. The formula update would fail after the release is already public. Clone amterp/homebrew-tap there, or pass --tap-path.")
+        exit(1)
+
+    stdout = quiet $`git -C {tap_path} status --porcelain`
+    if stdout.trim() != "":
+        print_err("Tap at '{tap_path}' has uncommitted changes - the release would sweep them into the formula bump commit. Commit or stash them first.")
+        exit(1)
+
+    quiet $`git -C {tap_path} fetch --quiet origin` catch:
+        print_err("Cannot reach the tap remote. The formula push at the end of the release would fail too, after the release is public. Check the network and the tap's origin.")
+        exit(1)
+
+    stdout = quiet $`git -C {tap_path} rev-list --count HEAD..origin/main`
+    if stdout.trim() != "0":
+        print_err("Tap at '{tap_path}' is behind origin/main, so its push would be rejected and the formula left stale. Pull it first.")
+        exit(1)
+
 if build or validate or push or re_serve or release:
     // Build frontend + binary (see Makefile; binary embeds the frontend via go:embed)
     $`make build`
@@ -42,11 +71,16 @@ if re_serve:
     $`bin/kan serve`
 
 if release:
-    // Ensure we're on main branch
-    stdout = quiet $`git branch --show-current`
-    branch = stdout.trim()
-    if branch != "main":
-        print_err("Release must be run from main branch (currently on '{branch}')")
+    // Cleanliness is checked here, after the build, not in the preflight: `make
+    // build` regenerates internal/api/dist, so this catches a committed frontend
+    // bundle the build didn't reproduce as well as ordinary uncommitted work.
+    // Either way the binaries would be built from code the tag doesn't point at.
+    // Untracked files count too - an untracked .go file compiles into the release.
+    stdout = quiet $`git status --porcelain`
+    if stdout.trim() != "":
+        print_err("Working tree is not clean after the build:")
+        print_err(stdout.trim())
+        print_err("Releasing now would ship binaries built from this state while tagging HEAD. If the changes are under internal/api/dist, the committed bundle was stale and the rebuild fixed it - commit that. Otherwise commit or stash.")
         exit(1)
 
     // Calculate new version from latest tag
@@ -92,6 +126,16 @@ if release:
     releases_dir = "{repo}/releases"
     formula_path = "{repo}/{tap_path}/Formula/kan.rb"
     tag = "v{release}"
+
+    // The version above comes from local tags, which can lag the remote (released
+    // from another machine, or a tag left behind by a release that died partway).
+    // Syncing them wholesale isn't an option: v0.1.0-v0.7.0 diverged from the remote
+    // in an early history rewrite, so `git fetch --tags` always fails here. Check the
+    // one thing that actually matters instead.
+    stdout = quiet $`git ls-remote --tags origin refs/tags/{tag}`
+    if stdout.trim() != "":
+        print_err("{tag} is already published on origin, so the next version was computed from a stale local view. Resync with `git fetch --force --tags origin` (force is needed for those legacy tags) and re-run.")
+        exit(1)
 
     // Build for darwin-arm64
     print("Building darwin-arm64...")
