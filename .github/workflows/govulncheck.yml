@@ -27,4 +27,9 @@ jobs:
       - name: Run govulncheck
         uses: golang/govulncheck-action@v1
         with:
-          go-version-file: go.mod
+          # Scan with latest stable Go rather than go.mod's floor - there's no single
+          # toolchain our releases are built with (Homebrew uses the tap's Go, `go
+          # install` uses the user's), so stable is the proxy that catches the most.
+          # Don't switch this to go-version-file: the action always forwards
+          # go-version-input to setup-go as go-version, which silently wins.
+          go-version-input: stable

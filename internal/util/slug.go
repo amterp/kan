@@ -23,6 +23,14 @@ var (
 //
 // The caller is responsible for joining/truncating as needed.
 func SlugWords(s string) []string {
+	// Drop invalid UTF-8 up front, so everything downstream can assume it's clean.
+	// Dropping beats substituting: strings.ToLower would otherwise turn stray bytes
+	// into U+FFFD, which the nonAlphanumeric rule below reads as a word boundary -
+	// so "caf\xffe latte" would slug to "caf-e-latte" instead of "cafe-latte". It
+	// also keeps norm away from input it has historically mishandled (GO-2026-5970
+	// was an infinite loop on invalid UTF-8).
+	s = strings.ToValidUTF8(s, "")
+
 	s = strings.ToLower(s)
 	s = removeAccents(s)
 	s = nonAlphanumeric.ReplaceAllString(s, "-")

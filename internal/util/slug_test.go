@@ -32,6 +32,8 @@ func TestSlugWords(t *testing.T) {
 		{"Café au lait", []string{"cafe", "au", "lait"}},
 		{"Résumé updates", []string{"resume", "updates"}},
 		{"naïve implementation", []string{"naive", "implementation"}},
+		// Invalid UTF-8 must not derail (or hang) normalization - see GO-2026-5970
+		{"caf\xffe latte", []string{"cafe", "latte"}},
 
 		// Numbers
 		{"Issue #123", []string{"issue", "123"}},
