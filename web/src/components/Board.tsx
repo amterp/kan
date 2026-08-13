@@ -7,6 +7,7 @@ import type { UndoAction } from '../hooks/useUndo';
 import { cardMatchesQuery } from '../utils/fuzzyMatch';
 import { toApiFieldValue } from '../utils/customFields';
 import { groupCardsByColumn, resolveSortField } from '../utils/cardSort';
+import { APPEND_POSITION } from '../utils/columnPlacement';
 import { BoardConfigProvider } from '../contexts/BoardConfigContext';
 import { useToast } from '../contexts/ToastContext';
 import Column from './Column';
@@ -346,12 +347,24 @@ export default function Board({
     let position: number | undefined;
 
     if (isColumn) {
-      // Dropped on a column (empty area or column header)
+      // Resolving to the column rather than a card means the pointer was below
+      // every card, so this is a drop at the bottom. Say so explicitly: sending
+      // no placement would hand the decision to the column's
+      // on_move_default_position and land the card at the top of most columns,
+      // while the drop indicator was showing the bottom.
       targetColumn = overId;
-      // Append to end
-      position = undefined;
+      position = APPEND_POSITION;
+
+      // Already the last card there, so the drop asks for nothing. Mirrors the
+      // oldIndex === targetIndex guard below; without it a stray drop rewrites
+      // the position and bumps updated_at for no visible change. Checked against
+      // the unfiltered column, since a filter hides cards below this one.
+      if (draggedCard.column === targetColumn) {
+        const colCards = allCardsByColumn[targetColumn] || [];
+        if (colCards[colCards.length - 1]?.id === activeId) return;
+      }
     } else {
-      // Dropped on a card
+      // Dropped on a card - take that card's slot, in either column
       const targetCard = cards.find((c) => c.id === overId);
       if (!targetCard) return;
 
@@ -359,34 +372,28 @@ export default function Board({
       const columnCards = cardsByColumn[targetColumn] || [];
       const targetIndex = columnCards.findIndex((c) => c.id === overId);
 
-      if (draggedCard.column === targetColumn) {
-        // Same column reorder
-        const oldIndex = columnCards.findIndex((c) => c.id === activeId);
-        if (oldIndex === targetIndex) return; // No change
-
-        // Calculate new position
-        // If moving down (oldIndex < targetIndex), we want to be at targetIndex
-        // If moving up (oldIndex > targetIndex), we want to be at targetIndex
-        position = targetIndex;
-      } else {
-        // Different column - insert at target card's position
-        position = targetIndex;
+      // Dropped on the slot it already occupies, so nothing was asked for.
+      if (draggedCard.column === targetColumn
+        && columnCards.findIndex((c) => c.id === activeId) === targetIndex) {
+        return;
       }
+
+      position = targetIndex;
     }
 
     // A custom-field sort owns in-column ordering, so manual reordering within a
     // column would have no visible effect — block it and tell the user. Moving a
-    // card to a different column still works: it appends and re-sorts by field.
+    // card to a different column still works, but the slot it was dropped in is
+    // not worth recording: the sort decides what you see, so let the destination
+    // column's on_move_default_position own the manual order underneath, exactly
+    // as it does for advance and the context menu.
     if (activeSortField) {
       if (draggedCard.column === targetColumn) {
         showToast('info', `Sorted by "${activeSortField}" - switch to Manual order to drag cards within a column.`);
         return;
       }
-      position = undefined; // cross-column: let the field sort place it
+      position = undefined;
     }
-
-    // Skip if same column and no position (no real move)
-    if (draggedCard.column === targetColumn && position === undefined) return;
 
     // Client-side column limit check to avoid the jarring optimistic-then-revert UX
     if (draggedCard.column !== targetColumn) {

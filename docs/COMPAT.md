@@ -339,12 +339,13 @@ Applies to:
 - `kan edit <card> -c <column>`
 - `PATCH /api/v1/boards/{board}/cards/{id}/move` with no `position`
 - `PUT /api/v1/boards/{board}/cards/{id}` changing `column`
-- Web drag onto empty column space, right-click move, the card detail column dropdown, and slim-mode advance
+- Web right-click move, the card detail column dropdown, and slim-mode advance
 
 Does not apply to:
 - `kan add`, which always appends. Creating a card is not a workflow transition.
 - Moving a card to the column it already occupies, which stays a no-op. Pass an explicit placement flag to reorder.
 - Any move carrying an explicit `--position`/`--top`/`--bottom`/`--before`/`--after`, which always wins.
+- Web drag-and-drop, which always names a slot. A drop below the last card sends `position: -1`, so it lands at the bottom regardless of the column's default - the drag has to go where it was aimed.
 
 A `default_sort` on the board overrides manual ordering entirely, so it has no visible effect while a sort is active.
 

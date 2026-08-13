@@ -84,12 +84,12 @@ Ask the user what columns they want. Offer these templates as inspiration - they
 
 **Column Limits**: Columns can have an optional limit that caps how many cards they hold. When a column is full, adding or moving cards into it is refused. This is a core kanban practice for controlling flow. Suggest limits for active workflow columns (like `next` and `in-progress`) - leave unbounded columns (like `backlog` and `done`) without limits. The defaults in the templates above are good starting points; adjust based on preference.
 
-**Card Insertion**: `on_move_default_position` decides where a card lands when it is *moved* into a column - via `kan move`, `kan edit -c`, a drag, or the context menu. Ask which model each column follows rather than taking the default silently:
+**Card Insertion**: `on_move_default_position` decides where a card lands when it is *moved* into a column without saying where - via `kan move`, `kan edit -c`, the web UI's right-click move, column dropdown, or advance shortcut. Ask which model each column follows rather than taking the default silently:
 
 - **Queue columns**, where position encodes priority (`backlog`, `next`, `uncommitted`), want `bottom`. An arriving card joins the back of the line instead of jumping ahead of work already triaged.
 - **Activity columns**, where position encodes recency (`in-progress`, `done`), want `top`, so the card just touched is the one on screen.
 
-`top` is the default when unset. The values in the templates above follow this rule and are good starting points. This does not affect `kan add`, which always appends, and an explicit placement flag always overrides it.
+`top` is the default when unset. The values in the templates above follow this rule and are good starting points. This does not affect `kan add`, which always appends, and an explicit placement flag always overrides it. Dragging is unaffected too - a drag always names a slot.
 
 The first column in the list becomes the default column for new cards.
 

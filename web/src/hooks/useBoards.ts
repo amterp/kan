@@ -288,12 +288,14 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
 
     try {
       const updatedCard = await apiUpdateCard(boardName, cardId, updates);
-      // Update with server response (includes custom fields)
-      setCards((prev) =>
-        prev.map((card) =>
-          card.id === cardId ? updatedCard : card
-        )
-      );
+      // Update with server response (includes custom fields). Re-insert by the
+      // position it came back with rather than replacing in place: changing a
+      // card's column is also a move, and the server placed it per that column's
+      // on_move_default_position. Array order is manual order, so replacing in
+      // place would leave the card at its rank in the column it just left, and
+      // the next WebSocket refresh would visibly jump it. When nothing moved,
+      // the card re-inserts exactly where it already was.
+      setCards((prev) => insertCardSorted(prev.filter((c) => c.id !== cardId), updatedCard));
     } catch (e) {
       // Revert on error
       refresh();

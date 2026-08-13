@@ -11,6 +11,18 @@ export function moveInsertsAtTop(column: Column | undefined): boolean {
 }
 
 /**
+ * The one spelling of "the end of the column" that both sides read the same way:
+ * the server's computePosition counts negatives back from the end, and
+ * resolveInsertIndex below appends. Sending a length instead would be wrong under
+ * a filter, where the visible column is shorter than the real one.
+ *
+ * Pass this rather than omitting the position when the caller means the bottom.
+ * An omitted position is not "the end" - it hands the choice to the column's
+ * on_move_default_position, which lands the card at the top of most columns.
+ */
+export const APPEND_POSITION = -1;
+
+/**
  * Index at which a moved card should be spliced into the destination column,
  * mirroring the server. `position` is the explicit placement the caller
  * requested, if any; when undefined the column's on_move_default_position decides.
@@ -27,15 +39,24 @@ export function resolveInsertIndex(
   isColumnChange: boolean,
   currentIndex: number,
 ): number {
-  if (position !== undefined && position >= 0 && position < targetColumnLength) {
-    return position;
-  }
   if (position !== undefined) {
-    return targetColumnLength;
+    return normalizeIndex(position, targetColumnLength);
   }
   if (!isColumnChange) {
     return currentIndex >= 0 ? currentIndex : targetColumnLength;
   }
   const column = board.columns.find((c) => c.name === targetColumn);
   return moveInsertsAtTop(column) ? 0 : targetColumnLength;
+}
+
+/**
+ * Splice index for an explicit position, matching computePosition on the server:
+ * negatives count back from the end (-1 = after the last card, -2 = before it),
+ * underflow clamps to the top, and anything past the end appends.
+ */
+function normalizeIndex(position: number, length: number): number {
+  if (position < 0) {
+    return Math.max(0, length + 1 + position);
+  }
+  return Math.min(position, length);
 }

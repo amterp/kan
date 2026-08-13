@@ -691,6 +691,42 @@ func TestHandler_MoveCard_OmittedPositionHonorsColumnDefault(t *testing.T) {
 	}
 }
 
+// A drop below every card in a column sends position -1, and that has to reach
+// the bottom even though the column places arrivals at the top. The web relies
+// on -1 rather than a computed index because a filter can hide cards, making the
+// visible column shorter than the real one.
+func TestHandler_MoveCard_NegativePositionAppends(t *testing.T) {
+	api := setupTestAPI(t)
+	api.createBoard(t, "main")
+
+	// done defaults to top, so an omitted position would land the card first.
+	api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "First", "column": "done"})
+	api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "Second", "column": "done"})
+	createResp := api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "Moved", "column": "backlog"})
+	moved := createCardFromResponse(t, createResp)
+
+	w := api.request("PATCH", "/api/v1/boards/main/cards/"+moved.ID+"/move",
+		map[string]any{"column": "done", "position": -1})
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	listResp := api.request("GET", "/api/v1/boards/main/cards?column=done", nil)
+	var listResult map[string][]CardResponse
+	decodeJSON(t, listResp, &listResult)
+	cards := listResult["cards"]
+	if len(cards) != 3 {
+		t.Fatalf("Expected 3 cards in done, got %d", len(cards))
+	}
+	if cards[2].Title != "Moved" {
+		titles := make([]string, len(cards))
+		for i, c := range cards {
+			titles[i] = c.Title
+		}
+		t.Errorf("done order = %v, want \"Moved\" last", titles)
+	}
+}
+
 func TestHandler_MoveCard_WithPosition(t *testing.T) {
 	api := setupTestAPI(t)
 	api.createBoard(t, "main")

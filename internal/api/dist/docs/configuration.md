@@ -125,7 +125,7 @@ on_move_default_position = "top"
 
 **Column Limits**: When a column has a `limit`, adding or moving cards into it is refused once the limit is reached. Column headers show the count as `(X/Y)` when a limit is set. This is a core kanban practice for controlling flow.
 
-**Card Insertion**: `on_move_default_position` decides where a card lands when it is *moved* into a column - by `kan move`, `kan edit -c`, a drag, or the context menu. Two kinds of column want opposite answers:
+**Card Insertion**: `on_move_default_position` decides where a card lands when it is *moved* into a column without saying where - by `kan move`, `kan edit -c`, the right-click move, the card's column dropdown, or the advance shortcut. Two kinds of column want opposite answers:
 
 - **Queues**, where position means priority (`backlog`, `next`). Set `"bottom"` so an arriving card joins the back of the line instead of jumping it.
 - **Activity columns**, where position means recency (`in-progress`, `done`). Leave it unset or set `"top"`, so the thing you just touched is the thing you see.
@@ -133,6 +133,8 @@ on_move_default_position = "top"
 `top` is the default. New boards ship with `backlog` and `next` set to `bottom`.
 
 The name spells out the scope, because two cases are deliberately excluded. `kan add` always appends - creating a card is not a workflow transition, and `add` has its own `--top`/`--bottom`/`--before`/`--after` flags. Moving a card within the column it already occupies does nothing unless you pass an explicit placement flag. And "default" means exactly that: any explicit placement flag overrides it. A `default_sort` overrides manual order entirely, so this setting has no visible effect while a sort is active.
+
+Dragging is never affected, because a drag always names a slot - including a drop below the last card, which means the bottom whatever the column's default is.
 
 ### Custom Fields
 
