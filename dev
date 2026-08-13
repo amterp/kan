@@ -98,7 +98,7 @@ if release:
 
         // Parse version (strip leading 'v')
         version_str = latest_tag[1:]
-        parts = version_str.split("\\.")
+        parts = version_str.split(".")
         major = parse_int(parts[0])
         minor = parse_int(parts[1])
         patch = parse_int(parts[2])
@@ -211,7 +211,8 @@ if release:
     // GitHub release
     print("Creating GitHub release...")
     write_file(notes_file, notes)
-    $`gh release create {tag} {arm64_tar} {amd64_tar} --repo amterp/kan --title "Kan {tag}" --notes-file {notes_file}`
+    release_title = "Kan {tag}"
+    $`gh release create {tag} {arm64_tar} {amd64_tar} --repo amterp/kan --title {release_title} --notes-file {notes_file}`
     quiet $`rm -f {notes_file}` catch:
         pass
 
@@ -249,7 +250,8 @@ end
     print("Pushing tap...")
     tap = "{repo}/{tap_path}"
     $`git -C {tap} add Formula/kan.rb`
-    $`git -C {tap} commit -m "kan {release}"`
+    formula_commit_msg = "kan {release}"
+    $`git -C {tap} commit -m {formula_commit_msg}`
     $`git -C {tap} push`
 
     print("Done! {tag} released.")
