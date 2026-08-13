@@ -77,6 +77,13 @@ func (s *FileBoardStore) Get(boardName string) (*model.BoardConfig, error) {
 		}
 	}
 
+	// Validate per-column settings and print warnings for invalid values
+	if warnings := model.ValidateColumns(cfg.Columns); len(warnings) > 0 {
+		for _, w := range warnings {
+			fmt.Fprintln(os.Stderr, "Warning:", w)
+		}
+	}
+
 	// Validate pattern hooks and print warnings for invalid patterns
 	if warnings := model.ValidatePatternHooks(cfg.PatternHooks); len(warnings) > 0 {
 		for _, w := range warnings {

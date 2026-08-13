@@ -4,6 +4,7 @@ import { listCards, moveCard as apiMoveCard, createCard as apiCreateCard, update
 import type { BoardConfig, Card, CreateCardInput, CreateCardResponse, HookInfo, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
 import { useFileSync, type FileChange } from './useFileSync';
 import { useToast } from '../contexts/ToastContext';
+import { resolveInsertIndex } from '../utils/columnPlacement';
 
 // A failed hook still creates the card, so the board looks entirely normal. Without a
 // visible message the only symptom is the hook's effect not happening, which reads as
@@ -202,14 +203,22 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
         cardsByColumn[col.name] = withoutCard.filter((c) => c.column === col.name);
       }
 
-      // Insert card into target column at position
+      // Insert card into target column, mirroring the server's placement rule so
+      // the optimistic render matches what the next refresh will show.
       const updatedCard = { ...cardToMove, column: newColumn, updated_at_millis: Date.now() };
       const targetColumnCards = cardsByColumn[newColumn] || [];
-      if (position !== undefined && position >= 0 && position < targetColumnCards.length) {
-        targetColumnCards.splice(position, 0, updatedCard);
-      } else {
-        targetColumnCards.push(updatedCard);
-      }
+      const currentIndex = prevCards
+        .filter((c) => c.column === newColumn)
+        .findIndex((c) => c.id === cardId);
+      const insertAt = resolveInsertIndex(
+        board,
+        newColumn,
+        targetColumnCards.length,
+        position,
+        cardToMove.column !== newColumn,
+        currentIndex,
+      );
+      targetColumnCards.splice(insertAt, 0, updatedCard);
       cardsByColumn[newColumn] = targetColumnCards;
 
       // Flatten back to array, maintaining column order

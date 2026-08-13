@@ -47,11 +47,15 @@ export interface HistoryEntry {
   at: number;
 }
 
+export type ColumnPosition = 'top' | 'bottom';
+
 export interface Column {
   name: string;
   color: string;
   description?: string;
   limit?: number;
+  /** Where a card MOVED into this column lands. Unset means top. Not used by add. */
+  on_move_default_position?: ColumnPosition;
   card_ids?: string[];
 }
 
@@ -154,6 +158,7 @@ export interface CreateColumnInput {
   description?: string;
   limit?: number;
   position?: number;
+  on_move_default_position?: ColumnPosition;
 }
 
 export interface UpdateColumnInput {
@@ -161,6 +166,7 @@ export interface UpdateColumnInput {
   color?: string;
   description?: string;
   limit?: number;
+  on_move_default_position?: ColumnPosition | '';
 }
 
 export interface FaviconConfig {

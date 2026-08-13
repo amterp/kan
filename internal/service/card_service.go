@@ -268,7 +268,8 @@ func (s *CardService) listSorted(boardName, columnFilter, sortField string, desc
 	return result, nil
 }
 
-// MoveCard moves a card to a different column at the bottom.
+// MoveCard moves a card to a different column, landing where that column's
+// on_move_default_position says (top unless configured otherwise).
 func (s *CardService) MoveCard(boardName, cardID, targetColumn string) error {
 	return s.MoveCardWithPlacement(boardName, cardID, targetColumn, nil, "", "")
 }
@@ -281,10 +282,11 @@ func (s *CardService) MoveCardAt(boardName, cardID, targetColumn string, positio
 
 // MoveCardWithPlacement moves a card to a target column at a placement determined
 // by exactly one of: an explicit index (position, non-nil), or an anchor card
-// (beforeID/afterID, by canonical ID). When none is given, the card is appended
-// to the end. An empty targetColumn is inferred from the anchor card's column
-// when an anchor is given, otherwise the card stays in its current column (an
-// in-place reorder).
+// (beforeID/afterID, by canonical ID). When none is given and the column is
+// actually changing, the destination column's on_move_default_position decides
+// (top by default, bottom when configured); an in-place reorder with no
+// placement is a no-op. An empty targetColumn is inferred from the anchor card's column when an
+// anchor is given, otherwise the card stays in its current column.
 func (s *CardService) MoveCardWithPlacement(boardName, cardID, targetColumn string,
 	position *int, beforeID, afterID string) error {
 
@@ -328,12 +330,26 @@ func (s *CardService) MoveCardWithPlacement(boardName, cardID, targetColumn stri
 	// Get sorted cards in target column (excluding the card being moved)
 	colCards := cardsInColumnExcluding(allCards, targetColumn, cardID)
 
+	col := boardCfg.GetColumn(targetColumn)
+	isColumnChange := card.Column != targetColumn
+
 	// Check column limit for cross-column moves
-	if card.Column != targetColumn {
-		col := boardCfg.GetColumn(targetColumn)
+	if isColumnChange {
 		if col.Limit > 0 && len(colCards) >= col.Limit {
 			return kanerr.ColumnLimitExceeded(targetColumn, col.Limit)
 		}
+	}
+
+	// With no explicit placement, a card moved into a column lands where that
+	// column says arrivals belong. Applied here rather than in resolveInsertIndex
+	// because that helper is shared with Add, which always appends, and because
+	// once it has run an explicit --position -1 is indistinguishable from the
+	// "no placement" sentinel. Deliberately skipped for in-place reorders: a bare
+	// move to the column the card is already in stays a no-op instead of
+	// silently yanking it to the top.
+	if position == nil && beforeID == "" && afterID == "" && isColumnChange && col.MoveInsertsAtTop() {
+		top := 0
+		position = &top
 	}
 
 	idx, err := resolveInsertIndex(colCards, position, beforeID, afterID)

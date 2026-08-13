@@ -19,6 +19,21 @@ const (
 // This prevents accidental abuse and keeps the UI manageable.
 const MaxSetItems = 10
 
+// Column position constants name where a card lands within a column.
+const (
+	ColumnPositionTop    = "top"
+	ColumnPositionBottom = "bottom"
+)
+
+// ValidColumnPositions lists all supported column position values.
+var ValidColumnPositions = []string{ColumnPositionTop, ColumnPositionBottom}
+
+// IsValidColumnPosition returns true if the given value is a valid column
+// position. The empty string is valid and means "use the default" (top).
+func IsValidColumnPosition(v string) bool {
+	return v == "" || v == ColumnPositionTop || v == ColumnPositionBottom
+}
+
 // ValidFieldTypes lists all supported custom field types.
 var ValidFieldTypes = []string{FieldTypeString, FieldTypeEnum, FieldTypeEnumSet, FieldTypeFreeSet, FieldTypeDate, FieldTypeBoolean}
 
@@ -53,6 +68,18 @@ type Column struct {
 	Color       string `toml:"color" json:"color"`
 	Description string `toml:"description,omitempty" json:"description,omitempty"`
 	Limit       int    `toml:"limit,omitempty" json:"limit,omitempty"`
+	// Where a card lands when it is MOVED into this column: "top" (default) or
+	// "bottom". A default, not a rule - an explicit placement flag overrides it.
+	// Does not apply to kan add, which always appends.
+	OnMoveDefaultPosition string `toml:"on_move_default_position,omitempty" json:"on_move_default_position,omitempty"`
+}
+
+// MoveInsertsAtTop reports whether a card moved into this column should land at
+// the top. Unset means top: a card arriving in a column is usually the one you
+// just acted on. Queue columns whose order encodes priority should set "bottom"
+// so arrivals don't jump the line.
+func (c Column) MoveInsertsAtTop() bool {
+	return c.OnMoveDefaultPosition != ColumnPositionBottom
 }
 
 // CustomFieldOption represents a single option for enum/enum-set fields.
@@ -114,6 +141,22 @@ func ValidateLinkRules(rules []LinkRule) []string {
 	return warnings
 }
 
+// ValidateColumns validates per-column settings.
+// Returns a list of warning messages for invalid values (non-fatal).
+func ValidateColumns(columns []Column) []string {
+	var warnings []string
+	for _, col := range columns {
+		if !IsValidColumnPosition(col.OnMoveDefaultPosition) {
+			warnings = append(warnings, fmt.Sprintf(
+				"columns: column '%s' has invalid on_move_default_position %q; cards moved into it "+
+					"will land at the top. Valid values are 'top' and 'bottom' - fix the value or "+
+					"remove the key",
+				col.Name, col.OnMoveDefaultPosition))
+		}
+	}
+	return warnings
+}
+
 // ValidatePatternHooks validates that all pattern hooks have valid regex patterns.
 // Returns a list of warning messages for invalid patterns (non-fatal).
 func ValidatePatternHooks(hooks []PatternHook) []string {
@@ -140,11 +183,14 @@ func ValidatePatternHooks(hooks []PatternHook) []string {
 
 // DefaultColumns returns the default columns for a new board.
 func DefaultColumns() []Column {
+	// backlog and next are priority-ordered queues, so arrivals go to the back.
+	// in-progress and done are activity-ordered, where the newest is what you
+	// want to see first.
 	return []Column{
-		{Name: "backlog", Color: "#6b7280"},
-		{Name: "next", Color: "#3b82f6"},
-		{Name: "in-progress", Color: "#f59e0b"},
-		{Name: "done", Color: "#10b981"},
+		{Name: "backlog", Color: "#6b7280", OnMoveDefaultPosition: ColumnPositionBottom},
+		{Name: "next", Color: "#3b82f6", OnMoveDefaultPosition: ColumnPositionBottom},
+		{Name: "in-progress", Color: "#f59e0b", OnMoveDefaultPosition: ColumnPositionTop},
+		{Name: "done", Color: "#10b981", OnMoveDefaultPosition: ColumnPositionTop},
 	}
 }
 
@@ -290,6 +336,18 @@ func (b *BoardConfig) SetColumnLimit(name string, limit int) bool {
 		return false
 	}
 	col.Limit = limit
+	return true
+}
+
+// SetColumnOnMoveDefaultPosition updates where a card lands when it is moved
+// into a column. An empty value clears the setting, restoring the default (top).
+// Returns false if the column doesn't exist.
+func (b *BoardConfig) SetColumnOnMoveDefaultPosition(name, position string) bool {
+	col := b.GetColumn(name)
+	if col == nil {
+		return false
+	}
+	col.OnMoveDefaultPosition = position
 	return true
 }
 

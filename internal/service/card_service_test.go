@@ -578,24 +578,99 @@ func serviceCardIDs(cards []*model.Card) []string {
 // MoveCard() / MoveCardAt() Tests
 // ============================================================================
 
-func TestCardService_MoveCard_ToEnd(t *testing.T) {
-	service, cardStore, boardStore := setupCardService()
-	boardStore.addBoard(testBoardConfig("main"))
+// A bare MoveCard must land where the destination column's on_move_default_position says.
+// This assertion is the point of the test: the "move lands at the top" behavior
+// was implemented once, then silently reverted by an unrelated storage refactor
+// because nothing asserted the landing position - only the resulting column.
+func TestCardService_MoveCard_HonorsOnMoveDefaultPosition(t *testing.T) {
+	tests := []struct {
+		name           string
+		onMovePosition string
+		want           []string
+	}{
+		{name: "unset defaults to top", onMovePosition: "", want: []string{"Moved", "First", "Second"}},
+		{name: "explicit top", onMovePosition: model.ColumnPositionTop, want: []string{"Moved", "First", "Second"}},
+		{name: "explicit bottom", onMovePosition: model.ColumnPositionBottom, want: []string{"First", "Second", "Moved"}},
+	}
 
-	card, _, _ := service.Add(AddCardInput{BoardName: "main", Title: "Test", Column: "backlog"})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, cardStore, boardStore := setupCardService()
+			cfg := testBoardConfig("main")
+			cfg.GetColumn("in-progress").OnMoveDefaultPosition = tt.onMovePosition
+			boardStore.addBoard(cfg)
 
-	if err := service.MoveCard("main", card.ID, "in-progress"); err != nil {
+			mustAdd(t, service, AddCardInput{BoardName: "main", Title: "First", Column: "in-progress"})
+			mustAdd(t, service, AddCardInput{BoardName: "main", Title: "Second", Column: "in-progress"})
+			card := mustAdd(t, service, AddCardInput{BoardName: "main", Title: "Moved", Column: "backlog"})
+
+			if err := service.MoveCard("main", card.ID, "in-progress"); err != nil {
+				t.Fatalf("MoveCard failed: %v", err)
+			}
+
+			fetched, err := cardStore.Get("main", card.ID)
+			if err != nil {
+				t.Fatalf("Get failed: %v", err)
+			}
+			if fetched.Column != "in-progress" {
+				t.Errorf("Expected card column 'in-progress', got %q", fetched.Column)
+			}
+			assertOrder(t, orderedColumn(t, service, "main", "in-progress"), tt.want)
+		})
+	}
+}
+
+// An explicit placement always wins over the column's default - including
+// --position -1, which must stay distinguishable from "no placement given".
+func TestCardService_MoveCard_ExplicitPositionOverridesColumnDefault(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	cfg := testBoardConfig("main")
+	cfg.GetColumn("in-progress").OnMoveDefaultPosition = model.ColumnPositionTop
+	boardStore.addBoard(cfg)
+
+	mustAdd(t, service, AddCardInput{BoardName: "main", Title: "First", Column: "in-progress"})
+	mustAdd(t, service, AddCardInput{BoardName: "main", Title: "Second", Column: "in-progress"})
+	card := mustAdd(t, service, AddCardInput{BoardName: "main", Title: "Moved", Column: "backlog"})
+
+	if err := service.MoveCardAt("main", card.ID, "in-progress", -1); err != nil {
+		t.Fatalf("MoveCardAt failed: %v", err)
+	}
+	assertOrder(t, orderedColumn(t, service, "main", "in-progress"),
+		[]string{"First", "Second", "Moved"})
+}
+
+// The column default applies to cards *entering* a column. A bare move to the
+// column a card already occupies must stay a no-op rather than yanking it up.
+func TestCardService_MoveCard_SameColumnIgnoresColumnDefault(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	cfg := testBoardConfig("main")
+	cfg.GetColumn("in-progress").OnMoveDefaultPosition = model.ColumnPositionTop
+	boardStore.addBoard(cfg)
+
+	mustAdd(t, service, AddCardInput{BoardName: "main", Title: "First", Column: "in-progress"})
+	mustAdd(t, service, AddCardInput{BoardName: "main", Title: "Second", Column: "in-progress"})
+	last := mustAdd(t, service, AddCardInput{BoardName: "main", Title: "Third", Column: "in-progress"})
+
+	if err := service.MoveCard("main", last.ID, "in-progress"); err != nil {
 		t.Fatalf("MoveCard failed: %v", err)
 	}
+	assertOrder(t, orderedColumn(t, service, "main", "in-progress"),
+		[]string{"First", "Second", "Third"})
+}
 
-	// Verify card's Column field is updated
-	fetched, err := cardStore.Get("main", card.ID)
-	if err != nil {
-		t.Fatalf("Get failed: %v", err)
-	}
-	if fetched.Column != "in-progress" {
-		t.Errorf("Expected card column 'in-progress', got %q", fetched.Column)
-	}
+// kan add is unaffected by on_move_default_position - creating a card is "add
+// to the pile", not a workflow transition.
+func TestCardService_Add_IgnoresOnMoveDefaultPosition(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	cfg := testBoardConfig("main")
+	cfg.GetColumn("in-progress").OnMoveDefaultPosition = model.ColumnPositionTop
+	boardStore.addBoard(cfg)
+
+	mustAdd(t, service, AddCardInput{BoardName: "main", Title: "First", Column: "in-progress"})
+	mustAdd(t, service, AddCardInput{BoardName: "main", Title: "Second", Column: "in-progress"})
+
+	assertOrder(t, orderedColumn(t, service, "main", "in-progress"),
+		[]string{"First", "Second"})
 }
 
 func TestCardService_MoveCardAt_Position(t *testing.T) {

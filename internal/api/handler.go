@@ -602,7 +602,7 @@ func (h *Handler) RestoreCard(w http.ResponseWriter, r *http.Request) {
 // MoveCardRequest is the JSON body for moving a card.
 type MoveCardRequest struct {
 	Column   string `json:"column"`
-	Position *int   `json:"position,omitempty"` // Optional: position in target column (-1 or omit for end)
+	Position *int   `json:"position,omitempty"` // Optional: omit to use the column's on_move_default_position
 }
 
 // MoveCard moves a card to a different column.
@@ -628,14 +628,12 @@ func (h *Handler) MoveCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Determine position (-1 means append to end)
-	position := -1
-	if req.Position != nil {
-		position = *req.Position
-	}
-
-	// Use the service's MoveCardAt which updates the card's column and position
-	if err := h.ctx().CardService.MoveCardAt(boardName, card.ID, req.Column, position); err != nil {
+	// Pass the position through as-is. A nil position must stay nil so the
+	// service can apply the destination column's on_move_default_position; collapsing it to
+	// -1 here would silently pin every drag-to-empty-column and context-menu move
+	// to the bottom while the CLI honored the column.
+	if err := h.ctx().CardService.MoveCardWithPlacement(
+		boardName, card.ID, req.Column, req.Position, "", ""); err != nil {
 		Error(w, err)
 		return
 	}
@@ -657,11 +655,12 @@ func (h *Handler) MoveCard(w http.ResponseWriter, r *http.Request) {
 
 // CreateColumnRequest is the JSON body for creating a column.
 type CreateColumnRequest struct {
-	Name        string `json:"name"`
-	Color       string `json:"color,omitempty"`
-	Description string `json:"description,omitempty"`
-	Limit       *int   `json:"limit,omitempty"`    // Column limit (0 = no limit)
-	Position    *int   `json:"position,omitempty"` // Optional: insert position (-1 or omit for end)
+	Name                  string  `json:"name"`
+	Color                 string  `json:"color,omitempty"`
+	Description           string  `json:"description,omitempty"`
+	Limit                 *int    `json:"limit,omitempty"`                    // Column limit (0 = no limit)
+	Position              *int    `json:"position,omitempty"`                 // Optional: insert position (-1 or omit for end)
+	OnMoveDefaultPosition *string `json:"on_move_default_position,omitempty"` // Where moved-in cards land: "top" or "bottom"
 }
 
 // CreateColumn creates a new column on a board.
@@ -693,6 +692,15 @@ func (h *Handler) CreateColumn(w http.ResponseWriter, r *http.Request) {
 	// Set column limit if specified
 	if req.Limit != nil && *req.Limit > 0 {
 		if err := h.ctx().BoardService.UpdateColumnLimit(boardName, req.Name, *req.Limit); err != nil {
+			Error(w, err)
+			return
+		}
+	}
+
+	// Set on-move default position if specified
+	if req.OnMoveDefaultPosition != nil {
+		if err := h.ctx().BoardService.UpdateColumnOnMoveDefaultPosition(
+			boardName, req.Name, *req.OnMoveDefaultPosition); err != nil {
 			Error(w, err)
 			return
 		}
@@ -730,10 +738,11 @@ func (h *Handler) DeleteColumn(w http.ResponseWriter, r *http.Request) {
 
 // UpdateColumnRequest is the JSON body for updating a column.
 type UpdateColumnRequest struct {
-	Name        *string `json:"name,omitempty"`        // New name (rename)
-	Color       *string `json:"color,omitempty"`       // New color
-	Description *string `json:"description,omitempty"` // New description
-	Limit       *int    `json:"limit,omitempty"`       // Column limit (0 = clear)
+	Name                  *string `json:"name,omitempty"`                     // New name (rename)
+	Color                 *string `json:"color,omitempty"`                    // New color
+	Description           *string `json:"description,omitempty"`              // New description
+	Limit                 *int    `json:"limit,omitempty"`                    // Column limit (0 = clear)
+	OnMoveDefaultPosition *string `json:"on_move_default_position,omitempty"` // "top", "bottom", or "" to clear
 }
 
 // UpdateColumn updates a column's properties (rename, color).
@@ -775,6 +784,15 @@ func (h *Handler) UpdateColumn(w http.ResponseWriter, r *http.Request) {
 	// Handle column limit change
 	if req.Limit != nil {
 		if err := h.ctx().BoardService.UpdateColumnLimit(boardName, columnName, *req.Limit); err != nil {
+			Error(w, err)
+			return
+		}
+	}
+
+	// Handle on-move default position change
+	if req.OnMoveDefaultPosition != nil {
+		if err := h.ctx().BoardService.UpdateColumnOnMoveDefaultPosition(
+			boardName, columnName, *req.OnMoveDefaultPosition); err != nil {
 			Error(w, err)
 			return
 		}

@@ -53,6 +53,8 @@ type CommandContext struct {
 	AddColumn      *string
 	AddParent      *string
 	AddPosition    *int
+	AddTop         *bool
+	AddBottom      *bool
 	AddBefore      *string
 	AddAfter       *string
 	AddFields      *[]string
@@ -88,12 +90,26 @@ type CommandContext struct {
 	EditColumn      *string
 	EditParent      *string
 	EditPosition    *int
+	EditTop         *bool
+	EditBottom      *bool
 	EditBefore      *string
 	EditAfter       *string
 	EditAlias       *string
 	EditFields      *[]string
 	EditStrict      *bool
 	EditGlobal      *bool
+
+	// move command
+	MoveUsed     *bool
+	MoveCard     *string
+	MoveColumn   *string
+	MoveBoard    *string
+	MovePosition *int
+	MoveTop      *bool
+	MoveBottom   *bool
+	MoveBefore   *string
+	MoveAfter    *string
+	MoveGlobal   *bool
 
 	// serve command
 	ServeUsed   *bool
@@ -109,13 +125,14 @@ type CommandContext struct {
 	ColumnUsed *bool
 
 	// column add
-	ColumnAddUsed        *bool
-	ColumnAddName        *string
-	ColumnAddColor       *string
-	ColumnAddDescription *string
-	ColumnAddPosition    *int
-	ColumnAddLimit       *int
-	ColumnAddBoard       *string
+	ColumnAddUsed           *bool
+	ColumnAddName           *string
+	ColumnAddColor          *string
+	ColumnAddDescription    *string
+	ColumnAddPosition       *int
+	ColumnAddLimit          *int
+	ColumnAddOnMovePosition *string
+	ColumnAddBoard          *string
 
 	// column delete
 	ColumnDeleteUsed  *bool
@@ -129,12 +146,13 @@ type CommandContext struct {
 	ColumnRenameBoard *string
 
 	// column edit
-	ColumnEditUsed        *bool
-	ColumnEditName        *string
-	ColumnEditColor       *string
-	ColumnEditDescription *string
-	ColumnEditLimit       *int
-	ColumnEditBoard       *string
+	ColumnEditUsed           *bool
+	ColumnEditName           *string
+	ColumnEditColor          *string
+	ColumnEditDescription    *string
+	ColumnEditLimit          *int
+	ColumnEditOnMovePosition *string
+	ColumnEditBoard          *string
 
 	// column list
 	ColumnListUsed  *bool
@@ -246,6 +264,7 @@ func buildRootCmd() *CommandContext {
 	registerHistory(cmd, ctx)
 	registerList(cmd, ctx)
 	registerEdit(cmd, ctx)
+	registerMove(cmd, ctx)
 	registerServe(cmd, ctx)
 	registerMigrate(cmd, ctx)
 	registerDoctor(cmd, ctx)
@@ -317,7 +336,7 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.AddUsed:
 		runAdd(*ctx.AddTitle, *ctx.AddDescription, *ctx.AddBoard, *ctx.AddColumn, *ctx.AddParent,
-			cardPlacement{*ctx.AddPosition, ctx.RootCmd.Configured("position"), *ctx.AddBefore, *ctx.AddAfter},
+			placementFrom(ctx, ctx.AddPosition, ctx.AddTop, ctx.AddBottom, ctx.AddBefore, ctx.AddAfter),
 			*ctx.AddFields, *ctx.AddStrict, *ctx.AddGlobal, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.DeleteUsed:
@@ -335,8 +354,13 @@ func executeCommand(ctx *CommandContext) {
 	case *ctx.EditUsed:
 		runEdit(*ctx.EditCard, *ctx.EditBoard, *ctx.EditTitle, *ctx.EditDescription,
 			*ctx.EditColumn, *ctx.EditParent, *ctx.EditAlias,
-			cardPlacement{*ctx.EditPosition, ctx.RootCmd.Configured("position"), *ctx.EditBefore, *ctx.EditAfter},
+			placementFrom(ctx, ctx.EditPosition, ctx.EditTop, ctx.EditBottom, ctx.EditBefore, ctx.EditAfter),
 			*ctx.EditFields, *ctx.EditStrict, *ctx.EditGlobal, *ctx.NonInteractive, *ctx.Json)
+
+	case *ctx.MoveUsed:
+		runMove(*ctx.MoveCard, *ctx.MoveColumn, *ctx.MoveBoard,
+			placementFrom(ctx, ctx.MovePosition, ctx.MoveTop, ctx.MoveBottom, ctx.MoveBefore, ctx.MoveAfter),
+			*ctx.MoveGlobal, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.ServeUsed:
 		runServe(*ctx.ServePort, ctx.RootCmd.Configured("port"), *ctx.ServeNoOpen)
@@ -349,7 +373,7 @@ func executeCommand(ctx *CommandContext) {
 		}
 
 	case *ctx.ColumnAddUsed:
-		runColumnAdd(*ctx.ColumnAddName, *ctx.ColumnAddColor, *ctx.ColumnAddDescription, *ctx.ColumnAddPosition, *ctx.ColumnAddLimit, *ctx.ColumnAddBoard, *ctx.NonInteractive)
+		runColumnAdd(*ctx.ColumnAddName, *ctx.ColumnAddColor, *ctx.ColumnAddDescription, *ctx.ColumnAddPosition, *ctx.ColumnAddLimit, *ctx.ColumnAddOnMovePosition, *ctx.ColumnAddBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnDeleteUsed:
 		runColumnDelete(*ctx.ColumnDeleteName, *ctx.ColumnDeleteBoard, *ctx.NonInteractive)
@@ -358,7 +382,7 @@ func executeCommand(ctx *CommandContext) {
 		runColumnRename(*ctx.ColumnRenameOld, *ctx.ColumnRenameNew, *ctx.ColumnRenameBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnEditUsed:
-		runColumnEdit(*ctx.ColumnEditName, *ctx.ColumnEditColor, *ctx.ColumnEditDescription, *ctx.ColumnEditLimit, *ctx.ColumnEditBoard, *ctx.NonInteractive)
+		runColumnEdit(*ctx.ColumnEditName, *ctx.ColumnEditColor, *ctx.ColumnEditDescription, *ctx.ColumnEditLimit, *ctx.ColumnEditOnMovePosition, *ctx.ColumnEditBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnListUsed:
 		runColumnList(*ctx.ColumnListBoard, *ctx.NonInteractive, *ctx.Json)

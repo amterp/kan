@@ -46,28 +46,8 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 		SetCompletionFunc(completeCards).
 		Register(cmd)
 
-	ctx.AddPosition, _ = ra.NewInt("position").
-		SetOptional(true).
-		SetFlagOnly(true).
-		SetUsage("Insert at index (0 = top, -1 = end, negatives count from end)").
-		SetExcludes([]string{"before", "after"}).
-		Register(cmd)
-
-	ctx.AddBefore, _ = ra.NewString("before").
-		SetOptional(true).
-		SetFlagOnly(true).
-		SetUsage("Insert before this card (ID or alias); uses its column if -c omitted").
-		SetCompletionFunc(completeCards).
-		SetExcludes([]string{"position", "after"}).
-		Register(cmd)
-
-	ctx.AddAfter, _ = ra.NewString("after").
-		SetOptional(true).
-		SetFlagOnly(true).
-		SetUsage("Insert after this card (ID or alias); uses its column if -c omitted").
-		SetCompletionFunc(completeCards).
-		SetExcludes([]string{"position", "before"}).
-		Register(cmd)
+	ctx.AddPosition, ctx.AddTop, ctx.AddBottom, ctx.AddBefore, ctx.AddAfter =
+		registerPlacementFlags(cmd, "Insert", "-c")
 
 	ctx.AddFields, _ = ra.NewStringSlice("field").
 		SetShort("f").
@@ -88,17 +68,96 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 }
 
 // cardPlacement holds the CLI-level request for where a card should go within a
-// column. At most one of (position, before, after) is meaningful; positionSet
-// distinguishes an explicit --position 0 from the flag being omitted.
+// column. At most one of (position, top, bottom, before, after) is meaningful;
+// positionSet distinguishes an explicit --position 0 from the flag being omitted.
+// top/bottom are readable spellings of --position 0 / --position -1, which
+// matters now that "no placement given" means "ask the column" rather than "end".
 type cardPlacement struct {
 	position    int
 	positionSet bool
+	top         bool
+	bottom      bool
 	before      string
 	after       string
 }
 
 func (p cardPlacement) isSet() bool {
-	return p.positionSet || p.before != "" || p.after != ""
+	return p.positionSet || p.top || p.bottom || p.before != "" || p.after != ""
+}
+
+// placementFrom builds a cardPlacement from a command's parsed placement flags.
+// Centralized because distinguishing an explicit `--position 0` from an omitted
+// flag relies on ctx.RootCmd.Configured, which resolves against the invoked
+// subcommand - easy to get subtly wrong when repeated per command.
+func placementFrom(ctx *CommandContext, position *int, top, bottom *bool, before, after *string) cardPlacement {
+	return cardPlacement{
+		position:    *position,
+		positionSet: ctx.RootCmd.Configured("position"),
+		top:         *top,
+		bottom:      *bottom,
+		before:      *before,
+		after:       *after,
+	}
+}
+
+// placementFlagNames lists every flag that specifies where a card lands. They
+// are mutually exclusive; each registration excludes the others.
+var placementFlagNames = []string{"position", "top", "bottom", "before", "after"}
+
+// excludingPlacement returns the placement flags other than the given one, for
+// SetExcludes.
+func excludingPlacement(self string) []string {
+	others := make([]string, 0, len(placementFlagNames)-1)
+	for _, name := range placementFlagNames {
+		if name != self {
+			others = append(others, name)
+		}
+	}
+	return others
+}
+
+// registerPlacementFlags registers the five mutually exclusive placement flags
+// on a command. verb is used in usage text ("Insert" for add, "Move" otherwise);
+// columnRef names how that command spells its column, since anchors infer it.
+func registerPlacementFlags(cmd *ra.Cmd, verb, columnRef string) (position *int, top, bottom *bool, before, after *string) {
+	position, _ = ra.NewInt("position").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage(verb + " to index in column (0 = top, -1 = end, negatives count from end)").
+		SetExcludes(excludingPlacement("position")).
+		Register(cmd)
+
+	top, _ = ra.NewBool("top").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage(verb + " to the top of the column").
+		SetExcludes(excludingPlacement("top")).
+		Register(cmd)
+
+	bottom, _ = ra.NewBool("bottom").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage(verb + " to the bottom of the column").
+		SetExcludes(excludingPlacement("bottom")).
+		Register(cmd)
+
+	before, _ = ra.NewString("before").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage(verb + " before this card (ID or alias); uses its column if " + columnRef + " omitted").
+		SetCompletionFunc(completeCards).
+		SetExcludes(excludingPlacement("before")).
+		Register(cmd)
+
+	after, _ = ra.NewString("after").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage(verb + " after this card (ID or alias); uses its column if " + columnRef + " omitted").
+		SetCompletionFunc(completeCards).
+		SetExcludes(excludingPlacement("after")).
+		Register(cmd)
+
+	return position, top, bottom, before, after
 }
 
 // resolvePlacement turns a cardPlacement into service-level values: an optional
@@ -107,8 +166,15 @@ func (p cardPlacement) isSet() bool {
 // layer, so it is intentionally not returned here. excludeID, when set, is the
 // card being moved - it may not anchor to itself.
 func resolvePlacement(app *App, boardName, excludeID string, p cardPlacement) (position *int, beforeID, afterID string, err error) {
-	if p.positionSet {
+	switch {
+	case p.positionSet:
 		pos := p.position
+		position = &pos
+	case p.top:
+		pos := 0
+		position = &pos
+	case p.bottom:
+		pos := -1
 		position = &pos
 	}
 

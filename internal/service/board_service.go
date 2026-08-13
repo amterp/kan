@@ -250,6 +250,25 @@ func (s *BoardService) UpdateColumnLimit(boardName, columnName string, limit int
 	return s.boardStore.Update(cfg)
 }
 
+// UpdateColumnOnMoveDefaultPosition updates where a card lands when it is moved
+// into a column. An empty value clears the setting, restoring the default (top).
+func (s *BoardService) UpdateColumnOnMoveDefaultPosition(boardName, columnName, position string) error {
+	if !model.IsValidColumnPosition(position) {
+		return kanerr.InvalidField("on_move_default_position", "must be 'top' or 'bottom'")
+	}
+
+	cfg, err := s.boardStore.Get(boardName)
+	if err != nil {
+		return err
+	}
+
+	if !cfg.SetColumnOnMoveDefaultPosition(columnName, position) {
+		return kanerr.ColumnNotFound(columnName, boardName)
+	}
+
+	return s.boardStore.Update(cfg)
+}
+
 // ReorderColumn moves a column to a new position (0-indexed).
 func (s *BoardService) ReorderColumn(boardName, columnName string, newPosition int) error {
 	cfg, err := s.boardStore.Get(boardName)

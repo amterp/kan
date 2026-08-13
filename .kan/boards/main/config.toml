@@ -1,93 +1,98 @@
-default_column = "backlog-hi"
+kan_schema = "board/13"
 id = "2R9nzEvz"
-kan_schema = "board/12"
 name = "main"
-
-[card_display]
-  tint = "tint"
-  type_indicator = "type"
+default_column = "backlog-hi"
 
 [[columns]]
+  name = "backlog-lo"
   color = "#9333ea"
   description = "Lower priority backlog items"
   limit = 0
-  name = "backlog-lo"
+  on_move_default_position = "bottom"
 
 [[columns]]
+  name = "backlog-hi"
   color = "#6b7280"
   description = "Higher priority items ready to be picked up soon"
   limit = 10
-  name = "backlog-hi"
+  on_move_default_position = "bottom"
 
 [[columns]]
+  name = "next"
   color = "#3b82f6"
   description = "This is a much longer description that might wrap across multiple lines and we need to see how it renders in the terminal output to ensure it doesn't cause formatting issues"
   limit = 5
-  name = "next"
+  on_move_default_position = "bottom"
 
 [[columns]]
+  name = "in-progress"
   color = "#f59e0b"
   description = "Currently being worked on"
   limit = 5
-  name = "in-progress"
+  on_move_default_position = "top"
 
 [[columns]]
+  name = "done"
   color = "#10b981"
   description = "Completed and shipped"
   limit = 0
-  name = "done"
+  on_move_default_position = "top"
 
 [custom_fields]
   [custom_fields.tint]
-    description = "Card background tint color"
     type = "enum"
+    description = "Card background tint color"
 
     [[custom_fields.tint.options]]
-      color = "#ef4444"
       value = "red"
+      color = "#ef4444"
 
     [[custom_fields.tint.options]]
-      color = "#f59e0b"
       value = "amber"
+      color = "#f59e0b"
 
     [[custom_fields.tint.options]]
-      color = "#22c55e"
       value = "green"
+      color = "#22c55e"
 
     [[custom_fields.tint.options]]
-      color = "#3b82f6"
       value = "blue"
+      color = "#3b82f6"
 
     [[custom_fields.tint.options]]
-      color = "#a855f7"
       value = "purple"
+      color = "#a855f7"
   [custom_fields.type]
-    description = "The category of work this card represents"
     type = "enum"
     wanted = true
+    description = "The category of work this card represents"
 
     [[custom_fields.type.options]]
+      value = "bug"
       color = "#dc2626"
       description = "Something that's broken and needs fixing"
-      value = "bug"
 
     [[custom_fields.type.options]]
+      value = "enhancement"
       color = "#2563eb"
       description = "Improvement to existing functionality"
-      value = "enhancement"
 
     [[custom_fields.type.options]]
+      value = "feature"
       color = "#16a34a"
       description = "New functionality or capability"
-      value = "feature"
 
     [[custom_fields.type.options]]
+      value = "chore"
       color = "#4b5563"
       description = "Maintenance, refactoring, or tooling work"
-      value = "chore"
+
+[card_display]
+  type_indicator = "type"
+  tint = "tint"
 
 [[pattern_hooks]]
-  command = ".kan/hooks/type-shortcut.rad"
   name = "type-shortcut"
   pattern_title = "![a-zA-Z]+"
+  command = ".kan/hooks/type-shortcut.rad"
   timeout = 0

@@ -57,28 +57,8 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 		SetCompletionFunc(completeCards).
 		Register(cmd)
 
-	ctx.EditPosition, _ = ra.NewInt("position").
-		SetOptional(true).
-		SetFlagOnly(true).
-		SetUsage("Move to index in column (0 = top, -1 = end, negatives count from end)").
-		SetExcludes([]string{"before", "after"}).
-		Register(cmd)
-
-	ctx.EditBefore, _ = ra.NewString("before").
-		SetOptional(true).
-		SetFlagOnly(true).
-		SetUsage("Move before this card (ID or alias); uses its column if -c omitted").
-		SetCompletionFunc(completeCards).
-		SetExcludes([]string{"position", "after"}).
-		Register(cmd)
-
-	ctx.EditAfter, _ = ra.NewString("after").
-		SetOptional(true).
-		SetFlagOnly(true).
-		SetUsage("Move after this card (ID or alias); uses its column if -c omitted").
-		SetCompletionFunc(completeCards).
-		SetExcludes([]string{"position", "before"}).
-		Register(cmd)
+	ctx.EditPosition, ctx.EditTop, ctx.EditBottom, ctx.EditBefore, ctx.EditAfter =
+		registerPlacementFlags(cmd, "Move", "-c")
 
 	ctx.EditAlias, _ = ra.NewString("alias").
 		SetShort("a").
@@ -113,7 +93,8 @@ func runEdit(idOrAlias, board string, title, description, column string,
 		parent != "" || alias != "" || len(fields) > 0 || placement.isSet()
 
 	if !hasFlags && nonInteractive {
-		Fatal(fmt.Errorf("no fields specified to edit (use -t, -d, -c, -p, -a, -f, --position, --before, or --after flags)"))
+		Fatal(fmt.Errorf("no fields specified to edit (use -t, -d, -c, -p, -a, -f, " +
+			"--position, --top, --bottom, --before, or --after flags)"))
 	}
 
 	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, UseGlobalBoard: global})

@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 
+	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/ra"
 )
 
@@ -45,6 +46,13 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetFlagOnly(true).
 		SetDefault(-1).
 		SetUsage("Maximum number of cards allowed in this column (0 = no limit)").
+		Register(addCmd)
+
+	ctx.ColumnAddOnMovePosition, _ = ra.NewString("on-move-default-position").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetEnumConstraint(model.ValidColumnPositions).
+		SetUsage("Where a card moved into this column lands: 'top' (default) or 'bottom'").
 		Register(addCmd)
 
 	ctx.ColumnAddBoard, _ = ra.NewString("board").
@@ -130,6 +138,13 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Column limit (0 = clear limit, >0 = set limit)").
 		Register(editCmd)
 
+	ctx.ColumnEditOnMovePosition, _ = ra.NewString("on-move-default-position").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetEnumConstraint(model.ValidColumnPositions).
+		SetUsage("Where a card moved into this column lands: 'top' (default) or 'bottom'").
+		Register(editCmd)
+
 	ctx.ColumnEditBoard, _ = ra.NewString("board").
 		SetShort("b").
 		SetOptional(true).
@@ -191,7 +206,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.ColumnUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runColumnAdd(name, color, description string, position, limit int, board string, nonInteractive bool) {
+func runColumnAdd(name, color, description string, position, limit int, onMovePosition, board string, nonInteractive bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -219,6 +234,12 @@ func runColumnAdd(name, color, description string, position, limit int, board st
 	// limit: -1 = not specified, 0 = clear limit, >0 = set limit
 	if limit >= 0 {
 		if err := app.BoardService.UpdateColumnLimit(boardName, name, limit); err != nil {
+			Fatal(err)
+		}
+	}
+
+	if onMovePosition != "" {
+		if err := app.BoardService.UpdateColumnOnMoveDefaultPosition(boardName, name, onMovePosition); err != nil {
 			Fatal(err)
 		}
 	}
@@ -279,7 +300,7 @@ func runColumnRename(oldName, newName, board string, nonInteractive bool) {
 	PrintSuccess("Renamed column %q to %q in board %q", oldName, newName, boardName)
 }
 
-func runColumnEdit(name, color, description string, limit int, board string, nonInteractive bool) {
+func runColumnEdit(name, color, description string, limit int, onMovePosition, board string, nonInteractive bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -294,8 +315,9 @@ func runColumnEdit(name, color, description string, limit int, board string, non
 		Fatal(err)
 	}
 
-	if color == "" && description == "" && limit < 0 {
-		Fatal(fmt.Errorf("no changes specified; use --color, --description, or --limit"))
+	if color == "" && description == "" && limit < 0 && onMovePosition == "" {
+		Fatal(fmt.Errorf("no changes specified; use --color, --description, --limit, " +
+			"or --on-move-default-position"))
 	}
 
 	if color != "" {
@@ -313,6 +335,12 @@ func runColumnEdit(name, color, description string, limit int, board string, non
 	// limit: -1 = not specified, 0 = clear limit, >0 = set limit
 	if limit >= 0 {
 		if err := app.BoardService.UpdateColumnLimit(boardName, name, limit); err != nil {
+			Fatal(err)
+		}
+	}
+
+	if onMovePosition != "" {
+		if err := app.BoardService.UpdateColumnOnMoveDefaultPosition(boardName, name, onMovePosition); err != nil {
 			Fatal(err)
 		}
 	}

@@ -35,7 +35,7 @@ For scripting or automation (CI, AI agents, etc.), Kan has a full CLI:
 
 ```bash
 kan add "Fix login bug"        # Add a card
-kan edit fix-login-bug -c done # Move to column
+kan move fix-login-bug done    # Move to column
 kan list                       # List all cards
 kan show fix-login-bug         # View card details
 kan add -g "Buy milk"          # Add to your global board from any directory

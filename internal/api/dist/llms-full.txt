@@ -232,6 +232,7 @@ kan column add review
 kan column add review --color "#9333ea" --position 2
 kan column add review --description "Cards under code review"
 kan column add review --limit 5
+kan column add review --on-move-default-position bottom
 ```
 
 | Flag                | Description                                       |
@@ -240,6 +241,7 @@ kan column add review --limit 5
 | `-C, --color`       | Hex color (default: auto from palette)            |
 | `-d, --description` | Description of the column's purpose               |
 | `-l, --limit`       | Max cards allowed in column (0 = no limit)        |
+| `--on-move-default-position` | Where a card moved into this column lands: `top` (default) or `bottom` |
 | `-p, --position`    | Insert position (0-indexed, default: end)         |
 
 **Delete a column:**
@@ -269,6 +271,7 @@ kan column edit review --color "#ec4899"
 kan column edit review --description "Updated purpose"
 kan column edit review --limit 3
 kan column edit review --limit 0    # Clear limit
+kan column edit review --on-move-default-position bottom
 ```
 
 | Flag                | Description                                       |
@@ -277,6 +280,7 @@ kan column edit review --limit 0    # Clear limit
 | `-C, --color`       | New hex color                                     |
 | `-d, --description` | New description for the column                    |
 | `-l, --limit`       | Column limit (0 = clear, >0 = set max cards)      |
+| `--on-move-default-position` | Where a card moved into this column lands: `top` (default) or `bottom` |
 
 **List columns:**
 
@@ -317,15 +321,18 @@ kan add "Update docs" "Description goes here"
 | `-c, --column` | Target column                                 |
 | `-p, --parent` | Parent card ID or alias                       |
 | `--position`   | Insert at index (0 = top, -1 = end, negatives count from end) |
+| `--top`        | Insert at the top of the column                |
+| `--bottom`     | Insert at the bottom of the column             |
 | `--before`     | Insert before this card (ID or alias)         |
 | `--after`      | Insert after this card (ID or alias)          |
 | `-f, --field`  | Custom field in key=value format (repeatable; set-typed fields also accept comma-separated values) |
 | `--strict`     | Error if wanted fields are missing (default: warn) |
 | `-g, --global` | Target the designated global board (see [global](#global)) |
 
-`--position`, `--before`, and `--after` are mutually exclusive. By default a card
-is appended to the end of its column. Without `-c`, the card is placed in the
-anchor card's column.
+The five placement flags are mutually exclusive. By default a card is appended to
+the end of its column, whatever that column's `on_move_default_position` says -
+that setting governs cards *moving into* a column, not new ones. Without `-c`, the
+card is placed in the anchor card's column.
 
 `--position` is most useful for the boundaries (`0` = top, `-1` = end). For a spot
 in the middle, prefer `--before`/`--after` with a card you can see in `kan list`,
@@ -336,7 +343,7 @@ since `kan list` does not print numeric indices to count against.
 ```bash
 kan add "Task title" -c backlog
 kan add "Feature" -b features -c todo -f priority=high
-kan add "Urgent" -c backlog --position 0    # top of backlog
+kan add "Urgent" -c backlog --top           # top of backlog
 kan add "Follow-up" --after fix-login       # right after fix-login, in its column
 kan add "Buy milk" -g                       # add to the global board from anywhere
 ```
@@ -425,6 +432,8 @@ kan edit fix-login-bug -t "New title" -c done
 | `-c, --column`      | Move card to column                               |
 | `-p, --parent`      | Set parent card ID or alias                       |
 | `--position`        | Move to index in column (0 = top, -1 = end, negatives count from end) |
+| `--top`             | Move to the top of the column                     |
+| `--bottom`          | Move to the bottom of the column                  |
 | `--before`          | Move before this card (ID or alias)               |
 | `--after`           | Move after this card (ID or alias)                |
 | `-a, --alias`       | Set explicit alias                                |
@@ -432,17 +441,59 @@ kan edit fix-login-bug -t "New title" -c done
 | `--strict`          | Error if wanted fields are missing (default: warn) |
 | `-g, --global`      | Target the designated global board (see [global](#global)) |
 
-`--position`, `--before`, and `--after` are mutually exclusive and can reorder a
-card within its current column or place it precisely when moving between columns.
-Without `-c`, the card is placed in the anchor card's column. As with `add`,
-prefer `--before`/`--after` over `--position` for non-boundary spots.
+The five placement flags are mutually exclusive. They reorder a card within its
+current column, or place it precisely when moving between columns. Without `-c`,
+the card is placed in the anchor card's column. As with `add`, prefer
+`--before`/`--after` over `--position` for non-boundary spots.
+
+With `-c` and no placement flag, the destination column's
+[`on_move_default_position`](/docs/configuration#columns) decides where the card lands.
+
+To move a card, [`move`](#move) is the shorter spelling. Use `edit -c` when you
+are changing other fields in the same command, so the move and the edit share
+one history entry.
 
 **Examples:**
 
 ```bash
-kan edit fix-login -c doing --position 0   # top of doing
+kan edit fix-login -c doing --top          # top of doing
 kan edit fix-login --before deploy         # reorder relative to deploy
-kan edit fix-login --position -1           # bottom of its column
+kan edit fix-login --bottom                # bottom of its column
+kan edit fix-login -c done -t "Shipped"    # move and retitle together
+```
+
+### move
+
+Move a card to a different column.
+
+```bash
+kan move fix-login-bug done
+```
+
+| Flag           | Description                                                |
+|----------------|------------------------------------------------------------|
+| `-b, --board`  | Board name                                                 |
+| `--position`   | Move to index in column (0 = top, -1 = end, negatives count from end) |
+| `--top`        | Move to the top of the column                              |
+| `--bottom`     | Move to the bottom of the column                           |
+| `--before`     | Move before this card (ID or alias)                        |
+| `--after`      | Move after this card (ID or alias)                         |
+| `-g, --global` | Target the designated global board (see [global](#global)) |
+
+The column is optional when you give `--before` or `--after`: the card follows
+the anchor into whatever column the anchor is in.
+
+With no placement flag, the destination column's
+[`on_move_default_position`](/docs/configuration#columns) decides where the card lands -
+top unless the column says bottom. Moving a card to the column it already
+occupies does nothing; use a placement flag to reorder it.
+
+**Examples:**
+
+```bash
+kan move fix-login done              # wherever `done` says arrivals go
+kan move fix-login next --bottom     # back of the queue
+kan move fix-login --after deploy    # column inferred from deploy
 ```
 
 ### delete
@@ -822,6 +873,7 @@ name = "in-progress"
 color = "#f59e0b"
 description = "Currently being worked on"
 limit = 5
+on_move_default_position = "top"
 ```
 
 | Field | Required | Description |
@@ -830,10 +882,20 @@ limit = 5
 | `color` | Yes | Hex color for column header |
 | `description` | No | Purpose of this workflow stage |
 | `limit` | No | Max cards allowed (0 or omitted = no limit) |
+| `on_move_default_position` | No | Where a card *moved* into this column lands: `top` (default) or `bottom` |
 
 **Default columns** when creating a new board: `backlog`, `next`, `in-progress`, `done`.
 
 **Column Limits**: When a column has a `limit`, adding or moving cards into it is refused once the limit is reached. Column headers show the count as `(X/Y)` when a limit is set. This is a core kanban practice for controlling flow.
+
+**Card Insertion**: `on_move_default_position` decides where a card lands when it is *moved* into a column - by `kan move`, `kan edit -c`, a drag, or the context menu. Two kinds of column want opposite answers:
+
+- **Queues**, where position means priority (`backlog`, `next`). Set `"bottom"` so an arriving card joins the back of the line instead of jumping it.
+- **Activity columns**, where position means recency (`in-progress`, `done`). Leave it unset or set `"top"`, so the thing you just touched is the thing you see.
+
+`top` is the default. New boards ship with `backlog` and `next` set to `bottom`.
+
+The name spells out the scope, because two cases are deliberately excluded. `kan add` always appends - creating a card is not a workflow transition, and `add` has its own `--top`/`--bottom`/`--before`/`--after` flags. Moving a card within the column it already occupies does nothing unless you pass an explicit placement flag. And "default" means exactly that: any explicit placement flag overrides it. A `default_sort` overrides manual order entirely, so this setting has no visible effect while a sort is active.
 
 ### Custom Fields
 
@@ -998,6 +1060,7 @@ default_board = "features"
 kan column add review
 kan column add review --color "#9333ea" --position 2
 kan column add review --limit 5
+kan column add review --on-move-default-position bottom
 
 # Rename a column
 kan column rename review code-review
@@ -1007,6 +1070,7 @@ kan column edit review --color "#ec4899"
 kan column edit review --description "Cards under review"
 kan column edit review --limit 3
 kan column edit review --limit 0    # Clear limit
+kan column edit review --on-move-default-position bottom
 
 # Reorder columns
 kan column move review --position 1

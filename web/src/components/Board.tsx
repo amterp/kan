@@ -570,10 +570,10 @@ export default function Board({
     const fromColumnCards = allCardsByColumn[columnName] || [];
     const fromPosition = Math.max(0, fromColumnCards.findIndex((c) => c.id === cardId));
 
-    // A field sort owns in-column ordering, so don't pin the card to the top of
-    // the next column - append and let the sort place it (matches cross-column
-    // drag). Otherwise the card lands at position 0, visible once the sort clears.
-    const toPosition = activeSortField ? undefined : 0;
+    // Send no placement so the destination column's on_move_default_position
+    // decides, exactly as it does for the CLI, the context menu, and a drag onto
+    // empty column space. (Under a field sort the sort owns ordering anyway.)
+    const toPosition = undefined;
 
     try {
       await onMoveCard(cardId, nextColumn.name, toPosition);
@@ -589,7 +589,7 @@ export default function Board({
       const message = e instanceof Error ? e.message : 'Failed to advance card';
       showToast('error', message);
     }
-  }, [board.columns, allCardsByColumn, activeSortField, onMoveCard, onPushUndo, showToast]);
+  }, [board.columns, allCardsByColumn, onMoveCard, onPushUndo, showToast]);
 
   // State for externally triggering card rename via context menu
   const [forceEditCardId, setForceEditCardId] = useState<string | null>(null);

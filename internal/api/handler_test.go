@@ -635,6 +635,62 @@ func TestHandler_MoveCard_ToColumn(t *testing.T) {
 	}
 }
 
+// A /move with no position must reach the service as nil so the destination
+// column's on_move_default_position applies. The handler used to collapse it to -1, which
+// pinned every web move to the bottom regardless of the column.
+func TestHandler_MoveCard_OmittedPositionHonorsColumnDefault(t *testing.T) {
+	cases := []struct {
+		name           string
+		onMovePosition string
+		wantFirst      string
+	}{
+		{name: "unset defaults to top", onMovePosition: "", wantFirst: "Moved"},
+		{name: "top", onMovePosition: "top", wantFirst: "Moved"},
+		{name: "bottom", onMovePosition: "bottom", wantFirst: "First"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			api := setupTestAPI(t)
+			api.createBoard(t, "main")
+
+			if tc.onMovePosition != "" {
+				w := api.request("PATCH", "/api/v1/boards/main/columns/done",
+					map[string]any{"on_move_default_position": tc.onMovePosition})
+				if w.Code != http.StatusOK {
+					t.Fatalf("column update failed: %d %s", w.Code, w.Body.String())
+				}
+			}
+
+			api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "First", "column": "done"})
+			api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "Second", "column": "done"})
+			createResp := api.request("POST", "/api/v1/boards/main/cards", map[string]any{"title": "Moved", "column": "backlog"})
+			moved := createCardFromResponse(t, createResp)
+
+			w := api.request("PATCH", "/api/v1/boards/main/cards/"+moved.ID+"/move",
+				map[string]any{"column": "done"})
+			if w.Code != http.StatusOK {
+				t.Fatalf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
+			}
+
+			listResp := api.request("GET", "/api/v1/boards/main/cards?column=done", nil)
+			var listResult map[string][]CardResponse
+			decodeJSON(t, listResp, &listResult)
+			cards := listResult["cards"]
+			if len(cards) != 3 {
+				t.Fatalf("Expected 3 cards in done, got %d", len(cards))
+			}
+			if cards[0].Title != tc.wantFirst {
+				titles := make([]string, len(cards))
+				for i, c := range cards {
+					titles[i] = c.Title
+				}
+				t.Errorf("done order = %v, want %q first", titles, tc.wantFirst)
+			}
+		})
+	}
+}
+
 func TestHandler_MoveCard_WithPosition(t *testing.T) {
 	api := setupTestAPI(t)
 	api.createBoard(t, "main")

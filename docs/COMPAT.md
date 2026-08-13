@@ -175,9 +175,10 @@ worktree_independent = true
 - **board/9**: Adds `boolean` custom field type for simple yes/no flags. Boolean values are stored as JSON `true`/`false` in card files.
 - **board/10**: Moves card-column association from board config (`card_ids` arrays in columns) to card files (`column` + `position` fields using fractional indexing). This eliminates a class of merge conflicts when multiple users add/move cards simultaneously.
 - **board/11**: Adds `tint` display slot to `card_display`. Points at an `enum` field whose option color is used as a subtle background wash on cards, making them visually stand out on the board.
-- **board/12 (current)**: Adds optional `default_sort` and `default_sort_desc` to `card_display`. When set, the board view sorts cards within each column by the named field on load (ascending unless `default_sort_desc = true`); the CLI `--sort`/`--descending` flags and the web Sort control still override it per view. Migration is schema-only - both fields are optional with zero-value defaults (empty = manual/position order).
+- **board/12**: Adds optional `default_sort` and `default_sort_desc` to `card_display`. When set, the board view sorts cards within each column by the named field on load (ascending unless `default_sort_desc = true`); the CLI `--sort`/`--descending` flags and the web Sort control still override it per view. Migration is schema-only - both fields are optional with zero-value defaults (empty = manual/position order).
+- **board/13 (current)**: Adds optional `on_move_default_position` field to columns, controlling where a card lands when it moves into that column: `top` (the default when unset) or `bottom`. Migration is schema-only, but **the default behavior changes**: moved cards previously always landed at the bottom. See "Card Insertion" below.
 
-Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9 -> v10 -> v11 -> v12 for boards, and card files migrate to `card/3`.
+Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9 -> v10 -> v11 -> v12 -> v13 for boards, and card files migrate to `card/3`.
 
 **Rationale**: Strict versioning—Kan refuses to read files without version stamps (or with incompatible versions). This catches schema drift early and forces explicit migration.
 
@@ -312,6 +313,42 @@ Column limits are enforced at:
 Reordering within the same column always succeeds regardless of column limits.
 
 **Migration**: board/7 -> board/8 only updates the schema version. The `limit` field is optional with a zero-value default (0 = no limit).
+
+### Card Insertion (board/13)
+
+**Added in**: board/13
+
+Columns can carry an optional `on_move_default_position` controlling where a card lands when it is *moved* into the column - `top` or `bottom`. The name is deliberately explicit: it is a **default** (any placement flag overrides it) that applies **on move** only (`kan add` always appends).
+
+```toml
+[[columns]]
+name = "next"
+color = "#3b82f6"
+limit = 5
+on_move_default_position = "bottom"
+```
+
+**This changes existing behavior.** Before board/13, a card moved between columns always landed at the bottom. It now lands at the top unless the destination column says otherwise. Boards created before this version have no `on_move_default_position` on any column, so every column takes the new default. Set it to `"bottom"` on columns whose order encodes priority to restore the old behavior there.
+
+The reason for a per-column setting rather than a single default: the two kinds of column want opposite answers. In a queue like `backlog` or `next`, position means priority, and an arriving card that jumps to the top jumps the line. In `in-progress` or `done`, position means recency, and the card you just touched is the one you want to see. A board normally has both.
+
+`top` is the default because a card you just moved is usually one you are acting on. New boards ship with `backlog` and `next` set to `bottom`.
+
+Applies to:
+- `kan move <card> <column>`
+- `kan edit <card> -c <column>`
+- `PATCH /api/v1/boards/{board}/cards/{id}/move` with no `position`
+- `PUT /api/v1/boards/{board}/cards/{id}` changing `column`
+- Web drag onto empty column space, right-click move, the card detail column dropdown, and slim-mode advance
+
+Does not apply to:
+- `kan add`, which always appends. Creating a card is not a workflow transition.
+- Moving a card to the column it already occupies, which stays a no-op. Pass an explicit placement flag to reorder.
+- Any move carrying an explicit `--position`/`--top`/`--bottom`/`--before`/`--after`, which always wins.
+
+A `default_sort` on the board overrides manual ordering entirely, so it has no visible effect while a sort is active.
+
+**Migration**: board/12 -> board/13 only updates the schema version. The `on_move_default_position` field is optional with a zero-value default (empty = top). An invalid value is a non-fatal warning and reads as the default.
 
 ### Boolean Fields (board/9)
 

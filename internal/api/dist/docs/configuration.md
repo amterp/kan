@@ -110,6 +110,7 @@ name = "in-progress"
 color = "#f59e0b"
 description = "Currently being worked on"
 limit = 5
+on_move_default_position = "top"
 ```
 
 | Field | Required | Description |
@@ -118,10 +119,20 @@ limit = 5
 | `color` | Yes | Hex color for column header |
 | `description` | No | Purpose of this workflow stage |
 | `limit` | No | Max cards allowed (0 or omitted = no limit) |
+| `on_move_default_position` | No | Where a card *moved* into this column lands: `top` (default) or `bottom` |
 
 **Default columns** when creating a new board: `backlog`, `next`, `in-progress`, `done`.
 
 **Column Limits**: When a column has a `limit`, adding or moving cards into it is refused once the limit is reached. Column headers show the count as `(X/Y)` when a limit is set. This is a core kanban practice for controlling flow.
+
+**Card Insertion**: `on_move_default_position` decides where a card lands when it is *moved* into a column - by `kan move`, `kan edit -c`, a drag, or the context menu. Two kinds of column want opposite answers:
+
+- **Queues**, where position means priority (`backlog`, `next`). Set `"bottom"` so an arriving card joins the back of the line instead of jumping it.
+- **Activity columns**, where position means recency (`in-progress`, `done`). Leave it unset or set `"top"`, so the thing you just touched is the thing you see.
+
+`top` is the default. New boards ship with `backlog` and `next` set to `bottom`.
+
+The name spells out the scope, because two cases are deliberately excluded. `kan add` always appends - creating a card is not a workflow transition, and `add` has its own `--top`/`--bottom`/`--before`/`--after` flags. Moving a card within the column it already occupies does nothing unless you pass an explicit placement flag. And "default" means exactly that: any explicit placement flag overrides it. A `default_sort` overrides manual order entirely, so this setting has no visible effect while a sort is active.
 
 ### Custom Fields
 
@@ -286,6 +297,7 @@ default_board = "features"
 kan column add review
 kan column add review --color "#9333ea" --position 2
 kan column add review --limit 5
+kan column add review --on-move-default-position bottom
 
 # Rename a column
 kan column rename review code-review
@@ -295,6 +307,7 @@ kan column edit review --color "#ec4899"
 kan column edit review --description "Cards under review"
 kan column edit review --limit 3
 kan column edit review --limit 0    # Clear limit
+kan column edit review --on-move-default-position bottom
 
 # Reorder columns
 kan column move review --position 1

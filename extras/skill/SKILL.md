@@ -42,47 +42,54 @@ Ask the user what columns they want. Offer these templates as inspiration - they
 
 **Simple** - Good default for most projects:
 
-| Column | Description | Limit |
-|--------|-------------|-----------|
-| backlog | Planned work not yet started | |
-| next | Ready to be picked up next | 5 |
-| in-progress | Currently being worked on | 5 |
-| done | Completed work | |
+| Column | Description | Limit | on_move_default_position |
+|--------|-------------|-------|--------------------------|
+| backlog | Planned work not yet started | | bottom |
+| next | Ready to be picked up next | 5 | bottom |
+| in-progress | Currently being worked on | 5 | top |
+| done | Completed work | | top |
 
 **Prioritized Backlog** - Splits the backlog for triage:
 
-| Column | Description | Limit |
-|--------|-------------|-----------|
-| backlog-lo | Low priority planned work | |
-| backlog-hi | High priority planned work | 10 |
-| next | Ready to be picked up next | 5 |
-| in-progress | Currently being worked on | 5 |
-| done | Completed work | |
+| Column | Description | Limit | on_move_default_position |
+|--------|-------------|-------|--------------------------|
+| backlog-lo | Low priority planned work | | bottom |
+| backlog-hi | High priority planned work | 10 | bottom |
+| next | Ready to be picked up next | 5 | bottom |
+| in-progress | Currently being worked on | 5 | top |
+| done | Completed work | | top |
 
 **With Ideas** - Adds a staging area for uncommitted thoughts:
 
-| Column | Description | Limit |
-|--------|-------------|-----------|
-| uncommitted | Ideas and thoughts not yet committed to | |
-| backlog | Planned work not yet started | |
-| next | Ready to be picked up next | 5 |
-| in-progress | Currently being worked on | 5 |
-| done | Completed work | |
+| Column | Description | Limit | on_move_default_position |
+|--------|-------------|-------|--------------------------|
+| uncommitted | Ideas and thoughts not yet committed to | | bottom |
+| backlog | Planned work not yet started | | bottom |
+| next | Ready to be picked up next | 5 | bottom |
+| in-progress | Currently being worked on | 5 | top |
+| done | Completed work | | top |
 
 **Full** - Prioritized backlog with ideas column:
 
-| Column | Description | Limit |
-|--------|-------------|-----------|
-| uncommitted | Ideas and thoughts not yet committed to | |
-| backlog-lo | Low priority planned work | |
-| backlog-hi | High priority planned work | 10 |
-| next | Ready to be picked up next | 5 |
-| in-progress | Currently being worked on | 5 |
-| done | Completed work | |
+| Column | Description | Limit | on_move_default_position |
+|--------|-------------|-------|--------------------------|
+| uncommitted | Ideas and thoughts not yet committed to | | bottom |
+| backlog-lo | Low priority planned work | | bottom |
+| backlog-hi | High priority planned work | 10 | bottom |
+| next | Ready to be picked up next | 5 | bottom |
+| in-progress | Currently being worked on | 5 | top |
+| done | Completed work | | top |
 
 **Important**: Every column should have a description. Descriptions serve as self-documentation and help guide AI agents using the board. Suggest descriptions if the user doesn't provide them.
 
 **Column Limits**: Columns can have an optional limit that caps how many cards they hold. When a column is full, adding or moving cards into it is refused. This is a core kanban practice for controlling flow. Suggest limits for active workflow columns (like `next` and `in-progress`) - leave unbounded columns (like `backlog` and `done`) without limits. The defaults in the templates above are good starting points; adjust based on preference.
+
+**Card Insertion**: `on_move_default_position` decides where a card lands when it is *moved* into a column - via `kan move`, `kan edit -c`, a drag, or the context menu. Ask which model each column follows rather than taking the default silently:
+
+- **Queue columns**, where position encodes priority (`backlog`, `next`, `uncommitted`), want `bottom`. An arriving card joins the back of the line instead of jumping ahead of work already triaged.
+- **Activity columns**, where position encodes recency (`in-progress`, `done`), want `top`, so the card just touched is the one on screen.
+
+`top` is the default when unset. The values in the templates above follow this rule and are good starting points. This does not affect `kan add`, which always appends, and an explicit placement flag always overrides it.
 
 The first column in the list becomes the default column for new cards.
 
@@ -319,7 +326,7 @@ kan add "Title" "Description here" -c backlog   # Title + description
 kan add "Subtask" -p 12                         # Add as child of card 12
 kan add "Task" -f priority=high -f type=bug     # Add with custom fields
 kan add "Task" -f component=core -f component=cli  # Set fields: repeat or use -f component=core,cli
-kan add "Urgent" -c backlog --position 0        # Insert at top of column
+kan add "Urgent" -c backlog --top               # Insert at top of column
 kan add "Follow-up" --after fix                  # Insert after card "fix" (in its column)
 kan add "Buy milk" -g                            # Add to the global board from anywhere
 ```
@@ -330,6 +337,8 @@ kan add "Buy milk" -g                            # Add to the global board from 
 | `-c, --column` | Target column |
 | `-p, --parent` | Parent card ID or alias |
 | `--position` | Insert at index (0 = top, -1 = end, negatives count from end) |
+| `--top` | Insert at the top of the column |
+| `--bottom` | Insert at the bottom of the column |
 | `--before` | Insert before this card (ID or alias) |
 | `--after` | Insert after this card (ID or alias) |
 | `-f, --field` | Custom field (key=value, repeatable; set fields also accept comma-separated values) |
@@ -386,8 +395,8 @@ your VCS (`git log`), which already tracks content changes well.
 ```bash
 kan edit 12                              # Edit interactively
 kan edit fix -t "New title"              # Update title
-kan edit fix -c done                     # Move to column
-kan edit fix -c done --position 0        # Move to top of a column
+kan edit fix -c done -t "Shipped"        # Move and edit in one command
+kan edit fix -c done --top               # Move to top of a column
 kan edit fix --before deploy             # Reorder relative to another card
 kan edit fix -d "New description"        # Update description
 kan edit fix -f priority=low             # Update custom field
@@ -401,13 +410,40 @@ kan edit fix -f priority=low             # Update custom field
 | `-c, --column` | Move card to column |
 | `-p, --parent` | Set parent card |
 | `--position` | Move to index in column (0 = top, -1 = end, negatives count from end) |
+| `--top` | Move to the top of the column |
+| `--bottom` | Move to the bottom of the column |
 | `--before` | Move before this card (ID or alias) |
 | `--after` | Move after this card (ID or alias) |
 | `-a, --alias` | Set explicit alias |
 | `-f, --field` | Set custom field (key=value, repeatable; set fields also accept comma-separated values) |
 | `--strict` | Error if wanted fields are missing (default: warn) |
 
-`--position`/`--before`/`--after` are mutually exclusive. They reorder within the current column or place precisely when moving columns. Without `-c`, the card is placed in the anchor card's column. Prefer `--before`/`--after` for non-boundary spots.
+The five placement flags are mutually exclusive. They reorder within the current column or place precisely when moving columns. Without `-c`, the card is placed in the anchor card's column. Prefer `--before`/`--after` for non-boundary spots.
+
+Use `kan move` to just move a card. Reach for `edit -c` when the same command also changes other fields.
+
+## Moving Cards
+
+```bash
+kan move fix done                # Move to the done column
+kan move fix next --bottom       # Back of the queue
+kan move fix in-progress --top   # Front of the column
+kan move fix --after deploy      # Column inferred from the anchor card
+```
+
+| Flag | Description |
+|------|-------------|
+| `-b, --board` | Board name |
+| `--position` | Move to index in column (0 = top, -1 = end, negatives count from end) |
+| `--top` | Move to the top of the column |
+| `--bottom` | Move to the bottom of the column |
+| `--before` | Move before this card (ID or alias) |
+| `--after` | Move after this card (ID or alias) |
+| `-g, --global` | Target the designated global board |
+
+The column argument is optional when `--before`/`--after` is given - the card follows the anchor into its column.
+
+With no placement flag, the destination column's `on_move_default_position` decides where the card lands: `top` unless the column is configured `bottom`. Moving a card to the column it already occupies does nothing; pass a placement flag to reorder it.
 
 ## Deleting Cards
 
@@ -448,12 +484,15 @@ kan column add review --color "#9333ea"                  # With custom color
 kan column add review --position 2                       # Insert at position
 kan column add review --description "Cards under review" # With description
 kan column add review --limit 5                          # With column limit
+kan column add review --on-move-default-position bottom  # Moved-in cards go to the back
 kan column delete review                 # Delete column
 kan column rename review code-review     # Rename column
 kan column edit review --color "#ec4899" # Change column color
 kan column edit review --description "Updated purpose"   # Change description
 kan column edit review --limit 3         # Set column limit
 kan column edit review --limit 0         # Clear column limit
+kan column edit review --on-move-default-position bottom  # Moved-in cards to the back
+kan column edit review --on-move-default-position top     # ...to the front (default)
 kan column list                          # List columns
 kan column move review --position 1      # Reorder column
 kan column move review --after backlog   # Insert after another
