@@ -5,6 +5,7 @@ export interface UrlState {
   boardName: string | null;
   cardId: string | undefined;
   setBoard: (name: string, options?: { replace?: boolean }) => void;
+  clearBoard: (options?: { replace?: boolean }) => void;
   openCard: (id: string) => void;
   closeCard: (options?: { replace?: boolean }) => void;
 }
@@ -20,6 +21,15 @@ export function useUrlState(): UrlState {
   const setBoard = useCallback(
     (name: string, options?: { replace?: boolean }) => {
       navigate(`/board/${encodeURIComponent(name)}`, { replace: options?.replace });
+    },
+    [navigate]
+  );
+
+  // Leaves the board entirely, landing on the home launcher. Board-scoped params
+  // (card, sort) are meaningless without a board, so this does not carry them over.
+  const clearBoard = useCallback(
+    (options?: { replace?: boolean }) => {
+      navigate('/', { replace: options?.replace });
     },
     [navigate]
   );
@@ -48,5 +58,5 @@ export function useUrlState(): UrlState {
     [navigate, boardName, searchParams]
   );
 
-  return { boardName, cardId, setBoard, openCard, closeCard };
+  return { boardName, cardId, setBoard, clearBoard, openCard, closeCard };
 }

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useSearchParams } from 'react-router-dom';
 import { useBoards, useBoard } from './hooks/useBoards';
 import { useOmnibar } from './hooks/useOmnibar';
 import { useBoardSwitcher } from './hooks/useBoardSwitcher';
@@ -26,12 +26,28 @@ import { useUndo } from './hooks/useUndo';
 import { useCompactMode } from './contexts/CompactModeContext';
 import { useSlimMode } from './contexts/SlimModeContext';
 import { useToast } from './contexts/ToastContext';
+import { FileSyncProvider } from './contexts/FileSyncContext';
 
 
 function BoardApp() {
   const [refreshKey, setRefreshKey] = useState(0);
-  const { boards, loading: boardsLoading, error: boardsError } = useBoards(refreshKey);
-  const { boardName, cardId, setBoard, openCard, closeCard } = useUrlState();
+  const { boards, loading: boardsLoading, error: boardsError, refresh: refreshBoards } = useBoards(refreshKey);
+  const { boardName, cardId, setBoard, clearBoard, openCard, closeCard } = useUrlState();
+  const { showToast } = useToast();
+
+  // The open board was deleted or renamed on disk. Get off it before the user
+  // edits cards that no longer have anywhere to live.
+  const handleBoardGone = useCallback(async () => {
+    const goneBoard = boardName;
+    const remaining = await refreshBoards();
+    if (remaining?.length === 1) {
+      setBoard(remaining[0], { replace: true });
+    } else {
+      clearBoard({ replace: true });
+    }
+    showToast('info', `Board "${goneBoard}" no longer exists on disk`);
+  }, [boardName, refreshBoards, setBoard, clearBoard, showToast]);
+
   const {
     board,
     cards,
@@ -50,10 +66,9 @@ function BoardApp() {
     fileSyncConnected,
     fileSyncReconnecting,
     fileSyncFailed,
-  } = useBoard(boardName, refreshKey);
+  } = useBoard(boardName, refreshKey, handleBoardGone);
   const [newlyCreatedCardId, setNewlyCreatedCardId] = useState<string | null>(null);
   const omnibar = useOmnibar();
-  const { showToast } = useToast();
 
   const { pushUndo } = useUndo({
     boardName,
@@ -689,11 +704,14 @@ function App() {
             <Route path="/*" element={<Navigate to="/" replace />} />
           </>
         ) : (
-          <>
+          // A layout route, so one WebSocket survives navigation between the
+          // launcher and a board rather than reconnecting on each. Scoped to the
+          // routes that have a backend - the docs-only build has none.
+          <Route element={<FileSyncProvider><Outlet /></FileSyncProvider>}>
             <Route path="/" element={<BoardApp />} />
             <Route path="/board/:boardName" element={<BoardApp />} />
             <Route path="*" element={<Navigate to="/" replace />} />
-          </>
+          </Route>
         )}
       </Routes>
     </BrowserRouter>

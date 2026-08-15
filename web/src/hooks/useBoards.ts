@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { listBoards, getBoard, createColumn as apiCreateColumn, deleteColumn as apiDeleteColumn, updateColumn as apiUpdateColumn, reorderColumns as apiReorderColumns } from '../api/boards';
 import { listCards, moveCard as apiMoveCard, createCard as apiCreateCard, updateCard as apiUpdateCard, deleteCard as apiDeleteCard, getCard as apiGetCard } from '../api/cards';
-import type { BoardConfig, Card, CreateCardInput, CreateCardResponse, HookInfo, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
-import { useFileSync, type FileChange } from './useFileSync';
+import { ApiError } from '../api/client';
+import type { BoardConfig, Card, CreateCardInput, CreateCardResponse, FileChange, HookInfo, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
+import { useFileSyncStatus, useFileSyncSubscription } from '../contexts/FileSyncContext';
 import { useToast } from '../contexts/ToastContext';
 import { resolveInsertIndex } from '../utils/columnPlacement';
+import { upsertCard } from '../utils/cardSync';
 
 // A failed hook still creates the card, so the board looks entirely normal. Without a
 // visible message the only symptom is the hook's effect not happening, which reads as
@@ -20,41 +22,23 @@ function hookFailureMessage(hook: HookInfo): string {
   return message;
 }
 
-// Insert (or replace) a card so the array stays sorted by position within its column.
-// The cards array is kept ordered to match what the server returns from List, since the
-// rendering layer relies on array order rather than re-sorting by the position field.
-function insertCardSorted(cards: Card[], newCard: Card): Card[] {
-  const existingIdx = cards.findIndex((c) => c.id === newCard.id);
-  if (existingIdx >= 0) {
-    const next = cards.slice();
-    next[existingIdx] = newCard;
-    return next;
-  }
-
-  const newPos = newCard.position ?? '';
-  for (let i = 0; i < cards.length; i++) {
-    const c = cards[i];
-    if (c.column !== newCard.column) continue;
-    const cPos = c.position ?? '';
-    if (cPos > newPos) {
-      return [...cards.slice(0, i), newCard, ...cards.slice(i)];
-    }
-  }
-  return [...cards, newCard];
-}
-
 export function useBoards(refreshKey = 0) {
   const [boards, setBoards] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchBoards = useCallback(async () => {
+  // Returns the fresh list as well as storing it, so a caller that has to act on
+  // it immediately - picking where to send the user after the open board vanished
+  // - doesn't have to wait a render for the state to land.
+  const fetchBoards = useCallback(async (): Promise<string[] | undefined> => {
     try {
       const result = await listBoards();
       setBoards(result);
       setError(null);
+      return result;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load boards');
+      return undefined;
     } finally {
       setLoading(false);
     }
@@ -64,15 +48,31 @@ export function useBoards(refreshKey = 0) {
     fetchBoards();
   }, [fetchBoards, refreshKey]);
 
-  return { boards, loading, error };
+  // Any board appearing or disappearing on disk changes this list, including
+  // boards other than the open one - so this deliberately ignores board_name.
+  useFileSyncSubscription(useCallback((change: FileChange) => {
+    if (change.kind === 'board') fetchBoards();
+  }, [fetchBoards]));
+
+  return { boards, loading, error, refresh: fetchBoards };
 }
 
-export function useBoard(boardName: string | null, refreshKey = 0) {
+/**
+ * onBoardGone fires when the open board turns out to no longer exist on disk -
+ * deleted or renamed from the CLI, or by another tab. The hook cannot decide where
+ * to send the user, so the caller handles it.
+ */
+export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?: () => void) {
   const [board, setBoard] = useState<BoardConfig | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { showToast } = useToast();
+
+  const onBoardGoneRef = useRef(onBoardGone);
+  useEffect(() => {
+    onBoardGoneRef.current = onBoardGone;
+  }, [onBoardGone]);
 
   // Track pending local changes to avoid overwriting optimistic updates
   const pendingChangesRef = useRef<Set<string>>(new Set());
@@ -130,7 +130,7 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
       if (change.card_id) {
         try {
           const updatedCard = await apiGetCard(boardName, change.card_id);
-          setCards((prev) => insertCardSorted(prev, updatedCard));
+          setCards((prev) => upsertCard(prev, updatedCard));
         } catch (err) {
           // Card might have been deleted between notification and fetch
           console.warn('Failed to fetch updated card:', err);
@@ -139,10 +139,10 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
     }
   }, [boardName]);
 
-  const handleBoardChange = useCallback(async () => {
+  const handleBoardChange = useCallback(async (change: FileChange) => {
     // Board config changed - refresh both board AND cards
     // Cards need refresh because their column assignments come from board config
-    if (!boardName) return;
+    if (!boardName || change.board_name !== boardName) return;
     const version = ++fetchVersionRef.current;
     try {
       const [boardData, cardsData] = await Promise.all([
@@ -165,17 +165,24 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
       });
     } catch (err) {
       if (fetchVersionRef.current !== version) return;
+      // A 404 means the board is gone, not that the refresh failed. Leaving the
+      // deleted board on screen would let the user keep editing cards that no
+      // longer have a home, so hand it to the caller to navigate away.
+      if (err instanceof ApiError && err.status === 404) {
+        onBoardGoneRef.current?.();
+        return;
+      }
       console.warn('Failed to refresh board:', err);
     }
   }, [boardName]);
 
-  // Enable file sync when we have a board
-  const { connected: fileSyncConnected, reconnecting: fileSyncReconnecting, failed: fileSyncFailed } = useFileSync({
-    onCardChange: handleCardChange,
-    onBoardChange: handleBoardChange,
-    boardFilter: boardName || undefined,
-    enabled: !!boardName,
-  });
+  // One subscription for the shared connection; each handler filters for itself.
+  const { connected: fileSyncConnected, reconnecting: fileSyncReconnecting, failed: fileSyncFailed } = useFileSyncStatus();
+
+  useFileSyncSubscription(useCallback((change: FileChange) => {
+    if (change.kind === 'card') handleCardChange(change);
+    else if (change.kind === 'board') handleBoardChange(change);
+  }, [handleCardChange, handleBoardChange]));
 
   useEffect(() => {
     if (boardName) {
@@ -245,9 +252,9 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
     if (!boardName) return;
 
     const response = await apiCreateCard(boardName, input);
-    // insertCardSorted handles both the replace case (when the WebSocket handler
-    // got there first) and the insert case, keeping the array sorted by position.
-    setCards((prev) => insertCardSorted(prev, response.card));
+    // upsertCard covers the case where the WebSocket handler already added this
+    // card, as well as the ordinary insert.
+    setCards((prev) => upsertCard(prev, response.card));
 
     // Report hook results. Successes stay quiet in the console; failures get a toast,
     // since a hook that never ran is otherwise indistinguishable from one that didn't match.
@@ -288,14 +295,11 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
 
     try {
       const updatedCard = await apiUpdateCard(boardName, cardId, updates);
-      // Update with server response (includes custom fields). Re-insert by the
-      // position it came back with rather than replacing in place: changing a
-      // card's column is also a move, and the server placed it per that column's
-      // on_move_default_position. Array order is manual order, so replacing in
-      // place would leave the card at its rank in the column it just left, and
-      // the next WebSocket refresh would visibly jump it. When nothing moved,
-      // the card re-inserts exactly where it already was.
-      setCards((prev) => insertCardSorted(prev.filter((c) => c.id !== cardId), updatedCard));
+      // Update with the server response, which carries custom fields and the
+      // authoritative position: changing a card's column is also a move, and the
+      // server placed it per that column's on_move_default_position. When nothing
+      // moved, the card re-inserts exactly where it already was.
+      setCards((prev) => upsertCard(prev, updatedCard));
     } catch (e) {
       // Revert on error
       refresh();
@@ -327,7 +331,7 @@ export function useBoard(boardName: string | null, refreshKey = 0) {
 
   const addCardToState = useCallback((card: Card) => {
     pendingChangesRef.current.add(card.id);
-    setCards((prev) => insertCardSorted(prev, card));
+    setCards((prev) => upsertCard(prev, card));
     // Clear pending after a short delay to let WebSocket settle
     setTimeout(() => pendingChangesRef.current.delete(card.id), 2000);
   }, []);

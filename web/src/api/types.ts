@@ -207,3 +207,21 @@ export interface SwitchResponse {
   project_name: string;
   boards: string[];
 }
+
+// File sync types
+//
+// FileChange mirrors the Go FileChange struct in internal/api/watcher.go. It
+// arrives over the WebSocket rather than from a fetch, but it is a wire type like
+// the rest of this file.
+
+export type FileChangeType = 'created' | 'modified' | 'deleted';
+
+export type FileChangeKind = 'card' | 'board' | 'project' | 'unknown';
+
+export interface FileChange {
+  type: FileChangeType;
+  kind: FileChangeKind;
+  board_name?: string;
+  card_id?: string;
+  path: string;
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getProject } from '../api/project';
-import type { ProjectConfig } from '../api/types';
+import type { FileChange, ProjectConfig } from '../api/types';
+import { useFileSyncSubscription } from '../contexts/FileSyncContext';
 
 export function useProject(refreshKey = 0) {
   const [project, setProject] = useState<ProjectConfig | null>(null);
@@ -22,6 +23,10 @@ export function useProject(refreshKey = 0) {
   useEffect(() => {
     refresh();
   }, [refresh, refreshKey]);
+
+  useFileSyncSubscription(useCallback((change: FileChange) => {
+    if (change.kind === 'project') refresh();
+  }, [refresh]));
 
   return { project, loading, error, refresh };
 }
