@@ -184,10 +184,20 @@ func (fw *FileWatcher) handleEvent(event fsnotify.Event) {
 		return
 	}
 
-	// If a directory was created, add a watch for it
+	// If a directory was created, watch it and everything under it. Watching only
+	// the directory itself is not enough: on macOS, fsnotify's kqueue backend
+	// auto-registers a newly watched directory's subdirectories with delete/rename
+	// flags only, and emits no Create event for them. A board created while the
+	// server runs would leave boards/<new>/cards/ permanently write-blind, so cards
+	// added there would never reach the browser. Re-adding upgrades the flags.
 	if event.Op&fsnotify.Create != 0 {
 		if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
-			fw.watcher.Add(event.Name)
+			if err := fw.addWatchesRecursive(event.Name); err != nil {
+				log.Printf("Warning: failed to watch new directory %s: %v. "+
+					"Changes under it will not reach connected browsers until kan serve is restarted. "+
+					"Check the directory's permissions and whether the open-file limit has been reached.",
+					event.Name, err)
+			}
 		}
 	}
 
@@ -263,6 +273,18 @@ func (fw *FileWatcher) classifyChange(event fsnotify.Event) FileChange {
 
 	// Board config: boards/<boardname>/config.toml
 	if len(parts) == 3 && parts[0] == "boards" && parts[2] == "config.toml" {
+		change.Kind = FileChangeKindBoard
+		change.BoardName = parts[1]
+		return change
+	}
+
+	// Board directory: boards/<boardname>. A board appearing or disappearing is the
+	// signal that the board list changed. We key off the directory rather than its
+	// config.toml because creating a board can write that file before our watch on
+	// the new directory attaches, whereas the watch on boards/ has been in place
+	// since startup. Deletes cannot be stat'd, so this does not check for a
+	// directory; a stray file directly under boards/ costs one redundant refetch.
+	if len(parts) == 2 && parts[0] == "boards" {
 		change.Kind = FileChangeKindBoard
 		change.BoardName = parts[1]
 		return change
