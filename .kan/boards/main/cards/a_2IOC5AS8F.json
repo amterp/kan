@@ -1,0 +1,17 @@
+{
+  "_v": 3,
+  "alias": "let-a-project-set",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1788265660327,
+  "creator": "Alexander Terp",
+  "description": "`kan commit` writes `chore: update kan files` when no `-m` is given (`internal/cli/commit.go:68`). Fine in the abstract, wrong in most repos: it lands in the history of a project that has its own commit convention and does not follow it.\n\nIn muster the convention for board changes is `docs(kan): \u003cwhat changed\u003e`, so `kan commit` there is always either `-m \"...\"` or a `kan commit` followed by `git commit --amend` - twice in one session, both times an amend, because the default is what you get when you forget.\n\n`-m` already covers the one-off. What is missing is a per-project default, so the correct subject is the one you get by typing nothing.\n\n`.kan/config.toml` looks like the natural home - already per-project, already carrying project-level settings:\n\n```toml\nkan_schema = \"project/2\"\nid = \"p_BDnFKuao\"\nname = \"kan\"\n\ncommit_message = \"docs(kan): update the board\"\n```\n\nWorth deciding: fixed string, or a template with something substitutable in it (the cards touched, the columns they moved between). A fixed string is most of the value and none of the design work; a template is the thing somebody asks for next.\n\nThe current default is quoted in `extras/skill/SKILL.md` and `web/src/docs/cli.md`, plus the generated copies under `internal/api/dist/`, so whatever the wording becomes has to reach those too.",
+  "id": "a_2IOC5AS8F",
+  "position": "vfUUU",
+  "title": "let a project set the default kan commit message",
+  "type": "enhancement",
+  "updated_at_millis": 1788265660327,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1788265660327}
+  ]
+}
