@@ -1,0 +1,17 @@
+{
+  "_v": 3,
+  "alias": "cmd-p-board-switcher",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1789078628401,
+  "creator": "Alexander Terp",
+  "description": "Kan's server holds one active project shared by every browser tab, and the omnibar's board switcher (Cmd+P) changes it via `POST /api/v1/switch`. When the newly active project has no boards, `App.tsx` renders the \"No boards found\" screen and returns early (web/src/App.tsx:580), before `\u003cOmnibar\u003e` ever mounts. Cmd+P still calls `omnibar.open('boards')`, but there's nothing on screen to open, so the shortcut looks dead and there's no way back to a project that has boards.\n\nI hit this on a beagle-served instance: its active project had switched to a repo that's registered in `~/.config/kan/config.toml` but was never `kan init`'d, leaving it with an empty board list and no visible way to switch away. Recovering meant restarting the server process, which re-runs project discovery from its working directory.\n\nWorth deciding between two fixes, since they solve different parts of the trap:\n\n- Keep the omnibar reachable even at zero boards, so Cmd+P still opens a way to pick another project.\n- Put a project switcher directly on the \"No boards found\" screen, so recovery doesn't depend on remembering the hotkey.",
+  "id": "a_2NtJ5zNkX",
+  "position": "vfUUU",
+  "title": "cmd+p board switcher is unreachable once the active project has zero boards",
+  "type": "bug",
+  "updated_at_millis": 1789078628401,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1789078628401}
+  ]
+}
