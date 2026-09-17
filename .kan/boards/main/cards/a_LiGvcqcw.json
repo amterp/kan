@@ -8,7 +8,7 @@
   "description": "Render string-list fields in the web UI - display as chips/badges on cards, and provide an input mechanism for adding/removing values when editing a card. Consider typeahead suggestions from existing values across the board.",
   "id": "a_LiGvcqcw",
   "parent": "a_LiGhaUrK",
-  "position": "H5",
+  "position": "aR",
   "title": "Web UI support for string-list fields",
   "type": "feature",
   "updated_at_millis": 1770434145643,
