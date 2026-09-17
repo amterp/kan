@@ -1,0 +1,17 @@
+{
+  "_v": 3,
+  "alias": "card-display-badges",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1788706707385,
+  "creator": "Alexander Terp",
+  "description": "A board with three enum fields worth seeing can only show two of them. `type_indicator` and `tint` each take one enum; `badges` takes `enum-set`, `free-set` and `boolean` but not `enum`, so the third field drops to the card detail view.\n\nHit on the spool board, which has `type`, `provenance` and `effort`. Putting `provenance` in badges gives:\n\n    ! [INVALID_CARD_DISPLAY] main card_display.badges should reference set or\n      boolean fields (enum-set, free-set, or boolean), but 'provenance' is\n      type 'enum'\n\nThe workaround is to declare the field `enum-set` instead, which is wrong - it lets a card carry two provenances, and it changes how `--sort` ranks a card (highest-ranked value rather than the one value).\n\nAn enum in `badges` has an obvious rendering: one chip, the option's color, the same as an enum-set carrying exactly one value. `boolean` is already allowed there and is not a set either, so the slot is not strictly set-only today.\n\nWhere: `card_display.badges` validation, and whatever `kan doctor`'s INVALID_CARD_DISPLAY check reads.",
+  "id": "a_2LNFjNGcc",
+  "position": "aL",
+  "title": "card_display badges rejects enum, so only two enum fields fit on a card face",
+  "type": "enhancement",
+  "updated_at_millis": 1788706707385,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1788706707385}
+  ]
+}

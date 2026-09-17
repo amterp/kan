@@ -1,0 +1,16 @@
+{
+  "_v": 3,
+  "alias": "some-way-to-provide",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1788642943327,
+  "creator": "Alexander Terp",
+  "id": "a_2KwUw7b6f",
+  "position": "aK",
+  "title": "some way to provide \"for free\" ways to configure fields on new cards via text in the title which then gets stripped",
+  "type": "feature",
+  "updated_at_millis": 1788642949854,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1788642943327}
+  ]
+}
