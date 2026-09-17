@@ -24,20 +24,18 @@ if website:
 // Release preflight. Runs before the build so a bad setup fails in seconds rather
 // than a minute in, and before anything irreversible. All read-only.
 if release:
-    stdout = quiet $`git branch --show-current`
-    branch = stdout.trim()
+    branch = quiet $`git branch --show-current`.stdout.trim()
     if branch != "main":
         print_err("Release must be run from main branch (currently on '{branch}')")
         exit(1)
 
     // The tap is pushed last, after the GitHub release is already public, so a
     // problem found then strands a released version that `brew upgrade` can't see.
-    quiet $`test -d {tap_path}` catch:
+    if not quiet $`test -d {tap_path}`.ok:
         print_err("No homebrew tap at '{tap_path}'. The formula update would fail after the release is already public. Clone amterp/homebrew-tap there, or pass --tap-path.")
         exit(1)
 
-    stdout = quiet $`git -C {tap_path} status --porcelain`
-    if stdout.trim() != "":
+    if quiet $`git -C {tap_path} status --porcelain`.stdout.trim() != "":
         print_err("Tap at '{tap_path}' has uncommitted changes - the release would sweep them into the formula bump commit. Commit or stash them first.")
         exit(1)
 
@@ -45,8 +43,7 @@ if release:
         print_err("Cannot reach the tap remote. The formula push at the end of the release would fail too, after the release is public. Check the network and the tap's origin.")
         exit(1)
 
-    stdout = quiet $`git -C {tap_path} rev-list --count HEAD..origin/main`
-    if stdout.trim() != "0":
+    if quiet $`git -C {tap_path} rev-list --count HEAD..origin/main`.stdout.trim() != "0":
         print_err("Tap at '{tap_path}' is behind origin/main, so its push would be rejected and the formula left stale. Pull it first.")
         exit(1)
 
@@ -59,12 +56,10 @@ if validate or push or re_serve or release:
     $`make validate-go`
 
 if push:
-    code, stdout = quiet $`git status --porcelain -uno`
-    if stdout != "":
+    if quiet $`git status --porcelain -uno`.stdout != "":
         print_err("Git status is not clean, aborting push")
         exit(1)
-    stdout = quiet $`git branch --show-current`
-    branch = stdout.trim()
+    branch = quiet $`git branch --show-current`.stdout.trim()
     $`git push origin {branch}`
 
 if re_serve:
@@ -84,8 +79,7 @@ if release:
         exit(1)
 
     // Calculate new version from latest tag
-    stdout = quiet $`git tag -l 'v*' --sort=-v:refname`
-    tags = stdout.trim().split("\n")
+    tags = quiet $`git tag -l 'v*' --sort=-v:refname`.stdout.trim().split("\n")
     latest_tag = ""
     if tags.len() == 0 or tags[0] == "":
         // No existing tags, start at 0.1.0
@@ -121,8 +115,7 @@ if release:
     print("New version: {release}")
 
     // Paths
-    stdout = quiet $`pwd`
-    repo = stdout.trim()
+    repo = quiet $`pwd`.stdout.trim()
     releases_dir = "{repo}/releases"
     formula_path = "{repo}/{tap_path}/Formula/kan.rb"
     tag = "v{release}"
@@ -132,8 +125,7 @@ if release:
     // Syncing them wholesale isn't an option: v0.1.0-v0.7.0 diverged from the remote
     // in an early history rewrite, so `git fetch --tags` always fails here. Check the
     // one thing that actually matters instead.
-    stdout = quiet $`git ls-remote --tags origin refs/tags/{tag}`
-    if stdout.trim() != "":
+    if quiet $`git ls-remote --tags origin refs/tags/{tag}`.stdout.trim() != "":
         print_err("{tag} is already published on origin, so the next version was computed from a stale local view. Resync with `git fetch --force --tags origin` (force is needed for those legacy tags) and re-run.")
         exit(1)
 
@@ -159,10 +151,8 @@ if release:
         pass
 
     // Calculate SHA256
-    stdout = quiet $`shasum -a 256 {arm64_tar}`
-    sha256_arm64 = stdout.split(" ")[0]
-    stdout = quiet $`shasum -a 256 {amd64_tar}`
-    sha256_amd64 = stdout.split(" ")[0]
+    sha256_arm64 = quiet $`shasum -a 256 {arm64_tar}`.stdout.split(" ")[0]
+    sha256_amd64 = quiet $`shasum -a 256 {amd64_tar}`.stdout.split(" ")[0]
 
     // Push main so commits are on GitHub for changelog generation
     print("Pushing main...")
