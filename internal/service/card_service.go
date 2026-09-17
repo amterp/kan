@@ -111,7 +111,10 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 	if err != nil {
 		return nil, nil, err
 	}
-	position := computePosition(colCards, idx)
+	position, err := computePosition(colCards, idx)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Generate ID and alias
 	cardID := id.Generate(id.Card)
@@ -360,7 +363,11 @@ func (s *CardService) MoveCardWithPlacement(boardName, cardID, targetColumn stri
 	// Compute new position
 	prevColumn := card.Column
 	card.Column = targetColumn
-	card.Position = computePosition(colCards, idx)
+	newPosition, err := computePosition(colCards, idx)
+	if err != nil {
+		return err
+	}
+	card.Position = newPosition
 	card.UpdatedAtMillis = util.NowMillis()
 
 	// Record the transition, but only on a genuine column change. Within-column
@@ -684,7 +691,11 @@ func (s *CardService) Restore(boardName string, card *model.Card, column string,
 
 	// Set column and position on the card itself
 	card.Column = column
-	card.Position = computePosition(colCards, position)
+	newPosition, err := computePosition(colCards, position)
+	if err != nil {
+		return err
+	}
+	card.Position = newPosition
 
 	// Write card file
 	return s.cardStore.Create(boardName, card)
@@ -1004,11 +1015,8 @@ func cardsInColumnExcluding(cards []*model.Card, column, excludeID string) []*mo
 // Index 0 = before first card; index >= n appends to the end. Negative indices
 // count back from the end: -1 = end, -2 = before the last card, etc. A negative
 // index that underflows past the top is clamped to the top.
-func computePosition(sortedCards []*model.Card, index int) string {
+func computePosition(sortedCards []*model.Card, index int) (string, error) {
 	n := len(sortedCards)
-	if n == 0 {
-		return util.PositionBetween("", "")
-	}
 	if index < 0 {
 		// Map -1 -> n (append), -2 -> n-1, ... so negatives count from the end.
 		index = n + 1 + index
@@ -1016,14 +1024,50 @@ func computePosition(sortedCards []*model.Card, index int) string {
 			index = 0
 		}
 	}
-	if index >= n {
-		// Append to end
-		return util.PositionAfter(sortedCards[n-1].Position)
+	if index > n {
+		index = n
 	}
-	if index == 0 {
-		return util.PositionBefore(sortedCards[0].Position)
+
+	var prev, next *model.Card
+	if index > 0 {
+		prev = sortedCards[index-1]
 	}
-	return util.PositionBetween(sortedCards[index-1].Position, sortedCards[index].Position)
+	if index < n {
+		next = sortedCards[index]
+	}
+
+	// An empty bound means "no neighbor on that side", so a neighbor with no
+	// position would silently place the card on the wrong side of it.
+	for _, c := range []*model.Card{prev, next} {
+		if c != nil && c.Position == "" {
+			return "", kanerr.PositionUnavailable(c.Column, fmt.Sprintf("card %s has no position", cardLabel(c)))
+		}
+	}
+	lo, hi := "", ""
+	if prev != nil {
+		lo = prev.Position
+	}
+	if next != nil {
+		hi = next.Position
+	}
+
+	pos, err := util.PositionBetween(lo, hi)
+	if err != nil {
+		column := sortedCards[0].Column
+		reason := err.Error()
+		if lo == hi {
+			reason = fmt.Sprintf("cards %s and %s share the position %q", cardLabel(prev), cardLabel(next), lo)
+		}
+		return "", kanerr.PositionUnavailable(column, reason)
+	}
+	return pos, nil
+}
+
+func cardLabel(c *model.Card) string {
+	if c.Alias != "" {
+		return c.Alias
+	}
+	return c.ID
 }
 
 // resolveInsertIndex returns the insertion index within colCards for a placement.

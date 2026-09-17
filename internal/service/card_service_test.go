@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -1972,17 +1973,80 @@ func TestComputePosition_NegativeIndexing(t *testing.T) {
 	col := cardsInColumn(all, "in-progress") // [A, B, C]
 
 	// -1 = end: sorts after C.
-	if p := computePosition(col, -1); p <= col[2].Position {
+	if p := mustComputePosition(t, col, -1); p <= col[2].Position {
 		t.Errorf("-1 should sort after last card; got %q vs %q", p, col[2].Position)
 	}
 	// -2 = before last: sorts between B and C.
-	if p := computePosition(col, -2); p <= col[1].Position || p >= col[2].Position {
+	if p := mustComputePosition(t, col, -2); p <= col[1].Position || p >= col[2].Position {
 		t.Errorf("-2 should sort between B and C; got %q (B=%q C=%q)", p, col[1].Position, col[2].Position)
 	}
 	// Large underflow clamps to top: sorts before A.
-	if p := computePosition(col, -100); p >= col[0].Position {
+	if p := mustComputePosition(t, col, -100); p >= col[0].Position {
 		t.Errorf("underflowing negative should clamp to top; got %q vs %q", p, col[0].Position)
 	}
+}
+
+// Issue #13: keys stay short when a column keeps growing at either end.
+func TestAdd_PositionKeysStayShort(t *testing.T) {
+	s, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+
+	top := 0
+	for i := 0; i < 12; i++ {
+		if _, _, err := s.Add(AddCardInput{BoardName: "main", Title: fmt.Sprintf("bottom %d", i), Column: "in-progress"}); err != nil {
+			t.Fatalf("Add failed: %v", err)
+		}
+		if _, _, err := s.Add(AddCardInput{BoardName: "main", Title: fmt.Sprintf("top %d", i), Column: "in-progress", Position: &top}); err != nil {
+			t.Fatalf("Add failed: %v", err)
+		}
+	}
+
+	all, _ := s.cardStore.List("main")
+	for _, c := range cardsInColumn(all, "in-progress") {
+		if len(c.Position) > 2 {
+			t.Errorf("card %q has position %q, want at most 2 characters", c.Title, c.Position)
+		}
+	}
+}
+
+func TestComputePosition_UnplaceableNeighbors(t *testing.T) {
+	cases := []struct {
+		name  string
+		cards []*model.Card
+		index int
+	}{
+		{"between cards sharing a key", []*model.Card{
+			{ID: "a", Alias: "first", Column: "todo", Position: "a0"},
+			{ID: "b", Alias: "second", Column: "todo", Position: "a0"},
+		}, 1},
+		{"above a card with no key", []*model.Card{
+			{ID: "a", Alias: "first", Column: "todo", Position: ""},
+			{ID: "b", Alias: "second", Column: "todo", Position: "a0"},
+		}, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p, err := computePosition(tc.cards, tc.index)
+			if err == nil {
+				t.Fatalf("computePosition = %q, want an error", p)
+			}
+			if !kanerr.IsValidationError(err) {
+				t.Errorf("error %v is not a validation error, so the API would answer 500", err)
+			}
+			if !strings.Contains(err.Error(), "kan doctor --fix") || !strings.Contains(err.Error(), "first") {
+				t.Errorf("error %q should name the card and point to kan doctor --fix", err)
+			}
+		})
+	}
+}
+
+func mustComputePosition(t *testing.T, cards []*model.Card, index int) string {
+	t.Helper()
+	p, err := computePosition(cards, index)
+	if err != nil {
+		t.Fatalf("computePosition(%d) error: %v", index, err)
+	}
+	return p
 }
 
 func TestResolveInsertIndex(t *testing.T) {

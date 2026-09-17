@@ -2,7 +2,10 @@ package cli
 
 import (
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/amterp/kan/internal/model"
 )
 
 func TestParseCustomFields(t *testing.T) {
@@ -85,5 +88,20 @@ func TestParseCustomFields(t *testing.T) {
 				t.Fatalf("parseCustomFields() = %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestLongPositionHint(t *testing.T) {
+	short := &model.Card{Column: "done", Position: "Zz"}
+	if hint := longPositionHint(short); hint != "" {
+		t.Errorf("longPositionHint(%q) = %q, want no hint", short.Position, hint)
+	}
+
+	long := &model.Card{Column: "done", Position: strings.Repeat("!", 37) + "T"}
+	hint := longPositionHint(long)
+	for _, want := range []string{`"done"`, "38 characters", "kan doctor --fix"} {
+		if !strings.Contains(hint, want) {
+			t.Errorf("longPositionHint = %q, want it to contain %q", hint, want)
+		}
 	}
 }

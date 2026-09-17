@@ -5,7 +5,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/service"
+	"github.com/amterp/kan/internal/util"
 	"github.com/amterp/ra"
 )
 
@@ -295,6 +297,26 @@ func runAdd(title, description, board, column string, parentCard string, placeme
 
 	// Warn about missing wanted fields
 	printMissingWantedWarnings(missingWanted)
+
+	printLongPositionHint(card)
+}
+
+// longPositionHint returns a warning for a card just placed on a long position
+// key, or "" if the key is short. A long key means the column's keys predate
+// the length-prefixed scheme or have been split many times, and placements
+// there keep lengthening them until `kan doctor --fix` rewrites the column.
+func longPositionHint(card *model.Card) string {
+	if len(card.Position) <= util.LongPositionLength {
+		return ""
+	}
+	return fmt.Sprintf("Position keys in column %q have reached %d characters and will keep growing. "+
+		"Run 'kan doctor --fix' to shorten them.", card.Column, len(card.Position))
+}
+
+func printLongPositionHint(card *model.Card) {
+	if hint := longPositionHint(card); hint != "" {
+		PrintWarning("%s", hint)
+	}
 }
 
 // printHookResults displays hook results with appropriate styling.

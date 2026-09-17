@@ -517,9 +517,7 @@ kan doctor --json
 - **Errors** (must be fixed):
   - `MALFORMED_BOARD_CONFIG`: Board config.toml fails to parse
   - `MALFORMED_CARD`: Card JSON fails to parse
-  - `MISSING_CARD_FILE`: Card ID in column but file not found (fixable)
-  - `ORPHANED_CARD`: Card file not in any column (fixable)
-  - `DUPLICATE_CARD_ID`: Same ID in multiple columns (fixable)
+  - `ORPHANED_CARD`: Card has no column, or a column the board doesn't define (fixable)
 
 - **Warnings** (should be addressed):
   - `SCHEMA_OUTDATED`: Board/card needs migration (run `kan migrate`)
@@ -532,8 +530,13 @@ kan doctor --json
   - `HOOK_COMMAND_ARGS`: Pattern hook command appears to take arguments (hooks take none)
   - `INVALID_PARENT_REF`: Parent points to non-existent card (fixable)
   - `MISSING_WANTED_FIELDS`: Card is missing fields marked as `wanted`
+  - `DUPLICATE_POSITION_KEYS`: Two cards in a column share a position key, so no card can be placed between them (fixable)
+  - `LEGACY_POSITION_KEYS`: A column has cards with no position key, or with keys written by an older Kan (fixable)
+  - `LONG_POSITION_KEYS`: A column has position keys longer than 12 characters (fixable)
   - `MALFORMED_GLOBAL_CONFIG`: Global config.toml fails to parse
   - `GLOBAL_SCHEMA_OUTDATED`: Global config needs migration
+
+Fixing the position-key warnings rewrites cards' `position` fields and keeps their order. When most of a column needs new keys, every card in it is renumbered, so on a board used with an older Kan the fix touches many card files: commit it on its own.
 
 ### docs
 
