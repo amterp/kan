@@ -516,32 +516,51 @@ If users want guaranteed collision-free naming, they can use `x_priority` instea
 
 ## Column Membership
 
-**Decision**: Cards do NOT store which column they belong to. Column membership is determined solely by the `card_ids` arrays in board config:
+**Decision**: Each card stores its column and its place in that column, in the `column` and `position` fields (card/2, board/10):
 
-```toml
-[[columns]]
-name = "In Progress"
-card_ids = ["22Dm2sjM", "22DnGln7"]
+```json
+{
+  "_v": 3,
+  "id": "22Dm2sjM",
+  "column": "in-progress",
+  "position": "a1",
+  ...
+}
 ```
 
-### Why Remove Column from Cards?
+Cards in a column sort by `position`, compared byte by byte, with the card ID breaking ties.
 
-**Previous state**: Cards had a `column` field, and board config had `card_ids`. Two sources of truth.
+**History**: Before board/10, each column in the board config listed its cards in a `card_ids` array, so every add or move rewrote that one file and two people changing different cards in the same column conflicted. (An earlier design also kept `column` on cards; the v0 → v1 migration removed it as a second source of truth.) With membership on the cards, those changes touch separate files. The board/9 → board/10 migration writes `column` and `position` into every card and removes `card_ids`.
 
-**Problem**: Two sources of truth = two places to get out of sync. The code comment said "backward compat" but there was no v0 to be compatible with—it was vestigial design.
+### Position Keys
 
-**Alternative considered**: Keep `column` as a "cache" for:
-- Orphan recovery if board config corrupted
-- Git forensics (card history shows moves)
-- Standalone card reads by external tools
+**Decision**: `position` is a fractional index: between any two keys another key fits, so placing a card rewrites only that card's file. Kan generates keys in the length-prefixed scheme from [rocicorp's fractional indexing](https://github.com/rocicorp/fracdex):
 
-**Why we rejected the cache argument**:
-- A cache without invalidation is a bug waiting to happen
-- If board config is lost, so is the card file (same Git history)
-- External tooling isn't our concern (schema is internal)
-- Single source of truth is simpler and safer
+- Keys use the base62 digits `0-9A-Za-z`.
+- A key starts with an integer part whose first character gives its length: `a` is followed by one digit, `b` by two, up to `z`; `Z` by one, `Y` by two, down to `A`, for negative integers.
+- An optional fraction follows, and never ends in `0`.
 
-**Migration**: Removing `column` was included in the v0 → v1 migration (the initial versioning migration). `kan migrate` removes the `column` field from legacy cards.
+| Operation | Keys generated |
+|---|---|
+| Appending to a column | `a0 a1 … a9 aA … az b00 b01 …` |
+| Inserting at the top | `a0 Zz Zy … Z0 Yzz …` |
+| Inserting between `a0` and `a1` | `a0V`, then `a0G`, `a08`, … toward `a0` |
+
+At either end of a column, 62 cards fit on 2-character keys, about 3,800 on 3, and about 238,000 on 4. Only repeated inserts into the same gap lengthen keys, by about a character per six inserts.
+
+**Why**: Kan used to generate unstructured keys. An append added a character to the previous key, and a top insert added one every five inserts or so, so a key's length tracked how many cards the column had ever received. Real columns reached 99-character keys ([#13](https://github.com/amterp/kan/issues/13)), and every card add showed that key in the diff. Top inserts are common, since a card moved into a column lands at the top by default (see "Card Insertion").
+
+**Older keys**: Keys from before this scheme use the alphabet `!0-9A-Za-z` and stay valid; they sort correctly against new keys.
+
+- When a neighbor has an older key, Kan still returns a length-prefixed key if one fits between the neighbors, so a column moves onto the new scheme at the first chance. Otherwise it takes a midpoint over the old alphabet.
+- No length-prefixed key sorts below one starting with `!` or a digit, so top inserts in such a column keep lengthening its keys. `kan add`, `kan move` and `kan edit` warn when they place a card on a key longer than 12 characters.
+- `kan doctor` reports a column holding shared keys (`DUPLICATE_POSITION_KEYS`), missing or older keys (`LEGACY_POSITION_KEYS`), or keys longer than 12 characters (`LONG_POSITION_KEYS`). `kan doctor --fix` rewrites the keys and keeps the order. When at most half the column is affected it rewrites only those cards, placing each run between its kept neighbors; otherwise it renumbers the whole column from `a0`. It leaves `updated_at_millis` alone.
+
+**Why no schema bump**: The change is to the values Kan writes, not to the file format. New keys use only characters from the old alphabet, and Kan versions from before the scheme sort them and generate keys between them correctly. A bump would force everyone using a board to upgrade without protecting anything. Those older versions can still write keys that aren't length-prefixed (between `a0` and `a00V` they write `a0!U`); new Kan accepts such keys and the doctor reports them.
+
+**Why the doctor rather than a migration**: Rewriting keys touches most card files on a long-used board, and the doctor lets users take that diff when they choose, in its own commit. A board-level migration also would not reach cards merged in later from branches that predate it.
+
+**Shared keys**: Two branches that each append to the same column compute the same next key, so after the merge two cards share it. They still display in ID order, but Kan cannot place a card between them: it refuses with an error that points to `kan doctor --fix`, which rewrites only the second card.
 
 ## Compatibility Guarantees
 

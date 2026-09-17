@@ -184,6 +184,15 @@ func ColumnLimitExceeded(columnName string, limit int) error {
 	}
 }
 
+// PositionUnavailable indicates kan cannot generate a position key at the
+// requested spot in a column because of its neighbors' keys.
+func PositionUnavailable(columnName, reason string) error {
+	return &ValidationError{
+		Message: fmt.Sprintf("cannot place a card there in column %q: %s. "+
+			"Run 'kan doctor --fix' to rewrite the column's position keys, then try again", columnName, reason),
+	}
+}
+
 // IsNotFound checks if an error is a not-found error.
 func IsNotFound(err error) bool {
 	return errors.Is(err, ErrNotFound)

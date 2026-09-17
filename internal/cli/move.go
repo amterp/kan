@@ -95,4 +95,5 @@ func runMove(cardArg, column, board string, placement cardPlacement,
 	}
 
 	PrintSuccess("Moved card %s to %q", RenderID(movedCard.ID), movedCard.Column)
+	printLongPositionHint(movedCard)
 }

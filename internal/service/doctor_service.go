@@ -47,7 +47,10 @@ const (
 	CodeInvalidParentRef = "INVALID_PARENT_REF"
 
 	// Priority 4: Data quality (warnings)
-	CodeMissingWantedFields = "MISSING_WANTED_FIELDS"
+	CodeMissingWantedFields   = "MISSING_WANTED_FIELDS"
+	CodeDuplicatePositionKeys = "DUPLICATE_POSITION_KEYS"
+	CodeLegacyPositionKeys    = "LEGACY_POSITION_KEYS"
+	CodeLongPositionKeys      = "LONG_POSITION_KEYS"
 
 	// Priority 5: Global config (warnings)
 	CodeMalformedGlobalConfig = "MALFORMED_GLOBAL_CONFIG"
@@ -59,6 +62,7 @@ type Issue struct {
 	Severity   IssueSeverity     `json:"severity"`
 	Code       string            `json:"code"`
 	Board      string            `json:"board,omitempty"`
+	Column     string            `json:"column,omitempty"`
 	CardID     string            `json:"card_id,omitempty"`
 	Message    string            `json:"message"`
 	Fixable    bool              `json:"fixable"`
@@ -176,6 +180,8 @@ func (s *DoctorService) Fix(report *DiagnosticReport) (*DiagnosticReport, error)
 			err = s.fixInvalidCardDisplay(issue.Board, issue.FixContext)
 		case CodeInvalidParentRef:
 			err = s.fixInvalidParentRef(issue.Board, issue.CardID)
+		case CodeDuplicatePositionKeys, CodeLegacyPositionKeys, CodeLongPositionKeys:
+			err = s.fixColumnPositions(issue.Board, issue.Column)
 		default:
 			remaining = append(remaining, issue)
 			continue
@@ -373,18 +379,8 @@ func (s *DoctorService) checkBoard(report *DiagnosticReport, boardName string) {
 					FixAction: fmt.Sprintf("Move to default column (%s)", boardConfig.GetDefaultColumn()),
 				})
 			}
-
-			if card.Position == "" {
-				report.Issues = append(report.Issues, Issue{
-					Severity: SeverityWarning,
-					Code:     CodeMalformedCard,
-					Board:    boardName,
-					CardID:   card.ID,
-					Message:  "Card has no position assigned",
-					Fixable:  false,
-				})
-			}
 		}
+		s.checkColumnPositions(report, boardName, &boardConfig, cards)
 	}
 
 	// Check parent references
@@ -694,6 +690,138 @@ func (s *DoctorService) checkWantedFields(report *DiagnosticReport, boardName st
 	}
 }
 
+// checkColumnPositions raises at most one issue per column whose position keys
+// should be rewritten: shared keys (a card can't be placed between them),
+// missing or older-format keys, or keys past util.LongPositionLength.
+func (s *DoctorService) checkColumnPositions(report *DiagnosticReport, boardName string, cfg *model.BoardConfig, cards []*model.Card) {
+	for _, col := range cfg.Columns {
+		colCards := cardsInColumn(cards, col.Name)
+
+		duplicates, legacy, long, longest := 0, 0, 0, 0
+		for i, c := range colCards {
+			if i > 0 && c.Position != "" && c.Position == colCards[i-1].Position {
+				duplicates++
+			}
+			if !util.IsLengthPrefixedPosition(c.Position) {
+				legacy++
+			}
+			if len(c.Position) > util.LongPositionLength {
+				long++
+			}
+			longest = max(longest, len(c.Position))
+		}
+
+		// Most severe first; the issue takes the first code.
+		var codes, reasons []string
+		if duplicates > 0 {
+			codes = append(codes, CodeDuplicatePositionKeys)
+			reasons = append(reasons, fmt.Sprintf("%d shared with the card above (a card can't be placed between them)", duplicates))
+		}
+		if legacy > 0 {
+			codes = append(codes, CodeLegacyPositionKeys)
+			reasons = append(reasons, fmt.Sprintf("%d missing or in an older format", legacy))
+		}
+		if long > 0 {
+			codes = append(codes, CodeLongPositionKeys)
+			reasons = append(reasons, fmt.Sprintf("%d longer than %d characters (longest: %d)",
+				long, util.LongPositionLength, longest))
+		}
+		if len(codes) == 0 {
+			continue
+		}
+
+		rewrites := len(planPositionRewrite(colCards))
+		report.Issues = append(report.Issues, Issue{
+			Severity: SeverityWarning,
+			Code:     codes[0],
+			Board:    boardName,
+			Column:   col.Name,
+			Message:  fmt.Sprintf("Column %q has position keys that need rewriting: %s", col.Name, strings.Join(reasons, "; ")),
+			Fixable:  true,
+			FixAction: fmt.Sprintf("Rewrite the position keys of %d of %d cards in %q, keeping their order",
+				rewrites, len(colCards), col.Name),
+		})
+	}
+}
+
+// planPositionRewrite returns the new position of every card in a column whose
+// position should change, keyed by card ID. cards must be sorted as
+// cardsInColumn sorts them, and keep that order under the new positions.
+func planPositionRewrite(cards []*model.Card) map[string]string {
+	// Keep a key if it is short, length-prefixed, and above the last kept key;
+	// the last condition keeps the first of a run of shared keys. Rewriting
+	// only the rest keeps the diff small, which matters because the common
+	// case is one duplicate from two branches appending to the same column.
+	keep := make([]bool, len(cards))
+	lastKept := ""
+	rejected := 0
+	for i, c := range cards {
+		if util.IsLengthPrefixedPosition(c.Position) && len(c.Position) <= util.LongPositionLength && c.Position > lastKept {
+			keep[i] = true
+			lastKept = c.Position
+		} else {
+			rejected++
+		}
+	}
+	if rejected == 0 {
+		return nil
+	}
+
+	// A column that is mostly bad keys reads better renumbered from a0 than as
+	// a mix of kept and new keys.
+	var positions []string
+	if rejected*2 <= len(cards) {
+		positions = positionsAroundKept(cards, keep)
+	}
+	if positions == nil {
+		positions = util.PositionInitial(len(cards))
+	}
+
+	changes := make(map[string]string)
+	for i, c := range cards {
+		if positions[i] != c.Position {
+			changes[c.ID] = positions[i]
+		}
+	}
+	return changes
+}
+
+// positionsAroundKept returns a position for every card: kept cards keep
+// theirs, and each run of other cards gets new keys between its kept
+// neighbors. It returns nil if any new key would be long.
+func positionsAroundKept(cards []*model.Card, keep []bool) []string {
+	positions := make([]string, len(cards))
+	prevKept := ""
+	for i := 0; i < len(cards); {
+		if keep[i] {
+			positions[i] = cards[i].Position
+			prevKept = positions[i]
+			i++
+			continue
+		}
+		end := i
+		for end < len(cards) && !keep[end] {
+			end++
+		}
+		nextKept := ""
+		if end < len(cards) {
+			nextKept = cards[end].Position
+		}
+		run, err := util.PositionsBetween(prevKept, nextKept, end-i)
+		if err != nil {
+			return nil
+		}
+		for _, p := range run {
+			if len(p) > util.LongPositionLength {
+				return nil
+			}
+		}
+		copy(positions[i:end], run)
+		i = end
+	}
+	return positions
+}
+
 // Fix implementations
 
 func (s *DoctorService) fixOrphanedCard(boardName, cardID string) error {
@@ -715,9 +843,24 @@ func (s *DoctorService) fixOrphanedCard(boardName, cardID string) error {
 	}
 
 	card.Column = cfg.GetDefaultColumn()
-	if card.Position == "" {
-		card.Position = util.PositionBetween("", "")
+
+	// The card's old key means nothing in its new column, so append it. Cards
+	// with no key sort first and would make computePosition refuse, so skip them.
+	cards, err := s.cardStore.List(boardName)
+	if err != nil {
+		return err
 	}
+	var keyed []*model.Card
+	for _, c := range cardsInColumnExcluding(cards, card.Column, card.ID) {
+		if c.Position != "" {
+			keyed = append(keyed, c)
+		}
+	}
+	position, err := computePosition(keyed, -1)
+	if err != nil {
+		return err
+	}
+	card.Position = position
 	return s.cardStore.Update(boardName, card)
 }
 
@@ -801,4 +944,27 @@ func (s *DoctorService) fixInvalidParentRef(boardName, cardID string) error {
 	delete(raw, "parent")
 
 	return writeJSONMap(cardPath, raw)
+}
+
+func (s *DoctorService) fixColumnPositions(boardName, column string) error {
+	// Re-list rather than trusting the report: fixes earlier in this run, such
+	// as orphaned cards, may have moved cards into the column.
+	cards, err := s.cardStore.List(boardName)
+	if err != nil {
+		return err
+	}
+	colCards := cardsInColumn(cards, column)
+	changes := planPositionRewrite(colCards)
+	for _, c := range colCards {
+		position, ok := changes[c.ID]
+		if !ok {
+			continue
+		}
+		// UpdatedAtMillis stays put: the card's content hasn't changed.
+		c.Position = position
+		if err := s.cardStore.Update(boardName, c); err != nil {
+			return err
+		}
+	}
+	return nil
 }

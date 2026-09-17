@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -10,6 +11,7 @@ import (
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/store"
+	"github.com/amterp/kan/internal/version"
 )
 
 // setupDoctorTest copies test fixtures to a temp directory and returns
@@ -143,6 +145,16 @@ func TestDoctorService_OrphanedCard_Fix(t *testing.T) {
 	cardStr := string(data)
 	if !strings.Contains(cardStr, `"column"`) {
 		t.Error("Fixed card should have a column field")
+	}
+
+	// The orphan's old key duplicated card-1's, so it must get a fresh one
+	// at the end of its new column.
+	orphan, err := service.cardStore.Get("main", "card-orphan")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if orphan.Position != "a1" {
+		t.Errorf("orphan position = %q, want a1 (after card-1's a0)", orphan.Position)
 	}
 }
 
@@ -528,4 +540,185 @@ func TestDoctorService_PatternHooks(t *testing.T) {
 
 func countOccurrences(s, substr string) int {
 	return strings.Count(s, substr)
+}
+
+// setupPositionTest starts from the healthy fixture and replaces its backlog
+// with cards holding the given positions, in the given order of IDs p00, p01, ...
+func setupPositionTest(t *testing.T, positions []string) (*DoctorService, func()) {
+	t.Helper()
+	service, tempDir, cleanup := setupDoctorTest(t, "healthy")
+	if err := os.Remove(filepath.Join(tempDir, ".kan", "boards", "main", "cards", "card-1.json")); err != nil {
+		t.Fatalf("Remove failed: %v", err)
+	}
+	for i, pos := range positions {
+		card := &model.Card{
+			Version:         version.CurrentCardVersion,
+			ID:              fmt.Sprintf("p%02d", i),
+			Alias:           fmt.Sprintf("p%02d", i),
+			Title:           fmt.Sprintf("Card %d", i),
+			Column:          "backlog",
+			Position:        pos,
+			CreatedAtMillis: 1700000000000,
+			UpdatedAtMillis: 1700000000000,
+		}
+		if err := service.cardStore.Create("main", card); err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+	}
+	return service, cleanup
+}
+
+func backlogCards(t *testing.T, service *DoctorService) []*model.Card {
+	t.Helper()
+	cards, err := service.cardStore.List("main")
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	return cardsInColumn(cards, "backlog")
+}
+
+func positionIssues(report *DiagnosticReport) []Issue {
+	var issues []Issue
+	for _, issue := range report.Issues {
+		switch issue.Code {
+		case CodeDuplicatePositionKeys, CodeLegacyPositionKeys, CodeLongPositionKeys:
+			issues = append(issues, issue)
+		}
+	}
+	return issues
+}
+
+func TestDoctorService_PositionKeys(t *testing.T) {
+	long := "a0" + strings.Repeat("V", 12)
+	cases := []struct {
+		name      string
+		positions []string
+		wantCode  string // empty means no issue
+		wantParts []string
+	}{
+		{"current keys", []string{"Zz", "a0", "a0V", "a1"}, "", nil},
+		{"shared key", []string{"a0", "a1", "a1", "a2"}, CodeDuplicatePositionKeys, []string{"1 shared"}},
+		{"older keys", []string{"U", "UU", "a0"}, CodeLegacyPositionKeys, []string{"2 missing or in an older format"}},
+		{"missing key", []string{"", "a0"}, CodeLegacyPositionKeys, []string{"1 missing"}},
+		{"long key", []string{"a0", long}, CodeLongPositionKeys, []string{"1 longer than 12 characters (longest: 14)"}},
+		{"every reason", []string{"U", "U", long}, CodeDuplicatePositionKeys,
+			[]string{"1 shared", "2 missing or in an older format", "1 longer than 12"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			service, cleanup := setupPositionTest(t, tc.positions)
+			defer cleanup()
+
+			report, err := service.Diagnose("")
+			if err != nil {
+				t.Fatalf("Diagnose failed: %v", err)
+			}
+			issues := positionIssues(report)
+			if tc.wantCode == "" {
+				if len(issues) != 0 {
+					t.Fatalf("expected no position issues, got %+v", issues)
+				}
+				return
+			}
+			if len(issues) != 1 {
+				t.Fatalf("expected 1 position issue, got %+v", issues)
+			}
+			issue := issues[0]
+			if issue.Code != tc.wantCode {
+				t.Errorf("Code = %s, want %s", issue.Code, tc.wantCode)
+			}
+			if issue.Column != "backlog" || issue.Severity != SeverityWarning || !issue.Fixable {
+				t.Errorf("issue = %+v, want a fixable warning on column backlog", issue)
+			}
+			for _, part := range tc.wantParts {
+				if !strings.Contains(issue.Message, part) {
+					t.Errorf("Message %q should contain %q", issue.Message, part)
+				}
+			}
+		})
+	}
+}
+
+func TestDoctorService_PositionKeys_Fix(t *testing.T) {
+	bangs := strings.Repeat("!", 37) + "U"
+	cases := []struct {
+		name         string
+		positions    []string
+		wantRewrites int
+		wantKeys     []string // nil means only check validity
+	}{
+		// Two branches that each appended one card leave one shared key; only
+		// the second card of the pair should change.
+		{"one shared key", []string{"a0", "a1", "a1", "a2"}, 1, []string{"a0", "a1", "a1V", "a2"}},
+		{"one older key above current ones", []string{"!!U", "a0", "a1", "a2"}, 1, []string{"Zz", "a0", "a1", "a2"}},
+		{"mostly older keys", []string{bangs, "0", "E", "U", "UUUU", strings.Repeat("U", 99)}, 6,
+			[]string{"a0", "a1", "a2", "a3", "a4", "a5"}},
+		{"missing key", []string{"", "a0"}, 1, []string{"Zz", "a0"}},
+		{"long key", []string{"a0", "a0" + strings.Repeat("V", 12), "a1"}, 1, []string{"a0", "a0V", "a1"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			service, cleanup := setupPositionTest(t, tc.positions)
+			defer cleanup()
+
+			var wantOrder []string
+			before := make(map[string]string)
+			for _, c := range backlogCards(t, service) {
+				wantOrder = append(wantOrder, c.ID)
+				before[c.ID] = c.Position
+			}
+
+			report, err := service.Diagnose("")
+			if err != nil {
+				t.Fatalf("Diagnose failed: %v", err)
+			}
+			issues := positionIssues(report)
+			if len(issues) != 1 {
+				t.Fatalf("expected 1 position issue, got %+v", issues)
+			}
+			wantAction := fmt.Sprintf("%d of %d cards", tc.wantRewrites, len(tc.positions))
+			if !strings.Contains(issues[0].FixAction, wantAction) {
+				t.Errorf("FixAction %q should mention %q", issues[0].FixAction, wantAction)
+			}
+
+			fixed, err := service.Fix(report)
+			if err != nil {
+				t.Fatalf("Fix failed: %v", err)
+			}
+			if fixed.Summary.Fixed != 1 || fixed.Summary.FixFailed != 0 {
+				t.Errorf("Summary = %+v, want 1 fixed", fixed.Summary)
+			}
+
+			after := backlogCards(t, service)
+			var gotOrder, gotKeys []string
+			rewrites := 0
+			for _, c := range after {
+				gotOrder = append(gotOrder, c.ID)
+				gotKeys = append(gotKeys, c.Position)
+				if c.Position != before[c.ID] {
+					rewrites++
+				}
+				if c.UpdatedAtMillis != 1700000000000 {
+					t.Errorf("card %s UpdatedAtMillis changed to %d", c.ID, c.UpdatedAtMillis)
+				}
+			}
+			if strings.Join(gotOrder, " ") != strings.Join(wantOrder, " ") {
+				t.Errorf("order after fix = %v, want %v", gotOrder, wantOrder)
+			}
+			if rewrites != tc.wantRewrites {
+				t.Errorf("rewrote %d cards, want %d", rewrites, tc.wantRewrites)
+			}
+			if tc.wantKeys != nil && strings.Join(gotKeys, " ") != strings.Join(tc.wantKeys, " ") {
+				t.Errorf("keys after fix = %v, want %v", gotKeys, tc.wantKeys)
+			}
+
+			again, err := service.Diagnose("")
+			if err != nil {
+				t.Fatalf("Diagnose failed: %v", err)
+			}
+			if issues := positionIssues(again); len(issues) != 0 {
+				t.Errorf("expected no position issues after fix, got %+v", issues)
+			}
+		})
+	}
 }

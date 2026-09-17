@@ -212,6 +212,12 @@ func runEditNonInteractive(app *App, boardName string, card *model.Card, boardCf
 
 	// Warn about missing wanted fields
 	printMissingWantedWarnings(missingWanted)
+
+	// Only a move generates a key; an edit that leaves the card in place has
+	// nothing to say about how its column's keys are growing.
+	if column != "" || placement.isSet() {
+		printLongPositionHint(updatedCard)
+	}
 }
 
 // parseCustomFields converts ["key=value", ...] to map[string]string.
