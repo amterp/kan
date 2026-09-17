@@ -2,11 +2,11 @@
   "_v": 3,
   "alias": "refreshing-should",
   "alias_explicit": false,
-  "column": "",
+  "column": "backlog-hi",
   "created_at_millis": 1772916431279,
   "creator": "Alexander Terp",
   "id": "a_cVoW6voC",
-  "position": "",
+  "position": "aE",
   "title": "refreshing should remember what board was open",
   "type": "feature",
   "updated_at_millis": 1772916431665

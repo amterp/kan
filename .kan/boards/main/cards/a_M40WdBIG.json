@@ -7,7 +7,7 @@
   "creator": "Alexander Terp",
   "description": "This is the basic autocompletes for commands and flags and stuff like that of course, but also very importantly is for slugs and for card IDs. so if I want to if I write can show or k-a-n show and then I write the beginning of a slug, I should be able to press tab and it auto-complete.",
   "id": "a_M40WdBIG",
-  "position": "Bf",
+  "position": "aL",
   "title": "shell autocomplete",
   "type": "feature",
   "updated_at_millis": 1770485976914,
