@@ -176,7 +176,7 @@ title = parse_json(stdout)["card"]["title"]
 if not matches(title, "![a-zA-Z]+", partial=true):
     exit(0)
 
-keyword = replace(title, ".*?!([a-zA-Z]+).*", "$1").lower()
+keyword = replace(title, ".*?!([a-zA-Z]+).*", "$1", regex=true).lower()
 card_type = keyword in type_aliases ? type_aliases[keyword] : keyword
 
 code, stdout = quiet $`kan board describe -b {board_name} --json` catch:
@@ -192,8 +192,8 @@ valid_types = [o["value"] for o in options]
 if card_type not in valid_types:
     exit(0)
 
-new_title = replace(title, "(?i)\\s*!{keyword}\\b\\s*", " ").trim()
-new_title = replace(new_title, "\\s+", " ")
+new_title = replace(title, "(?i)\\s*!{keyword}\\b\\s*", " ", regex=true).trim()
+new_title = replace(new_title, "\\s+", " ", regex=true)
 
 // A title that was nothing but the shortcut keeps its original text.
 title_arg = new_title == "" ? "" : `-t "{new_title}"`
