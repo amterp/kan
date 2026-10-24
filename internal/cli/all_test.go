@@ -2,7 +2,9 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,6 +15,7 @@ import (
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/service"
+	"github.com/amterp/kan/internal/store"
 )
 
 // writeTestCard writes a current-schema card to a project's main board.
@@ -231,5 +234,63 @@ func appendToFile(t *testing.T, path, text string) {
 	defer f.Close()
 	if _, err := f.WriteString(text); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// failingBoardStore fails to read one board's config, as a board whose
+// config can't be loaded after its project opened.
+type failingBoardStore struct {
+	store.BoardStore
+	board string
+}
+
+func (s failingBoardStore) Get(name string) (*model.BoardConfig, error) {
+	if name == s.board {
+		return nil, errors.New("config unreadable")
+	}
+	return s.BoardStore.Get(name)
+}
+
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := os.Stderr
+	os.Stderr = w
+	fn()
+	os.Stderr = orig
+	w.Close()
+	data, _ := io.ReadAll(r)
+	return string(data)
+}
+
+func TestAll_OneUnreadableBoardIsNamedNotTheProject(t *testing.T) {
+	root := openFixtureProject(t, "v15")
+	addSecondBoard(t, root)
+	app := newReadApp(t)
+	app.BoardStore = failingBoardStore{BoardStore: app.BoardStore, board: "second"}
+	app.BoardService = service.NewBoardService(app.BoardStore, app.CardStore)
+
+	want := skippedBoard{Path: root, Board: "second", Reason: "config unreadable"}
+	listed, skipped, err := listAll(app, "", "", nil, nil, "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(skipped, []skippedBoard{want}) || len(listed) != 1 || listed[0].Name != "main" {
+		t.Errorf("list: skipped = %+v, listed %d boards; want only second skipped", skipped, len(listed))
+	}
+	_, skipped, err = readyAll(app, service.ReadyOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(skipped, []skippedBoard{want}) {
+		t.Errorf("ready: skipped = %+v, want %+v", skipped, want)
+	}
+
+	note := captureStderr(t, func() { printSkipped(skipped) })
+	if !strings.Contains(note, "skipped board second at ") {
+		t.Errorf("note = %q, want it to name board second", note)
 	}
 }

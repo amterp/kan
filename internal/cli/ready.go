@@ -190,7 +190,7 @@ func readyAll(app *App, opts service.ReadyOptions) ([]readyBoard, []skippedBoard
 	for _, b := range boards {
 		if !b.cfg.HasCategories() {
 			skipped = append(skipped, skippedBoard{
-				Path: b.Project.ProjectRoot, BoardID: b.cfg.ID,
+				Path: b.Project.ProjectRoot, Board: b.Name, BoardID: b.cfg.ID,
 				Reason: fmt.Sprintf("board %q has no column categories; run \"kan column categorize\" in that project",
 					b.Name),
 			})

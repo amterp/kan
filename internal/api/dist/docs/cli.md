@@ -524,9 +524,11 @@ combined with `-b` or `-g`.
 - Boards kan can't read, whose schema is newer than this kan, or, for
   `kan ready`, that have no column categories, are skipped. Text output names
   each one and the reason in a note on stderr; JSON lists them under
-  `"skipped"` with `path`, `board_id` and `reason`. Skipping a board doesn't
-  change the exit status. A project kan can't open at all, such as one with a
-  malformed card file, is skipped with all its boards.
+  `"skipped"` with `path`, `board` (its name), `board_id` and `reason`.
+  `board_id` is empty when the board's config can't be read, and both are
+  empty when kan can't tell which boards a project has. Skipping a board
+  doesn't change the exit status. A project kan can't open at all, such as one
+  with a malformed card file, is skipped with all its boards.
 
 `kan list --all --json` uses the same envelope as `kan ready`, with each card's
 raw `blocked_by` and `related` inside it, so an outside tool can draw the
@@ -544,7 +546,7 @@ dependency graph:
       "card": {"id": "a_2nQ0vLx1k", "blocked_by": ["a_2nQ0uA7cd"], "...": "..."}
     }
   ],
-  "skipped": [{"path": "/Users/alex/src/old", "board_id": "b_2hH3HWg0E", "reason": "..."}]
+  "skipped": [{"path": "/Users/alex/src/old", "board": "main", "board_id": "b_2hH3HWg0E", "reason": "..."}]
 }
 ```
 

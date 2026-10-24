@@ -17,10 +17,13 @@ type allBoard struct {
 	Name    string
 }
 
-// skippedBoard names a board an --all query couldn't read, and why. BoardID
-// is empty when kan couldn't read the project's boards at all.
+// skippedBoard names a board an --all query couldn't read, and why. Board
+// and BoardID are both empty only when kan couldn't tell which boards the
+// project has; BoardID alone is empty when the board's config couldn't be
+// read.
 type skippedBoard struct {
 	Path    string `json:"path"`
+	Board   string `json:"board"`
 	BoardID string `json:"board_id"`
 	Reason  string `json:"reason"`
 }
@@ -71,7 +74,7 @@ func (a *App) boardsForAll() ([]allBoard, []skippedBoard) {
 			skipped = append(skipped, skippedBoard{Path: p.path, Reason: reason})
 		}
 		for _, b := range p.boards {
-			skipped = append(skipped, skippedBoard{Path: p.path, BoardID: b.ID, Reason: reason})
+			skipped = append(skipped, skippedBoard{Path: p.path, Board: b.Name, BoardID: b.ID, Reason: reason})
 		}
 	}
 	for _, p := range projects {
@@ -108,16 +111,20 @@ func sortSkipped(skipped []skippedBoard) {
 
 // skipBoard records a board that failed to load after its project opened.
 func skipBoard(skipped []skippedBoard, b allBoard, boardID string, err error) []skippedBoard {
-	return append(skipped, skippedBoard{Path: b.Project.ProjectRoot, BoardID: boardID, Reason: err.Error()})
+	return append(skipped, skippedBoard{Path: b.Project.ProjectRoot, Board: b.Name, BoardID: boardID, Reason: err.Error()})
 }
 
 // printSkipped notes each skipped board on stderr, so text output says
 // which boards it leaves out without changing the exit status.
 func printSkipped(skipped []skippedBoard) {
 	for _, s := range skipped {
-		what := "board " + s.BoardID + " at " + util.PrettyPath(s.Path)
-		if s.BoardID == "" {
-			what = util.PrettyPath(s.Path)
+		what := util.PrettyPath(s.Path)
+		if s.Board != "" {
+			board := s.Board
+			if s.BoardID != "" {
+				board += " (" + s.BoardID + ")"
+			}
+			what = "board " + board + " at " + what
 		}
 		fmt.Fprintf(os.Stderr, "%s skipped %s: %s\n", RenderMuted("Note:"), what, s.Reason)
 	}
