@@ -115,9 +115,13 @@ func (s *FileCardStore) ListWithDiagnostics(boardName string) (CardListing, erro
 
 		path := filepath.Join(cardsDir, entry.Name())
 		card, err := s.readCard(path)
+		fileID := strings.TrimSuffix(entry.Name(), ".json")
+		if err == nil && card.ID != fileID {
+			err = fmt.Errorf("stored card ID %q does not match file name %q", card.ID, fileID)
+		}
 		if err != nil {
 			listing.Failures = append(listing.Failures, CardReadFailure{
-				CardID: strings.TrimSuffix(entry.Name(), ".json"), Err: err,
+				CardID: fileID, Err: err,
 			})
 			continue
 		}

@@ -45,9 +45,15 @@ const (
 	CodeHookCommandArgs    = "HOOK_COMMAND_ARGS"
 
 	// Priority 3: Referential integrity (warnings)
-	CodeInvalidParentRef = "INVALID_PARENT_REF"
-	CodeSelfParent       = "SELF_PARENT"
-	CodeParentCycle      = "PARENT_CYCLE"
+	CodeInvalidParentRef   = "INVALID_PARENT_REF"
+	CodeSelfParent         = "SELF_PARENT"
+	CodeParentCycle        = "PARENT_CYCLE"
+	CodeAbsentLink         = "ABSENT_LINK"
+	CodeUnresolvedLink     = "UNRESOLVED_LINK"
+	CodeBlockedByCycle     = "BLOCKED_BY_CYCLE"
+	CodeBlockedByAncestor  = "BLOCKED_BY_ANCESTOR"
+	CodeUncategorizedLink  = "UNCATEGORIZED_LINK"
+	CodeInvalidReadyConfig = "INVALID_READY_CONFIG"
 
 	// Priority 4: Data quality (warnings)
 	CodeMissingWantedFields   = "MISSING_WANTED_FIELDS"
@@ -115,13 +121,14 @@ func (r *DiagnosticReport) HasErrors() bool {
 
 // DoctorService validates Kan data for consistency issues.
 type DoctorService struct {
-	paths     *config.Paths
-	cardStore store.CardStore
+	paths      *config.Paths
+	cardStore  store.CardStore
+	boardStore store.BoardStore
 }
 
 // NewDoctorService creates a new diagnostic service.
-func NewDoctorService(paths *config.Paths, cardStore store.CardStore) *DoctorService {
-	return &DoctorService{paths: paths, cardStore: cardStore}
+func NewDoctorService(paths *config.Paths, cardStore store.CardStore, boardStore store.BoardStore) *DoctorService {
+	return &DoctorService{paths: paths, cardStore: cardStore, boardStore: boardStore}
 }
 
 // Diagnose analyzes all boards (or a specific board) for issues.
@@ -136,17 +143,18 @@ func (s *DoctorService) Diagnose(boardName string) (*DiagnosticReport, error) {
 	s.checkGlobalConfig(report)
 
 	// Get boards to check
-	boards, err := listBoards(s.paths)
+	graph, err := LoadLinkGraph(s.boardStore, s.cardStore)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list boards: %w", err)
 	}
 
-	for _, name := range boards {
+	for _, name := range graph.names {
 		if boardName != "" && name != boardName {
 			continue
 		}
-		s.checkBoard(report, name)
+		s.checkBoard(report, name, graph)
 	}
+	s.checkBlockerCycles(report, graph, boardName)
 
 	// Calculate summary
 	for _, issue := range report.Issues {
@@ -183,6 +191,8 @@ func (s *DoctorService) Fix(report *DiagnosticReport) (*DiagnosticReport, error)
 			err = s.fixInvalidCardDisplay(issue.Board, issue.FixContext)
 		case CodeInvalidParentRef:
 			err = s.fixInvalidParentRef(issue.Board, issue.CardID)
+		case CodeAbsentLink:
+			err = s.fixAbsentLink(issue)
 		case CodeDuplicatePositionKeys, CodeLegacyPositionKeys, CodeLongPositionKeys:
 			err = s.fixColumnPositions(issue.Board, issue.Column)
 		default:
@@ -274,7 +284,7 @@ func (s *DoctorService) checkGlobalConfig(report *DiagnosticReport) {
 	}
 }
 
-func (s *DoctorService) checkBoard(report *DiagnosticReport, boardName string) {
+func (s *DoctorService) checkBoard(report *DiagnosticReport, boardName string, graph *LinkGraph) {
 	diag := BoardDiagnostic{Name: boardName}
 
 	// Load board config
@@ -322,6 +332,11 @@ func (s *DoctorService) checkBoard(report *DiagnosticReport, boardName string) {
 
 	// Check pattern hooks
 	s.checkPatternHooks(report, boardName, &boardConfig)
+	for _, warning := range model.ValidateReady(&boardConfig) {
+		report.Issues = append(report.Issues, Issue{
+			Severity: SeverityWarning, Code: CodeInvalidReadyConfig, Board: boardName, Message: warning,
+		})
+	}
 
 	// Check card files
 	cardsDir := s.paths.CardsDir(boardName)
@@ -343,6 +358,7 @@ func (s *DoctorService) checkBoard(report *DiagnosticReport, boardName string) {
 	}
 
 	cardFiles := make(map[string]bool)
+	rawCards := make(map[string]*model.Card)
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
 			continue
@@ -352,13 +368,18 @@ func (s *DoctorService) checkBoard(report *DiagnosticReport, boardName string) {
 		diag.CardFiles++
 
 		// Check if card file is valid
-		s.checkCardFile(report, boardName, cardID)
+		if card := s.checkCardFile(report, boardName, cardID); card != nil {
+			rawCards[cardID] = card
+		}
 	}
 
 	diag.CardsReferenced = len(cardFiles)
 
 	// Check cards for invalid column references
-	cards, err := s.cardStore.List(boardName)
+	cards, err := graph.Cards(boardName)
+	if err != nil {
+		cards, err = s.cardStore.List(boardName)
+	}
 	if err == nil {
 		for _, card := range cards {
 			if card.Column == "" {
@@ -387,7 +408,8 @@ func (s *DoctorService) checkBoard(report *DiagnosticReport, boardName string) {
 	}
 
 	// Check parent references
-	s.checkParentRefs(report, boardName, cardFiles)
+	s.checkParentRefs(report, boardName, cardFiles, rawCards)
+	s.checkCardLinks(report, boardName, &boardConfig, rawCards, graph)
 
 	// Check wanted fields
 	s.checkWantedFields(report, boardName, &boardConfig, cardFiles)
@@ -595,7 +617,7 @@ func (s *DoctorService) hookFileExists(command string) bool {
 	return err == nil
 }
 
-func (s *DoctorService) checkCardFile(report *DiagnosticReport, boardName, cardID string) {
+func (s *DoctorService) checkCardFile(report *DiagnosticReport, boardName, cardID string) *model.Card {
 	cardPath := s.paths.CardPath(boardName, cardID)
 	data, err := os.ReadFile(cardPath)
 	if err != nil {
@@ -607,7 +629,7 @@ func (s *DoctorService) checkCardFile(report *DiagnosticReport, boardName, cardI
 			Message:  fmt.Sprintf("Cannot read card file: %v", err),
 			Fixable:  false,
 		})
-		return
+		return nil
 	}
 
 	var card model.Card
@@ -620,26 +642,23 @@ func (s *DoctorService) checkCardFile(report *DiagnosticReport, boardName, cardI
 			Message:  fmt.Sprintf("Invalid JSON: %v", err),
 			Fixable:  false,
 		})
+		return nil
 	}
+	if card.ID != cardID {
+		report.Issues = append(report.Issues, Issue{
+			Severity: SeverityError, Code: CodeMalformedCard, Board: boardName, CardID: cardID,
+			Message: fmt.Sprintf("Stored card ID %q does not match file name %q", card.ID, cardID),
+		})
+	}
+	return &card
 }
 
-func (s *DoctorService) checkParentRefs(report *DiagnosticReport, boardName string, cardFiles map[string]bool) {
+func (s *DoctorService) checkParentRefs(report *DiagnosticReport, boardName string, cardFiles map[string]bool, rawCards map[string]*model.Card) {
 	cards := make([]*model.Card, 0, len(cardFiles))
 	fileIDs := make(map[*model.Card]string, len(cardFiles))
-	for cardID := range cardFiles {
-		cardPath := s.paths.CardPath(boardName, cardID)
-		data, err := os.ReadFile(cardPath)
-		if err != nil {
-			continue // Already reported in checkCardFile
-		}
-
-		var card model.Card
-		if err := json.Unmarshal(data, &card); err != nil {
-			continue // Already reported in checkCardFile
-		}
-
-		cards = append(cards, &card)
-		fileIDs[&card] = cardID
+	for cardID, card := range rawCards {
+		cards = append(cards, card)
+		fileIDs[card] = cardID
 	}
 	sort.Slice(cards, func(i, j int) bool { return fileIDs[cards[i]] < fileIDs[cards[j]] })
 	parents := newParentGraph(cards)

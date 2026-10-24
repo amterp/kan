@@ -112,7 +112,8 @@ func TestDoctorService_MissingParentFixUsesFilename(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Issues) != 1 || report.Issues[0].Code != CodeInvalidParentRef || report.Issues[0].CardID != "card-1" {
+	parentIssues := issuesWithCode(report, CodeInvalidParentRef)
+	if len(parentIssues) != 1 || parentIssues[0].CardID != "card-1" || len(issuesWithCode(report, CodeMalformedCard)) != 1 {
 		t.Fatalf("missing-parent issue must name its source filename: %+v", report.Issues)
 	}
 	fixed, err := doctor.Fix(report)

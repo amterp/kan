@@ -656,9 +656,13 @@ kan doctor --json        # Machine-readable output
 
 **Exit codes:** 0 = no errors (warnings OK), 1 = errors found
 
-**Fixable issues:** orphaned cards, missing card references, duplicate IDs, invalid default column, invalid parent refs.
+**Fixable issues:** orphaned cards, invalid default columns and display references, missing parents, position keys, and confirmed-absent links.
 
 Doctor also reports `SELF_PARENT` and `PARENT_CYCLE` warnings. These require manual repair; `--fix` leaves them unchanged. Existing parent aliases that still resolve are valid.
+
+Link warnings are `ABSENT_LINK` (fixable), `UNRESOLVED_LINK`, `BLOCKED_BY_CYCLE`, `BLOCKED_BY_ANCESTOR`, and `UNCATEGORIZED_LINK`. `INVALID_READY_CONFIG` reports invalid `[ready]` settings. Messages name the reference, lookup state, or column involved.
+
+`--fix` removes a `blocked_by` or `related` reference only after a fresh lookup still confirms its target absent. It edits only source cards in the current project. Missing boards, duplicate board IDs, newer schemas, and unreadable or damaged files leave links intact. Repair cycles, ancestor blockers, missing categories, and ready settings manually.
 
 ## Shell Completion
 

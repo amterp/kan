@@ -764,7 +764,7 @@ kan doctor --json
 
 - **Errors** (must be fixed):
   - `MALFORMED_BOARD_CONFIG`: Board config.toml fails to parse
-  - `MALFORMED_CARD`: Card JSON fails to parse
+  - `MALFORMED_CARD`: Card JSON fails to parse, or its ID disagrees with its filename
   - `ORPHANED_CARD`: Card has no column, or a column the board doesn't define (fixable)
 
 - **Warnings** (should be addressed):
@@ -779,12 +779,20 @@ kan doctor --json
   - `INVALID_PARENT_REF`: Parent ID or alias does not resolve on the same board (fixable)
   - `SELF_PARENT`: Card names itself as its parent (manual repair)
   - `PARENT_CYCLE`: Cards form a parent cycle (manual repair)
+  - `ABSENT_LINK`: A `blocked_by` or `related` target is confirmed absent (fixable)
+  - `UNRESOLVED_LINK`: A link cannot be resolved; the message includes its state and reason
+  - `BLOCKED_BY_CYCLE`: Blockers form a cycle, including self-blocking (manual repair)
+  - `BLOCKED_BY_ANCESTOR`: A blocker is the card's own ancestor (manual repair)
+  - `UNCATEGORIZED_LINK`: A card with links, or a linked target, has no usable column category
+  - `INVALID_READY_CONFIG`: A `[ready]` entry fails validation
   - `MISSING_WANTED_FIELDS`: Card is missing fields marked as `wanted`
   - `DUPLICATE_POSITION_KEYS`: Two cards in a column share a position key, so no card can be placed between them (fixable)
   - `LEGACY_POSITION_KEYS`: A column has cards with no position key, or with keys written by an older Kan (fixable)
   - `LONG_POSITION_KEYS`: A column has position keys longer than 12 characters (fixable)
   - `MALFORMED_GLOBAL_CONFIG`: Global config.toml fails to parse
   - `GLOBAL_SCHEMA_OUTDATED`: Global config needs migration
+
+`--fix` removes a link only when its target is still confirmed absent on a fresh lookup immediately before writing. It edits only source cards in the current project. Missing boards, ambiguous board IDs, newer schemas, and read failures leave links intact. A skipped or damaged card file prevents the board from proving a target absent. Cycles, ancestor blockers, category problems, and invalid ready settings require manual repair.
 
 Fixing the position-key warnings rewrites cards' `position` fields and keeps their order. When most of a column needs new keys, every card in it is renumbered, so on a board used with an older Kan the fix touches many card files: commit it on its own.
 

@@ -41,7 +41,7 @@ func setupDoctorTest(t *testing.T, fixtureName string) (*DoctorService, string, 
 
 	paths := config.NewPaths(tempDir, "")
 	cardStore := store.NewCardStore(paths)
-	service := NewDoctorService(paths, cardStore)
+	service := NewDoctorService(paths, cardStore, store.NewBoardStore(paths))
 
 	cleanup := func() {
 		os.RemoveAll(tempDir)
@@ -444,7 +444,7 @@ func TestDoctorService_PatternHooks(t *testing.T) {
 		t.Fatalf("Failed to write hook: %v", err)
 	}
 
-	service := NewDoctorService(config.NewPaths(tmpDir, ""), nil)
+	service := NewDoctorService(config.NewPaths(tmpDir, ""), nil, nil)
 
 	tests := []struct {
 		name     string
