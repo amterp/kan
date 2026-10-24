@@ -67,7 +67,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Target board").
+		SetUsage("Target board (name or ID)").
 		SetCompletionFunc(completeBoards).
 		Register(addCmd)
 
@@ -86,7 +86,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Target board").
+		SetUsage("Target board (name or ID)").
 		SetCompletionFunc(completeBoards).
 		Register(deleteCmd)
 
@@ -109,7 +109,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Target board").
+		SetUsage("Target board (name or ID)").
 		SetCompletionFunc(completeBoards).
 		Register(renameCmd)
 
@@ -165,7 +165,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Target board").
+		SetUsage("Target board (name or ID)").
 		SetCompletionFunc(completeBoards).
 		Register(editCmd)
 
@@ -179,7 +179,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Target board").
+		SetUsage("Target board (name or ID)").
 		SetCompletionFunc(completeBoards).
 		Register(listCmd)
 
@@ -213,7 +213,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Target board").
+		SetUsage("Target board (name or ID)").
 		SetCompletionFunc(completeBoards).
 		Register(moveCmd)
 
@@ -233,7 +233,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Target board").
+		SetUsage("Target board (name or ID)").
 		SetCompletionFunc(completeBoards).
 		Register(categorizeCmd)
 
@@ -252,7 +252,7 @@ func runColumnAdd(name, color, description string, position, limit int, onMovePo
 		Fatal(err)
 	}
 
-	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
 	}
@@ -299,7 +299,7 @@ func runColumnDelete(name, board string, nonInteractive bool) {
 		Fatal(err)
 	}
 
-	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
 	}
@@ -330,7 +330,7 @@ func runColumnRename(oldName, newName, board string, nonInteractive bool) {
 		Fatal(err)
 	}
 
-	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
 	}
@@ -352,7 +352,7 @@ func runColumnEdit(name, color, description string, limit int, onMovePosition, c
 		Fatal(err)
 	}
 
-	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
 	}
@@ -407,18 +407,19 @@ func runColumnList(board string, nonInteractive, jsonOutput bool) {
 		Fatal(err)
 	}
 
-	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	project, boardName, err := app.ResolveBoard(board, !nonInteractive, forRead)
 	if err != nil {
 		Fatal(err)
 	}
+	project.PrintTarget(boardName)
 
-	boardCfg, err := app.BoardService.Get(boardName)
+	boardCfg, err := project.BoardService.Get(boardName)
 	if err != nil {
 		Fatal(err)
 	}
 
 	// Build card count per column
-	cards, err := app.CardService.List(boardName, "")
+	cards, err := project.CardService.List(boardName, "")
 	cardCounts := make(map[string]int)
 	if err == nil {
 		for _, card := range cards {
@@ -503,7 +504,7 @@ func runColumnCategorize(board string, apply, nonInteractive, jsonOutput bool) {
 		Fatal(err)
 	}
 
-	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
 	}
@@ -576,7 +577,7 @@ func runColumnMove(name, board string, position int, after string, nonInteractiv
 		Fatal(err)
 	}
 
-	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
 	}

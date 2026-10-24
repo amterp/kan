@@ -11,7 +11,7 @@ func registerMove(parent *ra.Cmd, ctx *CommandContext) {
 	cmd.SetDescription("Move a card to a different column")
 
 	ctx.MoveCard, _ = ra.NewString("card").
-		SetUsage("Card ID or alias").
+		SetUsage("Card ID, alias, or board:card").
 		SetCompletionFunc(completeCards).
 		Register(cmd)
 
@@ -30,7 +30,7 @@ func registerMove(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Board name").
+		SetUsage("Board name or ID").
 		SetCompletionFunc(completeBoards).
 		Register(cmd)
 
@@ -56,13 +56,13 @@ func runMove(cardArg, column, board string, placement cardPlacement,
 		Fatal(err)
 	}
 
-	result, err := app.ResolveCardWithBoard(board, cardArg, !nonInteractive)
+	result, err := app.ResolveCardWithBoard(board, cardArg, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
 	}
 	boardName := result.BoardName
 	card := result.Card
-	app.PrintGlobalTarget(boardName)
+	app.PrintTarget(boardName)
 
 	if result.CrossBoard {
 		PrintInfo("Found card in board %q", boardName)

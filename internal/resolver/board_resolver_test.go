@@ -155,9 +155,24 @@ func TestBoardResolver_Resolve_ExplicitBoard_NotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for nonexistent board")
 	}
-	expected := `board "nonexistent" not found`
-	if err.Error() != expected {
-		t.Errorf("Expected error %q, got %q", expected, err.Error())
+	if !kanerr.IsNotFound(err) {
+		t.Errorf("Expected a not-found error, got %v", err)
+	}
+}
+
+func TestBoardResolver_Resolve_ExplicitBoardID(t *testing.T) {
+	boardStore := newMockBoardStore()
+	boardStore.addBoard("main")
+	boardStore.addBoard("features")
+
+	resolver := NewBoardResolver(boardStore, newMockGlobalStore(), &prompt.NoopPrompter{}, "/repo")
+
+	board, err := resolver.Resolve("features-id", false)
+	if err != nil {
+		t.Fatalf("Resolve failed: %v", err)
+	}
+	if board != "features" {
+		t.Errorf("Expected 'features', got %q", board)
 	}
 }
 

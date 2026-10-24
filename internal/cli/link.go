@@ -43,7 +43,7 @@ func runLink(cardRef, board string, blockedBy, related []string, global, nonInte
 	if err := app.RequireKan(); err != nil {
 		Fatal(err)
 	}
-	target, err := app.ResolveCardWithBoard(board, cardRef, !nonInteractive)
+	target, err := app.ResolveCardWithBoard(board, cardRef, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
 	}
@@ -71,7 +71,7 @@ func runUnlink(cardRef, board string, refs []string, global, nonInteractive, jso
 	if err := app.RequireKan(); err != nil {
 		Fatal(err)
 	}
-	target, err := app.ResolveCardWithBoard(board, cardRef, !nonInteractive)
+	target, err := app.ResolveCardWithBoard(board, cardRef, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
 	}

@@ -140,6 +140,39 @@ func (e *StaleGlobalBoardError) Error() string {
 		e.Board, e.Path)
 }
 
+// AmbiguousBoardError indicates a board ID held by more than one visible
+// registered project. Kan never picks one copy over another.
+type AmbiguousBoardError struct {
+	BoardID string
+	Paths   []string
+}
+
+func (e *AmbiguousBoardError) Error() string {
+	return fmt.Sprintf("board %s is in more than one registered project: %s. "+
+		"Hide or remove one with \"kan registry hide <path>\" or \"kan registry remove <path>\".",
+		e.BoardID, strings.Join(e.Paths, ", "))
+}
+
+func (e *AmbiguousBoardError) Unwrap() error {
+	return ErrAmbiguous
+}
+
+// OtherProjectError refuses a change to a card or board outside the current
+// project. Kan writes only in the current project or on the -g board.
+type OtherProjectError struct {
+	CardID  string // empty when the command changes the board itself
+	BoardID string
+	Path    string
+}
+
+func (e *OtherProjectError) Error() string {
+	if e.CardID == "" {
+		return fmt.Sprintf("board %s is in %s; run kan from there to change it.", e.BoardID, e.Path)
+	}
+	return fmt.Sprintf("card %s is on board %s in %s; run kan from there to change it.",
+		e.CardID, e.BoardID, e.Path)
+}
+
 // Helper constructors for common cases
 
 func CardNotFound(idOrAlias string) error {

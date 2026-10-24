@@ -31,7 +31,7 @@ func registerList(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Filter by board").
+		SetUsage("Board name or ID").
 		SetCompletionFunc(completeBoards).
 		Register(cmd)
 
@@ -97,14 +97,14 @@ func runList(board, column, sortField string, filters, excludes []string, catego
 	}
 
 	// Resolve board
-	boardName, err := app.BoardResolver.Resolve(board, true)
+	project, boardName, err := app.ResolveBoard(board, true, forRead)
 	if err != nil {
 		Fatal(err)
 	}
-	app.PrintGlobalTarget(boardName)
+	project.PrintTarget(boardName)
 
 	// Get board config for column ordering
-	boardCfg, err := app.BoardService.Get(boardName)
+	boardCfg, err := project.BoardService.Get(boardName)
 	if err != nil {
 		Fatal(err)
 	}
@@ -128,7 +128,7 @@ func runList(board, column, sortField string, filters, excludes []string, catego
 	}
 
 	// Get cards
-	cards, err := app.CardService.ListSorted(boardName, column, sortField, descending)
+	cards, err := project.CardService.ListSorted(boardName, column, sortField, descending)
 	if err != nil {
 		Fatal(err)
 	}

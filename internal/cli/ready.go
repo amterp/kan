@@ -61,7 +61,7 @@ func runReady(board string, excludes []string, noExclude bool, limit int, global
 	if err != nil {
 		Fatal(err)
 	}
-	app.PrintGlobalTarget(boardName)
+	app.PrintTarget(boardName)
 
 	graph, err := service.LoadLinkGraph(app.BoardStore, app.CardStore)
 	if err != nil {

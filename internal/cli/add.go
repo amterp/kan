@@ -28,7 +28,7 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Target board").
+		SetUsage("Target board (name or ID)").
 		SetCompletionFunc(completeBoards).
 		Register(cmd)
 
@@ -217,7 +217,7 @@ func runAdd(title, description, board, column string, parentCard string, placeme
 	}
 
 	// Resolve board
-	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
 	}
@@ -294,7 +294,7 @@ func runAdd(title, description, board, column string, parentCard string, placeme
 	}
 
 	PrintSuccess("Created card %s (%s)", RenderID(card.ID), card.Alias)
-	app.PrintGlobalTarget(boardName)
+	app.PrintTarget(boardName)
 
 	// Display hook results
 	printHookResults(hookResults)

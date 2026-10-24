@@ -29,7 +29,7 @@ func registerDoctor(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Check only a specific board (default: all)").
+		SetUsage("Check only a specific board, by name or ID (default: all)").
 		SetCompletionFunc(completeBoards).
 		Register(cmd)
 

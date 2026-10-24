@@ -82,6 +82,9 @@ func (c cardJson) MarshalJSON() ([]byte, error) {
 // CardOutput wraps a single card for JSON output.
 type CardOutput struct {
 	Card cardJson `json:"card"`
+	// Project is the path of the project holding the card, set only when
+	// that is a registered project other than the current one.
+	Project string `json:"project,omitempty"`
 }
 
 // NewCardOutput creates a CardOutput from a model.Card.

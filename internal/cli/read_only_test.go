@@ -11,12 +11,25 @@ import (
 	"github.com/amterp/kan/internal/version"
 )
 
+// migrationFixtures is absolute because tests change the working directory.
+var migrationFixtures, _ = filepath.Abs(filepath.Join("..", "service", "testdata", "migrations"))
+
 // openFixtureProject copies a migration fixture from the service package
 // into a fresh project directory, isolates HOME, and makes the project the
 // working directory. Returns the project root.
 func openFixtureProject(t *testing.T, fixture string) string {
 	t.Helper()
-	src := filepath.Join("..", "service", "testdata", "migrations", fixture)
+	root := copyFixture(t, fixture)
+	t.Setenv("HOME", t.TempDir())
+	t.Chdir(root)
+	return root
+}
+
+// copyFixture copies a migration fixture from the service package into a
+// fresh directory and returns it.
+func copyFixture(t *testing.T, fixture string) string {
+	t.Helper()
+	src := filepath.Join(migrationFixtures, fixture)
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatalf("resolve temp dir: %v", err)
@@ -39,8 +52,6 @@ func openFixtureProject(t *testing.T, fixture string) string {
 	if err != nil {
 		t.Fatalf("copy fixture %s: %v", fixture, err)
 	}
-	t.Setenv("HOME", t.TempDir())
-	t.Chdir(root)
 	return root
 }
 

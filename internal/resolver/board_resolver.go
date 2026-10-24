@@ -3,6 +3,7 @@ package resolver
 import (
 	"fmt"
 
+	kanerr "github.com/amterp/kan/internal/errors"
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/prompt"
 	"github.com/amterp/kan/internal/store"
@@ -73,12 +74,15 @@ func InferBoard(boardStore store.BoardStore, globalCfg *model.GlobalConfig, proj
 // 4. If interactive, prompt user
 // 5. Otherwise, fail with error
 func (r *BoardResolver) Resolve(explicitBoard string, interactive bool) (string, error) {
-	// 1. Explicit board
+	// 1. Explicit board: a board name, else a board ID
 	if explicitBoard != "" {
-		if !r.boardStore.Exists(explicitBoard) {
-			return "", fmt.Errorf("board %q not found", explicitBoard)
+		if r.boardStore.Exists(explicitBoard) {
+			return explicitBoard, nil
 		}
-		return explicitBoard, nil
+		if name := r.boardNameForID(explicitBoard); name != "" {
+			return name, nil
+		}
+		return "", kanerr.BoardNotFound(explicitBoard)
 	}
 
 	// 2. Get all boards - check for empty first
@@ -117,4 +121,18 @@ func (r *BoardResolver) Resolve(explicitBoard string, interactive bool) (string,
 // GetBoardConfig returns the board configuration.
 func (r *BoardResolver) GetBoardConfig(boardName string) (*model.BoardConfig, error) {
 	return r.boardStore.Get(boardName)
+}
+
+// boardNameForID returns the name of the board with the given ID, or "".
+func (r *BoardResolver) boardNameForID(id string) string {
+	boards, err := r.boardStore.List()
+	if err != nil {
+		return ""
+	}
+	for _, name := range boards {
+		if cfg, err := r.boardStore.Get(name); err == nil && cfg.ID == id {
+			return name
+		}
+	}
+	return ""
 }

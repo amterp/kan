@@ -13,7 +13,7 @@ func registerHistory(parent *ra.Cmd, ctx *CommandContext) {
 	cmd.SetDescription("Show a card's column transition history")
 
 	ctx.HistoryCard, _ = ra.NewString("card").
-		SetUsage("Card ID or alias").
+		SetUsage("Card ID, alias, or board:card").
 		SetCompletionFunc(completeCards).
 		Register(cmd)
 
@@ -21,7 +21,7 @@ func registerHistory(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Board name").
+		SetUsage("Board name or ID").
 		SetCompletionFunc(completeBoards).
 		Register(cmd)
 
@@ -34,6 +34,7 @@ func registerHistory(parent *ra.Cmd, ctx *CommandContext) {
 type historyOutput struct {
 	Card    string               `json:"card"`
 	Board   string               `json:"board,omitempty"`
+	Project string               `json:"project,omitempty"`
 	History []model.HistoryEntry `json:"history"`
 }
 
@@ -46,19 +47,20 @@ func runHistory(idOrAlias, board string, global, jsonOutput bool) {
 		Fatal(err)
 	}
 
-	result, err := app.ResolveCardWithBoard(board, idOrAlias, true)
+	result, err := app.ResolveCardWithBoard(board, idOrAlias, true, forRead)
 	if err != nil {
 		Fatal(err)
 	}
 	boardName := result.BoardName
 	card := result.Card
-	app.PrintGlobalTarget(boardName)
+	project := result.Project
+	project.PrintTarget(boardName)
 
 	columnEntries := columnHistory(card)
 
 	if jsonOutput {
-		out := historyOutput{Card: card.ID, History: columnEntries}
-		if result.MultipleBoards {
+		out := historyOutput{Card: card.ID, Project: otherProjectPath(project), History: columnEntries}
+		if result.MultipleBoards || project.OtherProject {
 			out.Board = boardName
 		}
 		if err := printJson(out); err != nil {
@@ -67,7 +69,7 @@ func runHistory(idOrAlias, board string, global, jsonOutput bool) {
 		return
 	}
 
-	boardCfg, err := app.BoardService.Get(boardName)
+	boardCfg, err := project.BoardService.Get(boardName)
 	if err != nil {
 		Fatal(err)
 	}

@@ -15,7 +15,7 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 	cmd.SetDescription("Edit an existing card")
 
 	ctx.EditCard, _ = ra.NewString("card").
-		SetUsage("Card ID or alias").
+		SetUsage("Card ID, alias, or board:card").
 		SetCompletionFunc(completeCards).
 		Register(cmd)
 
@@ -23,7 +23,7 @@ func registerEdit(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Board name").
+		SetUsage("Board name or ID").
 		SetCompletionFunc(completeBoards).
 		Register(cmd)
 
@@ -107,13 +107,13 @@ func runEdit(idOrAlias, board string, title, description, column string,
 	}
 
 	// Resolve board and card together (with cross-board search)
-	result, err := app.ResolveCardWithBoard(board, idOrAlias, !nonInteractive)
+	result, err := app.ResolveCardWithBoard(board, idOrAlias, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
 	}
 	boardName := result.BoardName
 	card := result.Card
-	app.PrintGlobalTarget(boardName)
+	app.PrintTarget(boardName)
 
 	if result.CrossBoard && !jsonOutput {
 		PrintInfo("Found card in board %q", boardName)

@@ -34,6 +34,11 @@ func (p *Paths) ProjectRoot() string {
 	return p.projectRoot
 }
 
+// DataLocation returns the custom data location, or "" for the default.
+func (p *Paths) DataLocation() string {
+	return p.dataLocation
+}
+
 // KanRoot returns the root directory for Kan data.
 func (p *Paths) KanRoot() string {
 	if p.dataLocation != "" {

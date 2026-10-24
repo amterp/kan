@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/creator"
@@ -382,14 +381,19 @@ func autoMigrateProject(paths *config.Paths) error {
 	return nil
 }
 
-// PrintGlobalTarget surfaces which global board a command acted on, so a
-// mistaken -g designation is immediately visible. No-op outside global mode.
-// Writes to stderr (like other status output), so it never pollutes --json.
-func (a *App) PrintGlobalTarget(boardName string) {
-	if !a.UsingGlobalBoard {
+// PrintTarget surfaces a board outside the current project: the -g board,
+// so a mistaken designation is immediately visible, or another project's
+// board read through a board ID or a board:card reference. Writes to stderr
+// (like other status output), so it never pollutes --json.
+func (a *App) PrintTarget(boardName string) {
+	label := "board"
+	switch {
+	case a.UsingGlobalBoard:
+		label = "global board"
+	case !a.OtherProject:
 		return
 	}
-	PrintInfo("global board %q %s", boardName, RenderMuted("("+util.PrettyPath(a.ProjectRoot)+")"))
+	PrintInfo("%s %q %s", label, boardName, RenderMuted("("+util.PrettyPath(a.ProjectRoot)+")"))
 }
 
 // RequireKan ensures Kan is initialized in the current project.
@@ -403,149 +407,6 @@ func (a *App) RequireKan() error {
 		return &kanerr.NotInitializedError{Path: a.ProjectRoot}
 	}
 	return nil
-}
-
-// CardResolution holds the result of resolving a card along with its board.
-type CardResolution struct {
-	Card      *model.Card
-	BoardName string
-	// CrossBoard is true when the card was found via cross-board search
-	// (no explicit board flag, no single board, no default). Callers can use
-	// this to decide whether to print which board the card was found in.
-	CrossBoard bool
-	// MultipleBoards is true when the project has more than one board.
-	// Used by callers to decide whether to show board context in output.
-	MultipleBoards bool
-}
-
-// ResolveCardWithBoard resolves both the board and card for commands that take
-// a card ID/alias. When no board is specified and there are fewer than
-// MaxBoardsForCrossSearch boards, searches across all boards automatically.
-func (a *App) ResolveCardWithBoard(explicitBoard, idOrAlias string, interactive bool) (*CardResolution, error) {
-	// In global mode (-g), scope strictly to the resolved board (the designated
-	// global board, or an explicit -b). Cross-board search would defeat the
-	// "-g means this board" contract - a card on another board in the same
-	// project must not resolve, and PrintGlobalTarget must report the real
-	// designated board, not wherever a stray match was found.
-	if a.UsingGlobalBoard {
-		boardName, err := a.BoardResolver.Resolve(explicitBoard, false)
-		if err != nil {
-			return nil, err
-		}
-		card, cardErr := a.CardResolver.Resolve(boardName, idOrAlias)
-		if cardErr != nil {
-			return nil, cardErr
-		}
-		return &CardResolution{Card: card, BoardName: boardName, MultipleBoards: a.hasMultipleBoards()}, nil
-	}
-
-	// 1. If explicit board flag provided, use it strictly - no fallback.
-	if explicitBoard != "" {
-		boardName, err := a.BoardResolver.Resolve(explicitBoard, false)
-		if err != nil {
-			return nil, err
-		}
-		card, cardErr := a.CardResolver.Resolve(boardName, idOrAlias)
-		if cardErr != nil {
-			return nil, cardErr
-		}
-		multipleBoards := a.hasMultipleBoards()
-		return &CardResolution{Card: card, BoardName: boardName, MultipleBoards: multipleBoards}, nil
-	}
-
-	// 2. Try non-interactive inference (single board, default_board).
-	boardName, err := a.BoardResolver.Resolve("", false)
-	if err == nil {
-		card, cardErr := a.CardResolver.Resolve(boardName, idOrAlias)
-		if cardErr == nil {
-			multipleBoards := a.hasMultipleBoards()
-			return &CardResolution{Card: card, BoardName: boardName, MultipleBoards: multipleBoards}, nil
-		}
-		// Card not found on the inferred board. If there are multiple boards,
-		// fall through to cross-board search rather than failing - the inferred
-		// board is a convenience default, not an explicit user choice.
-		if !kanerr.IsNotFound(cardErr) {
-			return nil, cardErr
-		}
-	}
-
-	// 3. Inference failed or card wasn't on the inferred board - try cross-board search
-	boards, listErr := a.BoardStore.List()
-	if listErr != nil {
-		return nil, listErr
-	}
-	multipleBoards := len(boards) > 1
-
-	if len(boards) >= resolver.MaxBoardsForCrossSearch {
-		// Too many boards for cross-board search, fall back to picker
-		if !interactive {
-			return nil, fmt.Errorf("multiple boards exist; specify with -b or set default_board in config")
-		}
-		boardName, err = a.Prompter.Select("Select board", boards)
-		if err != nil {
-			return nil, err
-		}
-		card, cardErr := a.CardResolver.Resolve(boardName, idOrAlias)
-		if cardErr != nil {
-			return nil, cardErr
-		}
-		return &CardResolution{Card: card, BoardName: boardName, MultipleBoards: multipleBoards}, nil
-	}
-
-	// Cross-board search
-	matches, err := a.CardResolver.ResolveAcrossBoards(boards, idOrAlias)
-	if err != nil {
-		return nil, err
-	}
-
-	switch len(matches) {
-	case 0:
-		return nil, kanerr.CardNotFound(idOrAlias)
-	case 1:
-		return &CardResolution{
-			Card:           matches[0].Card,
-			BoardName:      matches[0].BoardName,
-			CrossBoard:     true,
-			MultipleBoards: multipleBoards,
-		}, nil
-	default:
-		if !interactive {
-			boardNames := make([]string, len(matches))
-			for i, m := range matches {
-				boardNames[i] = m.BoardName
-			}
-			return nil, fmt.Errorf("card %q found in multiple boards (%s); specify with -b",
-				idOrAlias, strings.Join(boardNames, ", "))
-		}
-		matchBoards := make([]string, len(matches))
-		for i, m := range matches {
-			matchBoards[i] = m.BoardName
-		}
-		selected, selectErr := a.Prompter.Select("Card found in multiple boards - select one", matchBoards)
-		if selectErr != nil {
-			return nil, selectErr
-		}
-		for _, m := range matches {
-			if m.BoardName == selected {
-				return &CardResolution{
-					Card:           m.Card,
-					BoardName:      m.BoardName,
-					CrossBoard:     true,
-					MultipleBoards: multipleBoards,
-				}, nil
-			}
-		}
-		return nil, fmt.Errorf("internal error: selected board not in matches")
-	}
-}
-
-// hasMultipleBoards returns true if more than one board exists.
-func (a *App) hasMultipleBoards() bool {
-	boards, err := a.BoardStore.List()
-	if err != nil {
-		return false
-	}
-	return len(boards) > 1
 }
 
 // GetAuthor returns the username for authorship fields (card creator, comment author).

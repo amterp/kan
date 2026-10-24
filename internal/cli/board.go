@@ -29,7 +29,7 @@ func registerBoard(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.BoardDescribeName, _ = ra.NewString("name").
 		SetOptional(true).
-		SetUsage("Board name (defaults to resolved board)").
+		SetUsage("Board name or ID (defaults to resolved board)").
 		SetCompletionFunc(completeBoards).
 		Register(describeCmd)
 
@@ -37,7 +37,7 @@ func registerBoard(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Target board").
+		SetUsage("Target board (name or ID)").
 		SetCompletionFunc(completeBoards).
 		Register(describeCmd)
 
@@ -129,18 +129,19 @@ func runBoardDescribe(name, board string, nonInteractive, jsonOutput bool) {
 		boardArg = board
 	}
 
-	boardName, err := app.BoardResolver.Resolve(boardArg, !nonInteractive)
+	project, boardName, err := app.ResolveBoard(boardArg, !nonInteractive, forRead)
 	if err != nil {
 		Fatal(err)
 	}
+	project.PrintTarget(boardName)
 
-	boardCfg, err := app.BoardService.Get(boardName)
+	boardCfg, err := project.BoardService.Get(boardName)
 	if err != nil {
 		Fatal(err)
 	}
 
 	// Build card count per column
-	cards, err := app.CardService.List(boardName, "")
+	cards, err := project.CardService.List(boardName, "")
 	cardCounts := make(map[string]int)
 	if err == nil {
 		for _, card := range cards {

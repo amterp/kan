@@ -148,12 +148,12 @@ func TestResolveCardWithBoard_GlobalScopedToBoard(t *testing.T) {
 	}
 
 	// The archive card must not be reachable under -g - it's on a different board.
-	if _, err := app.ResolveCardWithBoard("", "archived-task", false); !kanerr.IsNotFound(err) {
+	if _, err := app.ResolveCardWithBoard("", "archived-task", false, forRead); !kanerr.IsNotFound(err) {
 		t.Errorf("expected not-found for a card outside the global board, got %v", err)
 	}
 
 	// An explicit -b still reaches it (power-user override).
-	res, err := app.ResolveCardWithBoard("archive", "archived-task", false)
+	res, err := app.ResolveCardWithBoard("archive", "archived-task", false, forRead)
 	if err != nil {
 		t.Fatalf("explicit -b archive should resolve: %v", err)
 	}

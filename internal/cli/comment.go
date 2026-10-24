@@ -17,7 +17,7 @@ func registerComment(parent *ra.Cmd, ctx *CommandContext) {
 	addCmd.SetDescription("Add a comment to a card")
 
 	ctx.CommentAddCard, _ = ra.NewString("card").
-		SetUsage("Card ID or alias").
+		SetUsage("Card ID, alias, or board:card").
 		SetCompletionFunc(completeCards).
 		Register(addCmd)
 
@@ -30,7 +30,7 @@ func registerComment(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Board name").
+		SetUsage("Board name or ID").
 		SetCompletionFunc(completeBoards).
 		Register(addCmd)
 
@@ -55,7 +55,7 @@ func registerComment(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Board name").
+		SetUsage("Board name or ID").
 		SetCompletionFunc(completeBoards).
 		Register(editCmd)
 
@@ -75,7 +75,7 @@ func registerComment(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Board name").
+		SetUsage("Board name or ID").
 		SetCompletionFunc(completeBoards).
 		Register(deleteCmd)
 
@@ -97,13 +97,13 @@ func runCommentAdd(card, body, board string, global, nonInteractive, jsonOutput 
 	}
 
 	// Resolve board and card together (with cross-board search)
-	result, err := app.ResolveCardWithBoard(board, card, !nonInteractive)
+	result, err := app.ResolveCardWithBoard(board, card, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
 	}
 	boardName := result.BoardName
 	card = result.Card.ID
-	app.PrintGlobalTarget(boardName)
+	app.PrintTarget(boardName)
 
 	if result.CrossBoard && !jsonOutput {
 		PrintInfo("Found card in board %q", boardName)
@@ -164,11 +164,11 @@ func runCommentEdit(commentID, body, board string, global, nonInteractive bool) 
 	}
 
 	// Resolve board
-	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
 	}
-	app.PrintGlobalTarget(boardName)
+	app.PrintTarget(boardName)
 
 	// Find the card containing this comment to get the existing body
 	card, err := app.CardService.FindCommentCard(boardName, commentID)
@@ -232,11 +232,11 @@ func runCommentDelete(commentID, board string, global, nonInteractive bool) {
 	}
 
 	// Resolve board
-	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
 	}
-	app.PrintGlobalTarget(boardName)
+	app.PrintTarget(boardName)
 
 	// Delete comment
 	if err := app.CardService.DeleteComment(boardName, commentID); err != nil {
