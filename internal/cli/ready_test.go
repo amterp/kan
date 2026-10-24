@@ -2,8 +2,13 @@ package cli
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/amterp/kan/internal/config"
 
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/service"
@@ -97,11 +102,39 @@ func TestReadyOne_BoardIDOfAnotherProjectFromOutsideAnyProject(t *testing.T) {
 	registerProjects(t, []string{api})
 	t.Chdir(resolvedTempDir(t))
 
-	got, err := readyOne(newReadApp(t), "b_api", service.ReadyOptions{})
+	got, err := readyOne(newReadApp(t), "b_api", false, service.ReadyOptions{})
 	if err != nil {
 		t.Fatalf("readyOne: %v", err)
 	}
 	if got.ProjectPath != api || len(got.Result.Ready) != 1 || got.Result.Ready[0].Card.ID != "r1" {
 		t.Errorf("got project %s, ready %+v; want r1 from %s", got.ProjectPath, got.Result.Ready, api)
+	}
+}
+
+// With -I, two boards and no default must fail with the board error rather
+// than open a prompt, which has no terminal under an agent.
+func TestReadyOne_NonInteractiveWithSeveralBoards(t *testing.T) {
+	root := openFixtureProject(t, "v15")
+	paths := config.NewPaths(root, "")
+	other := strings.Replace(paths.BoardConfigPath("main"), "main", "second", 1)
+	if err := os.MkdirAll(filepath.Join(filepath.Dir(other), "cards"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(paths.BoardConfigPath("main"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = []byte(strings.Replace(strings.Replace(string(data), `name = "main"`, `name = "second"`, 1), `id = "board-test-123"`, `id = "b_second"`, 1))
+	if err := os.WriteFile(other, data, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	app, err := NewAppWithOptions(AppOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = readyOne(app, "", false, service.ReadyOptions{})
+	if err == nil || !strings.Contains(err.Error(), "-b") {
+		t.Errorf("error = %v, want one asking for -b", err)
 	}
 }

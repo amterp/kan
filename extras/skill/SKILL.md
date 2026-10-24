@@ -387,7 +387,7 @@ A card is ready when its column's category is `open`, every blocker is in a `don
 
 To take work:
 
-1. **Pick.** Unless the user named a card, take the first ready card (`kan ready --json | jq -r '.ready[0].card.id'`), and read it with `kan show <card>`.
+1. **Pick.** Unless the user named a card, take the first ready card (`kan ready -I --json | jq -r '.ready[0].card.id'`; `-I` fails with a clear error instead of prompting when the project has several boards), and read it with `kan show <card>`.
 2. **Start.** Before doing the work, move the card into a column whose category is `active` (`kan column list` shows each column's category): `kan move <card> <active-column>`. Kan has no claims, so the move is how people and other agents see the card is taken. Moving it into a `done` column when finished is what releases the cards it blocks.
 3. **File dependent work.** When you find work that can't start until another card is done, record it: `kan add "<title>" --blocked-by <card>` for a new card, `kan link <card> --blocked-by <other>` for an existing one. `--related` records a connection that doesn't block.
 4. **Treat "Needs attention" as work.** A card listed there has a blocker in a dropped column, so its reason may be gone. Read both with `kan show`, then `kan unlink <card> <blocker>` if the card still stands, or move it into a column whose category is `dropped` if it doesn't. If you can't tell, ask the user.

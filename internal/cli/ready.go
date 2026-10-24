@@ -54,8 +54,8 @@ func registerReady(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.ReadyUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runReady(board string, excludes []string, noExclude bool, limit int, global, all, jsonOutput bool) {
-	app, err := NewAppWithOptions(AppOptions{Interactive: true, UseGlobalBoard: global, ReadOnly: true})
+func runReady(board string, excludes []string, noExclude bool, limit int, global, all, nonInteractive, jsonOutput bool) {
+	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, UseGlobalBoard: global, ReadOnly: true})
 	if err != nil {
 		Fatal(err)
 	}
@@ -71,7 +71,7 @@ func runReady(board string, excludes []string, noExclude bool, limit int, global
 		return
 	}
 
-	result, err := readyOne(app, board, opts)
+	result, err := readyOne(app, board, !nonInteractive, opts)
 	if err != nil {
 		Fatal(err)
 	}
@@ -90,8 +90,8 @@ func runReady(board string, excludes []string, noExclude bool, limit int, global
 
 // readyOne runs a ready query on the board -b names, which may be another
 // registered project's board, resolved the way kan list resolves it.
-func readyOne(app *App, board string, opts service.ReadyOptions) (readyBoard, error) {
-	project, boardName, err := app.ResolveBoard(board, true, forRead)
+func readyOne(app *App, board string, interactive bool, opts service.ReadyOptions) (readyBoard, error) {
+	project, boardName, err := app.ResolveBoard(board, interactive, forRead)
 	if err != nil {
 		return readyBoard{}, err
 	}

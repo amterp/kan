@@ -415,7 +415,7 @@ func executeCommand(ctx *CommandContext) {
 		runList(*ctx.ListBoard, *ctx.ListColumn, *ctx.ListSort, *ctx.ListFilter, *ctx.ListExclude, *ctx.ListCategory, *ctx.ListGlobal, *ctx.ListAll, *ctx.ListDescending, *ctx.Json)
 
 	case *ctx.ReadyUsed:
-		runReady(*ctx.ReadyBoard, *ctx.ReadyExclude, *ctx.ReadyNoExclude, *ctx.ReadyLimit, *ctx.ReadyGlobal, *ctx.ReadyAll, *ctx.Json)
+		runReady(*ctx.ReadyBoard, *ctx.ReadyExclude, *ctx.ReadyNoExclude, *ctx.ReadyLimit, *ctx.ReadyGlobal, *ctx.ReadyAll, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.EditUsed:
 		runEdit(*ctx.EditCard, *ctx.EditBoard, *ctx.EditTitle, *ctx.EditDescription,

@@ -2,6 +2,7 @@ package service
 
 import (
 	"regexp"
+	"strings"
 
 	kanerr "github.com/amterp/kan/internal/errors"
 	"github.com/amterp/kan/internal/id"
@@ -383,7 +384,8 @@ func (s *BoardService) GetColumnCardCount(boardName, columnName string) (int, er
 
 // categorySuggestions maps the column names each category usually fits to that
 // category. These are suggestions the user applies explicitly; kan never
-// infers a category from a column name on its own.
+// infers a category from a column name on its own. Names are matched
+// ignoring case, so older boards' "Backlog" and "Done" match too.
 var categorySuggestions = map[string]string{
 	"inbox":       model.CategoryInbox,
 	"uncommitted": model.CategoryIdea,
@@ -425,7 +427,7 @@ func (s *BoardService) CategorizeColumns(boardName string, apply bool) ([]Catego
 		if col.Category != "" {
 			continue
 		}
-		category := categorySuggestions[col.Name]
+		category := categorySuggestions[strings.ToLower(col.Name)]
 		suggestions = append(suggestions, CategorySuggestion{Column: col.Name, Category: category})
 		if apply && category != "" {
 			col.Category = category

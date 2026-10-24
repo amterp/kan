@@ -198,3 +198,21 @@ func TestBoardService_CategorizeColumns_Apply(t *testing.T) {
 		t.Errorf("second run = %+v, want only the unmatched column", again)
 	}
 }
+
+func TestBoardService_CategorizeColumns_IgnoresCase(t *testing.T) {
+	svc, _ := setupCustomColumnsBoard(t, "Backlog", "In-Progress", "Done", "Backlogs")
+
+	got, err := svc.CategorizeColumns("main", false)
+	if err != nil {
+		t.Fatalf("CategorizeColumns failed: %v", err)
+	}
+	want := []CategorySuggestion{
+		{Column: "Backlog", Category: "open"},
+		{Column: "In-Progress", Category: "active"},
+		{Column: "Done", Category: "done"},
+		{Column: "Backlogs", Category: ""},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("suggestions = %+v, want %+v", got, want)
+	}
+}
