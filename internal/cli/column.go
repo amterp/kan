@@ -475,17 +475,23 @@ func printReadySettings(ready model.ReadyConfig, indent string) {
 }
 
 func runColumnCategorize(board string, apply, nonInteractive, jsonOutput bool) {
-	app, err := NewApp(!nonInteractive)
+	// Without --apply this only prints suggestions, so it is a read: kan ready's
+	// "run kan column categorize" hint must not migrate the board it points at.
+	access := forRead
+	if apply {
+		access = forWrite
+	}
+	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, ReadOnly: !apply})
 	if err != nil {
 		Fatal(err)
 	}
 
-	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
+	project, boardName, err := app.ResolveBoard(board, !nonInteractive, access)
 	if err != nil {
 		Fatal(err)
 	}
 
-	suggestions, err := app.BoardService.CategorizeColumns(boardName, apply)
+	suggestions, err := project.BoardService.CategorizeColumns(boardName, apply)
 	if err != nil {
 		Fatal(err)
 	}
