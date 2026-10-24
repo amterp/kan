@@ -1881,7 +1881,7 @@ func TestMigrateService_V15_ReadableByStores(t *testing.T) {
 	if !reflect.DeepEqual(boardCfg.Ready.Exclude, []string{"labels=urgent"}) {
 		t.Errorf("Expected ready.exclude [labels=urgent], got %v", boardCfg.Ready.Exclude)
 	}
-	if warnings := model.ValidateReady(boardCfg.Ready, boardCfg.Columns); len(warnings) > 0 {
+	if warnings := model.ValidateReady(boardCfg); len(warnings) > 0 {
 		t.Errorf("v15 fixture [ready] should validate cleanly, got %v", warnings)
 	}
 

@@ -302,12 +302,7 @@ func (s *CardService) listSorted(boardName, columnFilter, sortField string, desc
 		if sortField != "" {
 			model.SortCardsByField(grp, boardCfg, sortField, descending)
 		} else {
-			sort.Slice(grp, func(i, j int) bool {
-				if grp[i].Position == grp[j].Position {
-					return grp[i].ID < grp[j].ID // tiebreaker
-				}
-				return grp[i].Position < grp[j].Position
-			})
+			model.SortCardsByPosition(grp)
 		}
 	}
 
@@ -1054,12 +1049,7 @@ func cardsInColumn(cards []*model.Card, column string) []*model.Card {
 			result = append(result, c)
 		}
 	}
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].Position == result[j].Position {
-			return result[i].ID < result[j].ID
-		}
-		return result[i].Position < result[j].Position
-	})
+	model.SortCardsByPosition(result)
 	return result
 }
 
@@ -1071,12 +1061,7 @@ func cardsInColumnExcluding(cards []*model.Card, column, excludeID string) []*mo
 			result = append(result, c)
 		}
 	}
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].Position == result[j].Position {
-			return result[i].ID < result[j].ID
-		}
-		return result[i].Position < result[j].Position
-	})
+	model.SortCardsByPosition(result)
 	return result
 }
 

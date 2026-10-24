@@ -182,13 +182,15 @@ func ValidateColumns(columns []Column) []string {
 	return warnings
 }
 
-// ValidateReady validates the [ready] settings against the board's columns.
-// Returns a list of warning messages for invalid entries (non-fatal).
-func ValidateReady(ready ReadyConfig, columns []Column) []string {
+// ValidateReady validates the board's [ready] settings against its columns and
+// custom fields. Returns a list of warning messages for invalid entries
+// (non-fatal).
+func ValidateReady(cfg *BoardConfig) []string {
 	var warnings []string
+	ready := cfg.Ready
 
-	byName := make(map[string]Column, len(columns))
-	for _, col := range columns {
+	byName := make(map[string]Column, len(cfg.Columns))
+	for _, col := range cfg.Columns {
 		byName[col.Name] = col
 	}
 
@@ -214,9 +216,9 @@ func ValidateReady(ready ReadyConfig, columns []Column) []string {
 	}
 
 	for _, expr := range ready.Exclude {
-		if _, err := ParseFilter(expr); err != nil {
+		if _, err := cfg.readyExclusion(expr); err != nil {
 			warnings = append(warnings, fmt.Sprintf(
-				"ready.exclude: %s, so kan ready ignores it. Fix the entry or remove it", err))
+				"ready.exclude: %s. kan ready ignores this entry until it is fixed or removed", err))
 		}
 	}
 

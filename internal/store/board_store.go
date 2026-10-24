@@ -106,7 +106,7 @@ func (s *FileBoardStore) Get(boardName string) (*model.BoardConfig, error) {
 		}
 	}
 
-	if warnings := model.ValidateReady(cfg.Ready, cfg.Columns); len(warnings) > 0 {
+	if warnings := model.ValidateReady(&cfg); len(warnings) > 0 {
 		for _, w := range warnings {
 			fmt.Fprintln(os.Stderr, "Warning:", w)
 		}

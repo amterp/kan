@@ -58,6 +58,10 @@ func TestValidateReady(t *testing.T) {
 		{Name: "done", Category: CategoryDone},
 		{Name: "ideas"},
 	}
+	fields := map[string]CustomFieldSchema{
+		"labels":  {Type: FieldTypeEnumSet},
+		"blocked": {Type: FieldTypeBoolean},
+	}
 	cases := []struct {
 		name  string
 		ready ReadyConfig
@@ -84,10 +88,20 @@ func TestValidateReady(t *testing.T) {
 			ready: ReadyConfig{Exclude: []string{"labels", "=x", "labels=ok"}},
 			want:  []string{`"labels" has no '='`, `"=x" has an empty key`},
 		},
+		{
+			name:  "exclude names no custom field",
+			ready: ReadyConfig{Exclude: []string{"lables=x"}},
+			want:  []string{`"lables=x" names no custom field on this board; exclusions match custom fields: blocked, labels`},
+		},
+		{
+			name:  "exclude value its field can never hold",
+			ready: ReadyConfig{Exclude: []string{"blocked=yes", "labels=a,b", "blocked=true"}},
+			want:  []string{"must be true or false", "Repeat the filter once per value"},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := ValidateReady(tc.ready, columns)
+			got := ValidateReady(&BoardConfig{Columns: columns, Ready: tc.ready, CustomFields: fields})
 			if len(got) != len(tc.want) {
 				t.Fatalf("got %d warnings %v, want %d", len(got), got, len(tc.want))
 			}

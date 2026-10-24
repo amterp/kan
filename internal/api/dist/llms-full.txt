@@ -1057,7 +1057,7 @@ exclude = ["labels=needs-decision"]
 | `order` | Open columns to read first, in this order. Open columns left out come after, right to left in board order. |
 | `exclude` | `key=value` filters; a card matching any of them is never ready on this board. |
 
-Renaming a column renames its `order` entry, and deleting a column removes it. Kan warns about, and ignores, an `order` entry that names no column, repeats a column, or names a column whose category isn't `open`, and an `exclude` entry that isn't `key=value`.
+Renaming a column renames its `order` entry, and deleting a column removes it. Kan warns about, and ignores, an `order` entry that names no column, repeats a column, or names a column whose category isn't `open`, and an `exclude` entry that isn't `key=value`, names no custom field on the board, or has a value its field can't hold (a boolean other than `true` or `false`, or a comma in a set field's value).
 
 ### Custom Fields
 

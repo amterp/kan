@@ -60,11 +60,23 @@ func SortCardsByField(cards []*Card, board *BoardConfig, field string, descendin
 		}
 
 		// Equal values (or both unset): preserve manual order.
-		if ci.Position != cj.Position {
-			return ci.Position < cj.Position
-		}
-		return ci.ID < cj.ID
+		return positionLess(ci, cj)
 	})
+}
+
+// SortCardsByPosition sorts cards in place into their manual order: by
+// position, with the card ID breaking ties.
+func SortCardsByPosition(cards []*Card) {
+	sort.Slice(cards, func(i, j int) bool {
+		return positionLess(cards[i], cards[j])
+	})
+}
+
+func positionLess(a, b *Card) bool {
+	if a.Position != b.Position {
+		return a.Position < b.Position
+	}
+	return a.ID < b.ID
 }
 
 // fieldSortValue returns a card's raw value for a field and whether it counts as
