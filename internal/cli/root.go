@@ -97,6 +97,14 @@ type CommandContext struct {
 	ListExclude    *[]string
 	ListCategory   *string
 
+	// ready command
+	ReadyUsed      *bool
+	ReadyBoard     *string
+	ReadyExclude   *[]string
+	ReadyNoExclude *bool
+	ReadyLimit     *int
+	ReadyGlobal    *bool
+
 	// edit command
 	EditUsed        *bool
 	EditCard        *string
@@ -301,6 +309,7 @@ func buildRootCmd() *CommandContext {
 	registerShow(cmd, ctx)
 	registerHistory(cmd, ctx)
 	registerList(cmd, ctx)
+	registerReady(cmd, ctx)
 	registerEdit(cmd, ctx)
 	registerMove(cmd, ctx)
 	registerServe(cmd, ctx)
@@ -402,6 +411,9 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.ListUsed:
 		runList(*ctx.ListBoard, *ctx.ListColumn, *ctx.ListSort, *ctx.ListFilter, *ctx.ListExclude, *ctx.ListCategory, *ctx.ListGlobal, *ctx.ListDescending, *ctx.Json)
+
+	case *ctx.ReadyUsed:
+		runReady(*ctx.ReadyBoard, *ctx.ReadyExclude, *ctx.ReadyNoExclude, *ctx.ReadyLimit, *ctx.ReadyGlobal, *ctx.Json)
 
 	case *ctx.EditUsed:
 		runEdit(*ctx.EditCard, *ctx.EditBoard, *ctx.EditTitle, *ctx.EditDescription,

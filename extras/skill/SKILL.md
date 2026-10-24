@@ -369,6 +369,18 @@ kan list --category open          # Cards in open columns
 
 `--sort <field>` orders cards within each column by a custom field instead of by manual position. For `enum`/`enum-set` fields the order follows the option order in the board config (not alphabetical); cards with no value are listed last. Add `--descending` (`-d`) to sort high to low. It's a view sort - saved card positions are unchanged.
 
+## Choosing Work
+
+```bash
+kan ready                          # Open cards that can be started now, best first
+kan ready --limit 3                # Only the first three
+kan ready -x labels=needs-decision # Keep matching cards out too
+kan ready --no-exclude             # Ignore the board's [ready] exclude list
+kan ready --json                   # {"ready": [...], "attention": [...], "skipped": []}
+```
+
+A card is ready when its column's category is `open`, every blocker is in a `done` column, it has no children outside `done` or `dropped` columns, and no exclusion matches. Open columns are read right to left (or in `[ready] order`), each top to bottom. Cards whose blocker was dropped are listed under "Needs attention": unlink the blocker or drop the card. JSON entries hold `ref`, `board`, `blockers` (each `ref`, `result`, `category`) and the unchanged `card`. A board without column categories is an error; run `kan column categorize`.
+
 ## Showing Card Details
 
 ```bash
@@ -679,6 +691,7 @@ Use `--json` for programmatic access to Kan data:
 ```bash
 kan show fix-login --json | jq .card.title
 kan list --json | jq '.cards | length'
+kan ready --json | jq -r '.ready[].card.id'
 kan add "New task" --json | jq .card.id
 kan board list --json | jq .boards
 kan column list --json | jq '.columns[].name'

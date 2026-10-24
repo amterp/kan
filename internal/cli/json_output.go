@@ -154,6 +154,71 @@ func NewListOutput(cards []*model.Card) ListOutput {
 	return ListOutput{Cards: result}
 }
 
+// ReadyOutput is kan ready's JSON. Each card goes unchanged inside an entry,
+// beside the query's context, so a custom field may share a name with a
+// context field such as "ref".
+type ReadyOutput struct {
+	Ready     []readyEntryJson   `json:"ready"`
+	Attention []readyEntryJson   `json:"attention"`
+	Skipped   []skippedBoardJson `json:"skipped"`
+}
+
+type readyEntryJson struct {
+	Ref         string        `json:"ref"`
+	BoardID     string        `json:"board_id"`
+	Board       string        `json:"board"`
+	ProjectPath string        `json:"project_path"`
+	Category    string        `json:"category"`
+	Blockers    []blockerJson `json:"blockers"`
+	Card        cardJson      `json:"card"`
+}
+
+type blockerJson struct {
+	Ref      string `json:"ref"`
+	Result   string `json:"result"`
+	Category string `json:"category,omitempty"`
+}
+
+// skippedBoardJson names a board a query couldn't read. Only queries across
+// boards skip any, so kan ready on one board always reports none.
+type skippedBoardJson struct {
+	Path    string `json:"path"`
+	BoardID string `json:"board_id"`
+	Reason  string `json:"reason"`
+}
+
+// NewReadyOutput creates a ReadyOutput for one board's ready query.
+func NewReadyOutput(result *service.ReadyResult, projectPath string) ReadyOutput {
+	toJson := func(entries []service.ReadyEntry) []readyEntryJson {
+		out := make([]readyEntryJson, 0, len(entries))
+		for _, e := range entries {
+			blockers := make([]blockerJson, 0, len(e.Blockers))
+			for _, b := range e.Blockers {
+				bj := blockerJson{Ref: b.Ref, Result: string(b.State)}
+				if b.State == service.LinkFound && b.Column != nil {
+					bj.Category = b.Column.Category
+				}
+				blockers = append(blockers, bj)
+			}
+			out = append(out, readyEntryJson{
+				Ref:         result.Board.ID + ":" + e.Card.ID,
+				BoardID:     result.Board.ID,
+				Board:       result.Board.Name,
+				ProjectPath: projectPath,
+				Category:    result.Board.ColumnCategory(e.Card.Column),
+				Blockers:    blockers,
+				Card:        cardToJson(e.Card),
+			})
+		}
+		return out
+	}
+	return ReadyOutput{
+		Ready:     toJson(result.Ready),
+		Attention: toJson(result.Attention),
+		Skipped:   []skippedBoardJson{},
+	}
+}
+
 // ColumnsOutput wraps a list of columns for JSON output.
 type ColumnsOutput struct {
 	Columns []ColumnInfo       `json:"columns"`

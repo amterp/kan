@@ -154,7 +154,7 @@ Dragging is never affected, because a drag always names a slot - including a dro
 
 ### Ready
 
-The optional `[ready]` table holds a board's settings for `kan ready`, a planned command that lists open work that can be started now. Until it ships, kan stores and validates these settings and nothing else reads them.
+The optional `[ready]` table holds a board's settings for `kan ready`, which lists open work that can be started now (see [CLI](/docs/cli)).
 
 ```toml
 [ready]

@@ -1,0 +1,91 @@
+package cli
+
+import (
+	"encoding/json"
+	"reflect"
+	"testing"
+
+	"github.com/amterp/kan/internal/model"
+	"github.com/amterp/kan/internal/service"
+)
+
+func TestReadyFlags_Parse(t *testing.T) {
+	ctx := buildRootCmd()
+	args := []string{"ready", "-b", "main", "-x", "owner=Doe, Jane", "-x", "labels=urgent", "--no-exclude", "--limit", "3"}
+	if err := ctx.RootCmd.ParseOrError(args); err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if want := []string{"owner=Doe, Jane", "labels=urgent"}; !reflect.DeepEqual(*ctx.ReadyExclude, want) {
+		t.Errorf("excludes = %q, want %q", *ctx.ReadyExclude, want)
+	}
+	if !*ctx.ReadyNoExclude || *ctx.ReadyLimit != 3 || *ctx.ReadyBoard != "main" {
+		t.Errorf("no-exclude = %v, limit = %d, board = %q", *ctx.ReadyNoExclude, *ctx.ReadyLimit, *ctx.ReadyBoard)
+	}
+
+	ctx = buildRootCmd()
+	if err := ctx.RootCmd.ParseOrError([]string{"ready"}); err != nil || *ctx.ReadyLimit != 0 {
+		t.Errorf("without --limit: err = %v, limit = %d", err, *ctx.ReadyLimit)
+	}
+
+	ctx = buildRootCmd()
+	if err := ctx.RootCmd.ParseOrError([]string{"ready", "--limit", "0"}); err == nil {
+		t.Error("expected a parse error for --limit 0")
+	}
+}
+
+func TestReadyOutput_JSON(t *testing.T) {
+	board := &model.BoardConfig{ID: "b1", Name: "main", Columns: []model.Column{
+		{Name: "next", Category: model.CategoryOpen},
+		{Name: "done", Category: model.CategoryDone},
+		{Name: "ideas"},
+	}}
+	shipped := &model.Card{ID: "c0", Column: "done"}
+	card := &model.Card{
+		ID: "c1", Title: "Add kan ready", Column: "next", BlockedBy: []string{"c0", "c9", "c8"},
+		CustomFields: map[string]any{"ref": "custom value"},
+	}
+	result := &service.ReadyResult{
+		Board: board,
+		Ready: []service.ReadyEntry{{Card: card, Blockers: []service.LinkLookup{
+			{State: service.LinkFound, Ref: "c0", Card: shipped, Column: board.GetColumn("done")},
+			{State: service.LinkFound, Ref: "c9", Card: &model.Card{ID: "c9", Column: "ideas"}, Column: board.GetColumn("ideas")},
+			{State: service.LinkAbsent, Ref: "c8"},
+		}}},
+	}
+
+	data, err := json.Marshal(NewReadyOutput(result, "/src/kan"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, key := range []string{"attention", "skipped"} {
+		if list, ok := got[key].([]any); !ok || len(list) != 0 {
+			t.Errorf("%s = %v, want an empty array", key, got[key])
+		}
+	}
+	entry := got["ready"].([]any)[0].(map[string]any)
+	wantContext := map[string]any{
+		"ref": "b1:c1", "board_id": "b1", "board": "main", "project_path": "/src/kan", "category": "open",
+	}
+	for k, v := range wantContext {
+		if entry[k] != v {
+			t.Errorf("entry[%q] = %v, want %v", k, entry[k], v)
+		}
+	}
+	wantBlockers := []any{
+		map[string]any{"ref": "c0", "result": "found", "category": "done"},
+		map[string]any{"ref": "c9", "result": "found"},
+		map[string]any{"ref": "c8", "result": "absent"},
+	}
+	if !reflect.DeepEqual(entry["blockers"], wantBlockers) {
+		t.Errorf("blockers = %v, want %v", entry["blockers"], wantBlockers)
+	}
+	inner := entry["card"].(map[string]any)
+	if inner["ref"] != "custom value" || inner["id"] != "c1" || inner["board"] != nil {
+		t.Errorf("card = %v, want the card's own JSON with its custom ref field", inner)
+	}
+}

@@ -102,6 +102,14 @@ func (g *LinkGraph) Cards(boardName string) ([]*model.Card, error) {
 	return b.listing.Cards, b.err
 }
 
+// Failures returns the board's card files that could not be read.
+func (g *LinkGraph) Failures(boardName string) []store.CardReadFailure {
+	if b := g.boards[boardName]; b != nil {
+		return b.listing.Failures
+	}
+	return nil
+}
+
 func (g *LinkGraph) Resolve(boardName, storedRef string) LinkLookup {
 	result := LinkLookup{Ref: storedRef, BoardName: boardName}
 	cardID := storedRef

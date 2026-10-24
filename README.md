@@ -38,6 +38,7 @@ kan add "Fix login bug"        # Add a card
 kan move fix-login-bug done    # Move to column
 kan list                       # List all cards
 kan show fix-login-bug         # View card details
+kan ready                      # Open cards that can be started now
 kan add -g "Buy milk"          # Add to your global board from any directory
 ```
 

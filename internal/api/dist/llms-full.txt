@@ -495,6 +495,86 @@ field keep only cards matching both. A card without the field never matches:
 is an error that lists the board's fields; built-in fields such as the column
 have their own flags. `--sort` and `--descending` still apply after filtering.
 
+### ready
+
+List open cards that can be started now, in priority order.
+
+```bash
+kan ready
+kan ready --limit 3                 # the first three ready cards
+kan ready -x labels=needs-decision  # also keep these out
+kan ready --json
+```
+
+A card is ready when all of these hold:
+
+1. Its column's category is `open`.
+2. Every blocker is found, in a column whose category is `done`.
+3. It has no unfinished children, meaning children in any category other than
+   `done` or `dropped`. A child in a column without a category counts as
+   unfinished.
+4. It matches none of the board's `[ready] exclude` filters or the command's
+   `-x` filters.
+
+A blocker in a column without a category, or one kan can't find or read, keeps
+the card out of ready; `kan show` says why. A card whose blocker was dropped is
+listed under "Needs attention" instead, even when an exclusion matches it,
+because the reason for the card may be gone: remove the link with `kan unlink`
+or drop the card.
+
+Open columns are read from right to left, each top to bottom, so the open
+column furthest right comes first. `[ready] order` in the board config names
+columns to read first (see [Configuration](/docs/configuration)).
+
+```
+$ kan ready
+next
+  a_2nQ0vLx1k  Add kan ready
+  a_2nQ0uA7cd  Add blocked_by and related to cards
+backlog-hi
+  a_2nQ0w9mPe  Show blockers in the card modal
+
+Needs attention
+  a_2nQ0zz0aa  Rework the board picker  blocker dropped: a_2nQ0yy9bb (wont-do)
+```
+
+| Flag             | Description                                                |
+|------------------|------------------------------------------------------------|
+| `-b, --board`    | Board name                                                 |
+| `-x, --exclude`  | Also keep cards whose custom field matches `key=value` out of ready (repeatable) |
+| `--no-exclude`   | Ignore the board's `[ready] exclude` list; `-x` still applies |
+| `--limit`        | Print only the first N ready cards; "Needs attention" is never cut |
+| `-g, --global`   | Target the designated global board (see [global](#global)) |
+
+`-x` matches the way `kan list -x` does. On a board with no column categories,
+`kan ready` fails and points to `kan column categorize`.
+
+With `--json`, each entry holds the query's context beside the card's own JSON,
+so a custom field can never collide with a context field:
+
+```json
+{
+  "ready": [
+    {
+      "ref": "2R9nzEvz:a_2nQ0vLx1k",
+      "board_id": "2R9nzEvz",
+      "board": "main",
+      "project_path": "/Users/alex/src/kan",
+      "category": "open",
+      "blockers": [{"ref": "a_2nQ0uA7cd", "result": "found", "category": "done"}],
+      "card": {"id": "a_2nQ0vLx1k", "title": "Add kan ready", "...": "..."}
+    }
+  ],
+  "attention": [],
+  "skipped": []
+}
+```
+
+A blocker's `result` is one of `found`, `absent`, `board_not_here`,
+`ambiguous_board`, `unsupported_schema` or `unreadable`, and `category` is
+present when it was found in a column that has one. `skipped` is always empty
+for now.
+
 ### edit
 
 Edit an existing card. Run without flags for interactive mode, or use flags to apply changes directly.
@@ -842,7 +922,7 @@ eval "$(kan completion bash)"
 | Flag                    | Description                                                                              |
 |-------------------------|------------------------------------------------------------------------------------------|
 | `-I, --non-interactive` | Fail instead of prompting for missing input                                              |
-| `--json`                | Output results as JSON (supported by: show, list, add, edit, board list, column list, comment add, doctor, docs) |
+| `--json`                | Output results as JSON (supported by: show, list, ready, add, edit, board list, column list, comment add, doctor, docs) |
 
 ## JSON Output
 
@@ -865,6 +945,10 @@ kan add "New task" --json
 # Edit a card and get the updated result as JSON
 kan edit fix-login -t "New title" --json
 # Output: {"card": {...}}
+
+# List ready cards as JSON
+kan ready --json
+# Output: {"ready": [{"ref": "...", "blockers": [...], "card": {...}}, ...], "attention": [...], "skipped": []}
 
 # List boards as JSON
 kan board list --json
@@ -1044,7 +1128,7 @@ Dragging is never affected, because a drag always names a slot - including a dro
 
 ### Ready
 
-The optional `[ready]` table holds a board's settings for `kan ready`, a planned command that lists open work that can be started now. Until it ships, kan stores and validates these settings and nothing else reads them.
+The optional `[ready]` table holds a board's settings for `kan ready`, which lists open work that can be started now (see [CLI](/docs/cli)).
 
 ```toml
 [ready]
