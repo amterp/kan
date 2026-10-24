@@ -2,17 +2,18 @@
   "_v": 3,
   "alias": "phase-1-foundations",
   "alias_explicit": false,
-  "column": "backlog-hi",
+  "column": "done",
   "created_at_millis": 1792875237171,
   "creator": "Alexander Terp",
   "description": "Parent for phase 1 of the design in `docs/design/work-across-boards.md`. Before anything reads across boards, kan has to stop writing during reads, keep its project registry clean, and never lose a card to an ID collision.\n\nEach child follows `AGENTS.md`: a schema bump takes the full checklist, and a CLI change updates `extras/skill/SKILL.md` and `web/src/docs/cli.md`.",
   "id": "a_2naKEWqdp",
-  "position": "a0",
+  "position": "Zo",
   "title": "Phase 1: foundations for links and work across boards",
   "type": "chore",
-  "updated_at_millis": 1792875444964,
+  "updated_at_millis": 1792879079443,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875237171},
-    {"field":"column","value":"backlog-hi","at":1792875444964}
+    {"field":"column","value":"backlog-hi","at":1792875444964},
+    {"field":"column","value":"done","at":1792879079443}
   ]
 }

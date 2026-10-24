@@ -2,17 +2,18 @@
   "_v": 3,
   "alias": "web-show-blockers",
   "alias_explicit": false,
-  "column": "backlog-lo",
+  "column": "next",
   "created_at_millis": 1792875238328,
   "creator": "Alexander Terp",
   "description": "Design: `docs/design/work-across-boards.md`, section \"Web\" under phase 3. The browser works out the blocked marker for same-board links from the cards and columns it already has loaded, so a blocker moving to done updates the cards waiting on it without refetching them. The card modal lists blockers and the cards a card blocks. Commit the rebuilt `internal/api/dist/`.\n\nAfter a_2naKG1kJn.",
   "id": "a_2naKGO4kC",
   "parent": "a_2naKFgTg0",
-  "position": "Zzzzzl",
+  "position": "a1",
   "title": "Web: show blockers and a blocked marker on cards",
   "type": "feature",
-  "updated_at_millis": 1792875238328,
+  "updated_at_millis": 1792879079789,
   "history": [
-    {"field":"column","value":"backlog-lo","at":1792875238328}
+    {"field":"column","value":"backlog-lo","at":1792875238328},
+    {"field":"column","value":"next","at":1792879079789}
   ]
 }

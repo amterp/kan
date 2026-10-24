@@ -2,17 +2,18 @@
   "_v": 3,
   "alias": "resolve-board-and",
   "alias_explicit": false,
-  "column": "backlog-lo",
+  "column": "in-progress",
   "created_at_millis": 1792875238586,
   "creator": "Alexander Terp",
   "description": "Design: `docs/design/work-across-boards.md`, sections \"References\", \"Writing\" and \"Duplicate board IDs\".\n\n`-b` takes a board ID, card arguments take `board:card`, a bare ID not in the current project is looked up across visible registered projects by file name, two matches is an error, and aliases stay local. Commands may write only in the current project and on the `-g` board, checked before kan migrates or runs hooks on the target's project.\n\nAfter a_2naKGhsQL, a_2naKEucjD and a_2naKF6idT.",
   "id": "a_2naKGoYNg",
   "parent": "a_2naKGb6Hi",
-  "position": "ZzzzzzV",
+  "position": "Zp",
   "title": "Resolve board and card references across registered projects",
   "type": "feature",
-  "updated_at_millis": 1792875238586,
+  "updated_at_millis": 1792879079685,
   "history": [
-    {"field":"column","value":"backlog-lo","at":1792875238586}
+    {"field":"column","value":"backlog-lo","at":1792875238586},
+    {"field":"column","value":"in-progress","at":1792879079685}
   ]
 }

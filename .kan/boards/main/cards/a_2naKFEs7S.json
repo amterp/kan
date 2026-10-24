@@ -2,17 +2,18 @@
   "_v": 3,
   "alias": "phase-2-column",
   "alias_explicit": false,
-  "column": "backlog-hi",
+  "column": "done",
   "created_at_millis": 1792875237608,
   "creator": "Alexander Terp",
   "description": "Parent for phase 2 of `docs/design/work-across-boards.md`. Each column may name one of seven categories (inbox, idea, open, active, review, done, dropped), so anything that reads across columns or boards reads categories instead of column names, and boards keep naming columns as they like.\n\nAfter phase 1: a_2naKEWqdp.",
   "id": "a_2naKFEs7S",
-  "position": "a2",
+  "position": "Zn",
   "title": "Phase 2: column categories",
   "type": "chore",
-  "updated_at_millis": 1792875445067,
+  "updated_at_millis": 1792879079498,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875237608},
-    {"field":"column","value":"backlog-hi","at":1792875445067}
+    {"field":"column","value":"backlog-hi","at":1792875445067},
+    {"field":"column","value":"done","at":1792879079498}
   ]
 }

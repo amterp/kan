@@ -2,17 +2,18 @@
   "_v": 3,
   "alias": "teach-agents-to-find",
   "alias_explicit": false,
-  "column": "backlog-lo",
+  "column": "next",
   "created_at_millis": 1792875238390,
   "creator": "Alexander Terp",
   "description": "Design: `docs/design/work-across-boards.md`, section \"Agent guide\". A section in `extras/skill/SKILL.md` and the web docs on `kan ready` for choosing work, `kan link` while filing cards that depend on others, moving a card into an active column when starting it, and treating \"Needs attention\" as work. Phase 4 cards extend it for `--all`.\n\nAfter a_2naKGBq1Y.",
   "id": "a_2naKGUnxZ",
   "parent": "a_2naKFgTg0",
-  "position": "Zzzzzt",
+  "position": "a2",
   "title": "Teach agents to find and take work with kan ready",
   "type": "chore",
-  "updated_at_millis": 1792875238390,
+  "updated_at_millis": 1792879079837,
   "history": [
-    {"field":"column","value":"backlog-lo","at":1792875238390}
+    {"field":"column","value":"backlog-lo","at":1792875238390},
+    {"field":"column","value":"next","at":1792879079837}
   ]
 }
