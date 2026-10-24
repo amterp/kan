@@ -2,7 +2,8 @@ import { useMemo, useRef, useEffect, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Card, Column as ColumnType, BoardConfig, UpdateColumnInput } from '../api/types';
+import { COLUMN_CATEGORIES, COLUMN_CATEGORY_DESCRIPTIONS } from '../api/types';
+import type { Card, Column as ColumnType, BoardConfig, ColumnCategory, UpdateColumnInput } from '../api/types';
 import CardComponent from './Card';
 import ConfirmationModal from './ConfirmationModal';
 import { useToast } from '../contexts/ToastContext';
@@ -258,6 +259,16 @@ export default function Column({
     }
   };
 
+  const handleSetCategory = async (category: ColumnCategory | '') => {
+    setShowMenu(false);
+    if (!onUpdateColumn || category === (column.category ?? '')) return;
+    try {
+      await onUpdateColumn(column.name, { category });
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Failed to set column category');
+    }
+  };
+
   // Column name editing handlers
   const handleStartEdit = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent column drag
@@ -487,7 +498,32 @@ export default function Column({
             </button>
 
             {showMenu && (
-              <div className="absolute right-0 mt-1 w-36 bg-white dark:bg-gray-700 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 py-1 z-50">
+              <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-700 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 py-1 z-50">
+                {onUpdateColumn && (
+                  <>
+                    <div className="px-3 pt-1 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                      Category
+                    </div>
+                    {(['', ...COLUMN_CATEGORIES] as const).map((category) => (
+                      <button
+                        key={category || 'none'}
+                        onClick={() => handleSetCategory(category)}
+                        title={category ? COLUMN_CATEGORY_DESCRIPTIONS[category] : 'Not read by queries across columns'}
+                        className="w-full px-3 py-1.5 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
+                      >
+                        <span className="w-4 flex-shrink-0">
+                          {(column.category ?? '') === category && (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </span>
+                        {category || 'None'}
+                      </button>
+                    ))}
+                    {onDeleteColumn && <div className="my-1 border-t border-gray-200 dark:border-gray-600" />}
+                  </>
+                )}
                 {onDeleteColumn && column.name !== board.default_column && (
                   <button
                     onClick={handleDeleteColumnClick}

@@ -49,6 +49,21 @@ export interface HistoryEntry {
 
 export type ColumnPosition = 'top' | 'bottom';
 
+/** The fixed set of column categories, in workflow order. Mirrors model.ValidCategories. */
+export const COLUMN_CATEGORIES = ['inbox', 'idea', 'open', 'active', 'review', 'done', 'dropped'] as const;
+
+export type ColumnCategory = (typeof COLUMN_CATEGORIES)[number];
+
+export const COLUMN_CATEGORY_DESCRIPTIONS: Record<ColumnCategory, string> = {
+  inbox: 'Waiting for someone to decide what it is',
+  idea: 'Looked at and kept, but the direction is uncertain',
+  open: 'Accepted and not started; order is priority',
+  active: 'Being worked on',
+  review: 'Finished, waiting to be checked',
+  done: 'Finished',
+  dropped: 'Closed without being done',
+};
+
 export interface Column {
   name: string;
   color: string;
@@ -56,7 +71,15 @@ export interface Column {
   limit?: number;
   /** Where a card MOVED into this column lands. Unset means top. Not used by add. */
   on_move_default_position?: ColumnPosition;
+  /** What kind of work the column holds. Unset means none. */
+  category?: ColumnCategory;
   card_ids?: string[];
+}
+
+/** A board's settings for kan ready. Mirrors model.ReadyConfig. */
+export interface ReadyConfig {
+  order?: string[];
+  exclude?: string[];
 }
 
 export interface CustomFieldOption {
@@ -112,6 +135,7 @@ export interface BoardConfig {
   name: string;
   columns: Column[];
   default_column: string;
+  ready?: ReadyConfig;
   custom_fields?: Record<string, CustomFieldSchema>;
   card_display?: CardDisplayConfig;
   link_rules?: LinkRule[];
@@ -160,6 +184,7 @@ export interface CreateColumnInput {
   limit?: number;
   position?: number;
   on_move_default_position?: ColumnPosition;
+  category?: ColumnCategory;
 }
 
 export interface UpdateColumnInput {
@@ -168,6 +193,8 @@ export interface UpdateColumnInput {
   description?: string;
   limit?: number;
   on_move_default_position?: ColumnPosition | '';
+  /** An empty string clears the category. */
+  category?: ColumnCategory | '';
 }
 
 export interface FaviconConfig {

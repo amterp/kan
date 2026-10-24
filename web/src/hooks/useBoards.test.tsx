@@ -27,7 +27,7 @@ vi.mock('../api/cards', () => ({
   deleteCard: vi.fn(),
 }));
 
-import { getBoard, listBoards } from '../api/boards';
+import { getBoard, listBoards, updateColumn } from '../api/boards';
 import { getCard, listCards } from '../api/cards';
 
 const board = {
@@ -200,5 +200,21 @@ describe('useBoards file sync', () => {
     act(() => FakeWebSocket.latest.emitChange(cardChange('a')));
 
     await waitFor(() => expect(listBoards).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('useBoard updateColumn', () => {
+  it('shows a category change before the server answers', async () => {
+    const { result } = await renderLoadedBoard();
+    vi.mocked(updateColumn).mockReturnValue(new Promise(() => {}));
+
+    act(() => {
+      void result.current.updateColumn('next', { category: 'open' });
+    });
+
+    await waitFor(() =>
+      expect(result.current.board?.columns.find((c) => c.name === 'next')?.category).toBe('open')
+    );
+    expect(updateColumn).toHaveBeenCalledWith('main', 'next', { category: 'open' });
   });
 });

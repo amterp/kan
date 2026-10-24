@@ -7,6 +7,7 @@ import { useFileSyncStatus, useFileSyncSubscription } from '../contexts/FileSync
 import { useToast } from '../contexts/ToastContext';
 import { resolveInsertIndex } from '../utils/columnPlacement';
 import { upsertCard } from '../utils/cardSync';
+import { applyColumnUpdate } from '../utils/columnUpdate';
 
 // A failed hook still creates the card, so the board looks entirely normal. Without a
 // visible message the only symptom is the hook's effect not happening, which reads as
@@ -370,22 +371,7 @@ export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?:
     if (!boardName || !board) return;
 
     // Optimistic update
-    setBoard((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        columns: prev.columns.map((c) =>
-          c.name === columnName
-            ? { ...c, name: updates.name ?? c.name, color: updates.color ?? c.color }
-            : c
-        ),
-        // Update default_column if it was renamed
-        default_column:
-          prev.default_column === columnName && updates.name
-            ? updates.name
-            : prev.default_column,
-      };
-    });
+    setBoard((prev) => (prev ? applyColumnUpdate(prev, columnName, updates) : prev));
 
     // Update card columns if column was renamed
     if (updates.name && updates.name !== columnName) {
