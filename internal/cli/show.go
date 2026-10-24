@@ -86,13 +86,15 @@ func runShow(idOrAlias, board string, global, nonInteractive, jsonOutput bool) {
 }
 
 func printCardLinks(links *service.LinkGraph, boardName string, card *model.Card) {
-	printLinks := func(label string, results []service.LinkLookup) {
+	// cardWaits is true for the card's own blockers, where a board that
+	// isn't on this machine gets a message saying what the card waits on.
+	printLinks := func(label string, results []service.LinkLookup, cardWaits bool) {
 		if len(results) == 0 {
 			return
 		}
 		fmt.Printf("\n%s:\n", label)
 		for _, result := range results {
-			if result.State == service.LinkBoardNotHere && label == "Blocked by" {
+			if result.State == service.LinkBoardNotHere && cardWaits {
 				fmt.Printf("  %s\n", strings.ReplaceAll(service.NotOnThisMachine(card.ID, result), "\n", "\n  "))
 				continue
 			}
@@ -116,14 +118,14 @@ func printCardLinks(links *service.LinkGraph, boardName string, card *model.Card
 			fmt.Printf("  %s  %s (%s, %s)%s\n", ref, result.Card.Title, result.Card.Column, state, where)
 		}
 	}
-	printLinks("Blocked by", links.Blockers(boardName, card))
-	printLinks("Blocks", links.Blocks(boardName, card.ID))
+	printLinks("Blocked by", links.Blockers(boardName, card), true)
+	printLinks("Blocks", links.Blocks(boardName, card.ID), false)
 	var related []service.LinkLookup
 	for _, ref := range card.Related {
 		related = append(related, links.Resolve(boardName, ref))
 	}
-	printLinks("Related", related)
-	printLinks("Related to this card", links.RelatedTo(boardName, card.ID))
+	printLinks("Related", related, false)
+	printLinks("Related to this card", links.RelatedTo(boardName, card.ID), false)
 }
 
 func printCard(card *model.Card, colColor, boardName string, multipleBoards bool) {
