@@ -229,10 +229,11 @@ func runAdd(title, description, board, column string, parentCard string, placeme
 
 	// Validate parent card if provided
 	if parentCard != "" {
-		_, err := app.CardResolver.Resolve(boardName, parentCard)
+		parent, err := app.CardResolver.Resolve(boardName, parentCard)
 		if err != nil {
 			Fatal(fmt.Errorf("parent card not found: %s", parentCard))
 		}
+		parentCard = parent.ID
 	}
 
 	// Parse custom fields

@@ -24,7 +24,13 @@ func setupCardIntegrityTest(t *testing.T) (*CardService, *config.Paths) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	return NewCardService(cards, boards, NewAliasService(cards)), paths
+	svc := NewCardService(cards, boards, NewAliasService(cards))
+	nextID := 0
+	svc.generateCardID = func() string {
+		nextID++
+		return fmt.Sprintf("card-%d", nextID)
+	}
+	return svc, paths
 }
 
 func readCardBytes(t *testing.T, paths *config.Paths, cardID string) []byte {

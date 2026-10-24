@@ -677,7 +677,7 @@ kan migrate --dry-run
 
 - **Alias collision**: Auto-generate new alias (`fix-bug` → `fix-bug-2`). Same as duplicate handling.
 - **Column mapping**: Use target board's `default_column`, allow `--column` override.
-- **Parent references**: If card.parent points to card in source board, it remains valid (cross-board refs use stable IDs).
+- **Parent references**: Parents resolve only within a board. A parent in the source board does not resolve after its child moves to another board. New writes store parent IDs and reject self-parents and parent cycles; older alias values remain readable until migration rewrites them.
 
 ### Custom Field Type Evolution
 

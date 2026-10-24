@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -45,6 +46,8 @@ const (
 
 	// Priority 3: Referential integrity (warnings)
 	CodeInvalidParentRef = "INVALID_PARENT_REF"
+	CodeSelfParent       = "SELF_PARENT"
+	CodeParentCycle      = "PARENT_CYCLE"
 
 	// Priority 4: Data quality (warnings)
 	CodeMissingWantedFields   = "MISSING_WANTED_FIELDS"
@@ -621,6 +624,8 @@ func (s *DoctorService) checkCardFile(report *DiagnosticReport, boardName, cardI
 }
 
 func (s *DoctorService) checkParentRefs(report *DiagnosticReport, boardName string, cardFiles map[string]bool) {
+	cards := make([]*model.Card, 0, len(cardFiles))
+	fileIDs := make(map[*model.Card]string, len(cardFiles))
 	for cardID := range cardFiles {
 		cardPath := s.paths.CardPath(boardName, cardID)
 		data, err := os.ReadFile(cardPath)
@@ -633,17 +638,43 @@ func (s *DoctorService) checkParentRefs(report *DiagnosticReport, boardName stri
 			continue // Already reported in checkCardFile
 		}
 
-		if card.Parent != "" && !cardFiles[card.Parent] {
+		cards = append(cards, &card)
+		fileIDs[&card] = cardID
+	}
+	sort.Slice(cards, func(i, j int) bool { return fileIDs[cards[i]] < fileIDs[cards[j]] })
+	parents := newParentGraph(cards)
+	for _, card := range cards {
+		if card.Parent == "" {
+			continue
+		}
+		parent := parents.resolve(card.Parent)
+		if parent == nil && !cardFiles[card.Parent] {
 			report.Issues = append(report.Issues, Issue{
 				Severity:  SeverityWarning,
 				Code:      CodeInvalidParentRef,
 				Board:     boardName,
-				CardID:    cardID,
+				CardID:    fileIDs[card],
 				Message:   fmt.Sprintf("Parent '%s' does not exist", card.Parent),
 				Fixable:   true,
 				FixAction: "Clear parent field",
 			})
 		}
+	}
+	for _, cycle := range parents.cycles() {
+		code := CodeParentCycle
+		message := "Parent cycle: " + strings.Join(cycle, " -> ")
+		if len(cycle) == 2 {
+			code = CodeSelfParent
+			message = fmt.Sprintf("Card %s is its own parent", cycle[0])
+		}
+		report.Issues = append(report.Issues, Issue{
+			Severity: SeverityWarning,
+			Code:     code,
+			Board:    boardName,
+			CardID:   cycle[0],
+			Message:  message,
+			Fixable:  false,
+		})
 	}
 }
 

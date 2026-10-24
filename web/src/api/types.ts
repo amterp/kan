@@ -129,6 +129,7 @@ export interface UpdateCardInput {
   title?: string;
   description?: string;
   column?: string;
+  parent?: string;
   custom_fields?: Record<string, unknown>;
 }
 

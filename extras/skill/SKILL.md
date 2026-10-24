@@ -347,6 +347,8 @@ kan add "Buy milk" -g                            # Add to the global board from 
 
 `--position`/`--before`/`--after` are mutually exclusive; default is end of column. Without `-c`, the card is placed in the anchor card's column. Prefer `--before`/`--after` for non-boundary spots (`kan list` shows no indices to count against).
 
+`--parent` accepts a card ID or alias on the same board and stores the resolved ID, so renaming the parent does not break the relationship. Both `add` and `edit` reject self-parents and parent cycles.
+
 ## Listing Cards
 
 ```bash
@@ -408,7 +410,7 @@ kan edit fix -f priority=low             # Update custom field
 | `-t, --title` | Set card title |
 | `-d, --description` | Set card description |
 | `-c, --column` | Move card to column |
-| `-p, --parent` | Set parent card |
+| `-p, --parent` | Set parent card ID or alias on the same board |
 | `--position` | Move to index in column (0 = top, -1 = end, negatives count from end) |
 | `--top` | Move to the top of the column |
 | `--bottom` | Move to the bottom of the column |
@@ -578,6 +580,8 @@ kan doctor --json        # Machine-readable output
 **Exit codes:** 0 = no errors (warnings OK), 1 = errors found
 
 **Fixable issues:** orphaned cards, missing card references, duplicate IDs, invalid default column, invalid parent refs.
+
+Doctor also reports `SELF_PARENT` and `PARENT_CYCLE` warnings. These require manual repair; `--fix` leaves them unchanged. Existing parent aliases that still resolve are valid.
 
 ## Shell Completion
 

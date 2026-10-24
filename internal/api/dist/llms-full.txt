@@ -329,6 +329,10 @@ kan add "Update docs" "Description goes here"
 | `--strict`     | Error if wanted fields are missing (default: warn) |
 | `-g, --global` | Target the designated global board (see [global](#global)) |
 
+`--parent` accepts a card ID or alias on the same board and stores the resolved
+ID. Renaming the parent does not break the relationship. Self-parents and parent
+cycles are rejected.
+
 The five placement flags are mutually exclusive. By default a card is appended to
 the end of its column, whatever that column's `on_move_default_position` says -
 that setting governs cards *moving into* a column, not new ones. Without `-c`, the
@@ -440,6 +444,9 @@ kan edit fix-login-bug -t "New title" -c done
 | `-f, --field`       | Set custom field in key=value format (repeatable; set-typed fields also accept comma-separated values) |
 | `--strict`          | Error if wanted fields are missing (default: warn) |
 | `-g, --global`      | Target the designated global board (see [global](#global)) |
+
+`--parent` accepts a card ID or alias on the same board and stores the resolved
+ID. A card cannot be its own parent, and a parent change cannot form a cycle.
 
 The five placement flags are mutually exclusive. They reorder a card within its
 current column, or place it precisely when moving between columns. Without `-c`,
@@ -679,7 +686,9 @@ kan doctor --json
   - `MISSING_HOOK_FILE`: Pattern hook command not found (missing file, or not on `PATH`)
   - `HOOK_NOT_EXECUTABLE`: Pattern hook file exists but lacks the executable bit
   - `HOOK_COMMAND_ARGS`: Pattern hook command appears to take arguments (hooks take none)
-  - `INVALID_PARENT_REF`: Parent points to non-existent card (fixable)
+  - `INVALID_PARENT_REF`: Parent ID or alias does not resolve on the same board (fixable)
+  - `SELF_PARENT`: Card names itself as its parent (manual repair)
+  - `PARENT_CYCLE`: Cards form a parent cycle (manual repair)
   - `MISSING_WANTED_FIELDS`: Card is missing fields marked as `wanted`
   - `DUPLICATE_POSITION_KEYS`: Two cards in a column share a position key, so no card can be placed between them (fixable)
   - `LEGACY_POSITION_KEYS`: A column has cards with no position key, or with keys written by an older Kan (fixable)

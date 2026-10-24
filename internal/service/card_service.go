@@ -91,6 +91,11 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 	if err != nil {
 		return nil, nil, err
 	}
+	parents := newParentGraph(allCards)
+	parentID, err := parents.validate("", input.Parent, "")
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Determine column: explicit wins, otherwise infer from any anchor, else the
 	// board default. Also validates an anchor lives in the chosen column.
@@ -134,7 +139,7 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 		AliasExplicit:   false,
 		Title:           input.Title,
 		Description:     input.Description,
-		Parent:          input.Parent,
+		Parent:          parentID,
 		Creator:         input.Creator,
 		CreatedAtMillis: now,
 		UpdatedAtMillis: now,
@@ -154,6 +159,11 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 
 	const maxAttempts = 5
 	for attempt := 0; attempt < maxAttempts; attempt++ {
+		if parents.cards[card.ID] == nil {
+			if _, err := parents.validate(card.ID, parentID, card.Alias); err != nil {
+				return nil, nil, err
+			}
+		}
 		err := s.cardStore.Create(input.BoardName, card)
 		if err == nil {
 			break
@@ -195,6 +205,26 @@ func (s *CardService) Get(boardName, cardID string) (*model.Card, error) {
 
 // Update saves changes to a card.
 func (s *CardService) Update(boardName string, card *model.Card) error {
+	parentID, err := s.validateParent(boardName, card.ID, card.Parent, card.Alias)
+	if err != nil {
+		return err
+	}
+	card.Parent = parentID
+	return s.saveCard(boardName, card)
+}
+
+func (s *CardService) validateParent(boardName, cardID, parentRef, alias string) (string, error) {
+	if parentRef == "" {
+		return "", nil
+	}
+	cards, err := s.cardStore.List(boardName)
+	if err != nil {
+		return "", err
+	}
+	return newParentGraph(cards).validate(cardID, parentRef, alias)
+}
+
+func (s *CardService) saveCard(boardName string, card *model.Card) error {
 	// Validate custom fields don't use reserved prefixes
 	if err := model.ValidateCustomFields(card.CustomFields); err != nil {
 		return err
@@ -478,22 +508,37 @@ func (s *CardService) Edit(input EditCardInput) (*model.Card, error) {
 		return nil, err
 	}
 
-	needsUpdate := false
-
-	// Handle title change (regenerates alias if not explicit)
+	parentRef := card.Parent
+	if input.Parent != nil {
+		parentRef = *input.Parent
+	}
+	alias := card.Alias
 	if input.Title != nil {
 		if *input.Title == "" {
 			return nil, kanerr.InvalidField("title", "cannot be empty")
 		}
-		if err := s.UpdateTitle(input.BoardName, card, *input.Title); err != nil {
-			return nil, err
-		}
-		// Re-fetch card after title update (alias may have changed)
-		card, err = s.Get(input.BoardName, card.ID)
-		if err != nil {
-			return nil, err
+		if !card.AliasExplicit {
+			alias, err = s.aliasService.GenerateAlias(input.BoardName, *input.Title, card.ID)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
+	if input.Alias != nil {
+		if *input.Alias == "" {
+			return nil, kanerr.InvalidField("alias", "cannot be empty")
+		}
+		existing, err := s.cardStore.FindByAlias(input.BoardName, *input.Alias)
+		if err == nil && existing.ID != card.ID {
+			return nil, kanerr.InvalidField("alias", fmt.Sprintf("already in use by card %s", existing.ID))
+		}
+		alias = *input.Alias
+	}
+	parentID, err := s.validateParent(input.BoardName, card.ID, parentRef, alias)
+	if err != nil {
+		return nil, err
+	}
+	needsUpdate := input.Parent != nil || parentID != card.Parent
 
 	// Handle column change and/or placement (an in-place reorder is possible
 	// when only a placement is given without a column).
@@ -515,6 +560,13 @@ func (s *CardService) Edit(input EditCardInput) (*model.Card, error) {
 			return nil, err
 		}
 	}
+	card.Parent = parentID
+	card.Alias = alias
+
+	if input.Title != nil {
+		card.Title = *input.Title
+		needsUpdate = true
+	}
 
 	// Handle description change
 	if input.Description != nil {
@@ -522,30 +574,8 @@ func (s *CardService) Edit(input EditCardInput) (*model.Card, error) {
 		needsUpdate = true
 	}
 
-	// Handle parent change
-	if input.Parent != nil {
-		if *input.Parent != "" {
-			// Validate parent exists
-			_, err := s.FindByIDOrAlias(input.BoardName, *input.Parent)
-			if err != nil {
-				return nil, fmt.Errorf("parent card not found: %s", *input.Parent)
-			}
-		}
-		card.Parent = *input.Parent
-		needsUpdate = true
-	}
-
 	// Handle explicit alias change
 	if input.Alias != nil {
-		if *input.Alias == "" {
-			return nil, kanerr.InvalidField("alias", "cannot be empty")
-		}
-		// Check alias not already in use by another card
-		existing, err := s.cardStore.FindByAlias(input.BoardName, *input.Alias)
-		if err == nil && existing.ID != card.ID {
-			return nil, kanerr.InvalidField("alias", fmt.Sprintf("already in use by card %s", existing.ID))
-		}
-		card.Alias = *input.Alias
 		card.AliasExplicit = true
 		needsUpdate = true
 	}
@@ -559,7 +589,7 @@ func (s *CardService) Edit(input EditCardInput) (*model.Card, error) {
 	}
 
 	if needsUpdate {
-		if err := s.Update(input.BoardName, card); err != nil {
+		if err := s.saveCard(input.BoardName, card); err != nil {
 			return nil, err
 		}
 	}
@@ -694,7 +724,6 @@ func (s *CardService) Restore(boardName string, card *model.Card, column string,
 	if _, err := s.cardStore.Get(boardName, card.ID); err == nil {
 		return fmt.Errorf("card %s already exists", card.ID)
 	}
-
 	// Check alias availability - regenerate if taken by another card
 	if !s.aliasService.IsAliasAvailable(boardName, card.Alias, card.ID) {
 		alias, err := s.aliasService.GenerateAlias(boardName, card.Title, card.ID)
@@ -704,6 +733,11 @@ func (s *CardService) Restore(boardName string, card *model.Card, column string,
 		card.Alias = alias
 		card.AliasExplicit = false
 	}
+	parentID, err := newParentGraph(allCards).validate(card.ID, card.Parent, card.Alias)
+	if err != nil {
+		return err
+	}
+	card.Parent = parentID
 
 	// Set column and position on the card itself
 	card.Column = column
