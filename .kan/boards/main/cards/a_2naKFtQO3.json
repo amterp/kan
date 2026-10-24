@@ -2,19 +2,20 @@
   "_v": 3,
   "alias": "add-field-filters-to",
   "alias_explicit": false,
-  "column": "in-progress",
+  "column": "done",
   "created_at_millis": 1792875238026,
   "creator": "Alexander Terp",
   "description": "`kan list` filters only by board and column, and agents need to find cards by field, such as everything labeled `needs-decision`.\n\nDesign: `docs/design/work-across-boards.md`, section \"Filters\": `-f key=value` and `-x key=value`, all filters combined, typed matching per field, a missing field never matching, and `--category`. Build one filter implementation that `kan ready` reuses.\n\nAfter a_2naKFO3Lq, for `--category`.",
   "id": "a_2naKFtQO3",
   "parent": "a_2naKFgTg0",
-  "position": "Zt",
+  "position": "Zr",
   "title": "Add field filters to kan list",
   "type": "feature",
-  "updated_at_millis": 1792877546394,
+  "updated_at_millis": 1792878955192,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875238026},
     {"field":"column","value":"backlog-hi","at":1792875445428},
-    {"field":"column","value":"in-progress","at":1792877546394}
+    {"field":"column","value":"in-progress","at":1792877546394},
+    {"field":"column","value":"done","at":1792878955192}
   ]
 }
