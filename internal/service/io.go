@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 
@@ -11,14 +12,19 @@ import (
 
 // writeTOMLMap writes a map to a TOML file.
 func writeTOMLMap(path string, data map[string]any) error {
-	f, err := os.Create(path)
+	output, err := encodeTOMLMap(data)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	return os.WriteFile(path, output, 0644)
+}
 
-	encoder := toml.NewEncoder(f)
-	return encoder.Encode(data)
+func encodeTOMLMap(data map[string]any) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := toml.NewEncoder(&buf).Encode(data); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // writeBoardConfig writes a BoardConfig to a TOML file.
@@ -35,33 +41,38 @@ func writeBoardConfig(path string, cfg *model.BoardConfig) error {
 
 // writeJSONMap writes a map to an indented JSON file.
 func writeJSONMap(path string, data map[string]any) error {
-	output, err := json.MarshalIndent(data, "", "  ")
+	output, err := encodeJSONMap(data)
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(path, output, 0644)
 }
 
-// writeCardMap writes a migrated card map to disk in the same on-disk format
-// the store uses (model.Card.MarshalFile: pretty-printed, one compact line per
+// encodeJSONMap encodes a map as indented JSON.
+func encodeJSONMap(data map[string]any) ([]byte, error) {
+	return json.MarshalIndent(data, "", "  ")
+}
+
+// encodeCardMap encodes a migrated card map in the same on-disk format the
+// store uses (model.Card.MarshalFile: pretty-printed, one compact line per
 // history entry). This keeps migrated cards byte-identical to store-written
 // ones, so a migration doesn't produce verbose multi-line history that then
-// reformats on the card's next edit. Falls back to writeJSONMap if the map
+// reformats on the card's next edit. Falls back to encodeJSONMap if the map
 // can't be round-tripped through model.Card (e.g. malformed data mid-migration).
-func writeCardMap(path string, data map[string]any) error {
+func encodeCardMap(data map[string]any) ([]byte, error) {
 	raw, err := json.Marshal(data)
 	if err != nil {
-		return writeJSONMap(path, data)
+		return encodeJSONMap(data)
 	}
 	var card model.Card
 	if err := json.Unmarshal(raw, &card); err != nil {
-		return writeJSONMap(path, data)
+		return encodeJSONMap(data)
 	}
 	output, err := card.MarshalFile()
 	if err != nil {
-		return writeJSONMap(path, data)
+		return encodeJSONMap(data)
 	}
-	return os.WriteFile(path, output, 0644)
+	return output, nil
 }
 
 // listBoards returns the names of all boards in the given paths.

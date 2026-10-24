@@ -150,18 +150,9 @@ func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
 					cardsToMigrate, board.BoardName, version.CurrentCardVersion)
 			}
 		} else {
-			if board.NeedsMigration {
-				if err := s.migrateBoardConfig(&board); err != nil {
-					return fmt.Errorf("failed to migrate board %q config: %w", board.BoardName, err)
-				}
-			}
-
-			for _, card := range board.Cards {
-				if card.FromVersion == card.ToVersion && !card.RemoveColumn {
-					continue
-				}
-				if err := s.migrateCard(&card); err != nil {
-					return fmt.Errorf("failed to migrate card %q: %w", card.CardID, err)
+			if board.NeedsMigration || cardsToMigrate > 0 {
+				if err := s.migrateBoard(&board, writeToDisk); err != nil {
+					return err
 				}
 			}
 
@@ -408,195 +399,6 @@ func (s *MigrateService) updateTOMLSchema(path, newSchema string) error {
 	return writeTOMLMap(path, raw)
 }
 
-func (s *MigrateService) migrateBoardConfig(plan *BoardMigration) error {
-	// Determine which migration path to use based on source version.
-	// Each step MUST update fromVersion after success to allow chaining
-	// to the next migration. Using "return nil" instead will silently
-	// break migration for any version before the current one.
-	fromVersion := 0
-	if plan.FromSchema != "" {
-		v, err := version.ParseBoardVersion(plan.FromSchema)
-		if err == nil {
-			fromVersion = v
-		}
-	}
-
-	// v0 or missing → v1: just prepend schema
-	// v1 → v2: convert labels to custom fields
-	// v2 → v3: just update schema (pattern_hooks is optional, no structural changes)
-	// v3 → v4: just update schema (wanted fields are optional)
-	// v4 → v5: rename tags to enum-set
-	if fromVersion == 0 && version.CurrentBoardVersion == 1 {
-		return s.prependTOMLField(plan.ConfigPath, "kan_schema", plan.ToSchema)
-	}
-
-	if fromVersion <= 1 && version.CurrentBoardVersion >= 2 {
-		if err := s.migrateBoardV1ToV2(plan.ConfigPath); err != nil {
-			return err
-		}
-		fromVersion = 2
-	}
-
-	// v2/v3 → v4: schema-only update
-	if fromVersion >= 2 && fromVersion <= 3 && version.CurrentBoardVersion >= 4 {
-		if err := s.updateBoardSchema(plan.ConfigPath, version.FormatBoardSchema(4)); err != nil {
-			return err
-		}
-		fromVersion = 4
-	}
-
-	// v4 → v5: rename tags to enum-set
-	if fromVersion == 4 && version.CurrentBoardVersion >= 5 {
-		if err := s.migrateBoardV4ToV5(plan.ConfigPath); err != nil {
-			return err
-		}
-		fromVersion = 5
-	}
-
-	// v5 → v6: schema-only (adds optional description fields to custom fields/options)
-	if fromVersion == 5 && version.CurrentBoardVersion >= 6 {
-		if err := s.updateBoardSchema(plan.ConfigPath, version.FormatBoardSchema(6)); err != nil {
-			return err
-		}
-		fromVersion = 6
-	}
-
-	// v6 → v7: schema-only (adds optional description field to columns)
-	if fromVersion == 6 && version.CurrentBoardVersion >= 7 {
-		if err := s.updateBoardSchema(plan.ConfigPath, version.FormatBoardSchema(7)); err != nil {
-			return err
-		}
-		fromVersion = 7
-	}
-
-	// v7 → v8: schema-only (adds optional limit field to columns)
-	if fromVersion == 7 && version.CurrentBoardVersion >= 8 {
-		if err := s.updateBoardSchema(plan.ConfigPath, version.FormatBoardSchema(8)); err != nil {
-			return err
-		}
-		fromVersion = 8
-	}
-
-	// v8 → v9: schema-only (adds boolean custom field type)
-	if fromVersion == 8 && version.CurrentBoardVersion >= 9 {
-		if err := s.updateBoardSchema(plan.ConfigPath, version.FormatBoardSchema(9)); err != nil {
-			return err
-		}
-		fromVersion = 9
-	}
-
-	if fromVersion == 9 && version.CurrentBoardVersion >= 10 {
-		if err := s.migrateBoardV9ToV10(plan); err != nil {
-			return err
-		}
-		fromVersion = 10
-	}
-
-	// Fallback for unknown versions: just update the schema
-	if fromVersion < version.CurrentBoardVersion {
-		return s.updateBoardSchema(plan.ConfigPath, plan.ToSchema)
-	}
-
-	return nil
-}
-
-// updateBoardSchema updates only the kan_schema field in a board config file.
-func (s *MigrateService) updateBoardSchema(path, newSchema string) error {
-	return s.updateTOMLSchema(path, newSchema)
-}
-
-// migrateBoardV1ToV2 converts a v1 board config to v2 format.
-// This involves converting [[labels]] to [custom_fields.labels] with type="tags"
-// and adding a [card_display] section.
-// Note: "tags" is the historical v2 type name. Later migrations (v4->v5)
-// rename it to "enum-set".
-func (s *MigrateService) migrateBoardV1ToV2(path string) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	var raw map[string]any
-	if _, err := toml.Decode(string(data), &raw); err != nil {
-		return fmt.Errorf("invalid TOML: %w", err)
-	}
-
-	// Set to v2 - subsequent migrations will bump further
-	raw["kan_schema"] = version.FormatBoardSchema(2)
-
-	// Convert labels to custom field
-	hasLabels := false
-	if labels, ok := raw["labels"].([]map[string]any); ok && len(labels) > 0 {
-		hasLabels = true
-		options := make([]map[string]any, 0, len(labels))
-		for _, lbl := range labels {
-			opt := map[string]any{
-				"value": lbl["name"],
-			}
-			if color, ok := lbl["color"].(string); ok && color != "" {
-				opt["color"] = color
-			}
-			options = append(options, opt)
-		}
-
-		// Create or update custom_fields
-		customFields, _ := raw["custom_fields"].(map[string]any)
-		if customFields == nil {
-			customFields = make(map[string]any)
-		}
-		customFields["labels"] = map[string]any{
-			"type":    "tags",
-			"options": options,
-		}
-		raw["custom_fields"] = customFields
-
-		// Remove old labels section
-		delete(raw, "labels")
-	}
-
-	// Add card_display if we had labels
-	if hasLabels {
-		if _, ok := raw["card_display"]; !ok {
-			raw["card_display"] = map[string]any{
-				"badges": []string{"labels"},
-			}
-		}
-	}
-
-	return writeTOMLMap(path, raw)
-}
-
-// migrateBoardV4ToV5 renames custom field type "tags" to "enum-set".
-func (s *MigrateService) migrateBoardV4ToV5(path string) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	var raw map[string]any
-	if _, err := toml.Decode(string(data), &raw); err != nil {
-		return fmt.Errorf("invalid TOML: %w", err)
-	}
-
-	// Update schema version to v5 (not CurrentBoardSchema - each step writes its own target)
-	raw["kan_schema"] = version.FormatBoardSchema(5)
-
-	// Rename type = "tags" to type = "enum-set" in custom_fields
-	if customFields, ok := raw["custom_fields"].(map[string]any); ok {
-		for _, fieldDef := range customFields {
-			if fieldMap, ok := fieldDef.(map[string]any); ok {
-				if fieldMap["type"] == "tags" {
-					fieldMap["type"] = "enum-set"
-				}
-			}
-		}
-	}
-
-	return writeTOMLMap(path, raw)
-}
-
-// writeTOML writes a map to a TOML file.
-
 // prependTOMLField adds a field at the top of a TOML file, preserving existing formatting.
 // This avoids scrambling field order that would happen with decode/encode round-trip.
 func (s *MigrateService) prependTOMLField(path, key, value string) error {
@@ -611,43 +413,336 @@ func (s *MigrateService) prependTOMLField(path, key, value string) error {
 	return os.WriteFile(path, []byte(newContent), 0644)
 }
 
-func (s *MigrateService) migrateCard(plan *CardMigration) error {
-	data, err := os.ReadFile(plan.Path)
+// writeFunc receives each file a migration changed. Writing to disk and
+// collecting the files in memory are its two implementations, which is how
+// every migration step serves both `kan migrate` and read-only commands.
+type writeFunc func(path string, data []byte) error
+
+func writeToDisk(path string, data []byte) error {
+	return os.WriteFile(path, data, 0644)
+}
+
+// rawBoard is a board's config and cards as decoded from disk, before any
+// schema validation. Migration steps transform it in place.
+type rawBoard struct {
+	name       string
+	configPath string
+	cardsDir   string
+	config     map[string]any
+	cards      []*rawCard
+}
+
+// rawCard is one card file's decoded JSON. Steps set changed when they
+// modify data, so only those files are written.
+type rawCard struct {
+	path    string
+	data    map[string]any
+	changed bool
+}
+
+func (b *rawBoard) card(path string) *rawCard {
+	for _, c := range b.cards {
+		if c.path == path {
+			return c
+		}
+	}
+	return nil
+}
+
+func (s *MigrateService) loadRawBoard(boardName string) (*rawBoard, error) {
+	b := &rawBoard{
+		name:       boardName,
+		configPath: s.paths.BoardConfigPath(boardName),
+		cardsDir:   s.paths.CardsDir(boardName),
+	}
+
+	data, err := os.ReadFile(b.configPath)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := toml.Decode(string(data), &b.config); err != nil {
+		return nil, fmt.Errorf("invalid TOML: %w", err)
+	}
+
+	entries, err := os.ReadDir(b.cardsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return b, nil
+		}
+		return nil, err
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		path := filepath.Join(b.cardsDir, entry.Name())
+		cardData, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		var raw map[string]any
+		if err := json.Unmarshal(cardData, &raw); err != nil {
+			return nil, fmt.Errorf("invalid JSON in %s: %w", entry.Name(), err)
+		}
+		b.cards = append(b.cards, &rawCard{path: path, data: raw})
+	}
+	return b, nil
+}
+
+// migrateBoard applies a board's planned migrations and passes the board
+// config and each card that changed to write.
+func (s *MigrateService) migrateBoard(plan *BoardMigration, write writeFunc) error {
+	b, err := s.loadRawBoard(plan.BoardName)
 	if err != nil {
 		return err
 	}
 
-	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
+	if plan.NeedsMigration {
+		if err := migrateBoardRaw(b, plan.FromVersion()); err != nil {
+			return fmt.Errorf("failed to migrate board %q config: %w", plan.BoardName, err)
+		}
 	}
+
+	for _, cardPlan := range plan.Cards {
+		if cardPlan.FromVersion == cardPlan.ToVersion && !cardPlan.RemoveColumn {
+			continue
+		}
+		if c := b.card(cardPlan.Path); c != nil {
+			migrateCardRaw(c, cardPlan)
+		}
+	}
+
+	if plan.NeedsMigration {
+		data, err := encodeTOMLMap(b.config)
+		if err != nil {
+			return fmt.Errorf("failed to encode board %q config: %w", plan.BoardName, err)
+		}
+		if err := write(b.configPath, data); err != nil {
+			return fmt.Errorf("failed to write board %q config: %w", plan.BoardName, err)
+		}
+	}
+
+	for _, c := range b.cards {
+		if !c.changed {
+			continue
+		}
+		data, err := encodeCardMap(c.data)
+		if err != nil {
+			return fmt.Errorf("failed to encode card %s: %w", filepath.Base(c.path), err)
+		}
+		if err := write(c.path, data); err != nil {
+			return fmt.Errorf("failed to write card %s: %w", filepath.Base(c.path), err)
+		}
+	}
+
+	return nil
+}
+
+// migrateBoardRaw runs every board step from fromVersion up to the current
+// board schema. Each step MUST update fromVersion after success to allow
+// chaining to the next one; returning early instead silently breaks
+// migration for every version before the current one.
+func migrateBoardRaw(b *rawBoard, fromVersion int) error {
+	// v0 or missing → v2: convert labels to custom fields
+	if fromVersion <= 1 && version.CurrentBoardVersion >= 2 {
+		boardV1ToV2(b)
+		fromVersion = 2
+	}
+
+	// v2/v3 → v4: schema-only (pattern_hooks and wanted fields are optional)
+	if fromVersion >= 2 && fromVersion <= 3 && version.CurrentBoardVersion >= 4 {
+		setBoardSchema(b, 4)
+		fromVersion = 4
+	}
+
+	if fromVersion == 4 && version.CurrentBoardVersion >= 5 {
+		boardV4ToV5(b)
+		fromVersion = 5
+	}
+
+	// v5 → v6: schema-only (adds optional description fields to custom fields/options)
+	if fromVersion == 5 && version.CurrentBoardVersion >= 6 {
+		setBoardSchema(b, 6)
+		fromVersion = 6
+	}
+
+	// v6 → v7: schema-only (adds optional description field to columns)
+	if fromVersion == 6 && version.CurrentBoardVersion >= 7 {
+		setBoardSchema(b, 7)
+		fromVersion = 7
+	}
+
+	// v7 → v8: schema-only (adds optional limit field to columns)
+	if fromVersion == 7 && version.CurrentBoardVersion >= 8 {
+		setBoardSchema(b, 8)
+		fromVersion = 8
+	}
+
+	// v8 → v9: schema-only (adds boolean custom field type)
+	if fromVersion == 8 && version.CurrentBoardVersion >= 9 {
+		setBoardSchema(b, 9)
+		fromVersion = 9
+	}
+
+	if fromVersion == 9 && version.CurrentBoardVersion >= 10 {
+		boardV9ToV10(b)
+		fromVersion = 10
+	}
+
+	// Every later version so far is schema-only, so the rest of the way is
+	// just a schema stamp. It must name the current version, not a fixed one,
+	// so a schema-only bump needs no step of its own.
+	if fromVersion < version.CurrentBoardVersion {
+		setBoardSchema(b, version.CurrentBoardVersion)
+	}
+
+	return nil
+}
+
+func setBoardSchema(b *rawBoard, v int) {
+	b.config["kan_schema"] = version.FormatBoardSchema(v)
+}
+
+// boardV1ToV2 converts [[labels]] to [custom_fields.labels] with type="tags"
+// and adds a [card_display] section.
+// Note: "tags" is the historical v2 type name. Later migrations (v4->v5)
+// rename it to "enum-set".
+func boardV1ToV2(b *rawBoard) {
+	raw := b.config
+	setBoardSchema(b, 2)
+
+	hasLabels := false
+	if labels, ok := raw["labels"].([]map[string]any); ok && len(labels) > 0 {
+		hasLabels = true
+		options := make([]map[string]any, 0, len(labels))
+		for _, lbl := range labels {
+			opt := map[string]any{
+				"value": lbl["name"],
+			}
+			if color, ok := lbl["color"].(string); ok && color != "" {
+				opt["color"] = color
+			}
+			options = append(options, opt)
+		}
+
+		customFields, _ := raw["custom_fields"].(map[string]any)
+		if customFields == nil {
+			customFields = make(map[string]any)
+		}
+		customFields["labels"] = map[string]any{
+			"type":    "tags",
+			"options": options,
+		}
+		raw["custom_fields"] = customFields
+
+		delete(raw, "labels")
+	}
+
+	if hasLabels {
+		if _, ok := raw["card_display"]; !ok {
+			raw["card_display"] = map[string]any{
+				"badges": []string{"labels"},
+			}
+		}
+	}
+}
+
+// boardV4ToV5 renames custom field type "tags" to "enum-set".
+func boardV4ToV5(b *rawBoard) {
+	setBoardSchema(b, 5)
+
+	if customFields, ok := b.config["custom_fields"].(map[string]any); ok {
+		for _, fieldDef := range customFields {
+			if fieldMap, ok := fieldDef.(map[string]any); ok {
+				if fieldMap["type"] == "tags" {
+					fieldMap["type"] = "enum-set"
+				}
+			}
+		}
+	}
+}
+
+// boardV9ToV10 moves card-column association from board config to card files.
+// For each column's card_ids, writes column + position to each card, then
+// strips card_ids from the board config.
+func boardV9ToV10(b *rawBoard) {
+	columns, _ := b.config["columns"].([]map[string]any)
+	if columns == nil {
+		// Try the TOML decoded format ([]any of map[string]any)
+		if rawCols, ok := b.config["columns"].([]any); ok {
+			for _, rc := range rawCols {
+				if m, ok := rc.(map[string]any); ok {
+					columns = append(columns, m)
+				}
+			}
+		}
+	}
+
+	for _, col := range columns {
+		colName, _ := col["name"].(string)
+		if colName == "" {
+			continue
+		}
+
+		var cardIDs []string
+		if ids, ok := col["card_ids"].([]any); ok {
+			for _, id := range ids {
+				if s, ok := id.(string); ok {
+					cardIDs = append(cardIDs, s)
+				}
+			}
+		}
+
+		positions := util.PositionInitial(len(cardIDs))
+
+		for i, cardID := range cardIDs {
+			c := b.card(filepath.Join(b.cardsDir, cardID+".json"))
+			if c == nil {
+				// Non-fatal: doctor reports the dangling reference.
+				fmt.Fprintf(os.Stderr, "Warning: could not update card %s: card file not found\n", cardID)
+				continue
+			}
+			c.data["column"] = colName
+			c.data["position"] = positions[i]
+			c.data["_v"] = version.CurrentCardVersion
+			c.changed = true
+		}
+	}
+
+	for _, col := range columns {
+		delete(col, "card_ids")
+	}
+
+	setBoardSchema(b, 10)
+}
+
+// migrateCardRaw brings one card up to plan.ToVersion.
+func migrateCardRaw(c *rawCard, plan CardMigration) {
+	raw := c.data
 
 	// Seed column history (card/3) if absent. Done before the already-at-target
-	// short-circuit below: the v9->v10 board migration runs first and can stamp
-	// _v to the current version (via writeCardColumnPosition) without seeding
-	// history, so the version delta alone can't tell us whether a card still
-	// needs its history seeded.
-	seeded := seedCardHistory(raw)
-
-	// Check if already at target version (e.g., v9->v10 board migration already
-	// bumped card files via writeCardColumnPosition). Still persist if we just
-	// seeded history.
-	if v, ok := raw["_v"].(float64); ok && int(v) == plan.ToVersion {
-		if seeded {
-			return writeCardMap(plan.Path, raw)
-		}
-		return nil
+	// short-circuit below: boardV9ToV10 runs first and can stamp _v to the
+	// current version without seeding history, so the version delta alone
+	// can't tell us whether a card still needs its history seeded.
+	if seedCardHistory(raw) {
+		c.changed = true
 	}
 
-	// Add/update version
+	// Already at target (e.g., boardV9ToV10 bumped it).
+	if v, ok := raw["_v"].(float64); ok && int(v) == plan.ToVersion {
+		return
+	}
+	if v, ok := raw["_v"].(int); ok && v == plan.ToVersion {
+		return
+	}
+
 	raw["_v"] = plan.ToVersion
 
 	// v0->v1: remove column field (moved to board config)
 	if plan.RemoveColumn {
 		delete(raw, "column")
 	}
-
-	return writeCardMap(plan.Path, raw)
+	c.changed = true
 }
 
 // seedCardHistory adds an initial column history entry (card/3) to a card map
@@ -681,91 +776,4 @@ func seedCardHistory(raw map[string]any) bool {
 		{"field": "column", "value": column, "at": at},
 	}
 	return true
-}
-
-// migrateBoardV9ToV10 moves card-column association from board config to card files.
-// For each column's card_ids, writes column + position to each card file,
-// then strips card_ids from the board config.
-func (s *MigrateService) migrateBoardV9ToV10(plan *BoardMigration) error {
-	// Read board config with card_ids still present
-	data, err := os.ReadFile(plan.ConfigPath)
-	if err != nil {
-		return err
-	}
-
-	var raw map[string]any
-	if _, err := toml.Decode(string(data), &raw); err != nil {
-		return fmt.Errorf("invalid TOML: %w", err)
-	}
-
-	// Extract column -> card_ids mapping before stripping
-	columns, _ := raw["columns"].([]map[string]any)
-	if columns == nil {
-		// Try the TOML decoded format ([]any of map[string]any)
-		if rawCols, ok := raw["columns"].([]any); ok {
-			for _, rc := range rawCols {
-				if m, ok := rc.(map[string]any); ok {
-					columns = append(columns, m)
-				}
-			}
-		}
-	}
-
-	// Write column + position to each card file
-	cardsDir := s.paths.CardsDir(plan.BoardName)
-	for _, col := range columns {
-		colName, _ := col["name"].(string)
-		if colName == "" {
-			continue
-		}
-
-		var cardIDs []string
-		if ids, ok := col["card_ids"].([]any); ok {
-			for _, id := range ids {
-				if s, ok := id.(string); ok {
-					cardIDs = append(cardIDs, s)
-				}
-			}
-		}
-
-		// Generate evenly-spaced positions for all cards in this column
-		positions := util.PositionInitial(len(cardIDs))
-
-		for i, cardID := range cardIDs {
-			cardPath := filepath.Join(cardsDir, cardID+".json")
-			if err := s.writeCardColumnPosition(cardPath, colName, positions[i]); err != nil {
-				// Non-fatal: card file might not exist (will be caught by doctor)
-				fmt.Fprintf(os.Stderr, "Warning: could not update card %s: %v\n", cardID, err)
-			}
-		}
-	}
-
-	// Strip card_ids from all columns in the board config
-	for _, col := range columns {
-		delete(col, "card_ids")
-	}
-
-	// Update schema version
-	raw["kan_schema"] = version.FormatBoardSchema(10)
-
-	return writeTOMLMap(plan.ConfigPath, raw)
-}
-
-// writeCardColumnPosition adds/updates column and position fields on a card JSON file.
-func (s *MigrateService) writeCardColumnPosition(path, column, position string) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-
-	raw["column"] = column
-	raw["position"] = position
-	raw["_v"] = version.CurrentCardVersion
-
-	return writeJSONMap(path, raw)
 }
