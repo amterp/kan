@@ -182,3 +182,22 @@ func TestCompletion_OlderProject_ListsCardsWithoutWriting(t *testing.T) {
 
 	assertProjectUnchanged(t, before, snapshotProject(t, root))
 }
+
+// A syntactically broken project config costs a warning, as it did before
+// the project config joined the migration plan; commands still run.
+func TestBrokenProjectConfig_CommandsStillRun(t *testing.T) {
+	root := openFixtureProject(t, "v15")
+	if err := os.WriteFile(filepath.Join(root, ".kan", "config.toml"), []byte("name = [unclosed\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, readOnly := range []bool{true, false} {
+		app, err := NewAppWithOptions(AppOptions{ReadOnly: readOnly})
+		if err != nil {
+			t.Fatalf("ReadOnly=%v: NewAppWithOptions: %v", readOnly, err)
+		}
+		if _, _, err := app.ResolveBoard("", false, forRead); err != nil {
+			t.Errorf("ReadOnly=%v: resolve board: %v", readOnly, err)
+		}
+	}
+}

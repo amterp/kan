@@ -150,3 +150,35 @@ func TestMigrateService_CardV3ToV4AndCurrentNoOp(t *testing.T) {
 		})
 	}
 }
+
+// Auto-migration runs quietly, but a custom field rename changes what the
+// user's data is called, so it is printed on that path too, both when
+// writing and when a read migrates in memory.
+func TestQuietMigration_PrintsRenames(t *testing.T) {
+	_, dir, cleanup := setupMigrationTest(t, "card4-collisions")
+	defer cleanup()
+	svc := NewQuietMigrateService(config.NewPaths(dir, ""))
+	var notices bytes.Buffer
+	svc.notices = &notices
+
+	plan, err := svc.PlanProject()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.MigrateInMemory(plan); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(notices.String(), "Custom field blocked_by on board \"main\"") || !strings.Contains(notices.String(), "renamed when the project is next migrated") {
+		t.Errorf("in-memory migration notices: %q", notices.String())
+	}
+
+	notices.Reset()
+	if err := svc.Execute(plan, false); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Renamed custom field blocked_by to x_blocked_by", "Renamed custom field related to x_related"} {
+		if !strings.Contains(notices.String(), want) {
+			t.Errorf("auto-migration notices lack %q: %q", want, notices.String())
+		}
+	}
+}

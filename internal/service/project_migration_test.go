@@ -5,9 +5,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/BurntSushi/toml"
+	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/version"
 )
 
@@ -162,5 +164,30 @@ func TestMigrateService_ProjectV2ToV3(t *testing.T) {
 	}
 	if _, ok := raw["favicon"].(map[string]any); !ok {
 		t.Errorf("favicon dropped: %v", raw["favicon"])
+	}
+}
+
+// Most commands don't need the project config, so a broken one is skipped
+// with a warning rather than stopping every command.
+func TestMigrateService_UnparseableProjectConfigIsSkipped(t *testing.T) {
+	_, tempDir, cleanup := setupMigrationTest(t, "v15")
+	defer cleanup()
+	path := filepath.Join(tempDir, ".kan", "config.toml")
+	if err := os.WriteFile(path, []byte("kan_schema = \"project/3\"\nname = [unclosed\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	svc := NewQuietMigrateService(config.NewPaths(tempDir, ""))
+	var notices bytes.Buffer
+	svc.notices = &notices
+
+	plan, err := svc.PlanProject()
+	if err != nil {
+		t.Fatalf("PlanProject: %v", err)
+	}
+	if plan.Project != nil {
+		t.Errorf("a broken project config should plan nothing: %+v", plan.Project)
+	}
+	if !strings.Contains(notices.String(), path) || !strings.Contains(notices.String(), "not valid TOML") {
+		t.Errorf("warning = %q", notices.String())
 	}
 }

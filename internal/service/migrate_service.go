@@ -24,18 +24,22 @@ import (
 type MigrateService struct {
 	paths  *config.Paths
 	output io.Writer
+	// notices receives what the user must see even when progress is
+	// quiet: a project config kan can't parse, and custom field renames.
+	notices io.Writer
 }
 
 // NewMigrateService creates a new migration service that writes progress
 // to stdout.
 func NewMigrateService(paths *config.Paths) *MigrateService {
-	return &MigrateService{paths: paths, output: os.Stdout}
+	return &MigrateService{paths: paths, output: os.Stdout, notices: os.Stdout}
 }
 
 // NewQuietMigrateService creates a migration service that suppresses
 // progress output. Used by auto-migration, which prints its own summary.
+// Notices still go to stderr.
 func NewQuietMigrateService(paths *config.Paths) *MigrateService {
-	return &MigrateService{paths: paths, output: io.Discard}
+	return &MigrateService{paths: paths, output: io.Discard, notices: os.Stderr}
 }
 
 // MigrationPlan describes what changes would be made during migration.
@@ -184,7 +188,7 @@ func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
 					return err
 				}
 				for _, field := range board.FieldRenames {
-					fmt.Fprintf(w, "Renamed custom field %s to x_%s on board %q\n", field, field, board.BoardName)
+					fmt.Fprintf(s.notices, "Renamed custom field %s to x_%s on board %q\n", field, field, board.BoardName)
 				}
 			}
 
@@ -230,6 +234,11 @@ func (s *MigrateService) MigrateInMemory(plan *MigrationPlan) (*store.Overlay, e
 		}
 		if err := s.migrateBoard(board, collect); err != nil {
 			return nil, err
+		}
+		for _, field := range board.FieldRenames {
+			fmt.Fprintf(s.notices, "Custom field %s on board %q in %s is read as x_%s; "+
+				"the field is renamed when the project is next migrated.\n",
+				field, board.BoardName, s.paths.ProjectRoot(), field)
 		}
 	}
 	return overlay, nil
@@ -411,9 +420,13 @@ func (s *MigrateService) planProjectMigration() (*ProjectMigration, error) {
 		return nil, err
 	}
 
+	// A broken project config used to cost only a warning; most commands
+	// don't need it. Skip its migration rather than stop every command.
 	var raw map[string]any
 	if _, err := toml.Decode(string(data), &raw); err != nil {
-		return nil, fmt.Errorf("invalid TOML in %s: %w", path, err)
+		fmt.Fprintf(s.notices, "Warning: %s is not valid TOML, so kan can't check or migrate its schema: %v. "+
+			"Commands that read project settings may fail until the file is fixed by hand.\n", path, err)
+		return nil, nil
 	}
 
 	plan := &ProjectMigration{Path: path, ToSchema: version.CurrentProjectSchema()}
