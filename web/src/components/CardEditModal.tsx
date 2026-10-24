@@ -253,7 +253,15 @@ export default function CardEditModal({ card, board, cards, onOpenCard, onSave, 
   }, [saving, hasChanges, title, performSave, onClose]);
 
   const handleOpenLinkedCard = async (id: string) => {
-    if (saving || id === card.id) return;
+    if (saving || commentSaving || id === card.id) return;
+    if (newCommentBody.trim()) {
+      setLinkError('Post or clear your comment before opening another card.');
+      return;
+    }
+    if (editingCommentId !== null) {
+      setLinkError('Save or cancel your comment edit before opening another card.');
+      return;
+    }
     if (hasChanges && !title.trim()) {
       setLinkError('Enter a title before opening another card.');
       titleRef.current?.focus();
@@ -626,7 +634,7 @@ export default function CardEditModal({ card, board, cards, onOpenCard, onSave, 
                         <button
                           type="button"
                           className="text-left text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50 break-words"
-                          disabled={saving}
+                          disabled={saving || commentSaving}
                           onClick={() => void handleOpenLinkedCard(blocker.id)}
                         >
                           {blocker.title}
@@ -651,7 +659,7 @@ export default function CardEditModal({ card, board, cards, onOpenCard, onSave, 
                       <button
                         type="button"
                         className="text-left text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50 break-words"
-                        disabled={saving}
+                        disabled={saving || commentSaving}
                         onClick={() => void handleOpenLinkedCard(blocked.id)}
                       >
                         {blocked.title}

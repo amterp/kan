@@ -158,4 +158,53 @@ describe('modal blockers', () => {
     await waitFor(() => expect(screen.getByLabelText('Location').textContent).toContain('card=waiter'));
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  it('keeps a new comment draft until it is posted or cleared', async () => {
+    const fetch = vi.fn(() => { throw new Error('unexpected fetch'); });
+    vi.stubGlobal('fetch', fetch);
+    renderModal([makeCard('source', { blocked_by: ['target'] }), makeCard('target', { title: 'Dependency' })]);
+    const draft = screen.getByPlaceholderText('Add a comment...') as HTMLTextAreaElement;
+    fireEvent.change(draft, { target: { value: 'Unposted comment' } });
+    const openTarget = within(screen.getByRole('region', { name: 'Blocked by' })).getByRole('button', { name: /Dependency/ });
+    fireEvent.click(openTarget);
+    expect(screen.getByRole('alert').textContent).toBe('Post or clear your comment before opening another card.');
+    expect(screen.getByLabelText('Location').textContent).toContain('card=source');
+    expect(draft.value).toBe('Unposted comment');
+    fireEvent.change(draft, { target: { value: '' } });
+    fireEvent.click(openTarget);
+    await waitFor(() => expect(screen.getByLabelText('Location').textContent).toContain('card=target'));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('keeps an existing comment edit until it is saved or canceled', async () => {
+    const source = makeCard('source', { blocked_by: ['target'], comments: [{ id: 'c1', body: 'Original comment', author: 'tester', created_at_millis: 0 }] });
+    renderModal([source, makeCard('target', { title: 'Dependency' })]);
+    fireEvent.click(screen.getByTitle('Edit comment'));
+    const draft = screen.getByPlaceholderText('Edit comment...') as HTMLTextAreaElement;
+    fireEvent.change(draft, { target: { value: 'Edited comment draft' } });
+    const openTarget = within(screen.getByRole('region', { name: 'Blocked by' })).getByRole('button', { name: /Dependency/ });
+    fireEvent.click(openTarget);
+    expect(screen.getByRole('alert').textContent).toBe('Save or cancel your comment edit before opening another card.');
+    expect(screen.getByLabelText('Location').textContent).toContain('card=source');
+    expect(draft.value).toBe('Edited comment draft');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel' })[0]);
+    fireEvent.click(openTarget);
+    await waitFor(() => expect(screen.getByLabelText('Location').textContent).toContain('card=target'));
+  });
+
+  it('waits for a comment post to finish before opening a linked card', async () => {
+    let finishPost: ((response: Response) => void) | undefined;
+    vi.stubGlobal('fetch', () => new Promise<Response>((resolve) => { finishPost = resolve; }));
+    renderModal([makeCard('source', { blocked_by: ['target'] }), makeCard('target', { title: 'Dependency' })]);
+    fireEvent.change(screen.getByPlaceholderText('Add a comment...'), { target: { value: 'New comment' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Comment' }));
+    const openTarget = within(screen.getByRole('region', { name: 'Blocked by' })).getByRole('button', { name: /Dependency/ });
+    expect((openTarget as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(openTarget);
+    expect(screen.getByLabelText('Location').textContent).toContain('card=source');
+    await act(async () => { finishPost?.(new Response(JSON.stringify({ id: 'new-comment', body: 'New comment', author: 'tester', created_at_millis: 0 }), { status: 200 })); });
+    await waitFor(() => expect((openTarget as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(openTarget);
+    await waitFor(() => expect(screen.getByLabelText('Location').textContent).toContain('card=target'));
+  });
 });

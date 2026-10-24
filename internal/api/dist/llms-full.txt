@@ -1668,6 +1668,8 @@ Cards show **Blocked** while any blocker has not reached a column categorized as
 
 Open a card to see **Blocked by** and **Blocks**. Click a card title in either list to open that card. Kan saves pending edits before switching; if saving fails, your edits stay open. Unavailable blockers show their stored reference. Links to another board stay blocked and show no card details here.
 
+Post or clear a new comment before switching cards. If you are editing a comment, save or cancel that edit first. Kan keeps comment drafts open until you finish them.
+
 Manage links from the CLI with `kan link`, `kan unlink`, or `kan add --blocked-by`. Related links do not affect the blocked marker. Link editing in the web UI is planned for a later release.
 
 ## Keyboard Shortcuts
