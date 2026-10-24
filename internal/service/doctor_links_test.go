@@ -380,3 +380,35 @@ func TestDoctorLinks_CyclesAncestorsCategoriesAndReady(t *testing.T) {
 		t.Fatal("manual repair changed card bytes")
 	}
 }
+
+func TestDoctorLinks_BoardFilterRetainsOverlappingCrossBoardCycles(t *testing.T) {
+	f := setupDoctorLinks(t)
+	f.board("alpha", "alpha-id")
+	f.board("beta", "beta-id")
+	for _, entry := range []struct {
+		board string
+		card  model.Card
+	}{
+		{"alpha", model.Card{ID: "a", Column: "backlog", Position: "a0", BlockedBy: []string{"b", "beta-id:c"}}},
+		{"alpha", model.Card{ID: "b", Column: "backlog", Position: "a1", BlockedBy: []string{"a"}}},
+		{"beta", model.Card{ID: "0-entry", Column: "backlog", Position: "a0", BlockedBy: []string{"alpha-id:a"}}},
+		{"beta", model.Card{ID: "c", Column: "backlog", Position: "a1", BlockedBy: []string{"alpha-id:b"}}},
+	} {
+		if err := f.svc.cardStore.Create(entry.board, &entry.card); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, board := range []string{"alpha", "beta", ""} {
+		report, err := f.doctor.Diagnose(board)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cycles := issuesWithCode(report, CodeBlockedByCycle)
+		if len(cycles) != 1 || (board != "" && cycles[0].Board != board) {
+			t.Fatalf("board %q lost its cyclic component: %+v", board, cycles)
+		}
+		if board == "beta" && (cycles[0].CardID != "c" || !strings.Contains(cycles[0].Message, "beta:c")) {
+			t.Fatalf("cycle path must include a card on the selected board: %+v", cycles)
+		}
+	}
+}

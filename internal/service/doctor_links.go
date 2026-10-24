@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -84,58 +85,9 @@ type doctorLinkNode struct {
 }
 
 func (s *DoctorService) checkBlockerCycles(report *DiagnosticReport, graph *LinkGraph, onlyBoard string) {
-	finished := map[doctorLinkNode]bool{}
-	active := map[doctorLinkNode]int{}
-	var path []doctorLinkNode
-	var visit func(doctorLinkNode)
-	visit = func(node doctorLinkNode) {
-		if index, exists := active[node]; exists {
-			cycle := path[index:]
-			anchor := cycle[0]
-			if onlyBoard != "" {
-				found := false
-				for _, member := range cycle {
-					if member.board == onlyBoard {
-						anchor, found = member, true
-						break
-					}
-				}
-				if !found {
-					return
-				}
-			}
-			refs := make([]string, 0, len(cycle)+1)
-			for _, member := range cycle {
-				refs = append(refs, member.board+":"+member.id)
-			}
-			refs = append(refs, node.board+":"+node.id)
-			report.Issues = append(report.Issues, Issue{
-				Severity: SeverityWarning, Code: CodeBlockedByCycle, Board: anchor.board,
-				CardID: anchor.id, Message: "Blocker cycle: " + strings.Join(refs, " -> "),
-			})
-			return
-		}
-		if finished[node] {
-			return
-		}
-		active[node] = len(path)
-		path = append(path, node)
-		card := graph.boards[node.board].cards[node.id]
-		seen := map[doctorLinkNode]bool{}
-		for _, ref := range card.BlockedBy {
-			result := graph.Resolve(node.board, ref)
-			if result.State == LinkFound {
-				target := doctorLinkNode{board: result.BoardName, id: result.Card.ID}
-				if !seen[target] {
-					seen[target] = true
-					visit(target)
-				}
-			}
-		}
-		path = path[:len(path)-1]
-		delete(active, node)
-		finished[node] = true
-	}
+	var nodes []doctorLinkNode
+	edges := map[doctorLinkNode][]doctorLinkNode{}
+	incoming := map[doctorLinkNode][]doctorLinkNode{}
 	for _, name := range graph.names {
 		cards, err := graph.Cards(name)
 		if err != nil {
@@ -144,9 +96,113 @@ func (s *DoctorService) checkBlockerCycles(report *DiagnosticReport, graph *Link
 		cards = append([]*model.Card(nil), cards...)
 		sort.Slice(cards, func(i, j int) bool { return cards[i].ID < cards[j].ID })
 		for _, card := range cards {
-			visit(doctorLinkNode{board: name, id: card.ID})
+			node := doctorLinkNode{board: name, id: card.ID}
+			nodes = append(nodes, node)
+			seen := map[doctorLinkNode]bool{}
+			for _, ref := range card.BlockedBy {
+				result := graph.Resolve(name, ref)
+				if result.State != LinkFound {
+					continue
+				}
+				target := doctorLinkNode{board: result.BoardName, id: result.Card.ID}
+				if !seen[target] {
+					seen[target] = true
+					edges[node] = append(edges[node], target)
+					incoming[target] = append(incoming[target], node)
+				}
+			}
 		}
 	}
+	// Find strongly connected components before filtering: a DFS back edge can
+	// omit other boards that participate in the same cyclic component.
+	visited := map[doctorLinkNode]bool{}
+	var order []doctorLinkNode
+	var finish func(doctorLinkNode)
+	finish = func(node doctorLinkNode) {
+		if visited[node] {
+			return
+		}
+		visited[node] = true
+		for _, target := range edges[node] {
+			finish(target)
+		}
+		order = append(order, node)
+	}
+	for _, node := range nodes {
+		finish(node)
+	}
+	visited = map[doctorLinkNode]bool{}
+	for i := len(order) - 1; i >= 0; i-- {
+		if visited[order[i]] {
+			continue
+		}
+		var component []doctorLinkNode
+		members := map[doctorLinkNode]bool{}
+		var collect func(doctorLinkNode)
+		collect = func(node doctorLinkNode) {
+			if visited[node] {
+				return
+			}
+			visited[node], members[node] = true, true
+			component = append(component, node)
+			for _, source := range incoming[node] {
+				collect(source)
+			}
+		}
+		collect(order[i])
+		if len(component) == 1 && !slices.Contains(edges[component[0]], component[0]) {
+			continue
+		}
+		sort.Slice(component, func(i, j int) bool {
+			if component[i].board != component[j].board {
+				return component[i].board < component[j].board
+			}
+			return component[i].id < component[j].id
+		})
+		for _, anchor := range component {
+			if onlyBoard != "" && anchor.board != onlyBoard {
+				continue
+			}
+			cycle := blockerCycleThrough(anchor, members, edges)
+			refs := make([]string, 0, len(cycle))
+			for _, node := range cycle {
+				refs = append(refs, node.board+":"+node.id)
+			}
+			report.Issues = append(report.Issues, Issue{
+				Severity: SeverityWarning, Code: CodeBlockedByCycle, Board: anchor.board,
+				CardID: anchor.id, Message: "Blocker cycle: " + strings.Join(refs, " -> "),
+			})
+			break
+		}
+	}
+}
+
+func blockerCycleThrough(anchor doctorLinkNode, members map[doctorLinkNode]bool, edges map[doctorLinkNode][]doctorLinkNode) []doctorLinkNode {
+	path := []doctorLinkNode{anchor}
+	visited := map[doctorLinkNode]bool{}
+	var find func(doctorLinkNode) bool
+	find = func(node doctorLinkNode) bool {
+		visited[node] = true
+		for _, target := range edges[node] {
+			if !members[target] {
+				continue
+			}
+			if target == anchor {
+				path = append(path, anchor)
+				return true
+			}
+			if !visited[target] {
+				path = append(path, target)
+				if find(target) {
+					return true
+				}
+				path = path[:len(path)-1]
+			}
+		}
+		return false
+	}
+	find(anchor)
+	return path
 }
 
 func (s *DoctorService) fixAbsentLink(issue Issue) error {
