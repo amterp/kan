@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/BurntSushi/toml"
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/store"
 	"github.com/amterp/kan/internal/version"
@@ -108,6 +109,88 @@ func TestMigrateService_CardV4ConflictsFailBeforeWrites(t *testing.T) {
 			}
 			if !bytes.Equal(before, readCardBytes(t, paths, "card-abc")) {
 				t.Fatal("failed plan changed card bytes")
+			}
+		})
+	}
+}
+
+func TestMigrateService_CardV4ResumesPartialRenames(t *testing.T) {
+	for _, stage := range []string{"board", "card", "mixed"} {
+		t.Run(stage, func(t *testing.T) {
+			svc, dir, cleanup := setupMigrationTest(t, "card4-collisions")
+			defer cleanup()
+			paths := config.NewPaths(dir, "")
+			if stage != "card" {
+				var cfg map[string]any
+				if _, err := toml.DecodeFile(paths.BoardConfigPath("main"), &cfg); err != nil {
+					t.Fatal(err)
+				}
+				fields := cfg["custom_fields"].(map[string]any)
+				for _, name := range []string{"blocked_by", "related"} {
+					fields["x_"+name] = fields[name]
+					delete(fields, name)
+				}
+				if err := writeTOMLMap(paths.BoardConfigPath("main"), cfg); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if stage != "board" {
+				var raw map[string]any
+				if err := json.Unmarshal(readCardBytes(t, paths, "card-abc"), &raw); err != nil {
+					t.Fatal(err)
+				}
+				for _, name := range []string{"blocked_by", "related"} {
+					raw["x_"+name] = raw[name]
+					delete(raw, name)
+				}
+				if err := writeJSONMap(paths.CardPath("main", "card-abc"), raw); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if stage == "mixed" {
+				var raw map[string]any
+				if err := json.Unmarshal(readCardBytes(t, paths, "child"), &raw); err != nil {
+					t.Fatal(err)
+				}
+				raw["blocked_by"] = "child waiting"
+				raw["related"] = []string{"child annotation"}
+				if err := writeJSONMap(paths.CardPath("main", "child"), raw); err != nil {
+					t.Fatal(err)
+				}
+			}
+			plan, err := svc.PlanProject()
+			if err != nil {
+				t.Fatal(err)
+			}
+			before := readCardBytes(t, paths, "card-abc")
+			overlay, err := svc.MigrateInMemory(plan)
+			if err != nil || !bytes.Equal(before, readCardBytes(t, paths, "card-abc")) {
+				t.Fatalf("overlay failed or wrote to disk: %v", err)
+			}
+			if err := svc.Execute(plan, false); err != nil {
+				t.Fatal(err)
+			}
+			card, err := store.NewCardStore(paths).Get("main", "card-abc")
+			if err != nil || card.CustomFields["x_blocked_by"] != "waiting" || len(card.BlockedBy)+len(card.Related) != 0 {
+				t.Fatalf("partial rename lost data: %+v, %v", card, err)
+			}
+			if stage == "mixed" {
+				child, err := store.NewCardStore(paths).Get("main", "child")
+				if err != nil || child.CustomFields["x_blocked_by"] != "child waiting" {
+					t.Fatalf("remaining card value was not renamed: %+v, %v", child, err)
+				}
+			}
+			for _, path := range []string{paths.BoardConfigPath("main"), paths.CardPath("main", "card-abc"), paths.CardPath("main", "child")} {
+				if expected, ok := overlay.Get(path); ok {
+					actual, err := os.ReadFile(path)
+					if err != nil || !bytes.Equal(expected, actual) {
+						t.Fatalf("overlay and disk differ at %s: %v", path, err)
+					}
+				}
+			}
+			plan, err = svc.PlanProject()
+			if err != nil || plan.HasChanges() {
+				t.Fatalf("resumed migration was not idempotent: %+v, %v", plan, err)
 			}
 		})
 	}

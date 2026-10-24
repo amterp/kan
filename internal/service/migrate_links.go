@@ -20,7 +20,10 @@ func migrateLinksRaw(b *rawBoard) ([]string, bool, error) {
 	definitions, _ := b.config["custom_fields"].(map[string]any)
 	var renames []string
 	for _, name := range []string{"blocked_by", "related"} {
-		_, collision := definitions[name]
+		destination := "x_" + name
+		_, sourceDefinition := definitions[name]
+		_, destinationDefinition := definitions[destination]
+		collision := sourceDefinition || destinationDefinition
 		for _, card := range b.cards {
 			if rawCardVersion(card.data) < 4 {
 				if _, exists := card.data[name]; exists {
@@ -31,12 +34,13 @@ func migrateLinksRaw(b *rawBoard) ([]string, bool, error) {
 		if !collision {
 			continue
 		}
-		destination := "x_" + name
-		if _, exists := definitions[destination]; exists {
+		if sourceDefinition && destinationDefinition {
 			return nil, false, fmt.Errorf("board %q: cannot rename custom field %s to %s: destination already exists", b.name, name, destination)
 		}
 		for _, card := range b.cards {
-			if _, exists := card.data[destination]; exists {
+			_, source := card.data[name]
+			_, target := card.data[destination]
+			if rawCardVersion(card.data) < 4 && source && target {
 				return nil, false, fmt.Errorf("board %q: cannot rename custom field %s to %s: destination already exists in a card", b.name, name, destination)
 			}
 		}
