@@ -57,6 +57,7 @@ func (s *FileBoardStore) Create(cfg *model.BoardConfig) error {
 }
 
 // Get reads the board config from disk.
+// A future schema returns only its identity together with the schema error.
 func (s *FileBoardStore) Get(boardName string) (*model.BoardConfig, error) {
 	path := s.paths.BoardConfigPath(boardName)
 	data, err := s.readFile(path)
@@ -68,6 +69,17 @@ func (s *FileBoardStore) Get(boardName string) (*model.BoardConfig, error) {
 	}
 
 	var cfg model.BoardConfig
+	var envelope struct {
+		ID     string `toml:"id"`
+		Name   string `toml:"name"`
+		Schema string `toml:"kan_schema"`
+	}
+	if err := toml.Unmarshal(data, &envelope); err != nil {
+		return nil, fmt.Errorf("invalid board config: %w", err)
+	}
+	if version.IsFutureBoardSchema(envelope.Schema) {
+		return &model.BoardConfig{ID: envelope.ID, Name: envelope.Name, KanSchema: envelope.Schema}, version.InvalidBoardSchema(path, envelope.Schema)
+	}
 	if err := toml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("invalid board config: %w", err)
 	}

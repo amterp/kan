@@ -52,6 +52,7 @@ type CommandContext struct {
 	AddBoard       *string
 	AddColumn      *string
 	AddParent      *string
+	AddBlockedBy   *[]string
 	AddPosition    *int
 	AddTop         *bool
 	AddBottom      *bool
@@ -66,6 +67,18 @@ type CommandContext struct {
 	ShowCard   *string
 	ShowBoard  *string
 	ShowGlobal *bool
+
+	LinkUsed      *bool
+	LinkCard      *string
+	LinkBoard     *string
+	LinkGlobal    *bool
+	LinkBlockedBy *[]string
+	LinkRelated   *[]string
+	UnlinkUsed    *bool
+	UnlinkCard    *string
+	UnlinkBoard   *string
+	UnlinkGlobal  *bool
+	UnlinkRefs    *[]string
 
 	// history command
 	HistoryUsed   *bool
@@ -282,6 +295,8 @@ func buildRootCmd() *CommandContext {
 	registerColumn(cmd, ctx)
 	registerComment(cmd, ctx)
 	registerAdd(cmd, ctx)
+	registerLink(cmd, ctx)
+	registerUnlink(cmd, ctx)
 	registerDelete(cmd, ctx)
 	registerShow(cmd, ctx)
 	registerHistory(cmd, ctx)
@@ -369,7 +384,12 @@ func executeCommand(ctx *CommandContext) {
 	case *ctx.AddUsed:
 		runAdd(*ctx.AddTitle, *ctx.AddDescription, *ctx.AddBoard, *ctx.AddColumn, *ctx.AddParent,
 			placementFrom(ctx, ctx.AddPosition, ctx.AddTop, ctx.AddBottom, ctx.AddBefore, ctx.AddAfter),
-			*ctx.AddFields, *ctx.AddStrict, *ctx.AddGlobal, *ctx.NonInteractive, *ctx.Json)
+			*ctx.AddFields, *ctx.AddBlockedBy, *ctx.AddStrict, *ctx.AddGlobal, *ctx.NonInteractive, *ctx.Json)
+
+	case *ctx.LinkUsed:
+		runLink(*ctx.LinkCard, *ctx.LinkBoard, *ctx.LinkBlockedBy, *ctx.LinkRelated, *ctx.LinkGlobal, *ctx.NonInteractive, *ctx.Json)
+	case *ctx.UnlinkUsed:
+		runUnlink(*ctx.UnlinkCard, *ctx.UnlinkBoard, *ctx.UnlinkRefs, *ctx.UnlinkGlobal, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.DeleteUsed:
 		runDelete(*ctx.DeleteCard, *ctx.DeleteBoard, *ctx.DeleteGlobal, *ctx.NonInteractive)

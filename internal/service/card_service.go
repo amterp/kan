@@ -47,6 +47,7 @@ type AddCardInput struct {
 	Description  string
 	Column       string
 	Parent       string
+	BlockedBy    []string
 	Creator      string
 	CustomFields map[string]string // custom fields to set (parsed from key=value)
 
@@ -87,10 +88,16 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 		return nil, nil, err // Already wrapped with proper error type by store
 	}
 
-	allCards, err := s.cardStore.List(input.BoardName)
+	var listing store.CardListing
+	if len(input.BlockedBy) > 0 {
+		listing, err = s.cardStore.ListWithDiagnostics(input.BoardName)
+	} else {
+		listing.Cards, err = s.cardStore.List(input.BoardName)
+	}
 	if err != nil {
 		return nil, nil, err
 	}
+	allCards := listing.Cards
 	parents := newParentGraph(allCards)
 	parentID, err := parents.validate("", input.Parent, "")
 	if err != nil {
@@ -158,10 +165,23 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 	}
 
 	const maxAttempts = 5
+	var links *LinkGraph
+	linkService := NewLinkService(s.cardStore, s.boardStore)
+	if len(input.BlockedBy) > 0 {
+		links, err = loadLinkGraph(s.boardStore, s.cardStore, input.BoardName, boardCfg, listing)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		if parents.cards[card.ID] == nil {
 			if _, err := parents.validate(card.ID, parentID, card.Alias); err != nil {
 				return nil, nil, err
+			}
+			if links != nil {
+				if err := linkService.Prepare(links, input.BoardName, card, input.BlockedBy, nil); err != nil {
+					return nil, nil, err
+				}
 			}
 		}
 		err := s.cardStore.Create(input.BoardName, card)

@@ -204,6 +204,7 @@ kan add "Update docs" "Description goes here"
 | `-b, --board`  | Target board                                  |
 | `-c, --column` | Target column                                 |
 | `-p, --parent` | Parent card ID or alias                       |
+| `--blocked-by` | Blocking card IDs or aliases (repeatable or variadic) |
 | `--position`   | Insert at index (0 = top, -1 = end, negatives count from end) |
 | `--top`        | Insert at the top of the column                |
 | `--bottom`     | Insert at the bottom of the column             |
@@ -258,6 +259,41 @@ always wins over fuzzy. This applies to `show`, `history`, `edit`, `delete`, and
 |----------------|------------------------------------------------------------|
 | `-b, --board`  | Board name                                                 |
 | `-g, --global` | Target the designated global board (see [global](#global)) |
+
+### link
+
+Add blockers or related cards. References accept card IDs, aliases, or an
+unambiguous partial match on the same board, and are stored as card IDs.
+
+```bash
+kan link deploy --blocked-by tests review
+kan link deploy --related rollout
+kan add "Deploy" --blocked-by tests
+```
+
+`--blocked-by` and `--related` accept multiple values and can be repeated. At
+least one is required. Blocker cycles and blockers that name a card's ancestor
+are rejected before writing. Related links do not block work. Adding an existing
+link is a no-op. Adding a reference to another board is not supported yet.
+
+### unlink
+
+Remove references from both the blocker and related lists.
+
+```bash
+kan unlink deploy tests rollout
+kan unlink deploy deleted-id
+```
+
+Stored strings match first, so a dangling reference can be removed even when its
+target cannot be found. Otherwise references resolve as card IDs or aliases.
+Removing a link that is already absent is a no-op.
+
+Both commands accept `-b/--board`, `-g/--global`, and `--json`. `show` lists
+blockers with their columns and categories, cards that wait on this one, and
+related cards. Unresolved references show their lookup state and reason. A missing
+card is reported as absent only after its board was read completely. JSON keeps
+`blocked_by` and `related` inside the existing card object.
 
 ### history
 

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/amterp/kan/internal/model"
+	"github.com/amterp/kan/internal/service"
 	"github.com/amterp/kan/internal/util"
 	"github.com/amterp/ra"
 )
@@ -75,6 +76,39 @@ func runShow(idOrAlias, board string, global, jsonOutput bool) {
 		}
 	}
 	printCard(card, colColor, boardName, result.MultipleBoards)
+	links, err := service.LoadLinkGraph(app.BoardStore, app.CardStore)
+	if err != nil {
+		Fatal(err)
+	}
+	printCardLinks(links, boardName, card)
+}
+
+func printCardLinks(links *service.LinkGraph, boardName string, card *model.Card) {
+	printLinks := func(label string, results []service.LinkLookup) {
+		if len(results) == 0 {
+			return
+		}
+		fmt.Printf("\n%s:\n", label)
+		for _, result := range results {
+			if result.State != service.LinkFound {
+				fmt.Printf("  %s: %s (%s)\n", result.Ref, result.State, result.Reason)
+				continue
+			}
+			state := "uncategorized"
+			if result.Column != nil && result.Column.Category != "" {
+				state = result.Column.Category
+			}
+			fmt.Printf("  %s  %s (%s, %s)\n", result.Card.ID, result.Card.Title, result.Card.Column, state)
+		}
+	}
+	printLinks("Blocked by", links.Blockers(boardName, card))
+	printLinks("Blocks", links.Blocks(boardName, card.ID))
+	var related []service.LinkLookup
+	for _, ref := range card.Related {
+		related = append(related, links.Resolve(boardName, ref))
+	}
+	printLinks("Related", related)
+	printLinks("Related to this card", links.RelatedTo(boardName, card.ID))
 }
 
 func printCard(card *model.Card, colColor, boardName string, multipleBoards bool) {

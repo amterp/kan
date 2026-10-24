@@ -55,8 +55,16 @@ func (r *CardResolver) Resolve(boardName, idOrAlias string) (*model.Card, error)
 	if err != nil {
 		return nil, err
 	}
+	return ResolveInCards(cards, idOrAlias)
+}
 
-	// 3. Exact alias.
+// ResolveInCards applies command argument matching to a previously loaded board.
+func ResolveInCards(cards []*model.Card, idOrAlias string) (*model.Card, error) {
+	for _, card := range cards {
+		if card.ID == idOrAlias {
+			return card, nil
+		}
+	}
 	for _, c := range cards {
 		if c.Alias != "" && c.Alias == idOrAlias {
 			return c, nil

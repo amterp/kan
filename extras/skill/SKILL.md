@@ -338,6 +338,7 @@ kan add "Buy milk" -g                            # Add to the global board from 
 | `-b, --board` | Target board |
 | `-c, --column` | Target column |
 | `-p, --parent` | Parent card ID or alias |
+| `--blocked-by` | Blocking card IDs or aliases (repeatable or variadic) |
 | `--position` | Insert at index (0 = top, -1 = end, negatives count from end) |
 | `--top` | Insert at the top of the column |
 | `--bottom` | Insert at the bottom of the column |
@@ -385,6 +386,20 @@ always wins over fuzzy. This applies to `show`, `history`, `edit`, `delete`, and
 `kan show` also displays how long the card has been in its current column
 (e.g. `Column: review (3 days)`), tracked natively by Kan rather than inferred
 from VCS commits.
+
+## Linking Cards
+
+```bash
+kan link deploy --blocked-by tests review   # Wait for both cards
+kan link deploy --related rollout           # Add an annotation
+kan add "Deploy" --blocked-by tests         # Create with blockers
+kan unlink deploy tests rollout             # Remove refs from both link lists
+kan unlink deploy deleted-id                # Remove a dangling stored ref
+```
+
+`link` accepts `--blocked-by` and `--related`, both repeatable or variadic. `link` and `unlink` accept `-b/--board`, `-g/--global`, and `--json`. Targets must be on the same board. Commands accept IDs or aliases and store IDs; cross-board additions are refused. Repeating a link or removing an absent link is a no-op.
+
+Blockers cannot form a cycle or name the card's own ancestor. Related links have no blocking effect. `unlink` matches the stored string first, then resolves an ID or alias, so deleted targets can be removed. `show` lists blockers with column/category or a lookup failure reason, reverse blockers, and related links. JSON keeps `blocked_by` and `related` inside the existing card object.
 
 ## Card History
 

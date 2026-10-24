@@ -50,6 +50,8 @@ func registerAdd(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.AddPosition, ctx.AddTop, ctx.AddBottom, ctx.AddBefore, ctx.AddAfter =
 		registerPlacementFlags(cmd, "Insert", "-c")
+	ctx.AddBlockedBy, _ = ra.NewStringSlice("blocked-by").SetOptional(true).SetFlagOnly(true).SetVariadic(true).
+		SetUsage("Cards that must finish first (repeatable)").SetCompletionFunc(completeCards).Register(cmd)
 
 	ctx.AddFields, _ = ra.NewStringSlice("field").
 		SetShort("f").
@@ -204,7 +206,7 @@ func resolvePlacement(app *App, boardName, excludeID string, p cardPlacement) (p
 	return position, beforeID, afterID, nil
 }
 
-func runAdd(title, description, board, column string, parentCard string, placement cardPlacement, fields []string, strict, global, nonInteractive, jsonOutput bool) {
+func runAdd(title, description, board, column string, parentCard string, placement cardPlacement, fields, blockedBy []string, strict, global, nonInteractive, jsonOutput bool) {
 	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, UseGlobalBoard: global})
 	if err != nil {
 		Fatal(err)
@@ -268,6 +270,7 @@ func runAdd(title, description, board, column string, parentCard string, placeme
 		Description:  description,
 		Column:       column,
 		Parent:       parentCard,
+		BlockedBy:    blockedBy,
 		Creator:      creatorName,
 		CustomFields: customFields,
 		Position:     position,

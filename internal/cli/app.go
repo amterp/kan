@@ -35,6 +35,7 @@ type App struct {
 	InitService   *service.InitService
 	BoardService  *service.BoardService
 	CardService   *service.CardService
+	LinkService   *service.LinkService
 	AliasService  *service.AliasService
 	HookService   *service.HookService
 	BoardResolver *resolver.BoardResolver
@@ -186,6 +187,7 @@ func NewAppWithOptions(opts AppOptions) (*App, error) {
 		InitService:      initService,
 		BoardService:     boardService,
 		CardService:      cardService,
+		LinkService:      service.NewLinkService(cardStore, boardStore),
 		AliasService:     aliasService,
 		HookService:      hookService,
 		BoardResolver:    boardResolver,

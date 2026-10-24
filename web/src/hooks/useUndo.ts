@@ -8,7 +8,7 @@ const MAX_UNDO_DEPTH = 20;
 const KNOWN_CARD_KEYS = new Set([
   'id', 'alias', 'alias_explicit', 'title', 'description',
   'column', 'parent', 'creator', 'created_at_millis', 'updated_at_millis',
-  'comments', 'missing_wanted_fields',
+  'comments', 'missing_wanted_fields', 'blocked_by', 'related',
 ]);
 
 export type UndoAction =
