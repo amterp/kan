@@ -399,8 +399,8 @@ func TestDoctorService_SchemaOutdated(t *testing.T) {
 		t.Fatalf("Diagnose failed: %v", err)
 	}
 
-	if report.Summary.Warnings != 1 {
-		t.Errorf("Expected 1 warning, got %d", report.Summary.Warnings)
+	if report.Summary.Warnings != 2 {
+		t.Errorf("Expected outdated board and card warnings, got %+v", report.Issues)
 	}
 
 	// Find the schema outdated issue

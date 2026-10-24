@@ -632,8 +632,8 @@ func (s *DoctorService) checkCardFile(report *DiagnosticReport, boardName, cardI
 		return nil
 	}
 
-	var card model.Card
-	if err := json.Unmarshal(data, &card); err != nil {
+	card, err := decodeDoctorCard(data)
+	if err != nil {
 		report.Issues = append(report.Issues, Issue{
 			Severity: SeverityError,
 			Code:     CodeMalformedCard,
@@ -644,13 +644,62 @@ func (s *DoctorService) checkCardFile(report *DiagnosticReport, boardName, cardI
 		})
 		return nil
 	}
+	if card.Version < version.CurrentCardVersion {
+		report.Issues = append(report.Issues, Issue{
+			Severity: SeverityWarning, Code: CodeSchemaOutdated, Board: boardName, CardID: cardID,
+			Message:   fmt.Sprintf("Card has schema card/%d, current is card/%d", card.Version, version.CurrentCardVersion),
+			FixAction: "Run 'kan migrate' to upgrade",
+		})
+	}
 	if card.ID != cardID {
 		report.Issues = append(report.Issues, Issue{
 			Severity: SeverityError, Code: CodeMalformedCard, Board: boardName, CardID: cardID,
 			Message: fmt.Sprintf("Stored card ID %q does not match file name %q", card.ID, cardID),
 		})
 	}
-	return &card
+	return card
+}
+
+func decodeDoctorCard(data []byte) (*model.Card, error) {
+	var header struct {
+		Version int `json:"_v"`
+	}
+	if err := json.Unmarshal(data, &header); err != nil {
+		return nil, err
+	}
+	legacy := map[string]json.RawMessage{}
+	if header.Version < 4 {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(data, &raw); err != nil {
+			return nil, err
+		}
+		for _, name := range []string{"blocked_by", "related"} {
+			if value, exists := raw[name]; exists {
+				legacy[name] = value
+				delete(raw, name)
+			}
+		}
+		var err error
+		data, err = json.Marshal(raw)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var card model.Card
+	if err := json.Unmarshal(data, &card); err != nil {
+		return nil, err
+	}
+	for name, raw := range legacy {
+		var value any
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return nil, err
+		}
+		if card.CustomFields == nil {
+			card.CustomFields = map[string]any{}
+		}
+		card.CustomFields[name] = value
+	}
+	return &card, nil
 }
 
 func (s *DoctorService) checkParentRefs(report *DiagnosticReport, boardName string, cardFiles map[string]bool, rawCards map[string]*model.Card) {
@@ -717,12 +766,12 @@ func (s *DoctorService) checkWantedFields(report *DiagnosticReport, boardName st
 			continue // Already reported in checkCardFile
 		}
 
-		var card model.Card
-		if err := json.Unmarshal(data, &card); err != nil {
+		card, err := decodeDoctorCard(data)
+		if err != nil {
 			continue // Already reported in checkCardFile
 		}
 
-		missing := CheckWantedFields(&card, boardCfg)
+		missing := CheckWantedFields(card, boardCfg)
 		if len(missing) > 0 {
 			fieldNames := make([]string, len(missing))
 			for i, mf := range missing {

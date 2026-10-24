@@ -80,6 +80,48 @@ func issuesWithCode(report *DiagnosticReport, code string) []Issue {
 	return found
 }
 
+func TestDoctorLinks_LegacyCustomLinksDoNotHideParents(t *testing.T) {
+	for _, value := range []string{`"waiting"`, `["custom", "values"]`, `{"custom":true}`} {
+		t.Run(value, func(t *testing.T) {
+			f := setupDoctorLinks(t)
+			parent := addIntegrityCard(t, f.svc, "Parent", "")
+			f.source.Parent = parent.Alias
+			f.save()
+			before := map[string][]byte{}
+			for _, id := range []string{parent.ID, f.source.ID} {
+				var raw map[string]json.RawMessage
+				if err := json.Unmarshal(readCardBytes(t, f.paths, id), &raw); err != nil {
+					t.Fatal(err)
+				}
+				raw["_v"], raw["blocked_by"], raw["related"] = json.RawMessage(`3`), json.RawMessage(value), json.RawMessage(value)
+				data, err := json.Marshal(raw)
+				if err != nil {
+					t.Fatal(err)
+				}
+				f.write(f.paths.CardPath("main", id), string(data))
+				before[id] = data
+			}
+			report := f.diagnose()
+			if len(issuesWithCode(report, CodeMalformedCard)) != 0 || len(issuesWithCode(report, CodeInvalidParentRef)) != 0 || len(issuesWithCode(report, CodeSchemaOutdated)) != 2 {
+				t.Fatalf("legacy custom values produced false diagnostics: %+v", report.Issues)
+			}
+			for id, data := range before {
+				if !bytes.Equal(data, readCardBytes(t, f.paths, id)) {
+					t.Fatal("read-only diagnosis changed legacy card")
+				}
+			}
+			var raw map[string]json.RawMessage
+			_ = json.Unmarshal(before[f.source.ID], &raw)
+			raw["parent"] = json.RawMessage(`"genuinely-missing"`)
+			data, _ := json.Marshal(raw)
+			f.write(f.paths.CardPath("main", f.source.ID), string(data))
+			if len(issuesWithCode(f.diagnose(), CodeInvalidParentRef)) != 1 {
+				t.Fatal("tolerant decoding hid a genuine missing parent")
+			}
+		})
+	}
+}
+
 func TestDoctorLinks_States(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
