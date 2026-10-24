@@ -50,6 +50,11 @@ type AppOptions struct {
 	// UseGlobalBoard bypasses cwd discovery and targets the designated global
 	// board's project instead (see `kan global set`). Errors if none is set.
 	UseGlobalBoard bool
+	// ReadOnly marks a command that only reads. Kan then writes nothing
+	// under the project: older schemas are migrated in memory, a missing
+	// project config is not created, and the stores refuse writes. The
+	// global config may still be written (registration, its own migration).
+	ReadOnly bool
 }
 
 // NewApp creates a new App with all dependencies wired up.
@@ -135,23 +140,12 @@ func NewAppWithOptions(opts AppOptions) (*App, error) {
 		// projectRoot may be empty - that's OK, RequireKan() will catch it
 	}
 
-	// Auto-migrate project data before creating stores (which do strict
-	// version validation on reads).
-	if projectRoot != "" {
-		migratePaths := config.NewPaths(projectRoot, dataLocation)
-		if err := autoMigrateProject(migratePaths); err != nil {
-			// Hard error for any migration failure: future-version errors
-			// produce specific "upgrade Kan" messages; other failures are
-			// more informative than the store-level schema rejection that
-			// would follow.
-			return nil, err
-		}
-	}
-
 	paths := config.NewPaths(projectRoot, dataLocation)
-	boardStore := store.NewBoardStore(paths)
-	cardStore := store.NewCardStore(paths)
-	projectStore := store.NewProjectStore(paths)
+	stores, err := openProjectStores(paths, opts.ReadOnly)
+	if err != nil {
+		return nil, err
+	}
+	boardStore, cardStore, projectStore := stores.board, stores.card, stores.project
 
 	// In global mode, fail early with a clear message if the designation has gone
 	// stale (project moved/deleted, or board removed) rather than surfacing a
@@ -161,7 +155,7 @@ func NewAppWithOptions(opts AppOptions) (*App, error) {
 	}
 
 	// Ensure project config exists with ID (graceful upgrade for older projects)
-	if projectRoot != "" {
+	if projectRoot != "" && !opts.ReadOnly {
 		defaultName := filepath.Base(projectRoot)
 		if err := projectStore.EnsureInitialized(defaultName); err != nil {
 			// Non-fatal: log warning but continue
@@ -210,6 +204,46 @@ func NewAppWithOptions(opts AppOptions) (*App, error) {
 		CardResolver:     cardResolver,
 		ProjectRoot:      projectRoot,
 		UsingGlobalBoard: opts.UseGlobalBoard,
+	}, nil
+}
+
+// projectStores are the stores for one project.
+type projectStores struct {
+	board   *store.FileBoardStore
+	card    *store.FileCardStore
+	project *store.FileProjectStore
+}
+
+// openProjectStores opens a project's stores. For a write, older data is
+// migrated on disk first. For a read, it is migrated in memory and the
+// stores refuse to write. Either way, data newer than this kan is an error
+// that tells the user to upgrade.
+func openProjectStores(paths *config.Paths, readOnly bool) (projectStores, error) {
+	if !readOnly {
+		if paths.ProjectRoot() != "" {
+			if err := autoMigrateProject(paths); err != nil {
+				return projectStores{}, err
+			}
+		}
+		return projectStores{
+			board:   store.NewBoardStore(paths),
+			card:    store.NewCardStore(paths),
+			project: store.NewProjectStore(paths),
+		}, nil
+	}
+
+	var overlay *store.Overlay
+	if paths.ProjectRoot() != "" {
+		var err error
+		overlay, err = service.NewQuietMigrateService(paths).LoadProjectOverlay()
+		if err != nil {
+			return projectStores{}, err
+		}
+	}
+	return projectStores{
+		board:   store.NewReadOnlyBoardStore(paths, overlay),
+		card:    store.NewReadOnlyCardStore(paths, overlay),
+		project: store.NewReadOnlyProjectStore(paths, overlay),
 	}, nil
 }
 

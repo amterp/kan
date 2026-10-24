@@ -57,8 +57,13 @@ func initCompletionCtx() {
 
 		compCtx.projectRoot = result.ProjectRoot
 		compCtx.paths = config.NewPaths(result.ProjectRoot, result.DataLocation)
-		compCtx.boardStore = store.NewBoardStore(compCtx.paths)
-		compCtx.cardStore = store.NewCardStore(compCtx.paths)
+		stores, err := openProjectStores(compCtx.paths, true)
+		if err != nil {
+			compCtx.err = err
+			return
+		}
+		compCtx.boardStore = stores.board
+		compCtx.cardStore = stores.card
 	})
 }
 

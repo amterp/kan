@@ -334,7 +334,7 @@ func printBoardSummary(plan *service.MigrationPlan) {
 	for _, board := range plan.Boards {
 		cardsToMigrate := 0
 		for _, card := range board.Cards {
-			if card.FromVersion != card.ToVersion || card.RemoveColumn {
+			if card.NeedsMigration() {
 				cardsToMigrate++
 			}
 		}

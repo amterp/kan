@@ -64,7 +64,7 @@ func registerList(parent *ra.Cmd, ctx *CommandContext) {
 }
 
 func runList(board, column, sortField string, global, descending, jsonOutput bool) {
-	app, err := NewAppWithOptions(AppOptions{Interactive: true, UseGlobalBoard: global})
+	app, err := NewAppWithOptions(AppOptions{Interactive: true, UseGlobalBoard: global, ReadOnly: true})
 	if err != nil {
 		Fatal(err)
 	}

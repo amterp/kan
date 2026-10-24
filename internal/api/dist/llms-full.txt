@@ -618,6 +618,12 @@ outside any kan project still errors rather than capturing to the global board.
 
 Migrate board data to current schema version.
 
+You rarely need to run this yourself. Any command that changes data, and
+`kan serve`, migrates an older project on disk before it runs. Commands that
+only read (`list`, `show`, `history`, `board list`, `board describe`,
+`column list`, `doctor` without `--fix`, and shell completion) never modify
+files: they upgrade older data in memory and leave the files as they are.
+
 ```bash
 kan migrate
 kan migrate --dry-run

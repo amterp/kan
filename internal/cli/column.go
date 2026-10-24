@@ -349,7 +349,7 @@ func runColumnEdit(name, color, description string, limit int, onMovePosition, b
 }
 
 func runColumnList(board string, nonInteractive, jsonOutput bool) {
-	app, err := NewApp(!nonInteractive)
+	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, ReadOnly: true})
 	if err != nil {
 		Fatal(err)
 	}

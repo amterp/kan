@@ -10,6 +10,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/amterp/kan/internal/config"
+	"github.com/amterp/kan/internal/store"
 	"github.com/amterp/kan/internal/util"
 	"github.com/amterp/kan/internal/version"
 )
@@ -158,7 +159,7 @@ func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
 	for _, board := range plan.Boards {
 		cardsToMigrate := 0
 		for _, card := range board.Cards {
-			if card.FromVersion != card.ToVersion || card.RemoveColumn {
+			if card.NeedsMigration() {
 				cardsToMigrate++
 			}
 		}
@@ -172,7 +173,7 @@ func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
 					cardsToMigrate, board.BoardName, version.CurrentCardVersion)
 			}
 		} else {
-			if board.NeedsMigration || cardsToMigrate > 0 {
+			if board.HasChanges() {
 				if err := s.migrateBoard(&board, writeToDisk); err != nil {
 					return err
 				}
@@ -195,6 +196,51 @@ func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
 	}
 
 	return nil
+}
+
+// MigrateInMemory applies the plan's project config, board and card
+// migrations through the same steps as Execute, without writing anything.
+// It returns the migrated files' contents; files that needed nothing are
+// not in the overlay. The global config is not covered.
+func (s *MigrateService) MigrateInMemory(plan *MigrationPlan) (*store.Overlay, error) {
+	overlay := store.NewOverlay()
+	collect := func(path string, data []byte) error {
+		overlay.Put(path, data)
+		return nil
+	}
+
+	if plan.Project != nil && plan.Project.NeedsMigration {
+		if err := s.migrateProjectConfig(plan.Project, collect); err != nil {
+			return nil, err
+		}
+	}
+	for i := range plan.Boards {
+		board := &plan.Boards[i]
+		if !board.HasChanges() {
+			continue
+		}
+		if err := s.migrateBoard(board, collect); err != nil {
+			return nil, err
+		}
+	}
+	return overlay, nil
+}
+
+// LoadProjectOverlay migrates the project in memory for a read-only
+// command. It returns nil when everything is current, and a
+// SchemaVersionError when anything is newer than this kan.
+func (s *MigrateService) LoadProjectOverlay() (*store.Overlay, error) {
+	plan, err := s.PlanProject()
+	if err != nil {
+		return nil, fmt.Errorf("failed to check project schema versions: %w", err)
+	}
+	if !plan.HasChanges() {
+		return nil, nil
+	}
+	if err := plan.FutureVersionError(); err != nil {
+		return nil, err
+	}
+	return s.MigrateInMemory(plan)
 }
 
 // FutureVersionError checks if any files in the plan have a schema version
@@ -231,17 +277,31 @@ func (p *MigrationPlan) HasChanges() bool {
 	if p.Project != nil && p.Project.NeedsMigration {
 		return true
 	}
-	for _, board := range p.Boards {
-		if board.NeedsMigration {
+	for i := range p.Boards {
+		if p.Boards[i].HasChanges() {
 			return true
-		}
-		for _, card := range board.Cards {
-			if card.FromVersion != card.ToVersion || card.RemoveColumn {
-				return true
-			}
 		}
 	}
 	return false
+}
+
+// HasChanges returns true if the board config or any of its cards needs
+// migrating.
+func (b *BoardMigration) HasChanges() bool {
+	if b.NeedsMigration {
+		return true
+	}
+	for _, card := range b.Cards {
+		if card.NeedsMigration() {
+			return true
+		}
+	}
+	return false
+}
+
+// NeedsMigration returns true if the card file must be rewritten.
+func (c *CardMigration) NeedsMigration() bool {
+	return c.FromVersion != c.ToVersion || c.RemoveColumn
 }
 
 // PlanGlobalMigration analyzes the global config and returns a migration plan.
@@ -612,7 +672,7 @@ func (s *MigrateService) migrateBoard(plan *BoardMigration, write writeFunc) err
 	}
 
 	for _, cardPlan := range plan.Cards {
-		if cardPlan.FromVersion == cardPlan.ToVersion && !cardPlan.RemoveColumn {
+		if !cardPlan.NeedsMigration() {
 			continue
 		}
 		if c := b.card(cardPlan.Path); c != nil {

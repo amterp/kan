@@ -13,6 +13,7 @@ import (
 
 // FileProjectStore implements ProjectStore using the filesystem.
 type FileProjectStore struct {
+	fileAccess
 	paths *config.Paths
 }
 
@@ -21,12 +22,18 @@ func NewProjectStore(paths *config.Paths) *FileProjectStore {
 	return &FileProjectStore{paths: paths}
 }
 
+// NewReadOnlyProjectStore creates a project store that reads through overlay
+// (which may be nil) and refuses to write.
+func NewReadOnlyProjectStore(paths *config.Paths, overlay *Overlay) *FileProjectStore {
+	return &FileProjectStore{paths: paths, fileAccess: fileAccess{overlay: overlay, readOnly: true}}
+}
+
 // Load reads the project config from disk.
 // Returns a default config if the file doesn't exist.
 func (s *FileProjectStore) Load() (*model.ProjectConfig, error) {
 	path := s.paths.ProjectConfigPath()
 
-	data, err := os.ReadFile(path)
+	data, err := s.readFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// Return a minimal default config when file doesn't exist
@@ -58,6 +65,9 @@ func (s *FileProjectStore) Load() (*model.ProjectConfig, error) {
 // written by a newer kan, which would drop the fields this one doesn't know.
 func (s *FileProjectStore) Save(cfg *model.ProjectConfig) error {
 	path := s.paths.ProjectConfigPath()
+	if err := s.checkWritable(path); err != nil {
+		return err
+	}
 	if err := refuseFutureProjectConfig(path); err != nil {
 		return err
 	}
@@ -89,6 +99,9 @@ func (s *FileProjectStore) Exists() bool {
 // one is refused without writing.
 func (s *FileProjectStore) EnsureInitialized(defaultName string) error {
 	path := s.paths.ProjectConfigPath()
+	if err := s.checkWritable(path); err != nil {
+		return err
+	}
 
 	// Try to read existing config
 	data, err := os.ReadFile(path)

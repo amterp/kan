@@ -13,6 +13,7 @@ import (
 
 // FileBoardStore implements BoardStore using the filesystem.
 type FileBoardStore struct {
+	fileAccess
 	paths *config.Paths
 }
 
@@ -21,8 +22,17 @@ func NewBoardStore(paths *config.Paths) *FileBoardStore {
 	return &FileBoardStore{paths: paths}
 }
 
+// NewReadOnlyBoardStore creates a board store that reads through overlay
+// (which may be nil) and refuses to write.
+func NewReadOnlyBoardStore(paths *config.Paths, overlay *Overlay) *FileBoardStore {
+	return &FileBoardStore{paths: paths, fileAccess: fileAccess{overlay: overlay, readOnly: true}}
+}
+
 // Create creates a new board with the given config.
 func (s *FileBoardStore) Create(cfg *model.BoardConfig) error {
+	if err := s.checkWritable(s.paths.BoardDir(cfg.Name)); err != nil {
+		return err
+	}
 	if s.Exists(cfg.Name) {
 		return kanerr.BoardAlreadyExists(cfg.Name)
 	}
@@ -49,7 +59,7 @@ func (s *FileBoardStore) Create(cfg *model.BoardConfig) error {
 // Get reads the board config from disk.
 func (s *FileBoardStore) Get(boardName string) (*model.BoardConfig, error) {
 	path := s.paths.BoardConfigPath(boardName)
-	data, err := os.ReadFile(path)
+	data, err := s.readFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, kanerr.BoardNotFound(boardName)
@@ -100,6 +110,9 @@ func (s *FileBoardStore) Get(boardName string) (*model.BoardConfig, error) {
 // 2. Update is often just adding/removing card IDs, not changing card_display
 // Validation happens on Create; invalid configs produce warnings at load time.
 func (s *FileBoardStore) Update(cfg *model.BoardConfig) error {
+	if err := s.checkWritable(s.paths.BoardConfigPath(cfg.Name)); err != nil {
+		return err
+	}
 	if err := s.writeConfig(cfg); err != nil {
 		return fmt.Errorf("failed to update board config: %w", err)
 	}
@@ -108,6 +121,9 @@ func (s *FileBoardStore) Update(cfg *model.BoardConfig) error {
 
 // Delete removes a board and all its data (config and cards).
 func (s *FileBoardStore) Delete(boardName string) error {
+	if err := s.checkWritable(s.paths.BoardDir(boardName)); err != nil {
+		return err
+	}
 	if !s.Exists(boardName) {
 		return kanerr.BoardNotFound(boardName)
 	}

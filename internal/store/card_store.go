@@ -15,6 +15,7 @@ import (
 
 // FileCardStore implements CardStore using the filesystem.
 type FileCardStore struct {
+	fileAccess
 	paths *config.Paths
 }
 
@@ -23,9 +24,18 @@ func NewCardStore(paths *config.Paths) *FileCardStore {
 	return &FileCardStore{paths: paths}
 }
 
+// NewReadOnlyCardStore creates a card store that reads through overlay
+// (which may be nil) and refuses to write.
+func NewReadOnlyCardStore(paths *config.Paths, overlay *Overlay) *FileCardStore {
+	return &FileCardStore{paths: paths, fileAccess: fileAccess{overlay: overlay, readOnly: true}}
+}
+
 // Create writes a new card to disk.
 func (s *FileCardStore) Create(boardName string, card *model.Card) error {
 	path := s.paths.CardPath(boardName, card.ID)
+	if err := s.checkWritable(path); err != nil {
+		return err
+	}
 
 	// Ensure cards directory exists
 	dir := filepath.Dir(path)
@@ -52,6 +62,9 @@ func (s *FileCardStore) Get(boardName, cardID string) (*model.Card, error) {
 // Update writes an existing card to disk.
 func (s *FileCardStore) Update(boardName string, card *model.Card) error {
 	path := s.paths.CardPath(boardName, card.ID)
+	if err := s.checkWritable(path); err != nil {
+		return err
+	}
 	if err := s.writeCard(path, card); err != nil {
 		return fmt.Errorf("failed to update card %s: %w", card.ID, err)
 	}
@@ -61,6 +74,9 @@ func (s *FileCardStore) Update(boardName string, card *model.Card) error {
 // Delete removes a card from disk.
 func (s *FileCardStore) Delete(boardName, cardID string) error {
 	path := s.paths.CardPath(boardName, cardID)
+	if err := s.checkWritable(path); err != nil {
+		return err
+	}
 	if err := os.Remove(path); err != nil {
 		if os.IsNotExist(err) {
 			return kanerr.CardNotFound(cardID)
@@ -122,7 +138,7 @@ func (s *FileCardStore) FindByAlias(boardName, alias string) (*model.Card, error
 }
 
 func (s *FileCardStore) readCard(path string) (*model.Card, error) {
-	data, err := os.ReadFile(path)
+	data, err := s.readFile(path)
 	if err != nil {
 		return nil, err
 	}

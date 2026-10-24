@@ -132,7 +132,7 @@ letter = "M"
 
 **Why separate from board config?** Project-level settings (name, favicon) apply to all boards in a project. Board config is per-board. Keeping them separate follows single-responsibility.
 
-**Auto-creation**: Unlike board/card schemas which require `kan init`, project config is auto-created on first CLI interaction if missing. This provides a graceful upgrade path for projects created before project config existed. The `EnsureInitialized` pattern (in `ProjectStore`) generates a stable project ID that persists for the lifetime of the project.
+**Auto-creation**: Unlike board/card schemas which require `kan init`, project config is auto-created by the first command that writes, or by `kan serve`, if missing. A read-only command fills in defaults in memory and creates nothing. This provides a graceful upgrade path for projects created before project config existed. The `EnsureInitialized` pattern (in `ProjectStore`) generates a stable project ID that persists for the lifetime of the project.
 
 **Project ID**: Each project has a unique ID (e.g., `p_abc123`). This ID is used to derive deterministic values like favicon colors. The ID is stable even if the project name changes, ensuring visual consistency.
 
@@ -609,12 +609,15 @@ Guarantees:
 
 ### New Kan Reading Old Schema
 
-**Behavior**: Auto-migrate on write, or prompt user.
+**Behavior**: A command that changes data, `kan serve`, and `kan migrate` migrate the project's config, boards and cards on disk first. A command that only reads writes nothing under the project: it applies the same migration steps in memory and reads the result.
 
-```
-Warning: Board 'main' uses schema board/1, current is board/2.
-Run 'kan migrate' to upgrade.
-```
+The read commands are `list`, `show`, `history`, `board list`, `board describe`, `column list`, `doctor` without `--fix`, and shell completion. Each passes `ReadOnly` when it builds its `App`, and a new read command does the same. Its stores refuse every write, so a read command that tries to write fails with an error instead of leaving the repo dirty.
+
+**Rationale**: Agents run many reads, often across many repos. When a read migrated, `kan list` in a repo at an older schema rewrote its files and left an unexpected diff. Reads may still write the global config (registering the project, migrating the global config), which lives outside every repo.
+
+`kan doctor` reads raw files, so on an unmigrated project it reports `SCHEMA_OUTDATED` instead of migrating it.
+
+**One implementation of each step**: Every migration step is a function over decoded data (TOML for configs, JSON for cards). Disk migration and the in-memory read path differ only in where the changed files go, and a test checks they produce the same bytes for every fixture.
 
 ### Old Kan Reading New Schema
 

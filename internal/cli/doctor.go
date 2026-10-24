@@ -37,7 +37,7 @@ func registerDoctor(parent *ra.Cmd, ctx *CommandContext) {
 }
 
 func runDoctor(boardName string, fix bool, dryRun bool, jsonOutput bool) {
-	app, err := NewApp(false)
+	app, err := NewAppWithOptions(AppOptions{ReadOnly: !fix})
 	if err != nil {
 		Fatal(err)
 	}

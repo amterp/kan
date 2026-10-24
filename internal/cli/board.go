@@ -81,7 +81,7 @@ func runBoardCreate(name string) {
 }
 
 func runBoardList(jsonOutput bool) {
-	app, err := NewApp(true)
+	app, err := NewAppWithOptions(AppOptions{Interactive: true, ReadOnly: true})
 	if err != nil {
 		Fatal(err)
 	}
@@ -114,7 +114,7 @@ func runBoardList(jsonOutput bool) {
 }
 
 func runBoardDescribe(name, board string, nonInteractive, jsonOutput bool) {
-	app, err := NewApp(!nonInteractive)
+	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, ReadOnly: true})
 	if err != nil {
 		Fatal(err)
 	}
