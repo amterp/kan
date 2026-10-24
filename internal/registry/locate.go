@@ -28,6 +28,7 @@ type Locator struct {
 	currentStore store.BoardStore
 	current      []Board
 	loaded       bool
+	index        *boardIndex
 }
 
 // NewLocator returns a Locator for the current project at currentPaths,
@@ -52,14 +53,10 @@ func (l *Locator) Board(boardID string) (Location, error) {
 	}
 
 	var found []Location
-	for _, e := range l.others() {
-		boards, err := ReadBoards(e.Path, e.DataLocation)
-		if err != nil {
-			continue
-		}
-		for _, b := range boards {
+	for _, p := range l.boardIndex().holders(boardID, l.currentRoot()) {
+		for _, b := range p.boards {
 			if b.ID == boardID {
-				found = append(found, Location{Root: e.Path, DataLocation: e.DataLocation, Board: b.Name, BoardID: b.ID})
+				found = append(found, Location{Root: p.Path, DataLocation: p.DataLocation, Board: b.Name, BoardID: b.ID})
 				break
 			}
 		}
@@ -96,13 +93,12 @@ func (l *Locator) FindCard(cardID string) ([]Location, error) {
 	}
 
 	var found []Location
-	for _, e := range l.others() {
-		boards, err := ReadBoards(e.Path, e.DataLocation)
-		if err != nil {
+	for _, e := range l.boardIndex().projects {
+		if root := l.currentRoot(); root != "" && SamePath(e.Path, root) {
 			continue
 		}
 		paths := config.NewPaths(e.Path, e.DataLocation)
-		for _, b := range boards {
+		for _, b := range e.boards {
 			if b.ID == "" || ours[b.ID] {
 				continue
 			}
@@ -140,17 +136,11 @@ func (l *Locator) currentRoot() string {
 	return l.currentPaths.ProjectRoot()
 }
 
-// others returns the visible entries other than the current project.
-func (l *Locator) others() []Entry {
-	if l.cfg == nil {
-		return nil
+// boardIndex reads the visible projects' boards on first use, once for
+// all of the Locator's lookups.
+func (l *Locator) boardIndex() *boardIndex {
+	if l.index == nil {
+		l.index = newBoardIndex(l.cfg)
 	}
-	var entries []Entry
-	for _, e := range Visible(l.cfg) {
-		if root := l.currentRoot(); root != "" && SamePath(e.Path, root) {
-			continue
-		}
-		entries = append(entries, e)
-	}
-	return entries
+	return l.index
 }

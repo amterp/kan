@@ -80,7 +80,7 @@ func IsTempPath(path string) bool {
 // comparison exists on disk.
 func pathForms(path string) []string {
 	forms := []string{filepath.Clean(path)}
-	if c := canonical(path); c != forms[0] {
+	if c := Canonical(path); c != forms[0] {
 		forms = append(forms, c)
 	}
 	return forms
@@ -90,12 +90,13 @@ func pathForms(path string) []string {
 // symlinks, so /link/project and /real/project are one project. Compare
 // project paths with it, never as strings.
 func SamePath(a, b string) bool {
-	return canonical(a) == canonical(b)
+	return Canonical(a) == Canonical(b)
 }
 
-// canonical resolves symlinks in path, or cleans it when it can't be
-// resolved (for example, because it no longer exists).
-func canonical(path string) string {
+// Canonical resolves symlinks in path, or cleans it when it can't be
+// resolved (for example, because it no longer exists). Use it as a key for
+// a project path; compare two paths with SamePath.
+func Canonical(path string) string {
 	if resolved, err := filepath.EvalSymlinks(path); err == nil {
 		return resolved
 	}
@@ -160,26 +161,7 @@ func ProjectName(root, dataLocation string) string {
 // HoldersOf returns the visible entries other than exclude whose project has
 // a board with boardID, sorted by path. Hidden entries never count.
 func HoldersOf(cfg *model.GlobalConfig, boardID, exclude string) []string {
-	if boardID == "" {
-		return nil
-	}
-	var holders []string
-	for _, e := range Visible(cfg) {
-		if SamePath(e.Path, exclude) {
-			continue
-		}
-		boards, err := ReadBoards(e.Path, e.DataLocation)
-		if err != nil {
-			continue
-		}
-		for _, b := range boards {
-			if b.ID == boardID {
-				holders = append(holders, e.Path)
-				break
-			}
-		}
-	}
-	return holders
+	return paths(newBoardIndex(cfg).holders(boardID, exclude))
 }
 
 // Result says what Register did.
@@ -229,9 +211,10 @@ func Register(cfg *model.GlobalConfig, root, dataLocation string) Result {
 	}
 
 	if !result.Hidden {
+		index := newBoardIndex(cfg)
 		boards, _ := ReadBoards(root, dataLocation)
 		for _, b := range boards {
-			if holders := HoldersOf(cfg, b.ID, root); len(holders) > 0 {
+			if holders := paths(index.holders(b.ID, root)); len(holders) > 0 {
 				result.Hidden = true
 				result.BoardID = b.ID
 				result.HeldBy = holders[0]

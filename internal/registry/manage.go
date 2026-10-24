@@ -58,17 +58,18 @@ func Find(cfg *model.GlobalConfig, path string) (string, error) {
 // Inspect reports the state of every visible entry, plus hidden ones when
 // includeHidden is set, sorted by path.
 func Inspect(cfg *model.GlobalConfig, includeHidden bool) []Status {
+	index := newBoardIndex(cfg)
 	var statuses []Status
 	for _, e := range Entries(cfg) {
 		if e.Hidden && !includeHidden {
 			continue
 		}
-		statuses = append(statuses, inspect(cfg, e))
+		statuses = append(statuses, inspect(index, e))
 	}
 	return statuses
 }
 
-func inspect(cfg *model.GlobalConfig, e Entry) Status {
+func inspect(index *boardIndex, e Entry) Status {
 	s := Status{Entry: e, Name: ProjectName(e.Path, e.DataLocation), State: StateOK}
 
 	state, err := locate(e)
@@ -80,7 +81,7 @@ func inspect(cfg *model.GlobalConfig, e Entry) Status {
 		return s
 	}
 
-	boards, err := ReadBoards(e.Path, e.DataLocation)
+	boards, err := index.boardsOf(e)
 	if err != nil {
 		s.State = StateUnreadable
 		s.Error = err.Error()
@@ -92,7 +93,7 @@ func inspect(cfg *model.GlobalConfig, e Entry) Status {
 		return s
 	}
 	for _, b := range boards {
-		if holders := HoldersOf(cfg, b.ID, e.Path); len(holders) > 0 {
+		if holders := paths(index.holders(b.ID, e.Path)); len(holders) > 0 {
 			if s.Duplicates == nil {
 				s.Duplicates = make(map[string][]string)
 			}
@@ -143,9 +144,10 @@ func SharedBoards(cfg *model.GlobalConfig, key string) map[string][]string {
 	if err != nil {
 		return nil
 	}
+	index := newBoardIndex(cfg)
 	shared := make(map[string][]string)
 	for _, b := range boards {
-		if holders := HoldersOf(cfg, b.ID, key); len(holders) > 0 {
+		if holders := paths(index.holders(b.ID, key)); len(holders) > 0 {
 			shared[b.ID] = holders
 		}
 	}
