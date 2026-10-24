@@ -1,0 +1,17 @@
+{
+  "_v": 3,
+  "alias": "design-see-how-cards",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1792879109809,
+  "creator": "Alexander Terp",
+  "description": "The owner, looking at this board while the work-across-boards cards (`docs/design/work-across-boards.md`) were being built: it's hard to see at a glance how the cards connect and how far each phase has got.\n\nToday the web UI shows nothing of a card's parent or children, so the four phase cards and their children read as unrelated cards spread over five columns. The links card (`blocked_by`, `related`) adds blockers to the card modal and a blocked marker on cards, but no view of the structure.\n\nQuestions for the design:\n\n- What a parent card shows on the board: its children's progress (for example 4 of 6 done), and a way to see or filter to its children.\n- Whether a board needs a dependency view (blockers and parents drawn as a graph), or whether the marker, the modal and filters are enough.\n- Where the line sits between kan's web UI, which sees one board, and Foreman, which the design gives the view across repos (\"A visual view of dependencies across repos belongs outside kan\"). Kan's job there is the data in `kan list --all --json` and `kan ready --all --json`.\n\nRaised 2026-10-24; to take up after the work-across-boards phases land.",
+  "id": "a_2nbwyiJjU",
+  "position": "Zzzzzzzzd",
+  "title": "Design: see how cards connect and how far a parent's work has got",
+  "type": "feature",
+  "updated_at_millis": 1792879112191,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1792879109809}
+  ]
+}
