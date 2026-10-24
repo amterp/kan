@@ -135,6 +135,28 @@ func TestHandler_LinkedCardsReadWithoutSwitchingOrWriting(t *testing.T) {
 	}
 }
 
+func TestHandler_LinkedCardRejectsDuplicateCurrentBoardIDs(t *testing.T) {
+	api, _ := setupCrossProjectAPI(t, &model.GlobalConfig{})
+	for _, name := range []string{"main", "duplicate"} {
+		api.createBoard(t, name)
+		if err := api.cardStore.Create(name, &model.Card{ID: "shared", Title: name, Column: "backlog"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	before := projectBytes(t, api.handler.ctx().ProjectRoot)
+	response := api.request("GET", "/api/v1/linked-cards/test-board-id:shared", nil)
+	var view LinkedCardResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &view); err != nil {
+		t.Fatal(err)
+	}
+	if response.Code != http.StatusOK || view.Result != service.LinkAmbiguousBoard || view.Card != nil || view.BoardConfig != nil || !view.ReadOnly {
+		t.Fatalf("duplicate board identity opened a card: %d %s", response.Code, response.Body.String())
+	}
+	if !reflect.DeepEqual(before, projectBytes(t, api.handler.ctx().ProjectRoot)) {
+		t.Fatal("ambiguous lookup changed project files")
+	}
+}
+
 func TestHandler_LinkedCardLookupStatesAndReadOnlyMigration(t *testing.T) {
 	for _, state := range []service.LinkState{service.LinkFound, service.LinkAbsent, service.LinkBoardNotHere, service.LinkAmbiguousBoard, service.LinkUnsupportedSchema, service.LinkUnreadable} {
 		t.Run(string(state), func(t *testing.T) {

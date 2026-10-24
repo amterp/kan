@@ -21,7 +21,7 @@ import Omnibar, { type NavigationDirection } from './components/Omnibar';
 import DocsPage from './pages/DocsPage';
 import { switchProject } from './api/projects';
 import { recordRecency } from './utils/boardRecency';
-import type { BoardEntry, UpdateCardInput } from './api/types';
+import type { BoardEntry, LinkedCardResponse, UpdateCardInput } from './api/types';
 import { restoreCard as apiRestoreCard } from './api/cards';
 import { useUndo } from './hooks/useUndo';
 import { useCompactMode } from './contexts/CompactModeContext';
@@ -465,9 +465,22 @@ function BoardApp() {
     if (focusDescription) {
       setNewlyCreatedCardId(id);
     }
-    const prefix = boardId ? `${boardId}:` : '';
-    openCard(prefix && id.startsWith(prefix) ? id.slice(prefix.length) : id);
-  }, [openCard, boardId]);
+    openCard(id);
+  }, [openCard]);
+
+  const projectPath = project?.project_path;
+  const handleLinkedCardResolved = useCallback((ref: string, result: LinkedCardResponse) => {
+    if (result.result !== 'found' || result.board_id !== boardId || result.board !== boardName
+      || !projectPath || result.project_path !== projectPath || !result.card
+      || !cards.some((card) => card.id === result.card?.id)) return;
+    const id = result.card.id;
+    setSearchParams((previous) => {
+      if (previous.get('card') !== ref) return previous;
+      const next = new URLSearchParams(previous);
+      next.set('card', id);
+      return next;
+    }, { replace: true });
+  }, [boardId, boardName, projectPath, cards, setSearchParams]);
 
   // Auto-select first board if only one exists (replace so no extra history
   // entry). Only on the initial load, not on every visit to "/", so clicking the
@@ -483,12 +496,8 @@ function BoardApp() {
 
   // Find the card for the modal (from URL ?card= param)
   const modalCard = useMemo(
-    () => {
-      const prefix = boardId ? `${boardId}:` : '';
-      const id = prefix && cardId?.startsWith(prefix) ? cardId.slice(prefix.length) : cardId;
-      return cards.find((card) => card.id === id);
-    },
-    [cardId, cards, boardId]
+    () => cards.find((card) => card.id === cardId),
+    [cardId, cards]
   );
   const linkedCardRef = cardId?.includes(':') && !modalCard ? cardId : undefined;
 
@@ -667,7 +676,7 @@ function BoardApp() {
       )}
       {linkedCardRef && board && !loading && (
         <ReadOnlyCardModal key={`${refreshKey}:${boardName}:${linkedCardRef}`} cardRef={linkedCardRef}
-          onOpenCard={handleOpenCard} onClose={closeCard} />
+          onResolved={handleLinkedCardResolved} onOpenCard={handleOpenCard} onClose={closeCard} />
       )}
       {omnibar.isOpen && (
         <Omnibar

@@ -22,6 +22,14 @@ const response = (value: unknown) => new Response(JSON.stringify(value), { statu
 function setup(initial = '/board/main?card=source&sort=priority') {
   window.history.replaceState({}, '', initial);
   let links: BoardLinks = { resolved: { 'remote:shared': foreignLink }, blocks: {} };
+  const views = new Map<string, LinkedCardResponse>([
+    ['remote:shared', { ...foreignLink, read_only: true, board_config: remoteBoard,
+      links: { resolved: {}, blocks: { shared: [{ ref: 'local:source', result: 'found', card: source, board_id: 'local' }] } } }],
+    ...[source, card('shared', 'Local duplicate')].map((local): [string, LinkedCardResponse] => [`local:${local.id}`, {
+      ref: `local:${local.id}`, result: 'found', read_only: true, board_id: 'local', board: 'main',
+      project_path: '/local', project_name: 'Local project', card: local, board_config: board,
+    }]),
+  ]);
   let resolveView: (() => Promise<Response>) | undefined;
   const requests: { path: string; method: string }[] = [];
   vi.stubGlobal('fetch', async (path: string, init?: RequestInit) => {
@@ -31,17 +39,17 @@ function setup(initial = '/board/main?card=source&sort=priority') {
     if (path === '/api/v1/boards/main') return response(board);
     if (path === '/api/v1/boards/main/cards') return response({ cards: [source, card('shared', 'Local duplicate')], links });
     if (path === '/api/v1/all-boards') return response({ boards: [] });
-    if (path === '/api/v1/linked-cards/remote%3Ashared') {
-      if (resolveView) return resolveView();
-      const view: LinkedCardResponse = { ...foreignLink, read_only: true, board_config: remoteBoard,
-        links: { resolved: {}, blocks: { shared: [{ ref: 'local:source', result: 'found', card: source, board_id: 'local' }] } } };
-      return response(view);
+    if (path.startsWith('/api/v1/linked-cards/')) {
+      if (resolveView && path.endsWith('remote%3Ashared')) return resolveView();
+      const view = views.get(decodeURIComponent(path.slice('/api/v1/linked-cards/'.length)));
+      if (view) return response(view);
     }
     throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${path}`);
   });
   return {
     requests,
     setLinks: (next: BoardLinks) => { links = next; },
+    setView: (ref: string, next: LinkedCardResponse) => { views.set(ref, next); },
     delayView: (read: () => Promise<Response>) => { resolveView = read; },
     render: () => render(<ThemeProvider><CompactModeProvider><SlimModeProvider><ToastProvider><App /></ToastProvider></SlimModeProvider></CompactModeProvider></ThemeProvider>),
   };
@@ -54,6 +62,26 @@ beforeEach(() => {
 afterEach(() => { cleanup(); localStorage.clear(); vi.unstubAllGlobals(); });
 
 describe('cross-board links through the app', () => {
+  it.each(['ambiguous_board', 'unreadable'] as const)('keeps a qualified current-board URL unresolved when lookup is %s', async (result) => {
+    const fixture = setup('/board/main?card=local%3Ashared&sort=priority');
+    fixture.setView('local:shared', { ref: 'local:shared', result, read_only: true, reason: 'Board identity is uncertain' });
+    fixture.render();
+    const unavailable = await screen.findByRole('region', { name: 'Unavailable card' });
+    expect(within(unavailable).getByText('Board identity is uncertain')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('Card title')).toBeNull();
+    expect(new URLSearchParams(window.location.search).get('card')).toBe('local:shared');
+    expect(fixture.requests.some((request) => request.path === '/api/v1/linked-cards/local%3Ashared')).toBe(true);
+  });
+
+  it('opens a qualified current-board card editable only after the server confirms its identity', async () => {
+    const fixture = setup('/board/main?card=local%3Ashared&sort=priority');
+    fixture.render();
+    await waitFor(() => expect((screen.getByPlaceholderText('Card title') as HTMLTextAreaElement).value).toBe('Local duplicate'));
+    expect(fixture.requests.some((request) => request.path === '/api/v1/linked-cards/local%3Ashared')).toBe(true);
+    expect(new URLSearchParams(window.location.search).get('card')).toBe('shared');
+    expect(new URLSearchParams(window.location.search).get('sort')).toBe('priority');
+  });
+
   it('keeps a comment draft on the source before opening another project', async () => {
     const fixture = setup();
     fixture.render();

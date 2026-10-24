@@ -7,11 +7,12 @@ import CardLinkList from './CardLinkList';
 
 interface ReadOnlyCardModalProps {
   cardRef: string;
+  onResolved?: (ref: string, result: LinkedCardResponse) => void;
   onOpenCard: (ref: string) => void;
   onClose: () => void;
 }
 
-export default function ReadOnlyCardModal({ cardRef, onOpenCard, onClose }: ReadOnlyCardModalProps) {
+export default function ReadOnlyCardModal({ cardRef, onResolved, onOpenCard, onClose }: ReadOnlyCardModalProps) {
   const [result, setResult] = useState<{ ref: string; data?: LinkedCardResponse; error?: string }>();
   const dialog = useRef<HTMLDivElement>(null);
   const backdrop = useRef(false);
@@ -34,6 +35,9 @@ export default function ReadOnlyCardModal({ cardRef, onOpenCard, onClose }: Read
   }, [onClose]);
   const current = result?.ref === cardRef ? result : undefined;
   const data = current?.data;
+  useEffect(() => {
+    if (data) onResolved?.(cardRef, data);
+  }, [cardRef, data, onResolved]);
   const card = data?.result === 'found' ? data.card : undefined;
   const board = data?.board_config;
   const links = data?.links;
