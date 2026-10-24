@@ -1,0 +1,18 @@
+{
+  "_v": 3,
+  "alias": "add-kan-ready",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1792875238201,
+  "creator": "Alexander Terp",
+  "description": "Design: `docs/design/work-across-boards.md`, sections \"Ready\", \"Order\", \"Exclusions\" and \"Output\".\n\nAn open card is ready when every blocker is found in a done column, it has no unfinished children, and no exclusion matches it. Columns are read right to left unless `[ready] order` says otherwise. Cards whose blocker was dropped go under \"Needs attention\". Flags: `--limit`, `-x`, `--no-exclude`. JSON uses the envelope shape so query context can't collide with custom fields.\n\nAfter a_2naKFtQO3 and a_2naKG1kJn.",
+  "id": "a_2naKGBq1Y",
+  "parent": "a_2naKFgTg0",
+  "position": "Zzzzz",
+  "title": "Add kan ready",
+  "type": "feature",
+  "updated_at_millis": 1792875238201,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1792875238201}
+  ]
+}

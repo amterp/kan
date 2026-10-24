@@ -1,0 +1,17 @@
+{
+  "_v": 3,
+  "alias": "design-fetched-read",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1792875239114,
+  "creator": "Alexander Terp",
+  "description": "A card can wait on a board in a repo you haven't cloned. Kan could fetch just that board and read it, instead of making you clone the repo.\n\nStarting sketch in `docs/design/work-across-boards.md`, section \"Deferred\". Open: the fetch mechanism, when a copy refreshes, and making sure a fetched copy and a registered clone of the same board can never both be in use.",
+  "id": "a_2naKHetOe",
+  "position": "Zzzzzzzx",
+  "title": "Design: fetched read-only copies of boards not on this machine",
+  "type": "feature",
+  "updated_at_millis": 1792875239114,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1792875239114}
+  ]
+}

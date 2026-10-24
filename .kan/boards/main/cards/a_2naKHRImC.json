@@ -1,0 +1,17 @@
+{
+  "_v": 3,
+  "alias": "design-claims-so",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1792875238980,
+  "creator": "Alexander Terp",
+  "description": "Without an integrator handing out work, two agents can both read `kan ready` and start the same card. Kan shouldn't require an integrator.\n\nStarting sketch in `docs/design/work-across-boards.md`, section \"Deferred\": a claim is the atomic move from an open column into an active one, recording the holder and an expiry. Open: the default expiry and how renewal works, how a stale claim shows on the board and in `kan ready`, what a manual drag into an active column means, and whether to leave a hook for a central lock, since plain files can't make a claim atomic across machines.",
+  "id": "a_2naKHRImC",
+  "position": "Zzzzzzzl",
+  "title": "Design: claims, so parallel agents don't take the same card",
+  "type": "feature",
+  "updated_at_millis": 1792875238980,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1792875238980}
+  ]
+}

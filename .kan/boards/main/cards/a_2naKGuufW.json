@@ -1,0 +1,18 @@
+{
+  "_v": 3,
+  "alias": "link-cards-across",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1792875238651,
+  "creator": "Alexander Terp",
+  "description": "Design: `docs/design/work-across-boards.md`, section \"Links across boards\". Stored refs are `boardID:cardID`. `[linked_boards]` in project config (`project/3`) records the board's name and its repo's remote URL with any credentials removed, used only for the \"isn't on this machine\" message. `kan show` lists reverse links from other boards.\n\nAfter a_2naKGoYNg and a_2naKEczaZ.",
+  "id": "a_2naKGuufW",
+  "parent": "a_2naKGb6Hi",
+  "position": "Zzzzzzl",
+  "title": "Link cards across boards and record where linked boards live",
+  "type": "feature",
+  "updated_at_millis": 1792875238651,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1792875238651}
+  ]
+}

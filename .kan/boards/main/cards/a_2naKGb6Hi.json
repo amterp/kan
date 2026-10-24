@@ -1,0 +1,17 @@
+{
+  "_v": 3,
+  "alias": "phase-4-work-across",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1792875238458,
+  "creator": "Alexander Terp",
+  "description": "Parent for phase 4 of `docs/design/work-across-boards.md`: links to cards on other boards as `boardID:cardID`, and `--all` queries over every visible registered project. Reads work from anywhere; writes stay in the current project.\n\nAfter phase 3: a_2naKFgTg0.",
+  "id": "a_2naKGb6Hi",
+  "position": "Zzzzzx",
+  "title": "Phase 4: work across boards",
+  "type": "chore",
+  "updated_at_millis": 1792875238458,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1792875238458}
+  ]
+}

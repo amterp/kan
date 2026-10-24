@@ -3,13 +3,21 @@
   "alias": "cross-board-kanban",
   "alias_explicit": false,
   "column": "backlog-hi",
+  "comments": [
+    {
+      "author": "Alexander Terp",
+      "body": "2026-10-24: queries across boards are planned in phase 4 of docs/design/work-across-boards.md (a_2naKGb6Hi): kan list --all and kan ready --all, grouped by board. A visual board or dependency view across repos is out of kan's scope in that design; another tool reads the --all --json output.",
+      "created_at_millis": 1792875259228,
+      "id": "c_2naKo6xzt"
+    }
+  ],
   "created_at_millis": 1774791312335,
   "creator": "Alexander Terp",
   "id": "a_pCUjoCcC",
   "position": "a2",
   "title": "cross-board kanban view ?",
   "type": "feature",
-  "updated_at_millis": 1774791312440,
+  "updated_at_millis": 1792875259228,
   "history": [
     {"field":"column","value":"backlog-hi","at":1774791312335}
   ]

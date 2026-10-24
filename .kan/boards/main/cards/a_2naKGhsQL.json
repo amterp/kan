@@ -1,0 +1,18 @@
+{
+  "_v": 3,
+  "alias": "let-cross-project",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1792875238524,
+  "creator": "Alexander Terp",
+  "description": "Every read command requires a current project today, so `kan ready --all` run from `~/src` would fail with \"not initialized\".\n\nDesign: `docs/design/work-across-boards.md`, section \"Running without a project\".",
+  "id": "a_2naKGhsQL",
+  "parent": "a_2naKGb6Hi",
+  "position": "Zzzzzz",
+  "title": "Let cross-project reads run outside any project",
+  "type": "feature",
+  "updated_at_millis": 1792875238524,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1792875238524}
+  ]
+}

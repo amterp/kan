@@ -1,0 +1,17 @@
+{
+  "_v": 3,
+  "alias": "design-definitions",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1792875239048,
+  "creator": "Alexander Terp",
+  "description": "The same definitions get copied into board after board and drift apart. Eight of the maintainer's boards define the same `provenance` field by hand with different descriptions, and the `!type` pattern-hook script is repeated in many repos.\n\nStarting sketch in `docs/design/work-across-boards.md`, section \"Deferred\": definitions live once on the owner's machine and are copied into each board that uses them, and the board's copy is what kan reads, so a collaborator without the owner's config still sees a complete board. Open: what happens when a board edits its copy, and whether `kan board create --from \u003cboard\u003e` alone covers most of the need.",
+  "id": "a_2naKHYBxK",
+  "position": "Zzzzzzzt",
+  "title": "Design: definitions shared across boards (fields, columns, hooks)",
+  "type": "feature",
+  "updated_at_millis": 1792875239048,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1792875239048}
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "_v": 3,
+  "alias": "design-keep-a-repo-s",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1792875239182,
+  "creator": "Alexander Terp",
+  "description": "Board-only commits are about a fifth of the commits on main across the maintainer's repos, and a worker's card move in a linked worktree lands as an uncommitted change in the main checkout. Storing cards in a tree under a ref such as `refs/kan/board` fixes both while keeping one board per repo.\n\nStarting sketch in `docs/design/work-across-boards.md`, section \"Deferred\". Open: `kan sync`, merging boards across machines, the file watcher in `kan serve`, migrating from `.kan/`, and keeping plain files the default.",
+  "id": "a_2naKHlyyg",
+  "position": "Zzzzzzzz",
+  "title": "Design: keep a repo's board in a git ref instead of .kan/ on main",
+  "type": "feature",
+  "updated_at_millis": 1792875239182,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1792875239182}
+  ]
+}
