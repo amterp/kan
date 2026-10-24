@@ -423,20 +423,6 @@ func TestGlobalConfig_SetRepoConfig(t *testing.T) {
 	}
 }
 
-func TestGlobalConfig_RegisterProject(t *testing.T) {
-	cfg := &GlobalConfig{}
-
-	cfg.RegisterProject("myproject", "/path/to/myproject")
-
-	if cfg.Projects == nil {
-		t.Fatal("Projects map should be initialized")
-	}
-
-	if cfg.Projects["myproject"] != "/path/to/myproject" {
-		t.Errorf("RegisterProject didn't work correctly: %v", cfg.Projects)
-	}
-}
-
 func TestComment(t *testing.T) {
 	comment := Comment{
 		ID:              "c_abc",

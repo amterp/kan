@@ -17,7 +17,7 @@ import (
 const (
 	CurrentCardVersion    = 3
 	CurrentBoardVersion   = 14
-	CurrentGlobalVersion  = 2
+	CurrentGlobalVersion  = 3
 	CurrentProjectVersion = 2
 )
 
@@ -50,6 +50,7 @@ var MinKanVersion = map[string]string{
 	"board/14":  "0.30.0",
 	"global/1":  "0.1.0",
 	"global/2":  "0.26.0",
+	"global/3":  "0.30.0",
 	"project/1": "0.3.0",
 	"project/2": "0.20.0",
 }

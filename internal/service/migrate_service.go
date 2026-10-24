@@ -10,6 +10,8 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/amterp/kan/internal/config"
+	"github.com/amterp/kan/internal/model"
+	"github.com/amterp/kan/internal/registry"
 	"github.com/amterp/kan/internal/store"
 	"github.com/amterp/kan/internal/util"
 	"github.com/amterp/kan/internal/version"
@@ -506,46 +508,89 @@ func (s *MigrateService) planCardMigration(path string) (*CardMigration, error) 
 }
 
 func (s *MigrateService) migrateGlobalConfig(plan *GlobalMigration) error {
-	// global/1 -> global/2 and onward: bumping the schema is a no-op transform
-	// (the global_board field is purely additive). When the file already declares
-	// a schema, update it in place; prepending would create a duplicate
-	// kan_schema key and break TOML decoding. Only the pre-schema case (no
-	// FromSchema) prepends, to preserve formatting of legacy configs.
-	if plan.FromSchema != "" {
-		return s.updateTOMLSchema(plan.Path, plan.ToSchema)
-	}
-	return s.prependTOMLField(plan.Path, "kan_schema", plan.ToSchema)
-}
-
-// updateTOMLSchema rewrites a TOML file's kan_schema value in place, preserving
-// all other fields.
-func (s *MigrateService) updateTOMLSchema(path, newSchema string) error {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(plan.Path)
 	if err != nil {
 		return err
 	}
-
 	var raw map[string]any
 	if _, err := toml.Decode(string(data), &raw); err != nil {
 		return fmt.Errorf("invalid TOML: %w", err)
 	}
 
-	raw["kan_schema"] = newSchema
-	return writeTOMLMap(path, raw)
+	fromVersion := 0
+	if plan.FromSchema != "" {
+		if v, err := version.ParseGlobalVersion(plan.FromSchema); err == nil {
+			fromVersion = v
+		}
+	}
+	migrateGlobalRaw(raw, fromVersion)
+
+	return writeTOMLMap(plan.Path, raw)
 }
 
-// prependTOMLField adds a field at the top of a TOML file, preserving existing formatting.
-// This avoids scrambling field order that would happen with decode/encode round-trip.
-func (s *MigrateService) prependTOMLField(path, key, value string) error {
+// ReadGlobalConfigInMemory reads the global config at path without schema
+// validation, applying any pending global migration in memory so the result
+// has the current shape. Returns nil, nil when the file doesn't exist.
+func ReadGlobalConfigInMemory(path string) (*model.GlobalConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read global config: %w", err)
+	}
+	var raw map[string]any
+	if _, err := toml.Decode(string(data), &raw); err != nil {
+		return nil, fmt.Errorf("failed to parse global config: %w", err)
 	}
 
-	// Prepend the new field with a blank line separator
-	newContent := fmt.Sprintf("%s = %q\n\n%s", key, value, string(data))
+	schema, _ := raw["kan_schema"].(string)
+	fromVersion := 0
+	if schema != "" {
+		if fromVersion, err = version.ParseGlobalVersion(schema); err != nil {
+			fromVersion = 0
+		}
+	}
+	if fromVersion < version.CurrentGlobalVersion {
+		migrateGlobalRaw(raw, fromVersion)
+	}
 
-	return os.WriteFile(path, []byte(newContent), 0644)
+	encoded, err := encodeTOMLMap(raw)
+	if err != nil {
+		return nil, err
+	}
+	var cfg model.GlobalConfig
+	if err := toml.Unmarshal(encoded, &cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse global config: %w", err)
+	}
+	return &cfg, nil
+}
+
+// migrateGlobalRaw runs every global config step from fromVersion up to the
+// current global schema.
+func migrateGlobalRaw(raw map[string]any, fromVersion int) {
+	// global/1 -> global/2 only added the optional [global_board] table.
+
+	// global/2 -> global/3: [repos] becomes the only registry. [projects]
+	// keyed projects by folder name, so two folders with one name shared a
+	// slot. Entries under temp directories, mostly test projects and scratch
+	// copies, are hidden so they stop being offered beyond their own folder.
+	if fromVersion <= 2 && version.CurrentGlobalVersion >= 3 {
+		delete(raw, "projects")
+		if repos, ok := raw["repos"].(map[string]any); ok {
+			for path, repo := range repos {
+				repoMap, ok := repo.(map[string]any)
+				if !ok {
+					continue
+				}
+				if registry.IsTempPath(path) {
+					repoMap["hidden"] = true
+				}
+			}
+		}
+	}
+
+	raw["kan_schema"] = version.CurrentGlobalSchema()
 }
 
 // migrateProjectConfig brings the project config to the current schema and

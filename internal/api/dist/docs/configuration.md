@@ -312,18 +312,21 @@ The global config at `~/.config/kan/config.toml` stores user preferences:
 ```toml
 editor = "vim"  # Editor for interactive editing
 
-[projects]
-my-project = "/Users/name/src/my-project"
-
 [repos."/Users/name/src/my-project"]
 default_board = "features"
+
+[repos."/Users/name/notes"]
+data_location = "kan-data"
+hidden = true
 ```
 
 | Field | Description |
 |-------|-------------|
 | `editor` | Editor for interactive mode (falls back to `$EDITOR`, then `vim`) |
-| `projects` | Registry of known Kan projects (populated automatically) |
+| `repos` | Registry of known Kan projects, keyed by path (populated automatically) |
 | `repos.<path>.default_board` | Default board when a repo has multiple boards |
+| `repos.<path>.data_location` | Custom data folder instead of `.kan/` |
+| `repos.<path>.hidden` | Keep the project out of the web UI's project switcher; kan still works inside it |
 
 ## Managing Columns via CLI
 

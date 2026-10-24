@@ -10,8 +10,10 @@ import (
 
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/model"
+	"github.com/amterp/kan/internal/registry"
 	"github.com/amterp/kan/internal/service"
 	"github.com/amterp/kan/internal/store"
+	"github.com/amterp/kan/internal/util"
 )
 
 // CardResponse wraps a Card for JSON API responses.
@@ -1003,7 +1005,7 @@ type AllBoardsResponse struct {
 	Skipped            []SkippedProject `json:"skipped,omitempty"`
 }
 
-// ListAllBoards returns all boards across all registered projects.
+// ListAllBoards returns all boards across the visible registered projects.
 func (h *Handler) ListAllBoards(w http.ResponseWriter, r *http.Request) {
 	globalCfg, err := h.globalStore.Load()
 	if err != nil {
@@ -1014,14 +1016,11 @@ func (h *Handler) ListAllBoards(w http.ResponseWriter, r *http.Request) {
 	var boards []BoardEntry
 	var skipped []SkippedProject
 
-	for projectName, projectPath := range globalCfg.Projects {
-		dataLocation := ""
-		if repoCfg := globalCfg.GetRepoConfig(projectPath); repoCfg != nil {
-			dataLocation = repoCfg.DataLocation
-		}
-
-		paths := config.NewPaths(projectPath, dataLocation)
+	for _, entry := range registry.Visible(globalCfg) {
+		projectPath := entry.Path
+		paths := config.NewPaths(projectPath, entry.DataLocation)
 		boardStore := store.NewBoardStore(paths)
+		projectName := registry.ProjectName(projectPath, entry.DataLocation)
 
 		boardNames, err := boardStore.List()
 		if err != nil {
@@ -1044,9 +1043,9 @@ func (h *Handler) ListAllBoards(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Try to get display name and favicon from project config. On failure we
-		// fall back to the registry name and a zero-value favicon (the frontend
-		// derives a placeholder tile from the board name in that case).
+		// Favicon comes from the validated project config. On failure we keep
+		// the raw name and a zero-value favicon (the frontend derives a
+		// placeholder tile from the board name in that case).
 		displayName := projectName
 		var favicon model.FaviconConfig
 		projectStore := store.NewProjectStore(paths)
@@ -1073,9 +1072,11 @@ func (h *Handler) ListAllBoards(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Map iteration above is randomized; sort so the response is stable across
-	// requests (the frontend re-sorts by recency, but a deterministic base order
-	// keeps never-opened boards from shuffling and keeps the API predictable).
+	disambiguateProjectNames(boards)
+
+	// Sort so the response is stable across requests (the frontend re-sorts by
+	// recency, but a deterministic base order keeps never-opened boards from
+	// shuffling and keeps the API predictable).
 	sort.Slice(boards, func(i, j int) bool {
 		if boards[i].ProjectName != boards[j].ProjectName {
 			return boards[i].ProjectName < boards[j].ProjectName
@@ -1092,6 +1093,23 @@ func (h *Handler) ListAllBoards(w http.ResponseWriter, r *http.Request) {
 		CurrentProjectPath: h.ctx().ProjectRoot,
 		Skipped:            skipped,
 	})
+}
+
+// disambiguateProjectNames appends the path to the name of every project that
+// shares its name with another project, so the switcher can tell them apart.
+func disambiguateProjectNames(boards []BoardEntry) {
+	pathsByName := make(map[string]map[string]bool)
+	for _, b := range boards {
+		if pathsByName[b.ProjectName] == nil {
+			pathsByName[b.ProjectName] = make(map[string]bool)
+		}
+		pathsByName[b.ProjectName][b.ProjectPath] = true
+	}
+	for i, b := range boards {
+		if len(pathsByName[b.ProjectName]) > 1 {
+			boards[i].ProjectName = fmt.Sprintf("%s (%s)", b.ProjectName, util.PrettyPath(b.ProjectPath))
+		}
+	}
 }
 
 // SwitchProjectRequest is the JSON body for switching projects.
@@ -1125,22 +1143,13 @@ func (h *Handler) SwitchProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dataLocation := ""
-	registered := false
-	for _, path := range globalCfg.Projects {
-		if path == req.ProjectPath {
-			registered = true
-			break
-		}
-	}
-	if !registered {
+	// Only visible projects are offered, so only they can be switched to.
+	repoCfg := globalCfg.GetRepoConfig(req.ProjectPath)
+	if repoCfg == nil || repoCfg.Hidden {
 		NotFound(w, "project", req.ProjectPath)
 		return
 	}
-
-	if repoCfg := globalCfg.GetRepoConfig(req.ProjectPath); repoCfg != nil {
-		dataLocation = repoCfg.DataLocation
-	}
+	dataLocation := repoCfg.DataLocation
 
 	// Build new context
 	newCtx, err := BuildProjectContext(req.ProjectPath, dataLocation, h.ctx().Creator)
@@ -1162,13 +1171,7 @@ func (h *Handler) SwitchProject(w http.ResponseWriter, r *http.Request) {
 		projectName = projCfg.Name
 	}
 	if projectName == "" {
-		// Fall back to project registry name
-		for name, path := range globalCfg.Projects {
-			if path == req.ProjectPath {
-				projectName = name
-				break
-			}
-		}
+		projectName = registry.ProjectName(req.ProjectPath, dataLocation)
 	}
 
 	// Swap context

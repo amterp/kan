@@ -108,8 +108,8 @@ func TestCurrentSchemas(t *testing.T) {
 	}
 
 	globalSchema := CurrentGlobalSchema()
-	if globalSchema != "global/2" {
-		t.Errorf("CurrentGlobalSchema() = %q, want %q", globalSchema, "global/2")
+	if globalSchema != "global/3" {
+		t.Errorf("CurrentGlobalSchema() = %q, want %q", globalSchema, "global/3")
 	}
 }
 

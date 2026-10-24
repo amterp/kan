@@ -178,6 +178,17 @@ var expectedPersistedFields = map[string][]string{
 		"repos.data_location",
 		"repos.default_board",
 	},
+	"global/3": {
+		"editor",
+		"global_board",
+		"global_board.board",
+		"global_board.path",
+		"kan_schema",
+		"repos",
+		"repos.data_location",
+		"repos.default_board",
+		"repos.hidden",
+	},
 	"project/2": {
 		"favicon",
 		"favicon.background",

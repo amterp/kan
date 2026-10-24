@@ -50,7 +50,6 @@ func designateGlobalBoard(t *testing.T, projectRoot, board string) {
 	t.Helper()
 	t.Setenv("HOME", t.TempDir())
 	cfg := &model.GlobalConfig{}
-	cfg.RegisterProject(filepath.Base(projectRoot), projectRoot)
 	cfg.SetRepoConfig(projectRoot, model.RepoConfig{})
 	if board != "" {
 		cfg.SetGlobalBoard(projectRoot, board)

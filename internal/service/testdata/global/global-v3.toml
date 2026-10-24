@@ -1,0 +1,14 @@
+kan_schema = "global/3"
+editor = "vim"
+
+[repos]
+[repos."/home/me/src/api"]
+default_board = "main"
+[repos."/home/me/notes"]
+data_location = "kan-data"
+[repos."/tmp/scratch-project"]
+hidden = true
+
+[global_board]
+path = "/home/me/notes"
+board = "inbox"

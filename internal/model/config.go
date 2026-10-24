@@ -6,7 +6,6 @@ package model
 type GlobalConfig struct {
 	KanSchema   string                `toml:"kan_schema"`
 	Editor      string                `toml:"editor,omitempty"`
-	Projects    map[string]string     `toml:"projects,omitempty"`     // name -> path
 	Repos       map[string]RepoConfig `toml:"repos,omitempty"`        // path -> config
 	GlobalBoard *GlobalBoardRef       `toml:"global_board,omitempty"` // board reachable from anywhere via -g
 }
@@ -15,6 +14,10 @@ type GlobalConfig struct {
 type RepoConfig struct {
 	DefaultBoard string `toml:"default_board,omitempty"`
 	DataLocation string `toml:"data_location,omitempty"` // Custom .kan location
+	// Hidden keeps the project out of everything offered beyond its own
+	// directory (the web UI's switcher, queries across projects). Kan still
+	// uses the entry when run inside the project.
+	Hidden bool `toml:"hidden,omitempty"`
 }
 
 // GlobalBoardRef designates a single board that `kan ... -g` targets regardless
@@ -44,14 +47,6 @@ func (g *GlobalConfig) SetRepoConfig(repoPath string, cfg RepoConfig) {
 	g.Repos[repoPath] = cfg
 }
 
-// RegisterProject adds a project to the registry.
-func (g *GlobalConfig) RegisterProject(name, path string) {
-	if g.Projects == nil {
-		g.Projects = make(map[string]string)
-	}
-	g.Projects[name] = path
-}
-
 // SetGlobalBoard designates the board that `-g` targets.
 func (g *GlobalConfig) SetGlobalBoard(path, board string) {
 	g.GlobalBoard = &GlobalBoardRef{Path: path, Board: board}
@@ -62,14 +57,8 @@ func (g *GlobalConfig) ClearGlobalBoard() {
 	g.GlobalBoard = nil
 }
 
-// RemoveRepoConfig removes a repo config and any project entries pointing to that path.
+// RemoveRepoConfig removes a repo config.
 // Used to clean up stale entries when re-initializing a project.
 func (g *GlobalConfig) RemoveRepoConfig(path string) {
 	delete(g.Repos, path)
-	// Also remove any Projects entries pointing to this path
-	for name, p := range g.Projects {
-		if p == path {
-			delete(g.Projects, name)
-		}
-	}
 }

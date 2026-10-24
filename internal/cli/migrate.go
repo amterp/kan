@@ -5,12 +5,12 @@ import (
 	"os"
 	"sort"
 
-	"github.com/BurntSushi/toml"
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/discovery"
 	"github.com/amterp/kan/internal/git"
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/prompt"
+	"github.com/amterp/kan/internal/registry"
 	"github.com/amterp/kan/internal/service"
 	"github.com/amterp/ra"
 )
@@ -95,26 +95,16 @@ func migrateTarget(worktrees discovery.WorktreeResolver) (*config.Paths, error) 
 	return config.NewPaths(result.ProjectRoot, result.DataLocation), nil
 }
 
-// readGlobalConfigUnvalidated decodes the global config without checking its
+// readGlobalConfigUnvalidated reads the global config without checking its
 // schema, since the config may itself be awaiting migration and a dry run
-// must not migrate it. Returns nil, nil when there is no global config.
+// must not migrate it. A pending migration is applied in memory, so hidden
+// entries are already hidden. Returns nil, nil when there is no global config.
 func readGlobalConfigUnvalidated() (*model.GlobalConfig, error) {
 	path := config.GlobalConfigPath()
 	if path == "" {
 		return nil, nil
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to read global config: %w", err)
-	}
-	var cfg model.GlobalConfig
-	if err := toml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse global config: %w", err)
-	}
-	return &cfg, nil
+	return service.ReadGlobalConfigInMemory(path)
 }
 
 // projectEntry is a resolved project for --all iteration.
@@ -143,14 +133,11 @@ func runMigrateAll(dryRun bool, nonInteractive bool) {
 		Fatal(fmt.Errorf("no global config found"))
 	}
 
-	if len(cfg.Repos) == 0 {
+	projects := buildProjectList(cfg)
+	if len(projects) == 0 {
 		fmt.Println("No projects found in global config.")
 		return
 	}
-
-	// Build sorted project list from Repos, using Projects
-	// for display names.
-	projects := buildProjectList(cfg)
 
 	var prompter prompt.Prompter
 	if nonInteractive {
@@ -206,33 +193,19 @@ func runMigrateAll(dryRun bool, nonInteractive bool) {
 	}
 }
 
-// buildProjectList resolves the sorted list of projects from
-// global config's Repos and Projects maps.
+// buildProjectList returns the visible registered projects sorted by name.
+// Hidden entries are skipped, like everything else that spans projects.
 func buildProjectList(cfg *model.GlobalConfig) []projectEntry {
-	// Invert Projects map: path -> name.
-	// Multiple names can map to the same path, so keep the
-	// lexicographically first for deterministic output.
-	pathToName := make(map[string]string, len(cfg.Projects))
-	for name, path := range cfg.Projects {
-		if existing, ok := pathToName[path]; !ok || name < existing {
-			pathToName[path] = name
-		}
-	}
-
 	var projects []projectEntry
-	for path, repoCfg := range cfg.Repos {
-		name := pathToName[path]
-		if name == "" {
-			name = path // fallback to path if no display name
-		}
+	for _, e := range registry.Visible(cfg) {
 		projects = append(projects, projectEntry{
-			name:         name,
-			path:         path,
-			dataLocation: repoCfg.DataLocation,
+			name:         registry.ProjectName(e.Path, e.DataLocation),
+			path:         e.Path,
+			dataLocation: e.DataLocation,
 		})
 	}
 
-	sort.Slice(projects, func(i, j int) bool {
+	sort.SliceStable(projects, func(i, j int) bool {
 		return projects[i].name < projects[j].name
 	})
 

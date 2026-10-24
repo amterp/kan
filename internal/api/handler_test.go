@@ -999,10 +999,6 @@ func TestHandler_ListAllBoards_MultipleProjects(t *testing.T) {
 	projBDir := createProjectDir(t, "dev")
 
 	globalCfg := &model.GlobalConfig{
-		Projects: map[string]string{
-			"project-a": projADir,
-			"project-b": projBDir,
-		},
 		Repos: map[string]model.RepoConfig{
 			projADir: {},
 			projBDir: {},
@@ -1042,8 +1038,7 @@ func TestHandler_ListAllBoards_IncludesFavicon(t *testing.T) {
 	}
 
 	globalCfg := &model.GlobalConfig{
-		Projects: map[string]string{"project-a": projDir},
-		Repos:    map[string]model.RepoConfig{projDir: {}},
+		Repos: map[string]model.RepoConfig{projDir: {}},
 	}
 	api, _ := setupCrossProjectAPI(t, globalCfg)
 
@@ -1080,8 +1075,7 @@ func TestHandler_ListAllBoards_DefaultsFaviconWhenUnset(t *testing.T) {
 	}
 
 	globalCfg := &model.GlobalConfig{
-		Projects: map[string]string{"project-a": projDir},
-		Repos:    map[string]model.RepoConfig{projDir: {}},
+		Repos: map[string]model.RepoConfig{projDir: {}},
 	}
 	api, _ := setupCrossProjectAPI(t, globalCfg)
 
@@ -1103,13 +1097,12 @@ func TestHandler_ListAllBoards_DefaultsFaviconWhenUnset(t *testing.T) {
 
 func TestHandler_ListAllBoards_NoProjectConfigUsesDefaults(t *testing.T) {
 	// A project with a board but no project config file: Load returns defaults
-	// (no error), so the handler uses the registry name and a derived default
-	// favicon - matching what the browser tab shows for that project.
+	// (no error), so the handler names it after its folder and derives the
+	// default favicon - matching what the browser tab shows for that project.
 	projDir := createProjectDir(t, "main")
 
 	globalCfg := &model.GlobalConfig{
-		Projects: map[string]string{"project-a": projDir},
-		Repos:    map[string]model.RepoConfig{projDir: {}},
+		Repos: map[string]model.RepoConfig{projDir: {}},
 	}
 	api, _ := setupCrossProjectAPI(t, globalCfg)
 
@@ -1124,10 +1117,11 @@ func TestHandler_ListAllBoards_NoProjectConfigUsesDefaults(t *testing.T) {
 		t.Fatalf("Expected 1 board, got %d", len(resp.Boards))
 	}
 	got := resp.Boards[0]
-	if got.ProjectName != "project-a" {
-		t.Errorf("Expected registry name %q, got %q", "project-a", got.ProjectName)
+	folderName := filepath.Base(projDir)
+	if got.ProjectName != folderName {
+		t.Errorf("Expected folder name %q, got %q", folderName, got.ProjectName)
 	}
-	want := model.DefaultFaviconConfig("", "project-a")
+	want := model.DefaultFaviconConfig("", folderName)
 	if got.Favicon != want {
 		t.Errorf("Expected defaulted favicon %+v, got %+v", want, got.Favicon)
 	}
@@ -1138,10 +1132,6 @@ func TestHandler_ListAllBoards_SkipsInvalidProjects(t *testing.T) {
 	invalidDir := filepath.Join(os.TempDir(), "nonexistent-kan-project-xyz")
 
 	globalCfg := &model.GlobalConfig{
-		Projects: map[string]string{
-			"valid":   validDir,
-			"invalid": invalidDir,
-		},
 		Repos: map[string]model.RepoConfig{
 			validDir:   {},
 			invalidDir: {},
@@ -1163,8 +1153,8 @@ func TestHandler_ListAllBoards_SkipsInvalidProjects(t *testing.T) {
 	if len(resp.Skipped) != 1 {
 		t.Errorf("Expected 1 skipped project, got %d", len(resp.Skipped))
 	}
-	if len(resp.Skipped) > 0 && resp.Skipped[0].Name != "invalid" {
-		t.Errorf("Expected skipped project name 'invalid', got %q", resp.Skipped[0].Name)
+	if len(resp.Skipped) > 0 && resp.Skipped[0].Name != "nonexistent-kan-project-xyz" {
+		t.Errorf("Expected skipped project named after its folder, got %q", resp.Skipped[0].Name)
 	}
 }
 
@@ -1172,9 +1162,6 @@ func TestHandler_SwitchProject_Success(t *testing.T) {
 	projDir := createProjectDir(t, "main")
 
 	globalCfg := &model.GlobalConfig{
-		Projects: map[string]string{
-			"target": projDir,
-		},
 		Repos: map[string]model.RepoConfig{
 			projDir: {},
 		},
@@ -1207,11 +1194,7 @@ func TestHandler_SwitchProject_Success(t *testing.T) {
 }
 
 func TestHandler_SwitchProject_UnregisteredPath(t *testing.T) {
-	globalCfg := &model.GlobalConfig{
-		Projects: map[string]string{
-			"only": "/some/path",
-		},
-	}
+	globalCfg := &model.GlobalConfig{}
 	api, _ := setupCrossProjectAPI(t, globalCfg)
 
 	body := map[string]any{"project_path": "/not/registered"}
@@ -1226,9 +1209,6 @@ func TestHandler_SwitchProject_PathDoesNotExist(t *testing.T) {
 	badPath := filepath.Join(os.TempDir(), "nonexistent-kan-switch-test")
 
 	globalCfg := &model.GlobalConfig{
-		Projects: map[string]string{
-			"ghost": badPath,
-		},
 		Repos: map[string]model.RepoConfig{
 			badPath: {},
 		},
@@ -1253,9 +1233,6 @@ func TestHandler_SwitchProject_NoBoards(t *testing.T) {
 	os.MkdirAll(filepath.Join(dir, ".kan", "boards"), 0755)
 
 	globalCfg := &model.GlobalConfig{
-		Projects: map[string]string{
-			"empty": dir,
-		},
 		Repos: map[string]model.RepoConfig{
 			dir: {},
 		},

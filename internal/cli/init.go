@@ -127,8 +127,12 @@ func runInit(location, boardName, columnsStr, projectName string, nonInteractive
 		}
 	}
 
-	if err := app.InitService.Initialize(location, boardName, columns, projectName, worktreeIndependent); err != nil {
+	registration, err := app.InitService.Initialize(location, boardName, columns, projectName, worktreeIndependent)
+	if err != nil {
 		Fatal(err)
+	}
+	if msg := registration.Message(); msg != "" {
+		PrintWarning("%s", msg)
 	}
 
 	// Display initialization result

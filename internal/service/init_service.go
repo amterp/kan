@@ -10,6 +10,7 @@ import (
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/id"
 	"github.com/amterp/kan/internal/model"
+	"github.com/amterp/kan/internal/registry"
 	"github.com/amterp/kan/internal/store"
 )
 
@@ -32,17 +33,19 @@ func NewInitService(globalStore store.GlobalStore) *InitService {
 // If boardName is empty, uses "main".
 // If customColumns is empty, uses default columns.
 // If projectName is empty, derives from git repo root or cwd basename.
-func (s *InitService) Initialize(customLocation, boardName string, customColumns []string, projectName string, worktreeIndependent bool) error {
+// The returned Result says how the project was registered; its Message is
+// worth showing the user.
+func (s *InitService) Initialize(customLocation, boardName string, customColumns []string, projectName string, worktreeIndependent bool) (registry.Result, error) {
 	// Get current working directory as project root
 	projectRoot, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
+		return registry.Result{}, fmt.Errorf("failed to get working directory: %w", err)
 	}
 
 	// Make sure it's absolute
 	projectRoot, err = filepath.Abs(projectRoot)
 	if err != nil {
-		return fmt.Errorf("failed to resolve absolute path: %w", err)
+		return registry.Result{}, fmt.Errorf("failed to resolve absolute path: %w", err)
 	}
 
 	// Determine kan root
@@ -57,7 +60,7 @@ func (s *InitService) Initialize(customLocation, boardName string, customColumns
 
 	// Create directory structure
 	if err := os.MkdirAll(boardsRoot, 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
+		return registry.Result{}, fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Use default board name if not specified
@@ -93,7 +96,7 @@ func (s *InitService) Initialize(customLocation, boardName string, customColumns
 	}
 
 	if err := boardStore.Create(board); err != nil {
-		return fmt.Errorf("failed to create board: %w", err)
+		return registry.Result{}, fmt.Errorf("failed to create board: %w", err)
 	}
 
 	// Create project config
@@ -109,7 +112,7 @@ func (s *InitService) Initialize(customLocation, boardName string, customColumns
 		WorktreeIndependent: worktreeIndependent,
 	}
 	if err := projectStore.Save(projectCfg); err != nil {
-		return fmt.Errorf("failed to create project config: %w", err)
+		return registry.Result{}, fmt.Errorf("failed to create project config: %w", err)
 	}
 
 	// Register in global config
@@ -133,26 +136,16 @@ func deriveProjectName(projectRoot string) string {
 	return filepath.Base(projectRoot)
 }
 
-func (s *InitService) registerProject(projectRoot, customLocation string) error {
+func (s *InitService) registerProject(projectRoot, customLocation string) (registry.Result, error) {
 	globalCfg, err := s.globalStore.Load()
 	if err != nil {
-		return err
+		return registry.Result{}, err
 	}
 
 	// Clean up any stale entries for this path before registering.
 	// This handles the case where the user deleted .kan/ and is re-initializing.
 	globalCfg.RemoveRepoConfig(projectRoot)
 
-	// Register project
-	projectName := filepath.Base(projectRoot)
-	globalCfg.RegisterProject(projectName, projectRoot)
-
-	// Always set repo config entry (enables discovery via global config)
-	repoCfg := model.RepoConfig{}
-	if customLocation != "" {
-		repoCfg.DataLocation = customLocation
-	}
-	globalCfg.SetRepoConfig(projectRoot, repoCfg)
-
-	return s.globalStore.Save(globalCfg)
+	result := registry.Register(globalCfg, projectRoot, customLocation)
+	return result, s.globalStore.Save(globalCfg)
 }

@@ -123,7 +123,8 @@ func writeGlobalConfig(t *testing.T, contents string) string {
 
 func TestMigrateService_GlobalConfig_V1ToCurrent(t *testing.T) {
 	// A global/1 config with real content. Migration must bump the schema in
-	// place (not prepend a duplicate kan_schema key) and preserve every field.
+	// place (not prepend a duplicate kan_schema key) and preserve every field
+	// except [projects], which global/3 drops.
 	path := writeGlobalConfig(t, `kan_schema = "global/1"
 editor = "vim"
 
@@ -163,8 +164,8 @@ data_location = ".kan"
 	if cfg.Editor != "vim" {
 		t.Errorf("Editor = %q, want vim", cfg.Editor)
 	}
-	if cfg.Projects["myproj"] != "/home/me/myproj" {
-		t.Errorf("Projects not preserved: %+v", cfg.Projects)
+	if data, _ := os.ReadFile(path); strings.Contains(string(data), "projects") {
+		t.Error("global/3 drops [projects]")
 	}
 	if rc := cfg.GetRepoConfig("/home/me/myproj"); rc == nil || rc.DefaultBoard != "main" {
 		t.Errorf("Repos not preserved: %+v", cfg.Repos)

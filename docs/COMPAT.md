@@ -82,8 +82,14 @@ name = "Backlog"
 ### Global Configuration (TOML)
 
 ```toml
-kan_schema = "global/2"
+kan_schema = "global/3"
 editor = "vim"
+
+[repos."/home/me/personal"]
+default_board = "inbox"
+
+[repos."/tmp/scratch"]
+hidden = true
 
 [global_board]
 path = "/home/me/personal"
@@ -114,6 +120,19 @@ board = "inbox"
 **Migration (global/1 → global/2)**: a no-op transform. The `global_board` field is purely additive, so migration only stamps the new schema version (in place, preserving all existing fields).
 
 **Backward compatibility**: configs without `[global_board]` simply have no global board designated; `-g` reports a clear "run kan global set" error.
+
+### Project Registry (global/3)
+
+**Added in**: global/3
+
+`[repos]`, keyed by project root, is the only list of projects kan knows on a machine. global/2 also kept `[projects]`, mapping a folder's basename to its path, which the web UI's project switcher and `kan migrate --all` read. Two folders with the same basename shared one slot there, so registering the second silently dropped the first from the switcher. global/3 removes `[projects]`; the switcher names each project from the `name` in its `.kan/config.toml` and shows the path too when two names match.
+
+Each entry may set `hidden = true`. A hidden project works normally when kan runs inside it, and its `data_location` still applies, but kan doesn't offer it anywhere else: not in the switcher or omnibar, and not to anything that spans projects. Kan registers every project it runs in, so one-off copies pile up (73 of 124 entries on the maintainer's machine pointed into temp directories). Kan keeps them out of the way itself:
+
+- A project discovered inside a temp directory (`os.TempDir()`, `/tmp` or `/private/tmp`, compared by whole path components with symlinks resolved) is not registered. `kan init` there registers a hidden entry only when given a custom `--location`, which discovery can't find without one.
+- A project whose board ID a visible entry at another path already holds is registered hidden, with a message naming the other path and how to unhide this copy.
+
+**Migration (global/2 -> global/3)**: drops `[projects]` and sets `hidden = true` on entries under temp directories. Other entries and settings are kept. Duplicates outside temp directories stay visible. Like the other migration steps, it edits the decoded TOML.
 
 ### Project Configuration (TOML)
 

@@ -14,9 +14,11 @@ import (
 	"github.com/amterp/kan/internal/git"
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/prompt"
+	"github.com/amterp/kan/internal/registry"
 	"github.com/amterp/kan/internal/resolver"
 	"github.com/amterp/kan/internal/service"
 	"github.com/amterp/kan/internal/store"
+	"github.com/amterp/kan/internal/util"
 	"github.com/amterp/kan/internal/version"
 )
 
@@ -137,7 +139,7 @@ func NewAppWithOptions(opts AppOptions) (*App, error) {
 	// stale (project moved/deleted, or board removed) rather than surfacing a
 	// generic "not initialized" later.
 	if opts.UseGlobalBoard && !boardStore.Exists(globalBoardName) {
-		return nil, &kanerr.StaleGlobalBoardError{Board: globalBoardName, Path: prettyPath(projectRoot)}
+		return nil, &kanerr.StaleGlobalBoardError{Board: globalBoardName, Path: util.PrettyPath(projectRoot)}
 	}
 
 	// Ensure project config exists with ID (graceful upgrade for older projects)
@@ -267,16 +269,17 @@ func NewAppWithoutDiscovery() (*App, error) {
 	}, nil
 }
 
-// registerProject auto-registers a discovered but unregistered project in global config.
+// registerProject auto-registers a discovered but unregistered project in
+// global config, following the registry's rules for temp directories and
+// second copies of a board.
 func registerProject(globalStore store.GlobalStore, globalCfg *model.GlobalConfig, projectRoot, dataLocation string) {
-	projectName := filepath.Base(projectRoot)
-	globalCfg.RegisterProject(projectName, projectRoot)
-
-	repoCfg := model.RepoConfig{}
-	if dataLocation != "" {
-		repoCfg.DataLocation = dataLocation
+	result := registry.Register(globalCfg, projectRoot, dataLocation)
+	if !result.Registered {
+		return
 	}
-	globalCfg.SetRepoConfig(projectRoot, repoCfg)
+	if msg := result.Message(); msg != "" {
+		PrintWarning("%s", msg)
+	}
 
 	// Best effort - don't fail if we can't save
 	_ = globalStore.Save(globalCfg)
@@ -359,18 +362,7 @@ func (a *App) PrintGlobalTarget(boardName string) {
 	if !a.UsingGlobalBoard {
 		return
 	}
-	PrintInfo("global board %q %s", boardName, RenderMuted("("+prettyPath(a.ProjectRoot)+")"))
-}
-
-// prettyPath abbreviates the user's home directory to ~ for friendlier output.
-func prettyPath(p string) string {
-	home, err := os.UserHomeDir()
-	// Require a path-segment boundary so /home/alice doesn't match
-	// /home/alicewonderland.
-	if err == nil && home != "" && (p == home || strings.HasPrefix(p, home+string(os.PathSeparator))) {
-		return "~" + p[len(home):]
-	}
-	return p
+	PrintInfo("global board %q %s", boardName, RenderMuted("("+util.PrettyPath(a.ProjectRoot)+")"))
 }
 
 // RequireKan ensures Kan is initialized in the current project.

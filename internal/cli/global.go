@@ -8,6 +8,7 @@ import (
 	kanerr "github.com/amterp/kan/internal/errors"
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/store"
+	"github.com/amterp/kan/internal/util"
 	"github.com/amterp/ra"
 )
 
@@ -84,7 +85,7 @@ func runGlobalSet(boardArg string, nonInteractive bool) {
 		Fatal(err)
 	}
 
-	PrintSuccess("Global board set to %q %s", boardName, RenderMuted("("+prettyPath(app.ProjectRoot)+")"))
+	PrintSuccess("Global board set to %q %s", boardName, RenderMuted("("+util.PrettyPath(app.ProjectRoot)+")"))
 	PrintInfo("Use it from anywhere with -g, e.g. 'kan add -g \"...\"'")
 }
 
@@ -100,7 +101,7 @@ func runGlobalShow() {
 	}
 
 	ref := cfg.GlobalBoard
-	PrintInfo("Global board: %q %s", ref.Board, RenderMuted("("+prettyPath(ref.Path)+")"))
+	PrintInfo("Global board: %q %s", ref.Board, RenderMuted("("+util.PrettyPath(ref.Path)+")"))
 
 	// Surface staleness proactively so 'show' doubles as a health check.
 	var dataLocation string
