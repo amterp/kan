@@ -2,17 +2,18 @@
   "_v": 3,
   "alias": "add-blocked-by-and",
   "alias_explicit": false,
-  "column": "backlog-lo",
+  "column": "backlog-hi",
   "created_at_millis": 1792875238103,
   "creator": "Alexander Terp",
   "description": "Dependencies between cards live in prose today, which nothing can query.\n\nDesign: `docs/design/work-across-boards.md`, sections \"Links\", \"Collisions with existing custom fields\", \"Parents\", \"Commands\" and \"Lookup results\". Covers the card/4 schema and its migration (renaming a colliding custom field to `x_blocked_by` or `x_related`, rewriting alias parents to IDs), one link service behind `kan link`, `kan unlink` and `kan add --blocked-by`, refusing cycles and links to an ancestor, the lookup result every stored ref resolves to, and `kan show` listing both directions.\n\nAfter a_2naKFngG2.",
   "id": "a_2naKG1kJn",
   "parent": "a_2naKFgTg0",
-  "position": "Zzzzx",
+  "position": "a9",
   "title": "Add blocked_by and related links to cards (card/4)",
   "type": "feature",
-  "updated_at_millis": 1792875238103,
+  "updated_at_millis": 1792875445480,
   "history": [
-    {"field":"column","value":"backlog-lo","at":1792875238103}
+    {"field":"column","value":"backlog-lo","at":1792875238103},
+    {"field":"column","value":"backlog-hi","at":1792875445480}
   ]
 }

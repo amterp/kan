@@ -2,17 +2,18 @@
   "_v": 3,
   "alias": "stop-read-commands",
   "alias_explicit": false,
-  "column": "backlog-lo",
+  "column": "next",
   "created_at_millis": 1792875237290,
   "creator": "Alexander Terp",
   "description": "Kan migrates an older project before running any command, so a read such as `kan list` can leave a repo dirty. Reads also create a missing `.kan/config.toml` and rewrite an existing one. A query across 40 boards would dirty every repo with an older schema. Reported as feedback: \"a read-only 'kan list' migrates an older board\".\n\nDesign: `docs/design/work-across-boards.md`, section \"Read commands never write inside a project\". Reads transform older schemas in memory through the same functions `kan migrate` uses; the global config may still be written; `doctor` keeps reading raw files; `kan serve` still migrates the project it opens.\n\nAfter a_2naKEczaZ.",
   "id": "a_2naKEiri7",
   "parent": "a_2naKEWqdp",
-  "position": "Zzl",
+  "position": "a1",
   "title": "Stop read commands from writing inside a project",
   "type": "bug",
-  "updated_at_millis": 1792875237290,
+  "updated_at_millis": 1792875444753,
   "history": [
-    {"field":"column","value":"backlog-lo","at":1792875237290}
+    {"field":"column","value":"backlog-lo","at":1792875237290},
+    {"field":"column","value":"next","at":1792875444753}
   ]
 }

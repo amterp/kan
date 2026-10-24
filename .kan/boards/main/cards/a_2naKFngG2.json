@@ -2,17 +2,18 @@
   "_v": 3,
   "alias": "store-parents-as",
   "alias_explicit": false,
-  "column": "backlog-lo",
+  "column": "backlog-hi",
   "created_at_millis": 1792875237961,
   "creator": "Alexander Terp",
   "description": "`kan add --parent` and `kan edit --parent` check that the argument resolves, then store it as typed, so a parent can be an alias that stops matching when the parent's title changes. Kan also accepts a card as its own parent, and parent cycles. `kan ready` will read parents, so they have to be reliable.\n\nDesign: `docs/design/work-across-boards.md`, section \"Parents\". This card covers writes from the CLI and the HTTP API and `kan doctor` reporting bad parents. Rewriting existing alias parents is part of the card/4 migration, on this phase's links card.",
   "id": "a_2naKFngG2",
   "parent": "a_2naKFgTg0",
-  "position": "Zzzzl",
+  "position": "a7",
   "title": "Store parents as card IDs and refuse parent cycles",
   "type": "bug",
-  "updated_at_millis": 1792875237961,
+  "updated_at_millis": 1792875445352,
   "history": [
-    {"field":"column","value":"backlog-lo","at":1792875237961}
+    {"field":"column","value":"backlog-lo","at":1792875237961},
+    {"field":"column","value":"backlog-hi","at":1792875445352}
   ]
 }
