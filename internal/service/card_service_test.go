@@ -836,6 +836,22 @@ func TestCardService_UpdateTitle_RegeneratesAlias(t *testing.T) {
 	}
 }
 
+func TestCardService_Edit_RejectsAliasWithColon(t *testing.T) {
+	service, _, boardStore := setupCardService()
+	boardStore.addBoard(testBoardConfig("main"))
+	card, _, _ := service.Add(AddCardInput{BoardName: "main", Title: "Fix login", Column: "backlog"})
+
+	alias := "fix:login"
+	if _, err := service.Edit(EditCardInput{BoardName: "main", CardIDOrAlias: card.ID, Alias: &alias}); err == nil {
+		t.Fatal("an alias containing ':' would be read as board:card in references; Edit should refuse it")
+	}
+
+	unchanged, _ := service.Get("main", card.ID)
+	if unchanged.Alias != card.Alias {
+		t.Errorf("refused edit changed the alias to %q", unchanged.Alias)
+	}
+}
+
 func TestCardService_UpdateTitle_PreservesExplicitAlias(t *testing.T) {
 	service, _, boardStore := setupCardService()
 	boardStore.addBoard(testBoardConfig("main"))

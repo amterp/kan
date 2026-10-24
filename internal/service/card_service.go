@@ -543,6 +543,9 @@ func (s *CardService) Edit(input EditCardInput) (*model.Card, error) {
 		if *input.Alias == "" {
 			return nil, kanerr.InvalidField("alias", "cannot be empty")
 		}
+		if strings.Contains(*input.Alias, ":") {
+			return nil, kanerr.InvalidField("alias", `cannot contain ":", which separates a board from a card in references such as board:card`)
+		}
 		existing, err := s.cardStore.FindByAlias(input.BoardName, *input.Alias)
 		if err == nil && existing.ID != card.ID {
 			return nil, kanerr.InvalidField("alias", fmt.Sprintf("already in use by card %s", existing.ID))
