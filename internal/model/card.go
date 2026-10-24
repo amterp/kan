@@ -83,13 +83,17 @@ func (c Card) MarshalJSON() ([]byte, error) {
 	}
 
 	// Merge custom fields into the base object
-	var merged map[string]any
+	var merged map[string]json.RawMessage
 	if err := json.Unmarshal(base, &merged); err != nil {
 		return nil, err
 	}
 
 	for k, v := range c.CustomFields {
-		merged[k] = v
+		value, err := json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+		merged[k] = value
 	}
 
 	return json.Marshal(merged)

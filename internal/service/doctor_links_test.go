@@ -236,6 +236,9 @@ func TestDoctorLinks_FixPreservesOtherDataAndUsesSourceFilename(t *testing.T) {
 	}
 	raw["id"], _ = json.Marshal(target.ID)
 	raw["large_number"] = json.RawMessage("90071992547409931234")
+	raw["created_at_millis"] = json.RawMessage("9007199254740993")
+	raw["updated_at_millis"] = json.RawMessage("9007199254740995")
+	raw["comments"] = json.RawMessage(`[{"id":"comment","body":"Keep","author":"tester","created_at_millis":9007199254740993,"updated_at_millis":9007199254740995}]`)
 	data, _ := json.Marshal(raw)
 	f.write(path, string(data))
 	targetBefore := readCardBytes(t, f.paths, target.ID)
