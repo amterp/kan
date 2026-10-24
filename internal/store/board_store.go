@@ -167,11 +167,12 @@ func (s *FileBoardStore) List() ([]string, error) {
 	var boards []string
 	for _, entry := range entries {
 		if entry.IsDir() {
-			// Verify it has a config.toml
+			// Keep unreadable configs visible so callers can report the read failure.
 			configPath := s.paths.BoardConfigPath(entry.Name())
-			if _, err := os.Stat(configPath); err == nil {
-				boards = append(boards, entry.Name())
+			if _, err := os.Stat(configPath); os.IsNotExist(err) {
+				continue
 			}
+			boards = append(boards, entry.Name())
 		}
 	}
 

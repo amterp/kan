@@ -3,11 +3,13 @@ package service
 import (
 	"bytes"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/store"
+	"github.com/amterp/kan/internal/version"
 )
 
 func TestLinkService_StoredIDsAndNoOpWrites(t *testing.T) {
@@ -188,5 +190,57 @@ func TestLinkGraph_StatesAndSnapshot(t *testing.T) {
 	graph, _ = LoadLinkGraph(svc.boardStore, svc.cardStore)
 	if result := graph.Resolve("main", "board-future:card"); result.State != LinkUnsupportedSchema {
 		t.Fatalf("expected unsupported board: %+v", result)
+	}
+}
+
+func TestLinkGraph_QualifiedRefsRequireKnownBoardIdentities(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		config  string
+		symlink bool
+		want    LinkState
+	}{
+		{name: "config stat fails", symlink: true, want: LinkUnreadable},
+		{name: "future config without ID", config: "kan_schema = \"board/999\"\n", want: LinkUnsupportedSchema},
+		{name: "current config without ID", config: "kan_schema = \"" + version.CurrentBoardSchema() + "\"\n", want: LinkUnreadable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, paths := setupCardIntegrityTest(t)
+			cfg, err := svc.boardStore.Get("main")
+			if err != nil {
+				t.Fatal(err)
+			}
+			cfg.ID = "board-main"
+			if err := svc.boardStore.Update(cfg); err != nil {
+				t.Fatal(err)
+			}
+			target := addIntegrityCard(t, svc, "Target", "")
+			if err := os.MkdirAll(paths.BoardDir("unknown"), 0755); err != nil {
+				t.Fatal(err)
+			}
+			if tc.symlink {
+				if runtime.GOOS == "windows" {
+					t.Skip("symlink creation requires privileges on Windows")
+				}
+				if err := os.Symlink("config.toml", paths.BoardConfigPath("unknown")); err != nil {
+					t.Fatal(err)
+				}
+			} else if err := os.WriteFile(paths.BoardConfigPath("unknown"), []byte(tc.config), 0644); err != nil {
+				t.Fatal(err)
+			}
+			graph, err := LoadLinkGraph(svc.boardStore, svc.cardStore)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, ref := range []string{"remote:missing", "board-main:" + target.ID} {
+				result := graph.Resolve("main", ref)
+				if result.State != tc.want || result.Reason == "" {
+					t.Fatalf("unavailable board identity cannot establish absence or uniqueness of %s: %+v", ref, result)
+				}
+			}
+			if result := graph.Resolve("main", target.ID); result.State != LinkFound {
+				t.Fatalf("unknown identity hid a same-board card: %+v", result)
+			}
+		})
 	}
 }

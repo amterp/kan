@@ -114,13 +114,18 @@ func (g *LinkGraph) Resolve(boardName, storedRef string) LinkLookup {
 			result.Reason = fmt.Sprintf("board ID %s belongs to multiple boards: %s", boardID, strings.Join(matches, ", "))
 			return result
 		}
-		if len(matches) == 0 {
-			for _, name := range g.names {
-				b := g.boards[name]
-				if b.config == nil && b.err != nil {
-					return failedLink(result, b.err)
-				}
+		for _, name := range g.names {
+			b := g.boards[name]
+			if b.config != nil && b.config.ID != "" {
+				continue
 			}
+			err := b.err
+			if err == nil {
+				err = fmt.Errorf("board %s has no readable ID", name)
+			}
+			return failedLink(result, err)
+		}
+		if len(matches) == 0 {
 			result.State = LinkBoardNotHere
 			result.Reason = fmt.Sprintf("board %s is not in this project", boardID)
 			return result
