@@ -325,7 +325,8 @@ kan add "Deploy" --blocked-by tests
 
 `--blocked-by` and `--related` accept multiple values and can be repeated. At
 least one is required. Blocker cycles and blockers that name a card's ancestor
-are rejected before writing. Related links do not block work. Adding an existing
+are rejected before writing. A card cannot name itself as related. Related links
+do not block work. Adding an existing
 link is a no-op. Cycle checks follow links into other boards and projects as far
 as kan can read them.
 
@@ -353,7 +354,9 @@ kan unlink deploy deleted-id
 Stored strings match first, so a dangling reference can be removed even when its
 target cannot be found. Otherwise references resolve as card IDs or aliases, and
 `board:card` references as they do for `link`.
-Removing a link that is already absent is a no-op.
+Unmatched references are reported on stderr. If no links match, the command
+exits 1 and leaves the card unchanged. If some match, those links are removed
+and the command succeeds while naming the unmatched references.
 
 Both commands accept `-b/--board`, `-g/--global`, and `--json`. `show` lists
 blockers with their columns and categories, cards that wait on this one, and

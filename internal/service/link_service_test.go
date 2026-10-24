@@ -96,6 +96,42 @@ func TestLinkService_UnlinkDanglingRefsAndBothKinds(t *testing.T) {
 	}
 }
 
+func TestLinkService_UnlinkReportsUnmatchedRefsWithoutWritingNoOp(t *testing.T) {
+	svc, paths := setupCardIntegrityTest(t)
+	a := addIntegrityCard(t, svc, "Source", "")
+	b := addIntegrityCard(t, svc, "Target", "")
+	links := NewLinkService(svc.cardStore, svc.boardStore)
+	if _, err := links.Link("main", a.ID, []string{b.ID}, []string{b.ID}); err != nil {
+		t.Fatal(err)
+	}
+	before := readCardBytes(t, paths, a.ID)
+	result, err := links.UnlinkWithResult("main", a.ID, []string{"unmatched"})
+	if err != nil || result.Removed != 0 || len(result.Unmatched) != 1 || result.Unmatched[0] != "unmatched" {
+		t.Fatalf("unexpected no-op result: %+v, %v", result, err)
+	}
+	if !bytes.Equal(before, readCardBytes(t, paths, a.ID)) {
+		t.Fatal("no-op unlink changed the source")
+	}
+	result, err = links.UnlinkWithResult("main", a.ID, []string{b.Alias, "unmatched"})
+	if err != nil || result.Removed != 2 || len(result.Unmatched) != 1 || len(result.Card.BlockedBy)+len(result.Card.Related) != 0 {
+		t.Fatalf("unexpected partial result: %+v, %v", result, err)
+	}
+}
+
+func TestLinkService_RejectsRelatedSelfReferences(t *testing.T) {
+	svc, paths := setupCardIntegrityTest(t)
+	a := addIntegrityCard(t, svc, "Source", "")
+	before := readCardBytes(t, paths, a.ID)
+	for _, ref := range []string{a.ID, a.Alias, "main:" + a.ID, "main:" + a.Alias} {
+		if _, err := NewLinkService(svc.cardStore, svc.boardStore).Link("main", a.ID, nil, []string{ref}); err == nil || !strings.Contains(err.Error(), "itself") {
+			t.Fatalf("accepted related self reference %q: %v", ref, err)
+		}
+		if !bytes.Equal(before, readCardBytes(t, paths, a.ID)) {
+			t.Fatal("rejected self-link wrote the card")
+		}
+	}
+}
+
 func TestCardService_AddBlockersBeforePersistence(t *testing.T) {
 	svc, _ := setupCardIntegrityTest(t)
 	parent := addIntegrityCard(t, svc, "Parent", "")

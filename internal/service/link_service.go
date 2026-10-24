@@ -156,12 +156,15 @@ func (s *LinkService) Prepare(g *LinkGraph, boardName string, card *model.Card, 
 	if _, err := g.Cards(boardName); err != nil {
 		return err
 	}
-	resolve := func(refs []string, existing []string) ([]string, error) {
+	resolve := func(field string, refs []string, existing []string) ([]string, error) {
 		result := slices.Clone(existing)
 		for _, ref := range refs {
 			stored, err := s.storedRef(g, boardName, ref)
 			if err != nil {
 				return nil, fmt.Errorf("cannot link to %s: %w", ref, err)
+			}
+			if field == "related" && stored == card.ID {
+				return nil, kanerr.InvalidField(field, "a card cannot be related to itself")
 			}
 			if !slices.Contains(result, stored) {
 				result = append(result, stored)
@@ -169,11 +172,11 @@ func (s *LinkService) Prepare(g *LinkGraph, boardName string, card *model.Card, 
 		}
 		return result, nil
 	}
-	newBlocked, err := resolve(blockedBy, card.BlockedBy)
+	newBlocked, err := resolve("blocked_by", blockedBy, card.BlockedBy)
 	if err != nil {
 		return err
 	}
-	newRelated, err := resolve(related, card.Related)
+	newRelated, err := resolve("related", related, card.Related)
 	if err != nil {
 		return err
 	}
@@ -235,7 +238,21 @@ func (g *LinkGraph) validateBlockers(boardName string, card *model.Card) error {
 	return nil
 }
 
+type UnlinkResult struct {
+	Card      *model.Card
+	Removed   int
+	Unmatched []string
+}
+
 func (s *LinkService) Unlink(boardName, cardRef string, refs []string) (*model.Card, error) {
+	result, err := s.UnlinkWithResult(boardName, cardRef, refs)
+	if err != nil {
+		return nil, err
+	}
+	return result.Card, nil
+}
+
+func (s *LinkService) UnlinkWithResult(boardName, cardRef string, refs []string) (*UnlinkResult, error) {
 	g, err := s.loadGraph()
 	if err != nil {
 		return nil, err
@@ -249,25 +266,24 @@ func (s *LinkService) Unlink(boardName, cardRef string, refs []string) (*model.C
 		return nil, err
 	}
 	remove := map[string]bool{}
+	result := &UnlinkResult{Card: original}
 	for _, ref := range refs {
-		if slices.Contains(original.BlockedBy, ref) || slices.Contains(original.Related, ref) {
-			remove[ref] = true
-			continue
+		stored := ref
+		matches := func() bool {
+			return slices.Contains(original.BlockedBy, stored) || slices.Contains(original.Related, stored)
 		}
-		if strings.Contains(ref, ":") {
-			if stored, err := s.storedRef(g, boardName, ref); err == nil {
-				remove[stored] = true
+		if !matches() {
+			var err error
+			stored, err = s.storedRef(g, boardName, ref)
+			if err != nil && !strings.Contains(ref, ":") && !kanerr.IsNotFound(err) {
+				return nil, err
 			}
-			continue
 		}
-		target, err := resolver.ResolveInCards(cards, ref)
-		if err != nil {
-			if kanerr.IsNotFound(err) {
-				continue
-			}
-			return nil, err
+		if matches() {
+			remove[stored] = true
+		} else {
+			result.Unmatched = append(result.Unmatched, ref)
 		}
-		remove[target.ID] = true
 	}
 	filter := func(refs []string) []string {
 		var result []string
@@ -280,12 +296,14 @@ func (s *LinkService) Unlink(boardName, cardRef string, refs []string) (*model.C
 	}
 	card := *original
 	card.BlockedBy, card.Related = filter(card.BlockedBy), filter(card.Related)
-	if slices.Equal(card.BlockedBy, original.BlockedBy) && slices.Equal(card.Related, original.Related) {
-		return original, nil
+	result.Removed = len(original.BlockedBy) + len(original.Related) - len(card.BlockedBy) - len(card.Related)
+	if result.Removed == 0 {
+		return result, nil
 	}
 	card.UpdatedAtMillis = util.NowMillis()
 	if err := s.cards.Update(boardName, &card); err != nil {
 		return nil, err
 	}
-	return &card, nil
+	result.Card = &card
+	return result, nil
 }

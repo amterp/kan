@@ -75,15 +75,21 @@ func runUnlink(cardRef, board string, refs []string, global, nonInteractive, jso
 	if err != nil {
 		Fatal(err)
 	}
-	card, err := app.LinkService.Unlink(target.BoardName, target.Card.ID, refs)
+	result, err := app.LinkService.UnlinkWithResult(target.BoardName, target.Card.ID, refs)
 	if err != nil {
 		Fatal(err)
 	}
+	for _, ref := range result.Unmatched {
+		PrintWarning("No link matched %q", ref)
+	}
+	if result.Removed == 0 {
+		Fatal(fmt.Errorf("no matching links to remove"))
+	}
 	if jsonOutput {
-		if err := printJson(NewCardOutput(card)); err != nil {
+		if err := printJson(NewCardOutput(result.Card)); err != nil {
 			Fatal(err)
 		}
 		return
 	}
-	PrintSuccess("Removed links from %s", card.ID)
+	PrintSuccess("Removed %d link(s) from %s", result.Removed, result.Card.ID)
 }
