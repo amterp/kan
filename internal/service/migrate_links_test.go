@@ -171,6 +171,13 @@ func TestQuietMigration_PrintsRenames(t *testing.T) {
 	if !strings.Contains(notices.String(), "Custom field blocked_by on board \"main\"") || !strings.Contains(notices.String(), "renamed when the project is next migrated") {
 		t.Errorf("in-memory migration notices: %q", notices.String())
 	}
+	// A command may open the same project for reading more than once.
+	if _, err := svc.MigrateInMemory(plan); err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(notices.String(), "Custom field blocked_by on board"); n != 1 {
+		t.Errorf("rename announced %d times: %q", n, notices.String())
+	}
 
 	notices.Reset()
 	if err := svc.Execute(plan, false); err != nil {

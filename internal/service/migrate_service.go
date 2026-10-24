@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/BurntSushi/toml"
 	"github.com/amterp/kan/internal/config"
@@ -211,6 +212,10 @@ func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
 	return nil
 }
 
+// renameNotices holds the in-memory renames already announced in this
+// process, keyed by board config path and field.
+var renameNotices sync.Map
+
 // MigrateInMemory applies the plan's project config, board and card
 // migrations through the same steps as Execute, without writing anything.
 // It returns the migrated files' contents; files that needed nothing are
@@ -236,6 +241,12 @@ func (s *MigrateService) MigrateInMemory(plan *MigrationPlan) (*store.Overlay, e
 			return nil, err
 		}
 		for _, field := range board.FieldRenames {
+			// One command can migrate the same project in memory several
+			// times, each time it opens it for reading; say this once.
+			key := board.ConfigPath + "\x00" + field
+			if _, seen := renameNotices.LoadOrStore(key, true); seen {
+				continue
+			}
 			fmt.Fprintf(s.notices, "Custom field %s on board %q in %s is read as x_%s; "+
 				"the field is renamed when the project is next migrated.\n",
 				field, board.BoardName, s.paths.ProjectRoot(), field)
