@@ -41,9 +41,14 @@ type App struct {
 	BoardResolver *resolver.BoardResolver
 	CardResolver  *resolver.CardResolver
 	ProjectRoot   string
+	// OtherProject is true for a registered project opened for reading
+	// from elsewhere (openProjectForReading), never written.
+	OtherProject bool
 	// UsingGlobalBoard is true when the App was built via -g (targeting the
 	// designated global board). Handlers use it to surface the target in output.
 	UsingGlobalBoard bool
+
+	globalCfg *model.GlobalConfig
 }
 
 // AppOptions configures how NewAppWithOptions wires up the App.
@@ -69,7 +74,6 @@ func NewApp(interactive bool) (*App, error) {
 // NewAppWithOptions creates a new App, optionally retargeted at the designated
 // global board instead of the project discovered from the cwd.
 func NewAppWithOptions(opts AppOptions) (*App, error) {
-	interactive := opts.Interactive
 	gitClient := git.NewClient()
 	globalStore := store.NewGlobalStore()
 
@@ -130,71 +134,92 @@ func NewAppWithOptions(opts AppOptions) (*App, error) {
 	}
 
 	paths := config.NewPaths(projectRoot, dataLocation)
-	stores, err := openProjectStores(paths, opts.ReadOnly)
+	app, err := newProjectApp(paths, opts, globalStore, globalCfg, gitClient)
 	if err != nil {
 		return nil, err
 	}
-	boardStore, cardStore, projectStore := stores.board, stores.card, stores.project
+	app.UsingGlobalBoard = opts.UseGlobalBoard
 
 	// In global mode, fail early with a clear message if the designation has gone
 	// stale (project moved/deleted, or board removed) rather than surfacing a
 	// generic "not initialized" later.
-	if opts.UseGlobalBoard && !boardStore.Exists(globalBoardName) {
-		return nil, &kanerr.StaleGlobalBoardError{Board: globalBoardName, Path: util.PrettyPath(projectRoot)}
+	if opts.UseGlobalBoard {
+		if !app.BoardStore.Exists(globalBoardName) {
+			return nil, &kanerr.StaleGlobalBoardError{Board: globalBoardName, Path: util.PrettyPath(projectRoot)}
+		}
+		app.BoardResolver.SetPreferredBoard(globalBoardName)
 	}
 
 	// Ensure project config exists with ID (graceful upgrade for older projects)
 	if projectRoot != "" && !opts.ReadOnly {
 		defaultName := filepath.Base(projectRoot)
-		if err := projectStore.EnsureInitialized(defaultName); err != nil {
+		if err := app.ProjectStore.EnsureInitialized(defaultName); err != nil {
 			// Non-fatal: log warning but continue
 			PrintWarning("failed to initialize project config: %v", err)
 		}
 	}
 
+	// Set up hook service if we have a project root
+	if projectRoot != "" {
+		app.HookService = service.NewHookService(projectRoot)
+		app.CardService.SetHookService(app.HookService)
+	}
+
+	return app, nil
+}
+
+// newProjectApp wires the stores, services and resolvers for the project at
+// paths. It runs no hooks and creates no project config; callers add those.
+func newProjectApp(paths *config.Paths, opts AppOptions, globalStore store.GlobalStore,
+	globalCfg *model.GlobalConfig, gitClient *git.Client) (*App, error) {
+	stores, err := openProjectStores(paths, opts.ReadOnly)
+	if err != nil {
+		return nil, err
+	}
+	boardStore, cardStore := stores.board, stores.card
+
 	var prompter prompt.Prompter
-	if interactive {
+	if opts.Interactive {
 		prompter = prompt.NewHuhPrompter()
 	} else {
 		prompter = &prompt.NoopPrompter{}
 	}
 
 	aliasService := service.NewAliasService(cardStore)
-	initService := service.NewInitService(globalStore)
-	boardService := service.NewBoardService(boardStore, cardStore)
-	cardService := service.NewCardService(cardStore, boardStore, aliasService)
-	boardResolver := resolver.NewBoardResolver(boardStore, globalStore, prompter, projectRoot)
-	if opts.UseGlobalBoard {
-		boardResolver.SetPreferredBoard(globalBoardName)
-	}
-	cardResolver := resolver.NewCardResolver(cardStore)
-
-	// Set up hook service if we have a project root
-	var hookService *service.HookService
-	if projectRoot != "" {
-		hookService = service.NewHookService(projectRoot)
-		cardService.SetHookService(hookService)
-	}
-
 	return &App{
-		GitClient:        gitClient,
-		GlobalStore:      globalStore,
-		ProjectStore:     projectStore,
-		Paths:            paths,
-		BoardStore:       boardStore,
-		CardStore:        cardStore,
-		Prompter:         prompter,
-		InitService:      initService,
-		BoardService:     boardService,
-		CardService:      cardService,
-		LinkService:      service.NewLinkService(cardStore, boardStore),
-		AliasService:     aliasService,
-		HookService:      hookService,
-		BoardResolver:    boardResolver,
-		CardResolver:     cardResolver,
-		ProjectRoot:      projectRoot,
-		UsingGlobalBoard: opts.UseGlobalBoard,
+		GitClient:     gitClient,
+		GlobalStore:   globalStore,
+		ProjectStore:  stores.project,
+		Paths:         paths,
+		BoardStore:    boardStore,
+		CardStore:     cardStore,
+		Prompter:      prompter,
+		InitService:   service.NewInitService(globalStore),
+		BoardService:  service.NewBoardService(boardStore, cardStore),
+		CardService:   service.NewCardService(cardStore, boardStore, aliasService),
+		LinkService:   service.NewLinkService(cardStore, boardStore),
+		AliasService:  aliasService,
+		BoardResolver: resolver.NewBoardResolver(boardStore, globalStore, prompter, paths.ProjectRoot()),
+		CardResolver:  resolver.NewCardResolver(cardStore),
+		ProjectRoot:   paths.ProjectRoot(),
+		globalCfg:     globalCfg,
 	}, nil
+}
+
+// openProjectForReading opens a registered project other than the current
+// one. It reads through read-only stores with in-memory migration, and runs
+// no hooks, registers nothing and creates no project config. Data newer than
+// this kan, or a migration that can't be planned, fails with an error naming
+// the project.
+func (a *App) openProjectForReading(root, dataLocation string) (*App, error) {
+	paths := config.NewPaths(root, dataLocation)
+	project, err := newProjectApp(paths, AppOptions{ReadOnly: true}, a.GlobalStore, a.globalCfg, a.GitClient)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", root, err)
+	}
+	project.Prompter = a.Prompter
+	project.OtherProject = true
+	return project, nil
 }
 
 // discoverProject finds the project for the working directory (VCS-agnostic),
