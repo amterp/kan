@@ -3,6 +3,7 @@ package store
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/BurntSushi/toml"
 	"github.com/amterp/kan/internal/config"
@@ -92,30 +93,17 @@ func (s *FileBoardStore) Get(boardName string) (*model.BoardConfig, error) {
 		return nil, version.InvalidBoardSchema(path, cfg.KanSchema)
 	}
 
-	// Validate link rules and print warnings for invalid patterns
-	if warnings := model.ValidateLinkRules(cfg.LinkRules); len(warnings) > 0 {
+	// Config problems are warnings, not errors, so a slightly wrong board still
+	// loads. A command reads the same board config several times (resolving refs,
+	// loading the link graph), so each warning is printed once per process.
+	for _, warnings := range [][]string{
+		model.ValidateLinkRules(cfg.LinkRules),
+		model.ValidateColumns(cfg.Columns),
+		model.ValidateReady(&cfg),
+		model.ValidatePatternHooks(cfg.PatternHooks),
+	} {
 		for _, w := range warnings {
-			fmt.Fprintln(os.Stderr, "Warning:", w)
-		}
-	}
-
-	// Validate per-column settings and print warnings for invalid values
-	if warnings := model.ValidateColumns(cfg.Columns); len(warnings) > 0 {
-		for _, w := range warnings {
-			fmt.Fprintln(os.Stderr, "Warning:", w)
-		}
-	}
-
-	if warnings := model.ValidateReady(&cfg); len(warnings) > 0 {
-		for _, w := range warnings {
-			fmt.Fprintln(os.Stderr, "Warning:", w)
-		}
-	}
-
-	// Validate pattern hooks and print warnings for invalid patterns
-	if warnings := model.ValidatePatternHooks(cfg.PatternHooks); len(warnings) > 0 {
-		for _, w := range warnings {
-			fmt.Fprintln(os.Stderr, "Warning:", w)
+			warnOnce(path, w)
 		}
 	}
 
@@ -202,4 +190,15 @@ func (s *FileBoardStore) writeConfig(cfg *model.BoardConfig) error {
 	defer f.Close()
 
 	return toml.NewEncoder(f).Encode(cfg)
+}
+
+// printedWarnings records the board-config warnings already printed by this
+// process, keyed by config path and message.
+var printedWarnings sync.Map
+
+func warnOnce(path, warning string) {
+	if _, seen := printedWarnings.LoadOrStore(path+"\x00"+warning, true); seen {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "Warning:", warning)
 }

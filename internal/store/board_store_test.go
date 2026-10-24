@@ -1,8 +1,10 @@
 package store
 
 import (
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/amterp/kan/internal/config"
@@ -344,5 +346,41 @@ func TestFileBoardStore_WithCustomFieldsAndCardDisplay(t *testing.T) {
 	}
 	if len(retrieved.CardDisplay.Badges) != 1 || retrieved.CardDisplay.Badges[0] != "labels" {
 		t.Errorf("CardDisplay.Badges not preserved: got %v", retrieved.CardDisplay.Badges)
+	}
+}
+
+func TestFileBoardStore_Get_PrintsEachWarningOnce(t *testing.T) {
+	store, _, cleanup := setupTestBoardStore(t)
+	defer cleanup()
+
+	cfg := &model.BoardConfig{
+		ID:            "board-warn-once",
+		Name:          "main",
+		Columns:       model.DefaultColumns(),
+		DefaultColumn: "backlog",
+		Ready:         model.ReadyConfig{Order: []string{"no-such-column"}},
+	}
+	if err := store.Create(cfg); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	stderr := os.Stderr
+	os.Stderr = w
+	for i := 0; i < 3; i++ {
+		if _, err := store.Get("main"); err != nil {
+			os.Stderr = stderr
+			t.Fatalf("Get failed: %v", err)
+		}
+	}
+	os.Stderr = stderr
+	w.Close()
+	out, _ := io.ReadAll(r)
+
+	if n := strings.Count(string(out), "Warning:"); n != 1 {
+		t.Errorf("three reads of a board with one config problem printed %d warnings, want 1:\n%s", n, out)
 	}
 }
