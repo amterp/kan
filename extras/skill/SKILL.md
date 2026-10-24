@@ -369,7 +369,7 @@ kan list --category open          # Cards in open columns
 
 `--sort <field>` orders cards within each column by a custom field instead of by manual position. For `enum`/`enum-set` fields the order follows the option order in the board config (not alphabetical); cards with no value are listed last. Add `--descending` (`-d`) to sort high to low. It's a view sort - saved card positions are unchanged.
 
-## Choosing Work
+## Finding and Taking Work
 
 ```bash
 kan ready                          # Open cards that can be started now, best first
@@ -380,6 +380,15 @@ kan ready --json                   # {"ready": [...], "attention": [...], "skipp
 ```
 
 A card is ready when its column's category is `open`, every blocker is in a `done` column, it has no children outside `done` or `dropped` columns, and no exclusion matches. Open columns are read right to left (or in `[ready] order`), each top to bottom. Cards whose blocker was dropped are listed under "Needs attention": unlink the blocker or drop the card. JSON entries hold `ref`, `board`, `blockers` (each `ref`, `result`, `category`) and the unchanged `card`. A board without column categories is an error; run `kan column categorize`.
+
+To take work:
+
+1. **Pick.** Unless the user named a card, take the first ready card (`kan ready --json | jq -r '.ready[0].card.id'`), and read it with `kan show <card>`.
+2. **Start.** Before doing the work, move the card into a column whose category is `active` (`kan column list` shows each column's category): `kan move <card> <active-column>`. Kan has no claims, so the move is how people and other agents see the card is taken. Moving it into a `done` column when finished is what releases the cards it blocks.
+3. **File dependent work.** When you find work that can't start until another card is done, record it: `kan add "<title>" --blocked-by <card>` for a new card, `kan link <card> --blocked-by <other>` for an existing one. `--related` records a connection that doesn't block.
+4. **Treat "Needs attention" as work.** A card listed there has a blocker in a dropped column, so its reason may be gone. Read both with `kan show`, then `kan unlink <card> <blocker>` if the card still stands, or move it into a column whose category is `dropped` if it doesn't. If you can't tell, ask the user.
+
+These steps are how the commands fit together, not rules kan enforces. Column names are each board's own; where the board's column descriptions or the user set other conventions, such as a review step, follow those.
 
 ## Showing Card Details
 

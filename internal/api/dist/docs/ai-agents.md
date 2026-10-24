@@ -11,7 +11,7 @@ This means an AI agent can:
 - **Set up a board from scratch** - columns, custom fields, display config, all through `kan init` and direct TOML editing
 - **Create cards in bulk** - `kan add` in a loop, with custom fields, descriptions, and column placement
 - **Triage and organize** - move cards between columns, update fields, add comments
-- **Query the board** - `kan list`, `kan show`, and `--json` output for structured data
+- **Query the board** - `kan list`, `kan show`, `kan ready` for work that can start now, and `--json` output for structured data
 - **Read these docs** - `kan docs` lists the topics and `kan docs all` prints the whole corpus, straight from the binary, so an agent reads the version it's running instead of fetching a URL
 - **Do mass edits** - rename fields, re-categorize cards, update descriptions across dozens of cards at once
 
@@ -26,8 +26,20 @@ The skill includes:
 - A **board setup wizard** - an interactive flow where the agent asks about your project and suggests columns, custom fields, and display configuration tailored to your workflow
 - A **complete CLI reference** - so the agent knows every command and flag available
 - **Best practices** - guidance on column descriptions, field types, and board structure
+- **Finding and taking work** - how to pick a card with `kan ready`, mark it taken, and file the work it depends on
 
 Compatible agents include Claude Code, Codex, and others - check the [Agent Skills](https://agentskills.io) site for a full list. See your agent's documentation for how to install skills.
+
+## Finding and Taking Work
+
+The skill teaches agents a way to pick up work with `kan ready`. It is how the commands fit together, not a workflow kan enforces: your column names stay your own, and your column descriptions and instructions win over it.
+
+1. **Pick.** Unless you named a card, the agent takes the first card `kan ready` lists: an open card whose blockers are all done and that isn't waiting on its own children. See [`kan ready`](/docs/cli#ready) for the full rules.
+2. **Start.** Before working, the agent moves the card into a column whose category is `active`. Kan has no claims, so that move is how you and other agents see the card is taken. Moving it into a `done` column when finished releases the cards it blocks.
+3. **File dependent work.** When the agent finds work that can't start until another card is done, it records the dependency with `kan add "<title>" --blocked-by <card>` or `kan link <card> --blocked-by <other>`, so `kan ready` holds that work back until the blocker is done.
+4. **Treat "Needs attention" as work.** `kan ready` lists cards whose blocker was dropped separately, because the reason for them may be gone. The agent reads both cards, then either removes the link with `kan unlink <card> <blocker>` or moves the card into a column whose category is `dropped`, and asks you when it can't tell.
+
+For this to work, the board's columns need categories. New boards get them; for an existing board, `kan column categorize` suggests them and `kan column categorize --apply` writes them.
 
 ## Tips for AI-Friendly Boards
 
