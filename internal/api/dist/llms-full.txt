@@ -525,6 +525,7 @@ kan list --sort priority --descending  # high → low instead of low → high
 kan list -f labels=needs-decision   # cards labeled needs-decision
 kan list -f type=bug -x labels=wontfix  # bugs, except those labeled wontfix
 kan list --category open            # cards in open columns
+kan list --all -f labels=needs-decision  # across every registered project
 ```
 
 | Flag               | Description                                                |
@@ -537,6 +538,7 @@ kan list --category open            # cards in open columns
 | `-s, --sort`       | Sort cards within each column by a custom field (e.g. `priority`) instead of by manual position |
 | `-d, --descending` | Sort descending (use with `--sort`)                        |
 | `-g, --global`     | Target the designated global board (see [global](#global)) |
+| `--all`            | List every board of every visible registered project (see [Across projects](#across-projects)) |
 
 `--sort` orders cards by a custom field's value. For `enum`/`enum-set` fields
 the order follows the option order defined in your board config (so
@@ -563,6 +565,7 @@ kan ready
 kan ready --limit 3                 # the first three ready cards
 kan ready -x labels=needs-decision  # also keep these out
 kan ready --json
+kan ready --all                     # every registered project's boards
 ```
 
 A card is ready when all of these hold:
@@ -599,11 +602,12 @@ Needs attention
 
 | Flag             | Description                                                |
 |------------------|------------------------------------------------------------|
-| `-b, --board`    | Board name                                                 |
+| `-b, --board`    | Board name or ID                                           |
 | `-x, --exclude`  | Also keep cards whose custom field matches `key=value` out of ready (repeatable) |
 | `--no-exclude`   | Ignore the board's `[ready] exclude` list; `-x` still applies |
 | `--limit`        | Print only the first N ready cards; "Needs attention" is never cut |
 | `-g, --global`   | Target the designated global board (see [global](#global)) |
+| `--all`          | Every board of every visible registered project; `--limit` applies per board (see [Across projects](#across-projects)) |
 
 `-x` matches the way `kan list -x` does. On a board with no column categories,
 `kan ready` fails and points to `kan column categorize`.
@@ -631,8 +635,51 @@ so a custom field can never collide with a context field:
 
 A blocker's `result` is one of `found`, `absent`, `board_not_here`,
 `ambiguous_board`, `unsupported_schema` or `unreadable`, and `category` is
-present when it was found in a column that has one. `skipped` is always empty
-for now.
+present when it was found in a column that has one. `skipped` lists boards an
+`--all` query couldn't read (see below).
+
+#### Across projects
+
+`kan list --all` and `kan ready --all` read every board of every visible
+project in the registry (see [registry](#registry)), plus the project you are
+in. They work from any directory, including one with no board, and can't be
+combined with `-b` or `-g`.
+
+- Results are grouped by board, in order of project path, then board name.
+  Boards aren't ranked against each other.
+- `--limit` applies per board.
+- Filters apply on each board. A card on a board that doesn't define a field
+  never matches it, and a field no board defines is an error. `-c`, `--sort`
+  and `--category` likewise apply where the board has that column, field or
+  category.
+- Boards kan can't read, whose schema is newer than this kan, or, for
+  `kan ready`, that have no column categories, are skipped. Text output names
+  each one and the reason in a note on stderr; JSON lists them under
+  `"skipped"` with `path`, `board_id` and `reason`. Skipping a board doesn't
+  change the exit status. A project kan can't open at all, such as one with a
+  malformed card file, is skipped with all its boards.
+
+`kan list --all --json` uses the same envelope as `kan ready`, with each card's
+raw `blocked_by` and `related` inside it, so an outside tool can draw the
+dependency graph:
+
+```json
+{
+  "cards": [
+    {
+      "ref": "2R9nzEvz:a_2nQ0vLx1k",
+      "board_id": "2R9nzEvz",
+      "board": "main",
+      "project_path": "/Users/alex/src/kan",
+      "category": "open",
+      "card": {"id": "a_2nQ0vLx1k", "blocked_by": ["a_2nQ0uA7cd"], "...": "..."}
+    }
+  ],
+  "skipped": [{"path": "/Users/alex/src/old", "board_id": "b_2hH3HWg0E", "reason": "..."}]
+}
+```
+
+`kan list --json` without `--all` keeps its `{"cards": [...]}` shape.
 
 ### edit
 
@@ -1012,6 +1059,10 @@ kan add "New task" --json
 # Edit a card and get the updated result as JSON
 kan edit fix-login -t "New title" --json
 # Output: {"card": {...}}
+
+# List cards across every registered project as JSON
+kan list --all --json
+# Output: {"cards": [{"ref": "...", "project_path": "...", "card": {...}}, ...], "skipped": [...]}
 
 # List ready cards as JSON
 kan ready --json

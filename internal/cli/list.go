@@ -83,13 +83,28 @@ func registerList(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.ListGlobal = registerGlobalFlag(cmd)
 
+	ctx.ListAll, _ = ra.NewBool("all").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetExcludes([]string{"board", "global"}).
+		SetUsage("List cards on every board of every visible registered project").
+		Register(cmd)
+
 	ctx.ListUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runList(board, column, sortField string, filters, excludes []string, category string, global, descending, jsonOutput bool) {
+func runList(board, column, sortField string, filters, excludes []string, category string, global, all, descending, jsonOutput bool) {
 	app, err := NewAppWithOptions(AppOptions{Interactive: true, UseGlobalBoard: global, ReadOnly: true})
 	if err != nil {
 		Fatal(err)
+	}
+
+	if descending && sortField == "" {
+		PrintWarning("--descending has no effect without --sort")
+	}
+	if all {
+		runListAll(app, column, sortField, filters, excludes, category, descending, jsonOutput)
+		return
 	}
 
 	// Resolve board
@@ -118,11 +133,6 @@ func runList(board, column, sortField string, filters, excludes []string, catego
 		Fatal(err)
 	}
 
-	// --descending only affects a field sort; warn rather than silently ignore it.
-	if descending && sortField == "" {
-		PrintWarning("--descending has no effect without --sort")
-	}
-
 	// Get cards
 	cards, err := project.CardService.ListSorted(boardName, column, sortField, descending)
 	if err != nil {
@@ -148,6 +158,118 @@ func runList(board, column, sortField string, filters, excludes []string, catego
 	} else {
 		printCardsList(cards, boardCfg)
 	}
+}
+
+func runListAll(app *App, column, sortField string, filters, excludes []string, category string, descending, jsonOutput bool) {
+	boards, skipped, err := listAll(app, column, sortField, filters, excludes, category, descending)
+	if err != nil {
+		Fatal(err)
+	}
+
+	if jsonOutput {
+		if err := printJson(NewListAllOutput(boards, skipped)); err != nil {
+			Fatal(err)
+		}
+		return
+	}
+
+	printed := 0
+	for _, b := range boards {
+		if len(b.Cards) == 0 {
+			continue
+		}
+		printBoardHeader(b.Name, b.Project.ProjectRoot, printed == 0)
+		printed++
+		if column == "" {
+			printCardsByColumn(b.Cards, b.Config)
+		} else {
+			printCardsList(b.Cards, b.Config)
+		}
+	}
+	if printed == 0 {
+		PrintInfo("No cards found")
+	}
+	printSkipped(skipped)
+}
+
+// listedBoard is one board's cards in an --all listing.
+type listedBoard struct {
+	allBoard
+	Config *model.BoardConfig
+	Cards  []*model.Card
+}
+
+// listAll runs a kan list query on every board --all reads. Each flag
+// applies on the boards where it means something, and is an error only when
+// it means something on none of them: a filter key no board defines, a
+// column or category no board has, a sort field no board defines.
+func listAll(app *App, column, sortField string, filters, excludes []string, category string, descending bool) ([]listedBoard, []skippedBoard, error) {
+	targets, skipped := app.boardsForAll()
+	var boards []listedBoard
+	var configs []*model.BoardConfig
+	for _, t := range targets {
+		cfg, err := t.Project.BoardService.Get(t.Name)
+		if err != nil {
+			skipped = skipBoard(skipped, t, "", err)
+			continue
+		}
+		boards = append(boards, listedBoard{allBoard: t, Config: cfg})
+		configs = append(configs, cfg)
+	}
+
+	include, err := model.ParseFilters(filters)
+	if err != nil {
+		return nil, nil, err
+	}
+	exclude, err := model.ParseFilters(excludes)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(configs) > 0 {
+		if err := model.ValidateFilters(append(append([]model.Filter{}, include...), exclude...), configs...); err != nil {
+			return nil, nil, err
+		}
+		if column != "" && !anyBoard(configs, func(b *model.BoardConfig) bool { return b.GetColumn(column) != nil }) {
+			return nil, nil, fmt.Errorf("no board has a column named %q", column)
+		}
+		if category != "" && !anyBoard(configs, func(b *model.BoardConfig) bool { return boardHasCategory(b, category) }) {
+			return nil, nil, fmt.Errorf("no board has columns with category %q, so no card can match. "+
+				"Run \"kan column categorize\" in a project to set categories", category)
+		}
+		if sortField != "" && !anyBoard(configs, func(b *model.BoardConfig) bool { _, ok := b.CustomFields[sortField]; return ok }) {
+			return nil, nil, fmt.Errorf("unknown sort field %q; no board defines it", sortField)
+		}
+	}
+	query := model.FilterSet{Include: include, Exclude: exclude, Category: category}
+
+	listed := boards[:0]
+	for _, b := range boards {
+		if column != "" && b.Config.GetColumn(column) == nil {
+			continue
+		}
+		boardSort := sortField
+		if _, ok := b.Config.CustomFields[boardSort]; !ok {
+			boardSort = ""
+		}
+		cards, err := b.Project.CardService.ListSorted(b.Name, column, boardSort, descending)
+		if err != nil {
+			skipped = skipBoard(skipped, b.allBoard, b.Config.ID, err)
+			continue
+		}
+		b.Cards = filterCards(cards, b.Config, query)
+		listed = append(listed, b)
+	}
+	sortSkipped(skipped)
+	return listed, skipped, nil
+}
+
+func anyBoard(boards []*model.BoardConfig, pred func(*model.BoardConfig) bool) bool {
+	for _, b := range boards {
+		if pred(b) {
+			return true
+		}
+	}
+	return false
 }
 
 // buildListQuery parses and checks the -f, -x and --category flags against

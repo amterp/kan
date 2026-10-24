@@ -96,6 +96,7 @@ type CommandContext struct {
 	ListFilter     *[]string
 	ListExclude    *[]string
 	ListCategory   *string
+	ListAll        *bool
 
 	// ready command
 	ReadyUsed      *bool
@@ -104,6 +105,7 @@ type CommandContext struct {
 	ReadyNoExclude *bool
 	ReadyLimit     *int
 	ReadyGlobal    *bool
+	ReadyAll       *bool
 
 	// edit command
 	EditUsed        *bool
@@ -410,10 +412,10 @@ func executeCommand(ctx *CommandContext) {
 		runHistory(*ctx.HistoryCard, *ctx.HistoryBoard, *ctx.HistoryGlobal, *ctx.Json)
 
 	case *ctx.ListUsed:
-		runList(*ctx.ListBoard, *ctx.ListColumn, *ctx.ListSort, *ctx.ListFilter, *ctx.ListExclude, *ctx.ListCategory, *ctx.ListGlobal, *ctx.ListDescending, *ctx.Json)
+		runList(*ctx.ListBoard, *ctx.ListColumn, *ctx.ListSort, *ctx.ListFilter, *ctx.ListExclude, *ctx.ListCategory, *ctx.ListGlobal, *ctx.ListAll, *ctx.ListDescending, *ctx.Json)
 
 	case *ctx.ReadyUsed:
-		runReady(*ctx.ReadyBoard, *ctx.ReadyExclude, *ctx.ReadyNoExclude, *ctx.ReadyLimit, *ctx.ReadyGlobal, *ctx.Json)
+		runReady(*ctx.ReadyBoard, *ctx.ReadyExclude, *ctx.ReadyNoExclude, *ctx.ReadyLimit, *ctx.ReadyGlobal, *ctx.ReadyAll, *ctx.Json)
 
 	case *ctx.EditUsed:
 		runEdit(*ctx.EditCard, *ctx.EditBoard, *ctx.EditTitle, *ctx.EditDescription,

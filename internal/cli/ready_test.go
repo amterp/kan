@@ -53,7 +53,7 @@ func TestReadyOutput_JSON(t *testing.T) {
 		}}},
 	}
 
-	data, err := json.Marshal(NewReadyOutput(result, "/src/kan"))
+	data, err := json.Marshal(NewReadyOutput([]readyBoard{{ProjectPath: "/src/kan", Result: result}}, nil))
 	if err != nil {
 		t.Fatal(err)
 	}

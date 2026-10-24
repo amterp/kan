@@ -58,7 +58,7 @@ func FindReady(graph *LinkGraph, boardName string, opts ReadyOptions) (*ReadyRes
 }
 
 func findReady(board *model.BoardConfig, cards []*model.Card, blockers func(*model.Card) []LinkLookup, opts ReadyOptions) (*ReadyResult, error) {
-	if !hasCategories(board) {
+	if !board.HasCategories() {
 		return nil, fmt.Errorf("board %q has no column categories, so kan can't tell which cards "+
 			"are open work. Run \"kan column categorize\" to set them.", board.Name)
 	}
@@ -96,15 +96,6 @@ func findReady(board *model.BoardConfig, cards []*model.Card, blockers func(*mod
 		result.Ready = result.Ready[:opts.Limit]
 	}
 	return result, nil
-}
-
-func hasCategories(board *model.BoardConfig) bool {
-	for _, col := range board.Columns {
-		if col.Category != "" {
-			return true
-		}
-	}
-	return false
 }
 
 // isFinished reports whether a card in a column of this category no longer

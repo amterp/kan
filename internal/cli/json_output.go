@@ -157,23 +157,63 @@ func NewListOutput(cards []*model.Card) ListOutput {
 	return ListOutput{Cards: result}
 }
 
-// ReadyOutput is kan ready's JSON. Each card goes unchanged inside an entry,
-// beside the query's context, so a custom field may share a name with a
-// context field such as "ref".
+// cardEntryContext is what a query knows about a card beyond the card
+// itself. Envelope entries put it beside the card, never inside it, so a
+// custom field may share a name with a context field such as "ref".
+type cardEntryContext struct {
+	Ref         string `json:"ref"`
+	BoardID     string `json:"board_id"`
+	Board       string `json:"board"`
+	ProjectPath string `json:"project_path"`
+	Category    string `json:"category,omitempty"`
+}
+
+func newCardEntryContext(board *model.BoardConfig, projectPath string, card *model.Card) cardEntryContext {
+	return cardEntryContext{
+		Ref:         board.ID + ":" + card.ID,
+		BoardID:     board.ID,
+		Board:       board.Name,
+		ProjectPath: projectPath,
+		Category:    board.ColumnCategory(card.Column),
+	}
+}
+
+// ListAllOutput is kan list --all's JSON.
+type ListAllOutput struct {
+	Cards   []listEntryJson `json:"cards"`
+	Skipped []skippedBoard  `json:"skipped"`
+}
+
+type listEntryJson struct {
+	cardEntryContext
+	Card cardJson `json:"card"`
+}
+
+// NewListAllOutput creates a ListAllOutput from each board's listed cards.
+func NewListAllOutput(boards []listedBoard, skipped []skippedBoard) ListAllOutput {
+	out := ListAllOutput{Cards: []listEntryJson{}, Skipped: nonNilSkipped(skipped)}
+	for _, b := range boards {
+		for _, c := range b.Cards {
+			out.Cards = append(out.Cards, listEntryJson{
+				cardEntryContext: newCardEntryContext(b.Config, b.Project.ProjectRoot, c),
+				Card:             cardToJson(c),
+			})
+		}
+	}
+	return out
+}
+
+// ReadyOutput is kan ready's JSON.
 type ReadyOutput struct {
-	Ready     []readyEntryJson   `json:"ready"`
-	Attention []readyEntryJson   `json:"attention"`
-	Skipped   []skippedBoardJson `json:"skipped"`
+	Ready     []readyEntryJson `json:"ready"`
+	Attention []readyEntryJson `json:"attention"`
+	Skipped   []skippedBoard   `json:"skipped"`
 }
 
 type readyEntryJson struct {
-	Ref         string        `json:"ref"`
-	BoardID     string        `json:"board_id"`
-	Board       string        `json:"board"`
-	ProjectPath string        `json:"project_path"`
-	Category    string        `json:"category"`
-	Blockers    []blockerJson `json:"blockers"`
-	Card        cardJson      `json:"card"`
+	cardEntryContext
+	Blockers []blockerJson `json:"blockers"`
+	Card     cardJson      `json:"card"`
 }
 
 type blockerJson struct {
@@ -182,44 +222,47 @@ type blockerJson struct {
 	Category string `json:"category,omitempty"`
 }
 
-// skippedBoardJson names a board a query couldn't read. Only queries across
-// boards skip any, so kan ready on one board always reports none.
-type skippedBoardJson struct {
-	Path    string `json:"path"`
-	BoardID string `json:"board_id"`
-	Reason  string `json:"reason"`
+// readyBoard is one board's ready query result and the project holding it.
+type readyBoard struct {
+	ProjectPath string
+	Result      *service.ReadyResult
 }
 
-// NewReadyOutput creates a ReadyOutput for one board's ready query.
-func NewReadyOutput(result *service.ReadyResult, projectPath string) ReadyOutput {
-	toJson := func(entries []service.ReadyEntry) []readyEntryJson {
-		out := make([]readyEntryJson, 0, len(entries))
-		for _, e := range entries {
-			blockers := make([]blockerJson, 0, len(e.Blockers))
-			for _, b := range e.Blockers {
-				bj := blockerJson{Ref: b.Ref, Result: string(b.State)}
-				if b.State == service.LinkFound && b.Column != nil {
-					bj.Category = b.Column.Category
-				}
-				blockers = append(blockers, bj)
+// NewReadyOutput creates a ReadyOutput from each board's ready query, in
+// order.
+func NewReadyOutput(boards []readyBoard, skipped []skippedBoard) ReadyOutput {
+	out := ReadyOutput{Ready: []readyEntryJson{}, Attention: []readyEntryJson{}, Skipped: nonNilSkipped(skipped)}
+	toJson := func(b readyBoard, e service.ReadyEntry) readyEntryJson {
+		blockers := make([]blockerJson, 0, len(e.Blockers))
+		for _, lookup := range e.Blockers {
+			bj := blockerJson{Ref: lookup.Ref, Result: string(lookup.State)}
+			if lookup.State == service.LinkFound && lookup.Column != nil {
+				bj.Category = lookup.Column.Category
 			}
-			out = append(out, readyEntryJson{
-				Ref:         result.Board.ID + ":" + e.Card.ID,
-				BoardID:     result.Board.ID,
-				Board:       result.Board.Name,
-				ProjectPath: projectPath,
-				Category:    result.Board.ColumnCategory(e.Card.Column),
-				Blockers:    blockers,
-				Card:        cardToJson(e.Card),
-			})
+			blockers = append(blockers, bj)
 		}
-		return out
+		return readyEntryJson{
+			cardEntryContext: newCardEntryContext(b.Result.Board, b.ProjectPath, e.Card),
+			Blockers:         blockers,
+			Card:             cardToJson(e.Card),
+		}
 	}
-	return ReadyOutput{
-		Ready:     toJson(result.Ready),
-		Attention: toJson(result.Attention),
-		Skipped:   []skippedBoardJson{},
+	for _, b := range boards {
+		for _, e := range b.Result.Ready {
+			out.Ready = append(out.Ready, toJson(b, e))
+		}
+		for _, e := range b.Result.Attention {
+			out.Attention = append(out.Attention, toJson(b, e))
+		}
 	}
+	return out
+}
+
+func nonNilSkipped(skipped []skippedBoard) []skippedBoard {
+	if skipped == nil {
+		return []skippedBoard{}
+	}
+	return skipped
 }
 
 // ColumnsOutput wraps a list of columns for JSON output.

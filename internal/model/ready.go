@@ -2,6 +2,17 @@ package model
 
 import "fmt"
 
+// HasCategories reports whether any column has a category. A board without
+// any is invisible to kan ready.
+func (b *BoardConfig) HasCategories() bool {
+	for _, col := range b.Columns {
+		if col.Category != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // ReadyColumns returns the board's open columns in the order kan ready reads
 // them: the columns named in [ready] order first, then the other open columns
 // from right to left.

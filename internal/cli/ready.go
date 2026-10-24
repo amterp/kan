@@ -44,30 +44,18 @@ func registerReady(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.ReadyGlobal = registerGlobalFlag(cmd)
 
+	ctx.ReadyAll, _ = ra.NewBool("all").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetExcludes([]string{"board", "global"}).
+		SetUsage("List ready cards on every board of every visible registered project (--limit applies per board)").
+		Register(cmd)
+
 	ctx.ReadyUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runReady(board string, excludes []string, noExclude bool, limit int, global, jsonOutput bool) {
+func runReady(board string, excludes []string, noExclude bool, limit int, global, all, jsonOutput bool) {
 	app, err := NewAppWithOptions(AppOptions{Interactive: true, UseGlobalBoard: global, ReadOnly: true})
-	if err != nil {
-		Fatal(err)
-	}
-
-	if err := app.RequireKan(); err != nil {
-		Fatal(err)
-	}
-
-	boardName, err := app.BoardResolver.Resolve(board, true)
-	if err != nil {
-		Fatal(err)
-	}
-	app.PrintTarget(boardName)
-
-	graph, err := service.LoadLinkGraph(app.BoardStore, app.CardStore)
-	if err != nil {
-		Fatal(err)
-	}
-	boardCfg, err := graph.Board(boardName)
 	if err != nil {
 		Fatal(err)
 	}
@@ -76,38 +64,147 @@ func runReady(board string, excludes []string, noExclude bool, limit int, global
 	if err != nil {
 		Fatal(err)
 	}
+	opts := service.ReadyOptions{Exclude: exclude, NoBoardExclude: noExclude, Limit: limit}
+
+	if all {
+		runReadyAll(app, opts, jsonOutput)
+		return
+	}
+
+	project, boardName, err := app.ResolveBoard(board, true, forRead)
+	if err != nil {
+		Fatal(err)
+	}
+	project.PrintTarget(boardName)
+
+	graph, err := service.LoadLinkGraph(project.BoardStore, project.CardStore)
+	if err != nil {
+		Fatal(err)
+	}
+	boardCfg, err := graph.Board(boardName)
+	if err != nil {
+		Fatal(err)
+	}
 	if err := model.ValidateFilters(exclude, boardCfg); err != nil {
 		Fatal(err)
 	}
+	warnUnreadCards(graph, boardName)
 
-	for _, failure := range graph.Failures(boardName) {
-		PrintWarning("skipping unreadable card file %s.json: %v. kan ready can't consider that card, "+
-			"or tell whether it holds back a parent. Run \"kan doctor\" to check the board", failure.CardID, failure.Err)
-	}
-
-	result, err := service.FindReady(graph, boardName, service.ReadyOptions{
-		Exclude:        exclude,
-		NoBoardExclude: noExclude,
-		Limit:          limit,
-	})
+	result, err := service.FindReady(graph, boardName, opts)
 	if err != nil {
 		Fatal(err)
 	}
 
 	if jsonOutput {
-		if err := printJson(NewReadyOutput(result, app.Paths.ProjectRoot())); err != nil {
+		if err := printJson(NewReadyOutput([]readyBoard{{ProjectPath: project.ProjectRoot, Result: result}}, nil)); err != nil {
 			Fatal(err)
 		}
 		return
 	}
+	if len(result.Ready) == 0 {
+		PrintInfo("No cards are ready")
+	}
 	printReady(result)
+}
+
+func runReadyAll(app *App, opts service.ReadyOptions, jsonOutput bool) {
+	boards, skipped, err := readyAll(app, opts)
+	if err != nil {
+		Fatal(err)
+	}
+
+	if jsonOutput {
+		if err := printJson(NewReadyOutput(boards, skipped)); err != nil {
+			Fatal(err)
+		}
+		return
+	}
+
+	printed, anyReady := 0, false
+	for _, b := range boards {
+		if len(b.Result.Ready) == 0 && len(b.Result.Attention) == 0 {
+			continue
+		}
+		printBoardHeader(b.Result.Board.Name, b.ProjectPath, printed == 0)
+		printed++
+		anyReady = anyReady || len(b.Result.Ready) > 0
+		printReady(b.Result)
+	}
+	if !anyReady {
+		PrintInfo("No cards are ready")
+	}
+	printSkipped(skipped)
+}
+
+// readyAll runs a ready query on every board --all reads, loading each
+// project's link graph once. A board without column categories is skipped,
+// not an error, since kan can't tell which of its cards are open work.
+func readyAll(app *App, opts service.ReadyOptions) ([]readyBoard, []skippedBoard, error) {
+	targets, skipped := app.boardsForAll()
+
+	type loaded struct {
+		allBoard
+		graph *service.LinkGraph
+		cfg   *model.BoardConfig
+	}
+	graphs := map[*App]*service.LinkGraph{}
+	var boards []loaded
+	var configs []*model.BoardConfig
+	for _, t := range targets {
+		graph := graphs[t.Project]
+		if graph == nil {
+			var err error
+			if graph, err = service.LoadLinkGraph(t.Project.BoardStore, t.Project.CardStore); err != nil {
+				skipped = skipBoard(skipped, t, "", err)
+				continue
+			}
+			graphs[t.Project] = graph
+		}
+		cfg, err := graph.Board(t.Name)
+		if err != nil {
+			skipped = skipBoard(skipped, t, "", err)
+			continue
+		}
+		boards = append(boards, loaded{allBoard: t, graph: graph, cfg: cfg})
+		configs = append(configs, cfg)
+	}
+	if len(configs) > 0 {
+		if err := model.ValidateFilters(opts.Exclude, configs...); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	var results []readyBoard
+	for _, b := range boards {
+		if !b.cfg.HasCategories() {
+			skipped = append(skipped, skippedBoard{
+				Path: b.Project.ProjectRoot, BoardID: b.cfg.ID,
+				Reason: fmt.Sprintf("board %q has no column categories; run \"kan column categorize\" in that project",
+					b.Name),
+			})
+			continue
+		}
+		warnUnreadCards(b.graph, b.Name)
+		result, err := service.FindReady(b.graph, b.Name, opts)
+		if err != nil {
+			skipped = skipBoard(skipped, b.allBoard, b.cfg.ID, err)
+			continue
+		}
+		results = append(results, readyBoard{ProjectPath: b.Project.ProjectRoot, Result: result})
+	}
+	sortSkipped(skipped)
+	return results, skipped, nil
+}
+
+func warnUnreadCards(graph *service.LinkGraph, boardName string) {
+	for _, failure := range graph.Failures(boardName) {
+		PrintWarning("skipping unreadable card file %s.json: %v. kan ready can't consider that card, "+
+			"or tell whether it holds back a parent. Run \"kan doctor\" to check the board", failure.CardID, failure.Err)
+	}
 }
 
 func printReady(result *service.ReadyResult) {
 	board := result.Board
-	if len(result.Ready) == 0 {
-		PrintInfo("No cards are ready")
-	}
 
 	var cards []*model.Card
 	for _, e := range result.Ready {
