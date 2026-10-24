@@ -323,7 +323,7 @@ hidden = true
 | Field | Description |
 |-------|-------------|
 | `editor` | Editor for interactive mode (falls back to `$EDITOR`, then `vim`) |
-| `repos` | Registry of known Kan projects, keyed by path (populated automatically) |
+| `repos` | Registry of known Kan projects, keyed by path (populated automatically; manage with `kan registry`) |
 | `repos.<path>.default_board` | Default board when a repo has multiple boards |
 | `repos.<path>.data_location` | Custom data folder instead of `.kan/` |
 | `repos.<path>.hidden` | Keep the project out of the web UI's project switcher; kan still works inside it |

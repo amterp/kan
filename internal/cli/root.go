@@ -221,6 +221,19 @@ type CommandContext struct {
 	// global unset
 	GlobalUnsetUsed *bool
 
+	// registry command
+	RegistryUsed        *bool
+	RegistryListUsed    *bool
+	RegistryListHidden  *bool
+	RegistryHideUsed    *bool
+	RegistryHidePath    *string
+	RegistryUnhideUsed  *bool
+	RegistryUnhidePath  *string
+	RegistryRemoveUsed  *bool
+	RegistryRemovePath  *string
+	RegistryPruneUsed   *bool
+	RegistryPruneDryRun *bool
+
 	// docs command
 	DocsUsed  *bool
 	DocsTopic *string
@@ -280,6 +293,7 @@ func buildRootCmd() *CommandContext {
 	registerDoctor(cmd, ctx)
 	registerCommit(cmd, ctx)
 	registerGlobal(cmd, ctx)
+	registerRegistry(cmd, ctx)
 	registerDocs(cmd, ctx)
 	registerCompletion(cmd, ctx)
 
@@ -319,6 +333,14 @@ func executeCommand(ctx *CommandContext) {
 			unsupportedCommand = "board delete"
 		case *ctx.CommitUsed:
 			unsupportedCommand = "commit"
+		case *ctx.RegistryHideUsed:
+			unsupportedCommand = "registry hide"
+		case *ctx.RegistryUnhideUsed:
+			unsupportedCommand = "registry unhide"
+		case *ctx.RegistryRemoveUsed:
+			unsupportedCommand = "registry remove"
+		case *ctx.RegistryPruneUsed:
+			unsupportedCommand = "registry prune"
 		case *ctx.DocsUsed && *ctx.DocsTopic != "":
 			// Bare 'docs' emits a JSON index; a page is markdown either way.
 			unsupportedCommand = "docs <topic>"
@@ -425,6 +447,21 @@ func executeCommand(ctx *CommandContext) {
 
 	case *ctx.GlobalUnsetUsed:
 		runGlobalUnset()
+
+	case *ctx.RegistryListUsed:
+		runRegistryList(*ctx.RegistryListHidden, *ctx.Json)
+
+	case *ctx.RegistryHideUsed:
+		runRegistrySetHidden(*ctx.RegistryHidePath, true)
+
+	case *ctx.RegistryUnhideUsed:
+		runRegistrySetHidden(*ctx.RegistryUnhidePath, false)
+
+	case *ctx.RegistryRemoveUsed:
+		runRegistryRemove(*ctx.RegistryRemovePath)
+
+	case *ctx.RegistryPruneUsed:
+		runRegistryPrune(*ctx.RegistryPruneDryRun)
 
 	case *ctx.DocsUsed:
 		runDocs(*ctx.DocsTopic, *ctx.Json)

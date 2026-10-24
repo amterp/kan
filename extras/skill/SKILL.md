@@ -555,6 +555,19 @@ kan edit -g buy-milk -c done
 
 `-g` works on `add`, `list`, `show`, `history`, `edit`, `delete`, and `comment add`/`edit`/`delete`. It targets the global board's project with the designated board as default; an explicit `-b` overrides it (`kan add -g -b other "..."`). There is no implicit fallback - `-g` must be explicit, and bare commands outside a project still error rather than capturing to the global board.
 
+## Project Registry
+
+```bash
+kan registry list              # Registered projects, their boards and state
+kan registry list --hidden     # Include hidden entries
+kan registry hide <path>       # Keep a project out of the web switcher (still works inside it)
+kan registry unhide <path>     # Offer a hidden project again
+kan registry remove <path>     # Delete the entry and its settings
+kan registry prune --dry-run   # Preview removing entries whose project is gone
+```
+
+Projects under temp directories are not registered, and a second copy of an already registered board is registered hidden.
+
 ## Web Interface
 
 ```bash

@@ -131,6 +131,7 @@ Each entry may set `hidden = true`. A hidden project works normally when kan run
 
 - A project discovered inside a temp directory (`os.TempDir()`, `/tmp` or `/private/tmp`, compared by whole path components with symlinks resolved) is not registered. `kan init` there registers a hidden entry only when given a custom `--location`, which discovery can't find without one.
 - A project whose board ID a visible entry at another path already holds is registered hidden, with a message naming the other path and how to unhide this copy.
+- `kan registry` lists, hides, unhides, removes and prunes entries. `prune` removes only entries confirmed missing, never one it failed to read.
 
 **Migration (global/2 -> global/3)**: drops `[projects]` and sets `hidden = true` on entries under temp directories. Other entries and settings are kept. Duplicates outside temp directories stay visible. Like the other migration steps, it edits the decoded TOML.
 

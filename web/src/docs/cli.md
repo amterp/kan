@@ -520,6 +520,34 @@ There is **no implicit fallback**: commands never silently use the global board
 based on your working directory - `-g` must be explicit. Running a bare command
 outside any kan project still errors rather than capturing to the global board.
 
+### registry
+
+List and clean up the projects kan knows on this machine (the `[repos]` table
+in `~/.config/kan/config.toml`). Kan registers each project it runs in, except
+ones under a temp directory.
+
+```bash
+kan registry list              # Visible projects: path, name, state, boards with IDs
+kan registry list --hidden     # Include hidden entries
+kan registry hide <path>       # Stop offering a project outside its own directory
+kan registry unhide <path>     # Offer a hidden project again
+kan registry remove <path>     # Delete the entry and its settings
+kan registry prune             # Remove entries whose project is gone
+kan registry prune --dry-run   # Show what prune would remove
+```
+
+A hidden project still works when you run kan inside it, but it doesn't appear
+in the web UI's project switcher or omnibar. When kan registers a second copy of
+a board that another visible entry already holds, it registers the copy hidden
+and says so.
+
+`list` reports each entry's state: `ok`, `missing` (the path, or its board
+folder, is gone), `unreadable` (kan couldn't check, e.g. a permission error), or
+`duplicate board ID` (another visible entry holds the same board). `prune`
+removes only `missing` entries. Use `hide` for a project that still exists:
+`remove` deletes the entry, but kan registers the project again the next time it
+runs there.
+
 ### migrate
 
 Migrate board data to current schema version.
