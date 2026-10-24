@@ -10,6 +10,7 @@ import (
 	"github.com/amterp/kan/internal/config"
 	kanerr "github.com/amterp/kan/internal/errors"
 	"github.com/amterp/kan/internal/model"
+	"github.com/amterp/kan/internal/prompt"
 	"github.com/amterp/kan/internal/registry"
 	"github.com/amterp/kan/internal/store"
 	"github.com/amterp/kan/internal/version"
@@ -319,5 +320,37 @@ func TestElsewhere_ListsCurrentProjectOnceThroughSymlink(t *testing.T) {
 	}
 	if count != 1 {
 		t.Errorf("current project listed %d times", count)
+	}
+}
+
+// pickPrompter answers every Select with choice.
+type pickPrompter struct {
+	prompt.NoopPrompter
+	choice string
+}
+
+func (p *pickPrompter) Select(string, []string) (string, error) { return p.choice, nil }
+
+// Pickers inside another project's board ask through the command's own
+// prompter, so they prompt exactly when the command could.
+func TestOpenProjectForReading_UsesCallersPrompter(t *testing.T) {
+	setupCrossProject(t)
+	api := otherProject(t, "v15", "b_api2")
+	second := filepath.Join(api, ".kan", "boards", "second")
+	if err := os.CopyFS(second, os.DirFS(filepath.Join(api, ".kan", "boards", "main"))); err != nil {
+		t.Fatal(err)
+	}
+	replaceInFile(t, filepath.Join(second, "config.toml"), `id = "b_api2"`, `id = "b_api2_second"`)
+	replaceInFile(t, filepath.Join(second, "config.toml"), `name = "main"`, `name = "second"`)
+
+	app := newReadApp(t)
+	app.Prompter = &pickPrompter{choice: "second"}
+	project, err := app.openProjectForReading(api, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	board, err := project.BoardResolver.Resolve("", true)
+	if err != nil || board != "second" {
+		t.Errorf("want the caller's prompter to pick \"second\", got %q, %v", board, err)
 	}
 }

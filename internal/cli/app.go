@@ -134,7 +134,11 @@ func NewAppWithOptions(opts AppOptions) (*App, error) {
 	}
 
 	paths := config.NewPaths(projectRoot, dataLocation)
-	app, err := newProjectApp(paths, opts, globalStore, globalCfg, gitClient)
+	var prompter prompt.Prompter = &prompt.NoopPrompter{}
+	if opts.Interactive {
+		prompter = prompt.NewHuhPrompter()
+	}
+	app, err := newProjectApp(paths, opts.ReadOnly, prompter, globalStore, globalCfg, gitClient)
 	if err != nil {
 		return nil, err
 	}
@@ -205,20 +209,13 @@ func (a *App) elsewhere(project *App) *service.Elsewhere {
 
 // newProjectApp wires the stores, services and resolvers for the project at
 // paths. It runs no hooks and creates no project config; callers add those.
-func newProjectApp(paths *config.Paths, opts AppOptions, globalStore store.GlobalStore,
+func newProjectApp(paths *config.Paths, readOnly bool, prompter prompt.Prompter, globalStore store.GlobalStore,
 	globalCfg *model.GlobalConfig, gitClient *git.Client) (*App, error) {
-	stores, err := openProjectStores(paths, opts.ReadOnly)
+	stores, err := openProjectStores(paths, readOnly)
 	if err != nil {
 		return nil, err
 	}
 	boardStore, cardStore := stores.board, stores.card
-
-	var prompter prompt.Prompter
-	if opts.Interactive {
-		prompter = prompt.NewHuhPrompter()
-	} else {
-		prompter = &prompt.NoopPrompter{}
-	}
 
 	aliasService := service.NewAliasService(cardStore)
 	return &App{
@@ -248,11 +245,12 @@ func newProjectApp(paths *config.Paths, opts AppOptions, globalStore store.Globa
 // the project.
 func (a *App) openProjectForReading(root, dataLocation string) (*App, error) {
 	paths := config.NewPaths(root, dataLocation)
-	project, err := newProjectApp(paths, AppOptions{ReadOnly: true}, a.GlobalStore, a.globalCfg, a.GitClient)
+	// The caller's prompter, so pickers in that project prompt exactly when
+	// the command could (it is the no-op prompter under -I).
+	project, err := newProjectApp(paths, true, a.Prompter, a.GlobalStore, a.globalCfg, a.GitClient)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", root, err)
 	}
-	project.Prompter = a.Prompter
 	project.OtherProject = true
 	return project, nil
 }
