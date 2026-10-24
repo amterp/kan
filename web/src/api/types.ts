@@ -21,6 +21,8 @@ export interface Card {
   column: string;
   position?: string;
   parent?: string;
+  blocked_by?: string[];
+  related?: string[];
   creator: string;
   created_at_millis: number;
   updated_at_millis: number;

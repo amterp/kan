@@ -71,6 +71,7 @@ type BoardMigration struct {
 	FromSchema     string // empty if missing
 	ToSchema       string
 	Cards          []CardMigration
+	FieldRenames   []string
 }
 
 // FromVersion returns the numeric board version from FromSchema, or 0 if missing/unparseable.
@@ -167,6 +168,9 @@ func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
 		}
 
 		if dryRun {
+			for _, field := range board.FieldRenames {
+				fmt.Fprintf(w, "Would rename custom field %s to x_%s on board %q\n", field, field, board.BoardName)
+			}
 			if board.NeedsMigration {
 				fmt.Fprintf(w, "Would migrate board %q config: add kan_schema = %q\n", board.BoardName, board.ToSchema)
 			}
@@ -178,6 +182,9 @@ func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
 			if board.HasChanges() {
 				if err := s.migrateBoard(&board, writeToDisk); err != nil {
 					return err
+				}
+				for _, field := range board.FieldRenames {
+					fmt.Fprintf(w, "Renamed custom field %s to x_%s on board %q\n", field, field, board.BoardName)
 				}
 			}
 
@@ -444,10 +451,7 @@ func (s *MigrateService) planBoardMigration(boardName string) (*BoardMigration, 
 	// Check cards
 	cardsDir := s.paths.CardsDir(boardName)
 	entries, err := os.ReadDir(cardsDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return plan, nil // No cards directory
-		}
+	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 
@@ -463,6 +467,24 @@ func (s *MigrateService) planBoardMigration(boardName string) (*BoardMigration, 
 		}
 		plan.Cards = append(plan.Cards, *cardPlan)
 	}
+	if version.IsFutureBoardSchema(plan.FromSchema) {
+		return plan, nil
+	}
+	for _, card := range plan.Cards {
+		if version.IsFutureCardVersion(card.FromVersion) {
+			return plan, nil
+		}
+	}
+	board, err := s.loadRawBoard(boardName)
+	if err != nil {
+		return nil, err
+	}
+	renames, configChanged, err := migrateLinksRaw(board)
+	if err != nil {
+		return nil, err
+	}
+	plan.FieldRenames = renames
+	plan.NeedsMigration = plan.NeedsMigration || configChanged
 
 	return plan, nil
 }
@@ -708,6 +730,10 @@ func (s *MigrateService) migrateBoard(plan *BoardMigration, write writeFunc) err
 	if err != nil {
 		return err
 	}
+	_, configChanged, err := migrateLinksRaw(b)
+	if err != nil {
+		return err
+	}
 
 	if plan.NeedsMigration {
 		if err := migrateBoardRaw(b, plan.FromVersion()); err != nil {
@@ -724,7 +750,7 @@ func (s *MigrateService) migrateBoard(plan *BoardMigration, write writeFunc) err
 		}
 	}
 
-	if plan.NeedsMigration {
+	if plan.NeedsMigration || configChanged {
 		data, err := encodeTOMLMap(b.config)
 		if err != nil {
 			return fmt.Errorf("failed to encode board %q config: %w", plan.BoardName, err)

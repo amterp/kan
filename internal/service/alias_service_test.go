@@ -374,3 +374,8 @@ func TestAliasService_GenerateAlias_DoesNotExcludeOtherCards(t *testing.T) {
 		t.Errorf("Expected 'fix-bug-2' (excluding different card), got %q", alias)
 	}
 }
+
+func (m *mockCardStore) ListWithDiagnostics(boardName string) (store.CardListing, error) {
+	cards, err := m.List(boardName)
+	return store.CardListing{Cards: cards}, err
+}

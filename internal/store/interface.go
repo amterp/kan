@@ -9,7 +9,19 @@ type CardStore interface {
 	Update(boardName string, card *model.Card) error
 	Delete(boardName, cardID string) error
 	List(boardName string) ([]*model.Card, error)
+	ListWithDiagnostics(boardName string) (CardListing, error)
 	FindByAlias(boardName, alias string) (*model.Card, error)
+}
+
+// CardListing retains read failures so callers can distinguish absent cards from unreadable ones.
+type CardListing struct {
+	Cards    []*model.Card
+	Failures []CardReadFailure
+}
+
+type CardReadFailure struct {
+	CardID string
+	Err    error
 }
 
 // BoardStore handles board persistence.

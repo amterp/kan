@@ -1788,11 +1788,11 @@ func TestMigrateService_V13ToV14_Idempotent(t *testing.T) {
 }
 
 // ============================================================================
-// V14 Tests (Current schema - no migration needed)
+// V15 Tests (Current schema - no migration needed)
 // ============================================================================
 
-func TestMigrateService_Plan_V14_NoChanges(t *testing.T) {
-	service, _, cleanup := setupMigrationTest(t, "v14")
+func TestMigrateService_Plan_V15_NoChanges(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v15")
 	defer cleanup()
 
 	plan, err := service.Plan()
@@ -1800,15 +1800,15 @@ func TestMigrateService_Plan_V14_NoChanges(t *testing.T) {
 		t.Fatalf("Plan failed: %v", err)
 	}
 	if plan.HasChanges() {
-		t.Error("Current schema (v14) data should not need migration")
+		t.Error("Current schema (v15) data should not need migration")
 	}
 }
 
-func TestMigrateService_V14_ReadableByStores(t *testing.T) {
-	_, tempDir, cleanup := setupMigrationTest(t, "v14")
+func TestMigrateService_V15_ReadableByStores(t *testing.T) {
+	_, tempDir, cleanup := setupMigrationTest(t, "v15")
 	defer cleanup()
 
-	// V14 fixtures should be directly readable by stores without migration
+	// V15 fixtures should be directly readable by stores without migration
 	paths := config.NewPaths(tempDir, "")
 	cardStore := store.NewCardStore(paths)
 	boardStore := store.NewBoardStore(paths)
@@ -1816,7 +1816,7 @@ func TestMigrateService_V14_ReadableByStores(t *testing.T) {
 	// Board store should read without error
 	boardCfg, err := boardStore.Get("main")
 	if err != nil {
-		t.Fatalf("BoardStore.Get failed on v14 fixtures: %v", err)
+		t.Fatalf("BoardStore.Get failed on v15 fixtures: %v", err)
 	}
 	if boardCfg.Name != "main" {
 		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
@@ -1882,7 +1882,7 @@ func TestMigrateService_V14_ReadableByStores(t *testing.T) {
 		t.Errorf("Expected ready.exclude [labels=urgent], got %v", boardCfg.Ready.Exclude)
 	}
 	if warnings := model.ValidateReady(boardCfg.Ready, boardCfg.Columns); len(warnings) > 0 {
-		t.Errorf("v14 fixture [ready] should validate cleanly, got %v", warnings)
+		t.Errorf("v15 fixture [ready] should validate cleanly, got %v", warnings)
 	}
 
 	// Pattern hooks should be present
@@ -2073,10 +2073,10 @@ func TestMigrateService_CardV2ToV3_SeedsHistory(t *testing.T) {
 	}
 }
 
-func TestMigrateService_CardV3_NoOp(t *testing.T) {
-	// The v14 fixture card is already card/3 with history on a current-schema
+func TestMigrateService_CardV4_NoOp(t *testing.T) {
+	// The v15 fixture card is already card/4 with history on a current-schema
 	// board, so nothing (card or board) should need migration.
-	service, _, cleanup := setupMigrationTest(t, "v14")
+	service, _, cleanup := setupMigrationTest(t, "v15")
 	defer cleanup()
 
 	plan, err := service.Plan()
@@ -2084,7 +2084,7 @@ func TestMigrateService_CardV3_NoOp(t *testing.T) {
 		t.Fatalf("Plan failed: %v", err)
 	}
 	if plan.HasChanges() {
-		t.Error("card/3 data with history should not need migration")
+		t.Error("card/4 data with history should not need migration")
 	}
 }
 

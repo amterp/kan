@@ -186,7 +186,8 @@ worktree_independent = true
 - **v0 (implicit)**: Missing `_v` in card or `kan_schema` in config. This represents legacy data from before versioning was implemented. Cards at v0 may have a `column` field which is no longer used.
 - **v1**: First versioned schema. Cards have `_v: 1`, no `column` field. Board configs have `kan_schema = "board/1"`.
 - **card/2**: Reintroduces `column` and `position` on card files as the single source of truth for membership (paired with board/10). See "Column Membership".
-- **card/3 (current)**: Adds `history`, an append-only log of tracked field changes (column transitions today). See "Card History".
+- **card/3**: Adds `history`, an append-only log of tracked field changes (column transitions today). See "Card History".
+- **card/4 (current)**: Adds optional `blocked_by` and `related` lists of stored card references. Migration preserves older custom fields with those names and canonicalizes parent aliases. See "Card Links" below.
 - **board/2**: Converts labels from first-class `[[labels]]` to custom fields with type `"tags"`. Adds `card_display.badges` for label visibility.
 - **board/3**: Adds optional `[[pattern_hooks]]` for running commands when cards are created with matching titles.
 - **board/4**: Adds optional `wanted` field to custom field schemas. Wanted fields emit warnings when missing from cards.
@@ -201,9 +202,19 @@ worktree_independent = true
 - **board/13**: Adds optional `on_move_default_position` field to columns, controlling where a card lands when it moves into that column: `top` (the default when unset) or `bottom`. Migration is schema-only, but **the default behavior changes**: moved cards previously always landed at the bottom. See "Card Insertion" below.
 - **board/14 (current)**: Adds an optional `category` to columns and an optional `[ready]` table (`order`, `exclude`). Migration is schema-only and leaves existing columns without a category. See "Column Categories and Ready Settings" below.
 
-Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9 -> v10 -> v11 -> v12 -> v13 -> v14 for boards, and card files migrate to `card/3`.
+Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9 -> v10 -> v11 -> v12 -> v13 -> v14 for boards, and card files migrate to `card/4`.
 
 **Rationale**: Strict versioning—Kan refuses to read files without version stamps (or with incompatible versions). This catches schema drift early and forces explicit migration.
+
+### Card Links (card/4)
+
+`blocked_by` and `related` are optional lists of card references. The source card stores the link; reverse links and blocker state are computed when queried. Same-board references store opaque card IDs. Qualified `boardID:cardID` references can be read, but adding cross-board links is not supported yet. Both fields require Kan 0.30.0.
+
+The card/4 migration inspects raw board definitions and old card keys before decoding cards. A custom field named `blocked_by` or `related` becomes `x_blocked_by` or `x_related`, including its card values, card display settings, and ready exclusions. Values survive even when their custom-field definition was removed. An existing destination name stops migration before any writes, so neither value is overwritten. The board stays at board/14; a board with no cards can still need this content migration.
+
+The same step rewrites parent aliases to same-board card IDs when they resolve unambiguously. Existing IDs take precedence. Unresolved parents stay unchanged for doctor to report. Current card/4 links are preserved on mixed-version boards. Disk migration and read-only overlays use these same transformations.
+
+Link lookup distinguishes found, absent, board not here, ambiguous board, unsupported schema, and unreadable. A missing card counts as absent only when its board was read completely; any skipped card prevents that conclusion. Current-project startup remains strict: malformed migration input or newer own-project data aborts startup, and doctor remains the repair path. Partial loading of other projects belongs to the later cross-project work.
 
 ### Wanted Fields (board/4)
 

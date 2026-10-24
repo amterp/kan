@@ -15,7 +15,7 @@ import (
 //  4. Add migration tests in migrate_service_test.go
 //  5. Update COMPAT.md with migration details
 const (
-	CurrentCardVersion    = 3
+	CurrentCardVersion    = 4
 	CurrentBoardVersion   = 14
 	CurrentGlobalVersion  = 3
 	CurrentProjectVersion = 2
@@ -34,6 +34,7 @@ var MinKanVersion = map[string]string{
 	"card/1":    "0.1.0",
 	"card/2":    "0.21.0",
 	"card/3":    "0.25.0",
+	"card/4":    "0.30.0",
 	"board/1":   "0.1.0",
 	"board/2":   "0.2.0",
 	"board/3":   "0.4.0",

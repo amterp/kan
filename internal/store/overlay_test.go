@@ -2,11 +2,13 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/model"
+	"github.com/amterp/kan/internal/version"
 )
 
 func TestReadOnlyCardStore_ReadsOverlayBeforeDisk(t *testing.T) {
@@ -22,7 +24,7 @@ func TestReadOnlyCardStore_ReadsOverlayBeforeDisk(t *testing.T) {
 	}
 
 	overlay := NewOverlay()
-	overlay.Put(paths.CardPath("main", "c1"), []byte(`{"_v": 3, "id": "c1", "title": "in overlay"}`))
+	overlay.Put(paths.CardPath("main", "c1"), []byte(fmt.Sprintf(`{"_v": %d, "id": "c1", "title": "in overlay"}`, version.CurrentCardVersion)))
 	ro := NewReadOnlyCardStore(paths, overlay)
 
 	c1, err := ro.Get("main", "c1")

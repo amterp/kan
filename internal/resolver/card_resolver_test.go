@@ -500,3 +500,8 @@ func TestCardResolver_ResolveAcrossBoards_EmptyBoardList(t *testing.T) {
 		t.Fatalf("Expected 0 matches, got %d", len(matches))
 	}
 }
+
+func (m *mockCardStore) ListWithDiagnostics(boardName string) (store.CardListing, error) {
+	cards, err := m.List(boardName)
+	return store.CardListing{Cards: cards}, err
+}

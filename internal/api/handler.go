@@ -27,6 +27,8 @@ type CardResponse struct {
 	Column              string                   `json:"column"`
 	Position            string                   `json:"position"`
 	Parent              string                   `json:"parent,omitempty"`
+	BlockedBy           []string                 `json:"blocked_by,omitempty"`
+	Related             []string                 `json:"related,omitempty"`
 	Creator             string                   `json:"creator"`
 	CreatedAtMillis     int64                    `json:"created_at_millis"`
 	UpdatedAtMillis     int64                    `json:"updated_at_millis"`
@@ -58,6 +60,12 @@ func (c CardResponse) MarshalJSON() ([]byte, error) {
 	if c.Parent != "" {
 		m["parent"] = c.Parent
 	}
+	if len(c.BlockedBy) > 0 {
+		m["blocked_by"] = c.BlockedBy
+	}
+	if len(c.Related) > 0 {
+		m["related"] = c.Related
+	}
 	if len(c.Comments) > 0 {
 		m["comments"] = c.Comments
 	}
@@ -87,6 +95,8 @@ func toCardResponse(card *model.Card) CardResponse {
 		Column:          card.Column,
 		Position:        card.Position,
 		Parent:          card.Parent,
+		BlockedBy:       card.BlockedBy,
+		Related:         card.Related,
 		Creator:         card.Creator,
 		CreatedAtMillis: card.CreatedAtMillis,
 		UpdatedAtMillis: card.UpdatedAtMillis,

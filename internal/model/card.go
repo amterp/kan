@@ -16,6 +16,8 @@ type Card struct {
 	Title           string    `json:"title"`
 	Description     string    `json:"description,omitempty"`
 	Parent          string    `json:"parent,omitempty"`
+	BlockedBy       []string  `json:"blocked_by,omitempty"`
+	Related         []string  `json:"related,omitempty"`
 	Creator         string    `json:"creator"`
 	CreatedAtMillis int64     `json:"created_at_millis"`
 	UpdatedAtMillis int64     `json:"updated_at_millis"`
@@ -194,6 +196,7 @@ func (c Card) CurrentColumnSinceMillis() int64 {
 // separate custom fields from built-ins, and validation uses it to reject
 // colliding names up front.
 var reservedCardFieldNames = map[string]bool{
+	"blocked_by": true, "related": true,
 	"_v": true, "id": true, "alias": true, "alias_explicit": true,
 	"title": true, "description": true,
 	"parent": true, "creator": true,

@@ -1,0 +1,8 @@
+kan_schema = "project/2"
+id = "p_test123"
+name = "Test Project"
+
+[favicon]
+background = "#3b82f6"
+icon_type = "letter"
+letter = "T"

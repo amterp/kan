@@ -2195,3 +2195,8 @@ func TestCardService_MoveCardWithPlacement_SelfAnchor(t *testing.T) {
 		t.Fatal("expected error when a card anchors to itself")
 	}
 }
+
+func (m *testCardStore) ListWithDiagnostics(boardName string) (store.CardListing, error) {
+	cards, err := m.List(boardName)
+	return store.CardListing{Cards: cards}, err
+}

@@ -89,17 +89,25 @@ func (s *FileCardStore) Delete(boardName, cardID string) error {
 // List returns all cards for a board.
 // Malformed card files are logged and skipped.
 func (s *FileCardStore) List(boardName string) ([]*model.Card, error) {
+	listing, err := s.ListWithDiagnostics(boardName)
+	for _, failure := range listing.Failures {
+		fmt.Fprintf(os.Stderr, "Warning: skipping malformed card file %s.json: %v\n", failure.CardID, failure.Err)
+	}
+	return listing.Cards, err
+}
+
+func (s *FileCardStore) ListWithDiagnostics(boardName string) (CardListing, error) {
+	listing := CardListing{Cards: []*model.Card{}}
 	cardsDir := s.paths.CardsDir(boardName)
 
 	entries, err := os.ReadDir(cardsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []*model.Card{}, nil // Return empty slice, not nil
+			return listing, nil
 		}
-		return nil, fmt.Errorf("failed to read cards directory: %w", err)
+		return listing, fmt.Errorf("failed to read cards directory: %w", err)
 	}
 
-	var cards []*model.Card
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
 			continue
@@ -108,17 +116,15 @@ func (s *FileCardStore) List(boardName string) ([]*model.Card, error) {
 		path := filepath.Join(cardsDir, entry.Name())
 		card, err := s.readCard(path)
 		if err != nil {
-			// Log warning but don't fail - allows partial reads
-			fmt.Fprintf(os.Stderr, "Warning: skipping malformed card file %s: %v\n", entry.Name(), err)
+			listing.Failures = append(listing.Failures, CardReadFailure{
+				CardID: strings.TrimSuffix(entry.Name(), ".json"), Err: err,
+			})
 			continue
 		}
-		cards = append(cards, card)
+		listing.Cards = append(listing.Cards, card)
 	}
 
-	if cards == nil {
-		cards = []*model.Card{} // Ensure non-nil
-	}
-	return cards, nil
+	return listing, nil
 }
 
 // FindByAlias searches for a card by alias.
@@ -143,17 +149,23 @@ func (s *FileCardStore) readCard(path string) (*model.Card, error) {
 		return nil, err
 	}
 
-	var card model.Card
-	if err := json.Unmarshal(data, &card); err != nil {
+	var envelope struct {
+		Version int `json:"_v"`
+	}
+	if err := json.Unmarshal(data, &envelope); err != nil {
 		return nil, fmt.Errorf("invalid JSON: %w", err)
 	}
 
 	// Strict version validation
-	if card.Version == 0 {
+	if envelope.Version == 0 {
 		return nil, version.MissingCardVersion(path)
 	}
-	if card.Version != version.CurrentCardVersion {
-		return nil, version.InvalidCardVersion(path, card.Version, version.CurrentCardVersion)
+	if envelope.Version != version.CurrentCardVersion {
+		return nil, version.InvalidCardVersion(path, envelope.Version, version.CurrentCardVersion)
+	}
+	var card model.Card
+	if err := json.Unmarshal(data, &card); err != nil {
+		return nil, fmt.Errorf("invalid card JSON: %w", err)
 	}
 
 	return &card, nil
