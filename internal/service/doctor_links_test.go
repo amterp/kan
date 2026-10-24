@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -117,6 +118,30 @@ func TestDoctorLinks_LegacyCustomLinksDoNotHideParents(t *testing.T) {
 			f.write(f.paths.CardPath("main", f.source.ID), string(data))
 			if len(issuesWithCode(f.diagnose(), CodeInvalidParentRef)) != 1 {
 				t.Fatal("tolerant decoding hid a genuine missing parent")
+			}
+		})
+	}
+}
+
+func TestDoctorLinks_FixUsesStoreFormatting(t *testing.T) {
+	for _, custom := range []bool{false, true} {
+		t.Run(fmt.Sprint(custom), func(t *testing.T) {
+			f := setupDoctorLinks(t)
+			f.source.BlockedBy = []string{"missing"}
+			if custom {
+				f.source.CustomFields = map[string]any{"labels": []string{"keep"}, "priority": "high"}
+			}
+			f.save()
+			report := f.diagnose()
+			fixed, err := f.doctor.Fix(&DiagnosticReport{Issues: issuesWithCode(report, CodeAbsentLink)})
+			if err != nil || fixed.Summary.Fixed != 1 {
+				t.Fatalf("repair failed: %+v, %v", fixed, err)
+			}
+			actual := readCardBytes(t, f.paths, f.source.ID)
+			f.source.BlockedBy = nil
+			f.save()
+			if expected := readCardBytes(t, f.paths, f.source.ID); !bytes.Equal(expected, actual) {
+				t.Fatalf("repair did not use store formatting:\n%s\nexpected:\n%s", actual, expected)
 			}
 		})
 	}

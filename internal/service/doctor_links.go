@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -247,15 +248,18 @@ func (s *DoctorService) fixAbsentLink(issue Issue) error {
 	if result := graph.Resolve(issue.Board, ref); result.State != LinkAbsent {
 		return fmt.Errorf("%s %q is no longer confirmed absent: %s: %s", field, ref, result.State, result.Reason)
 	}
-	if len(kept) == 0 {
-		delete(raw, field)
-	} else {
-		raw[field], err = json.Marshal(kept)
-		if err != nil {
-			return err
-		}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	var repaired map[string]any
+	if err := decoder.Decode(&repaired); err != nil {
+		return err
 	}
-	output, err := json.MarshalIndent(raw, "", "  ")
+	if len(kept) == 0 {
+		delete(repaired, field)
+	} else {
+		repaired[field] = kept
+	}
+	output, err := encodeCardMap(repaired)
 	if err != nil {
 		return err
 	}

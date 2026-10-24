@@ -68,6 +68,17 @@ func encodeCardMap(data map[string]any) ([]byte, error) {
 	if err := json.Unmarshal(raw, &card); err != nil {
 		return encodeJSONMap(data)
 	}
+	// Decoding custom values through model.Card converts numbers to float64.
+	for name := range card.CustomFields {
+		card.CustomFields[name] = data[name]
+	}
+	if history, ok := data["history"].([]any); ok && len(history) == len(card.History) {
+		for i, entry := range history {
+			if fields, ok := entry.(map[string]any); ok {
+				card.History[i].Value = fields["value"]
+			}
+		}
+	}
 	output, err := card.MarshalFile()
 	if err != nil {
 		return encodeJSONMap(data)
