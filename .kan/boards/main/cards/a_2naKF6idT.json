@@ -2,18 +2,19 @@
   "_v": 3,
   "alias": "never-overwrite-an",
   "alias_explicit": false,
-  "column": "next",
+  "column": "in-progress",
   "created_at_millis": 1792875237530,
   "creator": "Alexander Terp",
   "description": "`FileCardStore.Create` writes without checking whether the file exists, so an ID collision (two cards made in the same 10 ms tick that draw the same 3 random characters) silently replaces an existing card. Rare, but phase 4 starts relying on card IDs being unique.\n\nDesign: `docs/design/work-across-boards.md`, section \"Card creation never overwrites\".",
   "id": "a_2naKF6idT",
   "parent": "a_2naKEWqdp",
-  "position": "a4",
+  "position": "Zw",
   "title": "Never overwrite an existing card file when creating a card",
   "type": "bug",
-  "updated_at_millis": 1792875444915,
+  "updated_at_millis": 1792876512652,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875237530},
-    {"field":"column","value":"next","at":1792875444915}
+    {"field":"column","value":"next","at":1792875444915},
+    {"field":"column","value":"in-progress","at":1792876512652}
   ]
 }

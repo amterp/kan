@@ -11,9 +11,11 @@
   "position": "a2",
   "title": "kan migrate: discover the project the way other commands do",
   "type": "bug",
-  "updated_at_millis": 1792875444804,
+  "updated_at_millis": 1792876512568,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875237351},
-    {"field":"column","value":"next","at":1792875444804}
+    {"field":"column","value":"next","at":1792875444804},
+    {"field":"column","value":"in-progress","at":1792876501627},
+    {"field":"column","value":"next","at":1792876512568}
   ]
 }

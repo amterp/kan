@@ -8,12 +8,14 @@
   "description": "Existing boards have no categories, and setting them by hand across about 40 boards is tedious.\n\nDesign: `docs/design/work-across-boards.md`, section \"CLI, API and web\". It suggests from column names and writes only with `--apply`; kan never infers a category from a name anywhere else.\n\nAfter a_2naKFO3Lq.",
   "id": "a_2naKFUHKC",
   "parent": "a_2naKFEs7S",
-  "position": "a4",
+  "position": "Zz",
   "title": "Add kan column categorize to suggest categories from column names",
   "type": "feature",
-  "updated_at_millis": 1792875445177,
+  "updated_at_millis": 1792876512611,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875237767},
-    {"field":"column","value":"backlog-hi","at":1792875445177}
+    {"field":"column","value":"backlog-hi","at":1792875445177},
+    {"field":"column","value":"in-progress","at":1792876501711},
+    {"field":"column","value":"backlog-hi","at":1792876512611}
   ]
 }
