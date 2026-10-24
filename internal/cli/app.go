@@ -192,7 +192,7 @@ func (a *App) elsewhere(project *App) *service.Elsewhere {
 	if a.globalCfg != nil {
 		e.Projects = registry.Visible(a.globalCfg)
 	}
-	if a.RequireKan() == nil && !slices.ContainsFunc(e.Projects, func(p registry.Entry) bool { return p.Path == a.ProjectRoot }) {
+	if a.RequireKan() == nil && !slices.ContainsFunc(e.Projects, func(p registry.Entry) bool { return registry.SamePath(p.Path, a.ProjectRoot) }) {
 		e.Projects = append(e.Projects, registry.Entry{Path: a.ProjectRoot, DataLocation: a.Paths.DataLocation()})
 	}
 	if project.ProjectRoot != "" {

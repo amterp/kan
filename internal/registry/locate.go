@@ -147,7 +147,7 @@ func (l *Locator) others() []Entry {
 	}
 	var entries []Entry
 	for _, e := range Visible(l.cfg) {
-		if root := l.currentRoot(); root != "" && samePath(e.Path, root) {
+		if root := l.currentRoot(); root != "" && SamePath(e.Path, root) {
 			continue
 		}
 		entries = append(entries, e)

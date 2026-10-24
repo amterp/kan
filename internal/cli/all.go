@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 
 	"github.com/amterp/kan/internal/registry"
@@ -44,12 +43,12 @@ func (a *App) boardsForAll() ([]allBoard, []skippedBoard) {
 	var projects []project
 	current := ""
 	if a.RequireKan() == nil {
-		current = resolvePath(a.ProjectRoot)
+		current = a.ProjectRoot
 		projects = append(projects, project{path: a.ProjectRoot, open: func() (*App, error) { return a, nil }})
 	}
 	if a.globalCfg != nil {
 		for _, status := range registry.Inspect(a.globalCfg, false) {
-			if current != "" && resolvePath(status.Path) == current {
+			if current != "" && registry.SamePath(status.Path, current) {
 				continue
 			}
 			p := project{path: status.Path, boards: status.Boards}
@@ -136,11 +135,4 @@ func printBoardHeader(boardName, projectPath string, first bool) {
 		fmt.Println()
 	}
 	fmt.Printf("%s  %s\n", RenderBold(boardName), RenderMuted(util.PrettyPath(projectPath)))
-}
-
-func resolvePath(path string) string {
-	if r, err := filepath.EvalSymlinks(path); err == nil {
-		return r
-	}
-	return filepath.Clean(path)
 }

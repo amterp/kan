@@ -315,7 +315,7 @@ func (g *LinkGraph) LoadOtherProjects() []SkippedProject {
 				}
 				continue
 			}
-			if loc.Root == e.Path {
+			if registry.SamePath(loc.Root, e.Path) {
 				g.addOtherBoard(loc, p)
 			}
 		}

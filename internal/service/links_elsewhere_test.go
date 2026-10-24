@@ -380,3 +380,34 @@ func TestLinkGraph_ReverseLinksFromOtherProjects(t *testing.T) {
 		t.Errorf("skip reason should name the schema: %v", reasons)
 	}
 }
+
+// The registry may hold a project under a symlinked spelling while the
+// locator knows it by its real path; LoadOtherProjects must still read it.
+func TestLinkGraph_ReverseLinksFromProjectRegisteredThroughSymlink(t *testing.T) {
+	web := newLinkProject(t, "web", "b_web")
+	api := newLinkProject(t, "api", "b_api")
+	endpoint := api.add(t, "Endpoint")
+	page := web.add(t, "Page")
+	web.setLinks(t, page, "b_api:"+endpoint.ID)
+	link := filepath.Join(t.TempDir(), "web-link")
+	if err := os.Symlink(web.root, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	cfg := &model.GlobalConfig{}
+	cfg.SetRepoConfig(link, model.RepoConfig{})
+	cfg.SetRepoConfig(api.root, model.RepoConfig{})
+	e := elsewhereFor(web, cfg)
+	e.Projects = registry.Visible(cfg)
+
+	g, err := LoadLinkGraph(api.boards, api.cards)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g.SetElsewhere(e)
+	g.LoadOtherProjects()
+
+	if blocks := g.Blocks("main", endpoint.ID); len(blocks) != 1 || blocks[0].Card.ID != page.ID {
+		t.Errorf("blocks = %+v", blocks)
+	}
+}

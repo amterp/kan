@@ -3,12 +3,14 @@ package cli
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/amterp/kan/internal/config"
 	kanerr "github.com/amterp/kan/internal/errors"
 	"github.com/amterp/kan/internal/model"
+	"github.com/amterp/kan/internal/registry"
 	"github.com/amterp/kan/internal/store"
 	"github.com/amterp/kan/internal/version"
 )
@@ -295,5 +297,27 @@ func TestOutsideAnyProject_WriteGetsTheWriteRule(t *testing.T) {
 	var other *kanerr.OtherProjectError
 	if _, err := app.ResolveCardWithBoard("", "card-xyz", false, forWrite); !errors.As(err, &other) || other.Path != api {
 		t.Errorf("want the write rule naming %s, got %v", api, err)
+	}
+}
+
+// A project registered under a symlinked path and discovered under its real
+// path is one project, listed once for reverse-link lookups.
+func TestElsewhere_ListsCurrentProjectOnceThroughSymlink(t *testing.T) {
+	current := openFixtureProject(t, "v15")
+	link := filepath.Join(resolvedTempDir(t), "link")
+	if err := os.Symlink(current, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	registerProjects(t, []string{link})
+
+	app := newReadApp(t)
+	count := 0
+	for _, p := range app.elsewhere(app).Projects {
+		if registry.SamePath(p.Path, current) {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("current project listed %d times", count)
 	}
 }

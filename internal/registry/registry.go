@@ -86,9 +86,10 @@ func pathForms(path string) []string {
 	return forms
 }
 
-// samePath reports whether a and b name the same directory, following
-// symlinks, so /link/project and /real/project are one project.
-func samePath(a, b string) bool {
+// SamePath reports whether a and b name the same directory, following
+// symlinks, so /link/project and /real/project are one project. Compare
+// project paths with it, never as strings.
+func SamePath(a, b string) bool {
 	return canonical(a) == canonical(b)
 }
 
@@ -164,7 +165,7 @@ func HoldersOf(cfg *model.GlobalConfig, boardID, exclude string) []string {
 	}
 	var holders []string
 	for _, e := range Visible(cfg) {
-		if samePath(e.Path, exclude) {
+		if SamePath(e.Path, exclude) {
 			continue
 		}
 		boards, err := ReadBoards(e.Path, e.DataLocation)
@@ -215,7 +216,7 @@ func Register(cfg *model.GlobalConfig, root, dataLocation string) Result {
 	// The same project reached through a symlink is already registered;
 	// a second entry for it would make its boards look like two copies.
 	for path := range cfg.Repos {
-		if samePath(path, root) {
+		if SamePath(path, root) {
 			result.Path = path
 			return result
 		}

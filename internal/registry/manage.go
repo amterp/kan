@@ -48,7 +48,7 @@ func Find(cfg *model.GlobalConfig, path string) (string, error) {
 		return abs, nil
 	}
 	for key := range cfg.Repos {
-		if samePath(key, abs) {
+		if SamePath(key, abs) {
 			return key, nil
 		}
 	}
