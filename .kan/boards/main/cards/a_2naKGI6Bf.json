@@ -2,18 +2,19 @@
   "_v": 3,
   "alias": "kan-doctor-check",
   "alias_explicit": false,
-  "column": "next",
+  "column": "done",
   "created_at_millis": 1792875238264,
   "creator": "Alexander Terp",
   "description": "Design: `docs/design/work-across-boards.md`, section \"Doctor\", and the `--fix` rule under \"Lookup results\": fix only links whose target is confirmed absent, check again just before writing, and edit only the current project.\n\nAfter a_2naKG1kJn.",
   "id": "a_2naKGI6Bf",
   "parent": "a_2naKFgTg0",
-  "position": "a0",
+  "position": "Zh",
   "title": "kan doctor: check links, parents and ready settings",
   "type": "enhancement",
-  "updated_at_millis": 1792879079736,
+  "updated_at_millis": 1792881588131,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875238264},
-    {"field":"column","value":"next","at":1792879079736}
+    {"field":"column","value":"next","at":1792879079736},
+    {"field":"column","value":"done","at":1792881588131}
   ]
 }

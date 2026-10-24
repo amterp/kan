@@ -2,17 +2,18 @@
   "_v": 3,
   "alias": "phase-3-links-and",
   "alias_explicit": false,
-  "column": "backlog-hi",
+  "column": "done",
   "created_at_millis": 1792875237894,
   "creator": "Alexander Terp",
   "description": "Parent for phase 3 of `docs/design/work-across-boards.md`: `blocked_by` and `related` links on cards, and `kan ready`, which lists open cards with no unfinished blocker. Agents get a reliable answer to \"what can I work on now\" on one board, instead of reading columns and dependencies written in prose.\n\nAfter phase 2: a_2naKFEs7S.",
   "id": "a_2naKFgTg0",
-  "position": "a6",
+  "position": "Zf",
   "title": "Phase 3: links and ready, within a board",
   "type": "chore",
-  "updated_at_millis": 1792875445304,
+  "updated_at_millis": 1792881588215,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875237894},
-    {"field":"column","value":"backlog-hi","at":1792875445304}
+    {"field":"column","value":"backlog-hi","at":1792875445304},
+    {"field":"column","value":"done","at":1792881588215}
   ]
 }
