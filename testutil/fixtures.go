@@ -98,3 +98,18 @@ func TempGitRepo(t *testing.T) (string, func()) {
 func NewTestPaths(baseDir string) *config.Paths {
 	return config.NewPaths(baseDir, "")
 }
+
+// RunWithIsolatedHome runs a package's tests with HOME pointed at a fresh
+// temp directory, so no test can read, register into or migrate the global
+// config of the machine running them. Call it from TestMain.
+func RunWithIsolatedHome(m *testing.M) int {
+	home, err := os.MkdirTemp("", "kan-test-home-*")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(home)
+	if err := os.Setenv("HOME", home); err != nil {
+		panic(err)
+	}
+	return m.Run()
+}
