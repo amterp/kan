@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/creator"
@@ -190,29 +189,19 @@ func NewAppWithOptions(opts AppOptions) (*App, error) {
 // projects, read-only. project is the App itself, or another project it
 // opened; its [linked_boards] describes boards that aren't on this machine.
 func (a *App) elsewhere(project *App) *service.Elsewhere {
-	e := &service.Elsewhere{
-		Locator: a.locator(),
-		Open: func(root, dataLocation string) (store.BoardStore, store.CardStore, error) {
-			p, err := a.openProjectForReading(root, dataLocation)
-			if err != nil {
-				return nil, nil, err
-			}
-			return p.BoardStore, p.CardStore, nil
-		},
-		Remote: func(root string) string {
-			return git.ShareableRemote(git.FetchURL(a.GitClient.Remotes(root)))
-		},
-	}
-	if a.globalCfg != nil {
-		e.Projects = registry.Visible(a.globalCfg)
-	}
-	if a.RequireKan() == nil && !slices.ContainsFunc(e.Projects, func(p registry.Entry) bool { return registry.SamePath(p.Path, a.ProjectRoot) }) {
-		e.Projects = append(e.Projects, registry.Entry{Path: a.ProjectRoot, DataLocation: a.Paths.DataLocation()})
-	}
-	if project.ProjectRoot != "" {
-		if cfg, err := project.ProjectStore.Load(); err == nil {
-			e.LinkedBoards = cfg.LinkedBoards
+	e := service.NewElsewhere(a.Paths, a.BoardStore, project.ProjectStore, a.globalCfg)
+	// The App's own locator and project cache, so a command reads each
+	// registered project once however many lookups it makes.
+	e.Locator = a.locator()
+	e.Open = func(root, dataLocation string) (store.BoardStore, store.CardStore, error) {
+		p, err := a.openProjectForReading(root, dataLocation)
+		if err != nil {
+			return nil, nil, err
 		}
+		return p.BoardStore, p.CardStore, nil
+	}
+	e.Remote = func(root string) string {
+		return git.ShareableRemote(git.FetchURL(a.GitClient.Remotes(root)))
 	}
 	return e
 }
@@ -323,18 +312,12 @@ func openProjectStores(paths *config.Paths, readOnly bool) (projectStores, error
 		}, nil
 	}
 
-	var overlay *store.Overlay
-	if paths.ProjectRoot() != "" {
-		var err error
-		overlay, err = service.NewQuietMigrateService(paths).LoadProjectOverlay()
-		if err != nil {
-			return projectStores{}, err
-		}
+	read, err := service.OpenProjectForReading(paths)
+	if err != nil {
+		return projectStores{}, err
 	}
 	return projectStores{
-		board:   store.NewReadOnlyBoardStore(paths, overlay),
-		card:    store.NewReadOnlyCardStore(paths, overlay),
-		project: store.NewReadOnlyProjectStore(paths, overlay),
+		board: read.Boards, card: read.Cards, project: read.Project,
 	}, nil
 }
 

@@ -54,6 +54,7 @@ const (
 	CodeBlockedByAncestor  = "BLOCKED_BY_ANCESTOR"
 	CodeUncategorizedLink  = "UNCATEGORIZED_LINK"
 	CodeInvalidReadyConfig = "INVALID_READY_CONFIG"
+	CodeDuplicateBoardID   = "DUPLICATE_BOARD_ID"
 
 	// Priority 4: Data quality (warnings)
 	CodeMissingWantedFields   = "MISSING_WANTED_FIELDS"
@@ -68,20 +69,22 @@ const (
 
 // Issue represents a single diagnostic finding.
 type Issue struct {
-	Severity   IssueSeverity     `json:"severity"`
-	Code       string            `json:"code"`
-	Board      string            `json:"board,omitempty"`
-	Column     string            `json:"column,omitempty"`
-	CardID     string            `json:"card_id,omitempty"`
-	Message    string            `json:"message"`
-	Fixable    bool              `json:"fixable"`
-	FixAction  string            `json:"fix_action,omitempty"`
-	FixError   string            `json:"fix_error,omitempty"`   // Populated if fix was attempted but failed
-	FixContext map[string]string `json:"fix_context,omitempty"` // Structured data for fix logic
+	ProjectPath string            `json:"project_path,omitempty"`
+	Severity    IssueSeverity     `json:"severity"`
+	Code        string            `json:"code"`
+	Board       string            `json:"board,omitempty"`
+	Column      string            `json:"column,omitempty"`
+	CardID      string            `json:"card_id,omitempty"`
+	Message     string            `json:"message"`
+	Fixable     bool              `json:"fixable"`
+	FixAction   string            `json:"fix_action,omitempty"`
+	FixError    string            `json:"fix_error,omitempty"`   // Populated if fix was attempted but failed
+	FixContext  map[string]string `json:"fix_context,omitempty"` // Structured data for fix logic
 }
 
 // BoardDiagnostic contains stats for a single board.
 type BoardDiagnostic struct {
+	ProjectPath     string `json:"project_path,omitempty"`
 	Name            string `json:"name"`
 	CardFiles       int    `json:"card_files"`
 	CardsReferenced int    `json:"cards_referenced"`
@@ -121,9 +124,11 @@ func (r *DiagnosticReport) HasErrors() bool {
 
 // DoctorService validates Kan data for consistency issues.
 type DoctorService struct {
-	paths      *config.Paths
-	cardStore  store.CardStore
-	boardStore store.BoardStore
+	paths            *config.Paths
+	cardStore        store.CardStore
+	boardStore       store.BoardStore
+	elsewhere        *Elsewhere
+	refreshElsewhere func() (*Elsewhere, error)
 }
 
 // NewDoctorService creates a new diagnostic service.
@@ -131,30 +136,51 @@ func NewDoctorService(paths *config.Paths, cardStore store.CardStore, boardStore
 	return &DoctorService{paths: paths, cardStore: cardStore, boardStore: boardStore}
 }
 
+func (s *DoctorService) SetElsewhere(e *Elsewhere, refresh func() (*Elsewhere, error)) {
+	s.elsewhere, s.refreshElsewhere = e, refresh
+}
+
 // Diagnose analyzes all boards (or a specific board) for issues.
 // If boardName is empty, all boards are checked.
 func (s *DoctorService) Diagnose(boardName string) (*DiagnosticReport, error) {
+	var names []string
+	if boardName != "" {
+		names = []string{boardName}
+	}
+	return s.DiagnoseBoards(names, true)
+}
+
+func (s *DoctorService) DiagnoseBoards(names []string, checkGlobal bool) (*DiagnosticReport, error) {
 	report := &DiagnosticReport{
 		Boards: []BoardDiagnostic{},
 		Issues: []Issue{},
 	}
 
 	// Check global config
-	s.checkGlobalConfig(report)
+	if checkGlobal {
+		s.checkGlobalConfig(report)
+	}
 
 	// Get boards to check
 	graph, err := LoadLinkGraph(s.boardStore, s.cardStore)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list boards: %w", err)
 	}
+	graph.SetElsewhere(s.elsewhere)
+	graph.LoadOtherProjects()
+	selected := map[string]bool{}
+	for _, name := range names {
+		selected[name] = true
+	}
 
 	for _, name := range graph.names {
-		if boardName != "" && name != boardName {
+		if len(names) > 0 && !selected[name] {
 			continue
 		}
+		selected[name] = true
 		s.checkBoard(report, name, graph)
 	}
-	s.checkBlockerCycles(report, graph, boardName)
+	s.checkBlockerCycles(report, graph, selected)
 
 	// Calculate summary
 	for _, issue := range report.Issues {
@@ -176,6 +202,11 @@ func (s *DoctorService) Fix(report *DiagnosticReport) (*DiagnosticReport, error)
 	remaining := []Issue{}
 
 	for _, issue := range report.Issues {
+		if issue.ProjectPath != "" && !sameDoctorProject(issue.ProjectPath, s.paths.ProjectRoot()) {
+			issue.Fixable = false
+			remaining = append(remaining, issue)
+			continue
+		}
 		if !issue.Fixable {
 			remaining = append(remaining, issue)
 			continue
@@ -229,6 +260,16 @@ func (s *DoctorService) Fix(report *DiagnosticReport) (*DiagnosticReport, error)
 	}
 
 	return newReport, nil
+}
+
+func sameDoctorProject(a, b string) bool {
+	if resolved, err := filepath.EvalSymlinks(a); err == nil {
+		a = resolved
+	}
+	if resolved, err := filepath.EvalSymlinks(b); err == nil {
+		b = resolved
+	}
+	return filepath.Clean(a) == filepath.Clean(b)
 }
 
 func (s *DoctorService) checkGlobalConfig(report *DiagnosticReport) {

@@ -383,7 +383,7 @@ kan ready --all                    # Every registered project's boards, --limit 
 
 A card is ready when its column's category is `open`, every blocker is in a `done` column, it has no children outside `done` or `dropped` columns, and no exclusion matches. Open columns are read right to left (or in `[ready] order`), each top to bottom. Cards whose blocker was dropped are listed under "Needs attention": unlink the blocker or drop the card. JSON entries hold `ref`, `board`, `blockers` (each `ref`, `result`, `category`) and the unchanged `card`. A board without column categories is an error; run `kan column categorize`.
 
-`--all` (on `kan ready` and `kan list`) reads every board of every visible registered project plus the current one, from any directory, grouped by board in project path order. It can't be combined with `-b` or `-g`. Boards kan can't read, and for `ready` boards without categories, are skipped: named on stderr and under `skipped` (`path`, `board`, `board_id`, `reason`; `board_id` is empty when the board's config can't be read) in JSON, without changing the exit status. `kan list --all --json` returns `{"cards": [entry...], "skipped": [...]}`, each entry holding `ref`, `board`, `project_path`, `category` and the card with its raw `blocked_by`/`related`.
+`--all` (on `kan ready`, `kan list`, and `kan doctor`) reads every board of every visible registered project plus the current one, from any directory, grouped by board in project path order. It can't be combined with `-b` or `-g`. Boards kan can't read, and for `ready` boards without categories, are skipped: named on stderr and under `skipped` (`path`, `board`, `board_id`, `reason`; `board_id` is empty when the board's config can't be read) in JSON, without changing the exit status. `kan list --all --json` returns `{"cards": [entry...], "skipped": [...]}`, each entry holding `ref`, `board`, `project_path`, `category` and the card with its raw `blocked_by`/`related`.
 
 To take work:
 
@@ -657,6 +657,7 @@ kan doctor               # Check for consistency issues
 kan doctor --fix         # Apply automatic fixes
 kan doctor --dry-run     # Preview fixes without applying
 kan doctor -b main       # Check specific board only
+kan doctor --all         # Check all visible projects; --fix stays in this project
 kan doctor --json        # Machine-readable output
 ```
 
@@ -669,6 +670,8 @@ Doctor also reports `SELF_PARENT` and `PARENT_CYCLE` warnings. These require man
 Link warnings are `ABSENT_LINK` (fixable), `UNRESOLVED_LINK`, `BLOCKED_BY_CYCLE`, `BLOCKED_BY_ANCESTOR`, and `UNCATEGORIZED_LINK`. `INVALID_READY_CONFIG` reports invalid `[ready]` settings. Messages name the reference, lookup state, or column involved.
 
 `--fix` removes a `blocked_by` or `related` reference only after a fresh lookup still confirms its target absent. It edits only source cards in the current project. Missing boards, duplicate board IDs, newer schemas, and unreadable or damaged files leave links intact. Repair cycles, ancestor blockers, missing categories, and ready settings manually.
+
+`kan doctor --all` checks all readable boards across visible registered projects, including links between projects and duplicate board IDs (`DUPLICATE_BOARD_ID`). JSON adds `project_path` to board findings and issues, plus `skipped`. Other projects' findings are read-only, even with `--fix`; run doctor from that project's directory to repair them. With no current project, `--all --fix` performs no project writes. `-b` selects a local board by name or ID; `-g` selects the designated global board. Neither combines with `--all`.
 
 ## Shell Completion
 

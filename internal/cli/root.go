@@ -226,6 +226,8 @@ type CommandContext struct {
 	DoctorFix    *bool
 	DoctorDryRun *bool
 	DoctorBoard  *string
+	DoctorAll    *bool
+	DoctorGlobal *bool
 
 	// commit command
 	CommitUsed    *bool
@@ -468,7 +470,7 @@ func executeCommand(ctx *CommandContext) {
 		runCommentDelete(*ctx.CommentDeleteID, *ctx.CommentDeleteBoard, *ctx.CommentDeleteGlobal, *ctx.NonInteractive)
 
 	case *ctx.DoctorUsed:
-		runDoctor(*ctx.DoctorBoard, *ctx.DoctorFix, *ctx.DoctorDryRun, *ctx.Json)
+		runDoctor(*ctx.DoctorBoard, *ctx.DoctorFix, *ctx.DoctorDryRun, *ctx.Json, *ctx.DoctorAll, *ctx.DoctorGlobal)
 
 	case *ctx.CommitUsed:
 		runCommit(*ctx.CommitMessage)

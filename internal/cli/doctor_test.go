@@ -11,8 +11,8 @@ import (
 func TestDoctor_BoardIDSelectsTheSameBoardAsItsName(t *testing.T) {
 	root := openFixtureProject(t, "v15")
 	before := snapshotProject(t, root)
-	byName := captureStdout(t, func() { runDoctor("main", false, false, true) })
-	byID := captureStdout(t, func() { runDoctor("board-test-123", false, false, true) })
+	byName := captureStdout(t, func() { runDoctor("main", false, false, true, false, false) })
+	byID := captureStdout(t, func() { runDoctor("board-test-123", false, false, true, false, false) })
 	var nameReport, idReport service.DiagnosticReport
 	if err := json.Unmarshal([]byte(byName), &nameReport); err != nil {
 		t.Fatal(err)

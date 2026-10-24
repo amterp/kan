@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/amterp/kan/internal/service"
+	"github.com/amterp/kan/internal/store"
 	"github.com/amterp/ra"
 )
 
@@ -28,26 +29,39 @@ func registerDoctor(parent *ra.Cmd, ctx *CommandContext) {
 		SetShort("b").
 		SetOptional(true).
 		SetFlagOnly(true).
-		SetUsage("Check only a specific board, by name or ID (default: all)").
+		SetUsage("Board name or ID to check (default: all boards in this project)").
 		SetCompletionFunc(completeBoards).
 		Register(cmd)
 
+	ctx.DoctorGlobal = registerGlobalFlag(cmd)
+	ctx.DoctorAll, _ = ra.NewBool("all").SetOptional(true).SetFlagOnly(true).
+		SetExcludes([]string{"board", "global"}).
+		SetUsage("Check every visible registered project; --fix writes only this project").Register(cmd)
 	ctx.DoctorUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runDoctor(boardName string, fix bool, dryRun bool, jsonOutput bool) {
-	app, err := NewAppWithOptions(AppOptions{ReadOnly: !fix})
+func runDoctor(boardName string, fix, dryRun, jsonOutput, all, global bool) {
+	app, err := NewAppWithOptions(AppOptions{ReadOnly: !fix, UseGlobalBoard: global})
 	if err != nil {
-		Fatal(err)
-	}
-
-	if err := app.RequireKan(); err != nil {
 		Fatal(err)
 	}
 
 	// --fix and --dry-run are mutually exclusive
 	if fix && dryRun {
 		Fatal(fmt.Errorf("--fix and --dry-run cannot be used together"))
+	}
+	if all {
+		runDoctorAll(app, fix, dryRun, jsonOutput)
+		return
+	}
+	if err := app.RequireKan(); err != nil {
+		Fatal(err)
+	}
+	if global && boardName == "" {
+		boardName, err = app.BoardResolver.Resolve("", false)
+		if err != nil {
+			Fatal(err)
+		}
 	}
 
 	if boardName != "" {
@@ -57,7 +71,7 @@ func runDoctor(boardName string, fix bool, dryRun bool, jsonOutput bool) {
 		}
 	}
 
-	doctorService := service.NewDoctorService(app.Paths, app.CardStore, app.BoardStore)
+	doctorService := newDoctorService(app, app)
 
 	// Run diagnosis
 	report, err := doctorService.Diagnose(boardName)
@@ -87,6 +101,19 @@ func runDoctor(boardName string, fix bool, dryRun bool, jsonOutput bool) {
 	}
 }
 
+func newDoctorService(app, project *App) *service.DoctorService {
+	doctor := service.NewDoctorService(project.Paths, project.CardStore, project.BoardStore)
+	doctor.SetElsewhere(app.elsewhere(project), func() (*service.Elsewhere, error) {
+		cfg, err := app.GlobalStore.Load()
+		if err != nil {
+			return nil, err
+		}
+		return service.NewElsewhere(app.Paths, store.NewReadOnlyBoardStore(app.Paths, nil),
+			store.NewReadOnlyProjectStore(project.Paths, nil), cfg), nil
+	})
+	return doctor
+}
+
 // printHookPathCaveat qualifies a clean bill of health for hooks. Hook commands are
 // checked against the PATH of whoever ran doctor, but they *execute* with the PATH of
 // whoever started Kan - and a background `kan serve` gets a minimal one. Staying silent
@@ -104,13 +131,16 @@ func printHookPathCaveat(report *service.DiagnosticReport) {
 func printDoctorReport(report *service.DiagnosticReport, didFix bool, dryRun bool) {
 	// Print board stats
 	for _, board := range report.Boards {
+		if board.ProjectPath != "" {
+			printBoardHeader(board.Name, board.ProjectPath, true)
+		}
 		fmt.Printf("Checking board %s...\n", RenderBold(fmt.Sprintf("%q", board.Name)))
 		fmt.Printf("  Cards: %d files, %d referenced\n", board.CardFiles, board.CardsReferenced)
 		fmt.Printf("  Columns: %d\n", board.Columns)
 		fmt.Println()
 	}
 
-	if len(report.Boards) == 0 {
+	if len(report.Boards) == 0 && len(report.Issues) == 0 {
 		PrintInfo("No boards found")
 		return
 	}
@@ -219,8 +249,11 @@ func printIssue(issue service.Issue) {
 	}
 
 	location := ""
+	if issue.ProjectPath != "" {
+		location = " " + RenderMuted(issue.ProjectPath)
+	}
 	if issue.Board != "" {
-		location = fmt.Sprintf(" %s", RenderMuted(issue.Board))
+		location += fmt.Sprintf(" %s", RenderMuted(issue.Board))
 		if issue.CardID != "" {
 			location += fmt.Sprintf("/%s", RenderID(issue.CardID))
 		}

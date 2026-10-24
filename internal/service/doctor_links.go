@@ -66,7 +66,7 @@ func (s *DoctorService) checkCardLinks(report *DiagnosticReport, boardName strin
 					issue.Message = fmt.Sprintf("%s %q is in board %q column %q, which has no usable category", field.name, ref, result.BoardName, result.Card.Column)
 					report.Issues = append(report.Issues, issue)
 				}
-				if field.name == "blocked_by" && result.BoardName == boardName && ancestors[result.Card.ID] {
+				if field.name == "blocked_by" && result.board == boardName && ancestors[result.Card.ID] {
 					issue.Code = CodeBlockedByAncestor
 					issue.Message = fmt.Sprintf("blocked_by %q names this card's ancestor %s", ref, result.Card.ID)
 					report.Issues = append(report.Issues, issue)
@@ -85,11 +85,11 @@ type doctorLinkNode struct {
 	id    string
 }
 
-func (s *DoctorService) checkBlockerCycles(report *DiagnosticReport, graph *LinkGraph, onlyBoard string) {
+func (s *DoctorService) checkBlockerCycles(report *DiagnosticReport, graph *LinkGraph, selected map[string]bool) {
 	var nodes []doctorLinkNode
 	edges := map[doctorLinkNode][]doctorLinkNode{}
 	incoming := map[doctorLinkNode][]doctorLinkNode{}
-	for _, name := range graph.names {
+	for _, name := range slices.Concat(graph.names, graph.other) {
 		cards, err := graph.Cards(name)
 		if err != nil {
 			continue
@@ -105,7 +105,7 @@ func (s *DoctorService) checkBlockerCycles(report *DiagnosticReport, graph *Link
 				if result.State != LinkFound {
 					continue
 				}
-				target := doctorLinkNode{board: result.BoardName, id: result.Card.ID}
+				target := doctorLinkNode{board: result.board, id: result.Card.ID}
 				if !seen[target] {
 					seen[target] = true
 					edges[node] = append(edges[node], target)
@@ -161,13 +161,17 @@ func (s *DoctorService) checkBlockerCycles(report *DiagnosticReport, graph *Link
 			return component[i].id < component[j].id
 		})
 		for _, anchor := range component {
-			if onlyBoard != "" && anchor.board != onlyBoard {
+			if !selected[anchor.board] {
 				continue
 			}
 			cycle := blockerCycleThrough(anchor, members, edges)
 			refs := make([]string, 0, len(cycle))
 			for _, node := range cycle {
-				refs = append(refs, node.board+":"+node.id)
+				ref := node.board + ":" + node.id
+				if board := graph.boards[node.board]; board != nil && board.project != "" {
+					ref = board.config.ID + ":" + node.id + " (" + board.project + ")"
+				}
+				refs = append(refs, ref)
 			}
 			report.Issues = append(report.Issues, Issue{
 				Severity: SeverityWarning, Code: CodeBlockedByCycle, Board: anchor.board,
@@ -244,6 +248,15 @@ func (s *DoctorService) fixAbsentLink(issue Issue) error {
 	graph, err := LoadLinkGraph(store.NewBoardStore(s.paths), store.NewCardStore(s.paths))
 	if err != nil {
 		return err
+	}
+	if s.refreshElsewhere != nil {
+		e, err := s.refreshElsewhere()
+		if err != nil {
+			return err
+		}
+		graph.SetElsewhere(e)
+	} else if s.elsewhere != nil {
+		return fmt.Errorf("a fresh cross-project lookup is required before repairing links")
 	}
 	if result := graph.Resolve(issue.Board, ref); result.State != LinkAbsent {
 		return fmt.Errorf("%s %q is no longer confirmed absent: %s: %s", field, ref, result.State, result.Reason)
