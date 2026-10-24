@@ -177,3 +177,25 @@ func TestReadBoards(t *testing.T) {
 		t.Errorf("boards = %+v", boards)
 	}
 }
+
+// A symlinked spelling of a registered project is that project, not a
+// second copy of its boards.
+func TestRegister_SymlinkedSpellingOfRegisteredProject(t *testing.T) {
+	useTempRoots(t, "/nonexistent-temp-root")
+	target := makeProject(t, resolved(t), "", "b_1")
+	link := filepath.Join(resolved(t), "link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	cfg := &model.GlobalConfig{}
+	Register(cfg, target, "")
+
+	result := Register(cfg, link, "")
+
+	if result.Registered || result.Hidden || len(cfg.Repos) != 1 {
+		t.Errorf("want the existing entry kept and nothing added: %+v, repos %v", result, cfg.Repos)
+	}
+	if holders := HoldersOf(cfg, "b_1", link); len(holders) != 0 {
+		t.Errorf("the project itself, through a symlink, should not hold its own board: %v", holders)
+	}
+}

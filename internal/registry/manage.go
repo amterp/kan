@@ -47,20 +47,12 @@ func Find(cfg *model.GlobalConfig, path string) (string, error) {
 	if _, ok := cfg.Repos[abs]; ok {
 		return abs, nil
 	}
-	want := resolve(abs)
 	for key := range cfg.Repos {
-		if resolve(key) == want {
+		if samePath(key, abs) {
 			return key, nil
 		}
 	}
 	return "", fmt.Errorf("%s is %w. Run 'kan registry list --hidden' to see registered paths", path, ErrNotRegistered)
-}
-
-func resolve(path string) string {
-	if r, err := filepath.EvalSymlinks(path); err == nil {
-		return r
-	}
-	return filepath.Clean(path)
 }
 
 // Inspect reports the state of every visible entry, plus hidden ones when

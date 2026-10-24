@@ -75,12 +75,30 @@ func IsTempPath(path string) bool {
 	return false
 }
 
+// pathForms returns path as given and, if different, with symlinks
+// resolved. Comparing both catches a match even when only one side of a
+// comparison exists on disk.
 func pathForms(path string) []string {
 	forms := []string{filepath.Clean(path)}
-	if resolved, err := filepath.EvalSymlinks(path); err == nil && resolved != forms[0] {
-		forms = append(forms, resolved)
+	if c := canonical(path); c != forms[0] {
+		forms = append(forms, c)
 	}
 	return forms
+}
+
+// samePath reports whether a and b name the same directory, following
+// symlinks, so /link/project and /real/project are one project.
+func samePath(a, b string) bool {
+	return canonical(a) == canonical(b)
+}
+
+// canonical resolves symlinks in path, or cleans it when it can't be
+// resolved (for example, because it no longer exists).
+func canonical(path string) string {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return resolved
+	}
+	return filepath.Clean(path)
 }
 
 func isWithin(path, root string) bool {
@@ -146,7 +164,7 @@ func HoldersOf(cfg *model.GlobalConfig, boardID, exclude string) []string {
 	}
 	var holders []string
 	for _, e := range Visible(cfg) {
-		if e.Path == exclude {
+		if samePath(e.Path, exclude) {
 			continue
 		}
 		boards, err := ReadBoards(e.Path, e.DataLocation)
@@ -194,6 +212,14 @@ func (r Result) Message() string {
 // Otherwise the project is registered visible.
 func Register(cfg *model.GlobalConfig, root, dataLocation string) Result {
 	result := Result{Path: root}
+	// The same project reached through a symlink is already registered;
+	// a second entry for it would make its boards look like two copies.
+	for path := range cfg.Repos {
+		if samePath(path, root) {
+			result.Path = path
+			return result
+		}
+	}
 	if IsTempPath(root) {
 		if dataLocation == "" {
 			return result

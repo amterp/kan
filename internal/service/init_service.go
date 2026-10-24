@@ -142,9 +142,16 @@ func (s *InitService) registerProject(projectRoot, customLocation string) (regis
 		return registry.Result{}, err
 	}
 
-	// Clean up any stale entries for this path before registering.
-	// This handles the case where the user deleted .kan/ and is re-initializing.
-	globalCfg.RemoveRepoConfig(projectRoot)
+	// Clean up any stale entries for this path, under any spelling, before
+	// registering. This handles the case where the user deleted .kan/ and is
+	// re-initializing.
+	for {
+		key, err := registry.Find(globalCfg, projectRoot)
+		if err != nil {
+			break
+		}
+		globalCfg.RemoveRepoConfig(key)
+	}
 
 	result := registry.Register(globalCfg, projectRoot, customLocation)
 	return result, s.globalStore.Save(globalCfg)

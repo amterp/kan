@@ -154,14 +154,3 @@ func (l *Locator) others() []Entry {
 	}
 	return entries
 }
-
-func samePath(a, b string) bool {
-	return canonical(a) == canonical(b)
-}
-
-func canonical(path string) string {
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		return resolved
-	}
-	return filepath.Clean(path)
-}
