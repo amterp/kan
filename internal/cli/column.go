@@ -248,10 +248,6 @@ func runColumnAdd(name, color, description string, position, limit int, onMovePo
 		Fatal(err)
 	}
 
-	if err := app.RequireKan(); err != nil {
-		Fatal(err)
-	}
-
 	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
@@ -295,10 +291,6 @@ func runColumnDelete(name, board string, nonInteractive bool) {
 		Fatal(err)
 	}
 
-	if err := app.RequireKan(); err != nil {
-		Fatal(err)
-	}
-
 	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
@@ -326,10 +318,6 @@ func runColumnRename(oldName, newName, board string, nonInteractive bool) {
 		Fatal(err)
 	}
 
-	if err := app.RequireKan(); err != nil {
-		Fatal(err)
-	}
-
 	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
@@ -345,10 +333,6 @@ func runColumnRename(oldName, newName, board string, nonInteractive bool) {
 func runColumnEdit(name, color, description string, limit int, onMovePosition, category string, categorySet bool, board string, nonInteractive bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
-		Fatal(err)
-	}
-
-	if err := app.RequireKan(); err != nil {
 		Fatal(err)
 	}
 
@@ -400,10 +384,6 @@ func runColumnEdit(name, color, description string, limit int, onMovePosition, c
 func runColumnList(board string, nonInteractive, jsonOutput bool) {
 	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, ReadOnly: true})
 	if err != nil {
-		Fatal(err)
-	}
-
-	if err := app.RequireKan(); err != nil {
 		Fatal(err)
 	}
 
@@ -500,10 +480,6 @@ func runColumnCategorize(board string, apply, nonInteractive, jsonOutput bool) {
 		Fatal(err)
 	}
 
-	if err := app.RequireKan(); err != nil {
-		Fatal(err)
-	}
-
 	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)
@@ -570,10 +546,6 @@ func runColumnCategorize(board string, apply, nonInteractive, jsonOutput bool) {
 func runColumnMove(name, board string, position int, after string, nonInteractive bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
-		Fatal(err)
-	}
-
-	if err := app.RequireKan(); err != nil {
 		Fatal(err)
 	}
 

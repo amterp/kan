@@ -38,10 +38,6 @@ func runShow(idOrAlias, board string, global, jsonOutput bool) {
 		Fatal(err)
 	}
 
-	if err := app.RequireKan(); err != nil {
-		Fatal(err)
-	}
-
 	// Resolve board and card together (with cross-board search)
 	result, err := app.ResolveCardWithBoard(board, idOrAlias, true, forRead)
 	if err != nil {

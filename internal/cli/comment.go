@@ -92,10 +92,6 @@ func runCommentAdd(card, body, board string, global, nonInteractive, jsonOutput 
 		Fatal(err)
 	}
 
-	if err := app.RequireKan(); err != nil {
-		Fatal(err)
-	}
-
 	// Resolve board and card together (with cross-board search)
 	result, err := app.ResolveCardWithBoard(board, card, !nonInteractive, forWrite)
 	if err != nil {
@@ -156,10 +152,6 @@ func runCommentAdd(card, body, board string, global, nonInteractive, jsonOutput 
 func runCommentEdit(commentID, body, board string, global, nonInteractive bool) {
 	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, UseGlobalBoard: global})
 	if err != nil {
-		Fatal(err)
-	}
-
-	if err := app.RequireKan(); err != nil {
 		Fatal(err)
 	}
 
@@ -224,10 +216,6 @@ func runCommentEdit(commentID, body, board string, global, nonInteractive bool) 
 func runCommentDelete(commentID, board string, global, nonInteractive bool) {
 	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, UseGlobalBoard: global})
 	if err != nil {
-		Fatal(err)
-	}
-
-	if err := app.RequireKan(); err != nil {
 		Fatal(err)
 	}
 

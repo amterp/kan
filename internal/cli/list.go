@@ -92,10 +92,6 @@ func runList(board, column, sortField string, filters, excludes []string, catego
 		Fatal(err)
 	}
 
-	if err := app.RequireKan(); err != nil {
-		Fatal(err)
-	}
-
 	// Resolve board
 	project, boardName, err := app.ResolveBoard(board, true, forRead)
 	if err != nil {

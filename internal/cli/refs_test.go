@@ -239,3 +239,61 @@ func TestResolveCard_CardOnTwoOtherBoardsIsAnError(t *testing.T) {
 		t.Errorf("want an error listing both refs, got %v", err)
 	}
 }
+
+// outsideAnyProject registers an "api" project, as setupCrossProject does,
+// and makes an empty directory the working directory. Returns api's root.
+func outsideAnyProject(t *testing.T) string {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir())
+	api := otherProject(t, "v2", "b_api", "card-xyz")
+	registerProjects(t, []string{api})
+	t.Chdir(resolvedTempDir(t))
+	return api
+}
+
+func TestOutsideAnyProject_ReadsResolveThroughTheRegistry(t *testing.T) {
+	api := outsideAnyProject(t)
+	before := snapshotProject(t, api)
+	app := newReadApp(t)
+
+	for _, ref := range []string{"b_api:card-xyz", "card-xyz"} {
+		res, err := app.ResolveCardWithBoard("", ref, false, forRead)
+		if err != nil {
+			t.Fatalf("%s: %v", ref, err)
+		}
+		if res.Project.ProjectRoot != api {
+			t.Errorf("%s: got project %s", ref, res.Project.ProjectRoot)
+		}
+	}
+	if _, _, err := app.ResolveBoard("b_api", false, forRead); err != nil {
+		t.Errorf("-b with a board ID: %v", err)
+	}
+
+	assertProjectUnchanged(t, before, snapshotProject(t, api))
+}
+
+func TestOutsideAnyProject_NeedingTheCurrentProjectSaysNotInitialized(t *testing.T) {
+	outsideAnyProject(t)
+	app := newReadApp(t)
+
+	var notInit *kanerr.NotInitializedError
+	if _, _, err := app.ResolveBoard("", false, forRead); !errors.As(err, &notInit) {
+		t.Errorf("empty -b: want not initialized, got %v", err)
+	}
+	if _, err := app.ResolveCardWithBoard("", "no-such-card", false, forRead); !errors.As(err, &notInit) {
+		t.Errorf("unknown bare ref: want not initialized, got %v", err)
+	}
+}
+
+func TestOutsideAnyProject_WriteGetsTheWriteRule(t *testing.T) {
+	api := outsideAnyProject(t)
+	app, err := NewAppWithOptions(AppOptions{})
+	if err != nil {
+		t.Fatalf("NewAppWithOptions: %v", err)
+	}
+
+	var other *kanerr.OtherProjectError
+	if _, err := app.ResolveCardWithBoard("", "card-xyz", false, forWrite); !errors.As(err, &other) || other.Path != api {
+		t.Errorf("want the write rule naming %s, got %v", api, err)
+	}
+}

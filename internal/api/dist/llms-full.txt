@@ -169,6 +169,52 @@ When you run `kan` commands inside a git worktree, Kan automatically uses the bo
 
 If you run `kan init` inside a worktree, Kan warns that this will create a separate, independent board. If you confirm, the worktree gets its own `.kan/` directory with `worktree_independent = true` in its project config.
 
+## Board and Card References
+
+Commands name a board with `-b` and a card with their card argument.
+
+- A **board ref** is a board name in the current project, or a board ID such as
+  `b_2hH3HWg0E`. `kan board describe` and `kan registry list` show board IDs.
+- A **card ref** is a card ID or alias, optionally prefixed with a board ref and a
+  colon: `b_2hH3HWg0E:a_2n5h6dlsT`.
+
+Kan finds the card a ref names like this:
+
+1. `board:card` looks only on that board: an exact card ID, then an alias, then a
+   fuzzy match. It can't be combined with `-b` or `-g`.
+2. With `-b` or `-g`, kan looks only on that board.
+3. A bare ref is first matched as an exact card ID on the current project's
+   boards. If none matches, kan looks for a card with that ID in the other
+   projects listed by `kan registry list`. If no ID matches anywhere, kan tries
+   an alias, then a fuzzy match, in the current project only, because aliases
+   are unique only within a board.
+
+A board ID that isn't in the current project is looked up among the visible
+registered projects. The current project's own boards always win. Hidden
+entries never count. When two visible projects hold the same board ID, as two
+clones of one repo do, the ref is ambiguous; hide or remove one with
+[registry](#registry).
+
+Reads work from any directory, including one with no board:
+
+```bash
+kan show b_2hH3HWg0E:a_2n5h6dlsT    # a card on another project's board
+kan show a_2n5h6dlsT                # found by ID across registered projects
+kan list -b b_2hH3HWg0E             # another project's board
+```
+
+Kan reads the other project without changing any file in it, even when its data
+uses an older schema. Text output names the board and its path on stderr, and
+`show --json` and `history --json` add a `"project"` path beside `"card"`.
+
+Commands that change a card or board work only in the current project, or on the
+global board through `-g`. Otherwise kan refuses before touching the other
+project:
+
+```
+card a_2n5h6dlsT is on board b_2hH3HWg0E in /Users/alex/src/api; run kan from there to change it.
+```
+
 ## Commands
 
 ### init
@@ -218,7 +264,7 @@ kan board describe --json
 
 | Flag       | Description            |
 |------------|------------------------|
-| `-b, --board` | Target board       |
+| `-b, --board` | Target board (name or ID) |
 | `--json`   | Machine-readable output |
 
 ### column
@@ -238,7 +284,7 @@ kan column add review --category review
 
 | Flag                | Description                                       |
 |---------------------|---------------------------------------------------|
-| `-b, --board`       | Target board                                      |
+| `-b, --board`       | Target board (name or ID)                         |
 | `--category`        | Column category: `inbox`, `idea`, `open`, `active`, `review`, `done` or `dropped` |
 | `-C, --color`       | Hex color (default: auto from palette)            |
 | `-d, --description` | Description of the column's purpose               |
@@ -254,7 +300,7 @@ kan column delete review
 
 | Flag          | Description                                                              |
 |---------------|--------------------------------------------------------------------------|
-| `-b, --board` | Target board                                                             |
+| `-b, --board` | Target board (name or ID)                                                |
 
 **Rename a column:**
 
@@ -264,7 +310,7 @@ kan column rename review code-review
 
 | Flag          | Description  |
 |---------------|--------------|
-| `-b, --board` | Target board |
+| `-b, --board` | Target board (name or ID) |
 
 **Edit column properties:**
 
@@ -280,7 +326,7 @@ kan column edit review --category ""   # Clear category
 
 | Flag                | Description                                       |
 |---------------------|---------------------------------------------------|
-| `-b, --board`       | Target board                                      |
+| `-b, --board`       | Target board (name or ID)                         |
 | `--category`        | Column category, or `""` to clear it              |
 | `-C, --color`       | New hex color                                     |
 | `-d, --description` | New description for the column                    |
@@ -299,7 +345,7 @@ lists them after the columns.
 
 | Flag          | Description  |
 |---------------|--------------|
-| `-b, --board` | Target board |
+| `-b, --board` | Target board (name or ID) |
 
 **Categorize columns:**
 
@@ -315,7 +361,7 @@ kan column categorize --json    # {"board": "main", "applied": false, "suggestio
 
 | Flag          | Description                                         |
 |---------------|-----------------------------------------------------|
-| `-b, --board` | Target board                                        |
+| `-b, --board` | Target board (name or ID)                           |
 | `--apply`     | Write the suggested categories instead of printing them |
 
 **Move/reorder a column:**
@@ -327,7 +373,7 @@ kan column move review --after backlog
 
 | Flag             | Description              |
 |------------------|--------------------------|
-| `-b, --board`    | Target board             |
+| `-b, --board`    | Target board (name or ID) |
 | `-p, --position` | Target index (0-indexed) |
 | `-a, --after`    | Insert after this column |
 
@@ -342,7 +388,7 @@ kan add "Update docs" "Description goes here"
 
 | Flag           | Description                                   |
 |----------------|-----------------------------------------------|
-| `-b, --board`  | Target board                                  |
+| `-b, --board`  | Target board (name or ID)                     |
 | `-c, --column` | Target column                                 |
 | `-p, --parent` | Parent card ID or alias                       |
 | `--blocked-by` | Blocking card IDs or aliases (repeatable or variadic) |
@@ -391,14 +437,15 @@ Card identifiers accept partial substring matches against a card's alias or ID
 (case-insensitive, min 3 chars). A single match resolves; multiple matches
 produce a disambiguation error listing up to 5 candidates. Exact ID or alias
 always wins over fuzzy. This applies to `show`, `history`, `edit`, `delete`, and
-`comment add`.
+`comment add`. A card on another board or project can be named as `board:card`;
+see [Board and Card References](#board-and-card-references).
 
 `show` also reports how long the card has been in its current column
 (e.g. `Column: review (3 days)`).
 
 | Flag           | Description                                                |
 |----------------|------------------------------------------------------------|
-| `-b, --board`  | Board name                                                 |
+| `-b, --board`  | Board name or ID                                           |
 | `-g, --global` | Target the designated global board (see [global](#global)) |
 
 ### link
@@ -450,7 +497,7 @@ kan history fix-login --json
 
 | Flag           | Description                                                |
 |----------------|------------------------------------------------------------|
-| `-b, --board`  | Board name                                                 |
+| `-b, --board`  | Board name or ID                                           |
 | `-g, --global` | Target the designated global board (see [global](#global)) |
 
 ### list
@@ -470,7 +517,7 @@ kan list --category open            # cards in open columns
 
 | Flag               | Description                                                |
 |--------------------|------------------------------------------------------------|
-| `-b, --board`      | Filter by board                                            |
+| `-b, --board`      | Board name or ID                                           |
 | `-c, --column`     | Filter by column                                           |
 | `-f, --filter`     | Keep cards whose custom field matches `key=value` (repeatable) |
 | `-x, --exclude`    | Drop cards whose custom field matches `key=value` (repeatable) |
@@ -586,7 +633,7 @@ kan edit fix-login-bug -t "New title" -c done
 
 | Flag                | Description                                       |
 |---------------------|---------------------------------------------------|
-| `-b, --board`       | Board name                                        |
+| `-b, --board`       | Board name or ID                                  |
 | `-t, --title`       | Set card title                                    |
 | `-d, --description` | Set card description                              |
 | `-c, --column`      | Move card to column                               |
@@ -635,7 +682,7 @@ kan move fix-login-bug done
 
 | Flag           | Description                                                |
 |----------------|------------------------------------------------------------|
-| `-b, --board`  | Board name                                                 |
+| `-b, --board`  | Board name or ID                                           |
 | `--position`   | Move to index in column (0 = top, -1 = end, negatives count from end) |
 | `--top`        | Move to the top of the column                              |
 | `--bottom`     | Move to the bottom of the column                           |
@@ -669,7 +716,7 @@ kan delete fix-login-bug
 
 | Flag           | Description                                                |
 |----------------|------------------------------------------------------------|
-| `-b, --board`  | Board name                                                 |
+| `-b, --board`  | Board name or ID                                           |
 | `-g, --global` | Target the designated global board (see [global](#global)) |
 
 ### serve
@@ -700,7 +747,7 @@ kan comment add fix-login-bug  # Opens editor for body
 
 | Flag           | Description                                                |
 |----------------|------------------------------------------------------------|
-| `-b, --board`  | Board name                                                 |
+| `-b, --board`  | Board name or ID                                           |
 | `-g, --global` | Target the designated global board (see [global](#global)) |
 
 The first argument is the card ID or alias. The second argument is the comment body - if omitted, your editor opens to
@@ -715,7 +762,7 @@ kan comment edit c_9kL2x  # Opens editor with existing text
 
 | Flag           | Description                                                |
 |----------------|------------------------------------------------------------|
-| `-b, --board`  | Board name                                                 |
+| `-b, --board`  | Board name or ID                                           |
 | `-g, --global` | Target the designated global board (see [global](#global)) |
 
 **Delete a comment:**
@@ -726,7 +773,7 @@ kan comment delete c_9kL2x
 
 | Flag           | Description                                                |
 |----------------|------------------------------------------------------------|
-| `-b, --board`  | Board name                                                 |
+| `-b, --board`  | Board name or ID                                           |
 | `-g, --global` | Target the designated global board (see [global](#global)) |
 
 ### commit
@@ -847,7 +894,7 @@ kan doctor --json
 |---------------|-----------------------------------------------------|
 | `--fix`       | Apply automatic fixes for issues with deterministic solutions |
 | `--dry-run`   | Show what fixes would be applied without making changes |
-| `-b, --board` | Check only a specific board (default: all)          |
+| `-b, --board` | Check only a specific board, by name or ID (default: all) |
 
 **Exit codes:**
 

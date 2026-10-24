@@ -30,10 +30,6 @@ func runDelete(cardArg, board string, global, nonInteractive bool) {
 		Fatal(err)
 	}
 
-	if err := app.RequireKan(); err != nil {
-		Fatal(err)
-	}
-
 	// Resolve board and card together (with cross-board search)
 	result, err := app.ResolveCardWithBoard(board, cardArg, !nonInteractive, forWrite)
 	if err != nil {

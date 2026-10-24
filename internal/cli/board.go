@@ -119,10 +119,6 @@ func runBoardDescribe(name, board string, nonInteractive, jsonOutput bool) {
 		Fatal(err)
 	}
 
-	if err := app.RequireKan(); err != nil {
-		Fatal(err)
-	}
-
 	// Use positional name if provided, otherwise fall back to --board flag
 	boardArg := name
 	if boardArg == "" {
@@ -173,6 +169,7 @@ func printBoardDescribeJson(cfg *model.BoardConfig, cardCounts map[string]int) {
 
 	output := BoardDescribeOutput{
 		Board: BoardDescribeInfo{
+			ID:            cfg.ID,
 			Name:          cfg.Name,
 			Schema:        cfg.KanSchema,
 			DefaultColumn: cfg.DefaultColumn,
@@ -193,6 +190,7 @@ func printBoardDescribeJson(cfg *model.BoardConfig, cardCounts map[string]int) {
 func printBoardDescribeHuman(cfg *model.BoardConfig, cardCounts map[string]int) {
 	// Header
 	fmt.Printf("Board: %s\n", cfg.Name)
+	fmt.Printf("ID: %s\n", cfg.ID)
 	fmt.Printf("Schema: %s\n", cfg.KanSchema)
 
 	// Columns

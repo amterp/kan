@@ -393,7 +393,7 @@ Card identifiers accept partial substring matches against a card's alias or ID
 (case-insensitive, min 3 chars). A single match resolves; multiple matches
 produce a disambiguation error listing up to 5 candidates. Exact ID or alias
 always wins over fuzzy. This applies to `show`, `history`, `edit`, `delete`, and
-`comment add`.
+`comment add`. For cards on other boards or projects, see "Cards on Other Boards and Projects".
 
 `kan show` also displays how long the card has been in its current column
 (e.g. `Column: review (3 days)`), tracked natively by Kan rather than inferred
@@ -594,6 +594,22 @@ kan registry prune --dry-run   # Preview removing entries whose project is gone
 ```
 
 Projects under temp directories are not registered, and a second copy of an already registered board is registered hidden.
+
+## Cards on Other Boards and Projects
+
+`-b` takes a board name or a board ID (shown by `kan board describe` and `kan registry list`). A card argument can be prefixed with a board: `b_2hH3HWg0E:a_2n5h6dlsT`.
+
+```bash
+kan show b_2hH3HWg0E:a_2n5h6dlsT   # Card on another project's board, from any directory
+kan show a_2n5h6dlsT               # Bare ID: current project first, then every visible registered project
+kan list -b b_2hH3HWg0E            # Another project's board
+```
+
+- A bare argument matches an exact card ID in the current project, then a card with that ID in another visible registered project, then an alias or fuzzy match in the current project only. Aliases never resolve across projects.
+- `board:card` can't be combined with `-b` or `-g`.
+- The current project's boards always win. If two visible projects hold the same board ID (clones), the ref is ambiguous; hide one with `kan registry hide <path>`.
+- Reads of another project change no file there. Writes are refused: `card a_2n5h6dlsT is on board b_2hH3HWg0E in /Users/alex/src/api; run kan from there to change it.`
+- `show --json` and `history --json` add `"project"` beside `"card"` when the card is in another project.
 
 ## Web Interface
 

@@ -102,10 +102,6 @@ func runEdit(idOrAlias, board string, title, description, column string,
 		Fatal(err)
 	}
 
-	if err := app.RequireKan(); err != nil {
-		Fatal(err)
-	}
-
 	// Resolve board and card together (with cross-board search)
 	result, err := app.ResolveCardWithBoard(board, idOrAlias, !nonInteractive, forWrite)
 	if err != nil {

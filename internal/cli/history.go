@@ -43,10 +43,6 @@ func runHistory(idOrAlias, board string, global, jsonOutput bool) {
 	if err != nil {
 		Fatal(err)
 	}
-	if err := app.RequireKan(); err != nil {
-		Fatal(err)
-	}
-
 	result, err := app.ResolveCardWithBoard(board, idOrAlias, true, forRead)
 	if err != nil {
 		Fatal(err)

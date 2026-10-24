@@ -293,6 +293,7 @@ type BoardDescribeOutput struct {
 // BoardDescribeInfo contains full board documentation for JSON output.
 // Kept in sync with model.BoardConfig by TestBoardDescribeFieldSync.
 type BoardDescribeInfo struct {
+	ID            string                             `json:"id"`
 	Name          string                             `json:"name"`
 	Schema        string                             `json:"schema"`
 	DefaultColumn string                             `json:"default_column"`

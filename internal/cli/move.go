@@ -52,10 +52,6 @@ func runMove(cardArg, column, board string, placement cardPlacement,
 		Fatal(err)
 	}
 
-	if err := app.RequireKan(); err != nil {
-		Fatal(err)
-	}
-
 	result, err := app.ResolveCardWithBoard(board, cardArg, !nonInteractive, forWrite)
 	if err != nil {
 		Fatal(err)

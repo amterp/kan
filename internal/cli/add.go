@@ -212,10 +212,6 @@ func runAdd(title, description, board, column string, parentCard string, placeme
 		Fatal(err)
 	}
 
-	if err := app.RequireKan(); err != nil {
-		Fatal(err)
-	}
-
 	// Resolve board
 	_, boardName, err := app.ResolveBoard(board, !nonInteractive, forWrite)
 	if err != nil {

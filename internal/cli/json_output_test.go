@@ -171,7 +171,6 @@ func TestBoardDescribeFieldSync(t *testing.T) {
 	// BoardConfig fields that are intentionally excluded or transformed in BoardDescribeInfo.
 	// Every BoardConfig field must appear here or have a matching field in BoardDescribeInfo.
 	excluded := map[string]string{
-		"ID":            "Internal board ID, not useful in describe output",
 		"KanSchema":     "Exposed as 'Schema' (renamed for cleaner output)",
 		"Columns":       "Transformed to BoardDescribeColumnInfo (adds CardCount, IsDefault)",
 		"DefaultColumn": "Surfaced as IsDefault flag on individual columns instead",
