@@ -89,3 +89,19 @@ func TestReadyOutput_JSON(t *testing.T) {
 		t.Errorf("card = %v, want the card's own JSON with its custom ref field", inner)
 	}
 }
+
+func TestReadyOne_BoardIDOfAnotherProjectFromOutsideAnyProject(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	api := otherProject(t, "v15", "b_api")
+	writeTestCard(t, api, "r1", "Next", "")
+	registerProjects(t, []string{api})
+	t.Chdir(resolvedTempDir(t))
+
+	got, err := readyOne(newReadApp(t), "b_api", service.ReadyOptions{})
+	if err != nil {
+		t.Fatalf("readyOne: %v", err)
+	}
+	if got.ProjectPath != api || len(got.Result.Ready) != 1 || got.Result.Ready[0].Card.ID != "r1" {
+		t.Errorf("got project %s, ready %+v; want r1 from %s", got.ProjectPath, got.Result.Ready, api)
+	}
+}

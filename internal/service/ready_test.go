@@ -175,6 +175,12 @@ func TestFindReady_Categories(t *testing.T) {
 		t.Errorf("error = %v, want %q", err, want)
 	}
 
+	// A misspelled category is uncategorized, as ValidateColumns warns.
+	misspelled := &model.BoardConfig{Name: "main", Columns: []model.Column{{Name: "todo", Category: "opn"}}}
+	if _, err := findReady(misspelled, nil, nil, ReadyOptions{}); err == nil || err.Error() != want {
+		t.Errorf("board with only a misspelled category: error = %v, want %q", err, want)
+	}
+
 	noOpen := &model.BoardConfig{Name: "main", Columns: []model.Column{{Name: "done", Category: model.CategoryDone}}}
 	result, err := findReady(noOpen, []*model.Card{{ID: "a", Column: "done"}}, nil, ReadyOptions{})
 	if err != nil || len(result.Ready) != 0 || result.Attention == nil {

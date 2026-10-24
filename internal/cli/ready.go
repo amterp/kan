@@ -71,41 +71,51 @@ func runReady(board string, excludes []string, noExclude bool, limit int, global
 		return
 	}
 
-	project, boardName, err := app.ResolveBoard(board, true, forRead)
-	if err != nil {
-		Fatal(err)
-	}
-	project.PrintTarget(boardName)
-
-	graph, err := service.LoadLinkGraph(project.BoardStore, project.CardStore)
-	if err != nil {
-		Fatal(err)
-	}
-	graph.SetElsewhere(app.elsewhere(project))
-	boardCfg, err := graph.Board(boardName)
-	if err != nil {
-		Fatal(err)
-	}
-	if err := model.ValidateFilters(exclude, boardCfg); err != nil {
-		Fatal(err)
-	}
-	warnUnreadCards(graph, boardName)
-
-	result, err := service.FindReady(graph, boardName, opts)
+	result, err := readyOne(app, board, opts)
 	if err != nil {
 		Fatal(err)
 	}
 
 	if jsonOutput {
-		if err := printJson(NewReadyOutput([]readyBoard{{ProjectPath: project.ProjectRoot, Result: result}}, nil)); err != nil {
+		if err := printJson(NewReadyOutput([]readyBoard{result}, nil)); err != nil {
 			Fatal(err)
 		}
 		return
 	}
-	if len(result.Ready) == 0 {
+	if len(result.Result.Ready) == 0 {
 		PrintInfo("No cards are ready")
 	}
-	printReady(result)
+	printReady(result.Result)
+}
+
+// readyOne runs a ready query on the board -b names, which may be another
+// registered project's board, resolved the way kan list resolves it.
+func readyOne(app *App, board string, opts service.ReadyOptions) (readyBoard, error) {
+	project, boardName, err := app.ResolveBoard(board, true, forRead)
+	if err != nil {
+		return readyBoard{}, err
+	}
+	project.PrintTarget(boardName)
+
+	graph, err := service.LoadLinkGraph(project.BoardStore, project.CardStore)
+	if err != nil {
+		return readyBoard{}, err
+	}
+	graph.SetElsewhere(app.elsewhere(project))
+	boardCfg, err := graph.Board(boardName)
+	if err != nil {
+		return readyBoard{}, err
+	}
+	if err := model.ValidateFilters(opts.Exclude, boardCfg); err != nil {
+		return readyBoard{}, err
+	}
+	warnUnreadCards(graph, boardName)
+
+	result, err := service.FindReady(graph, boardName, opts)
+	if err != nil {
+		return readyBoard{}, err
+	}
+	return readyBoard{ProjectPath: project.ProjectRoot, Result: result}, nil
 }
 
 func runReadyAll(app *App, opts service.ReadyOptions, jsonOutput bool) {

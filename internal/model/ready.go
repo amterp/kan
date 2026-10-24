@@ -2,11 +2,12 @@ package model
 
 import "fmt"
 
-// HasCategories reports whether any column has a category. A board without
-// any is invisible to kan ready.
+// HasCategories reports whether any column has a valid category. A board
+// without one is invisible to kan ready. A misspelled category doesn't count:
+// ValidateColumns warns that kan treats such a column as uncategorized.
 func (b *BoardConfig) HasCategories() bool {
 	for _, col := range b.Columns {
-		if col.Category != "" {
+		if col.Category != "" && IsValidCategory(col.Category) {
 			return true
 		}
 	}
