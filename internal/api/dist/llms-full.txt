@@ -427,12 +427,18 @@ kan list -b features
 kan list -c done
 kan list --sort priority            # order each column by the priority field
 kan list --sort priority --descending  # high → low instead of low → high
+kan list -f labels=needs-decision   # cards labeled needs-decision
+kan list -f type=bug -x labels=wontfix  # bugs, except those labeled wontfix
+kan list --category open            # cards in open columns
 ```
 
 | Flag               | Description                                                |
 |--------------------|------------------------------------------------------------|
 | `-b, --board`      | Filter by board                                            |
 | `-c, --column`     | Filter by column                                           |
+| `-f, --filter`     | Keep cards whose custom field matches `key=value` (repeatable) |
+| `-x, --exclude`    | Drop cards whose custom field matches `key=value` (repeatable) |
+| `--category`       | Keep cards in columns with this category (`inbox`, `idea`, `open`, `active`, `review`, `done`, `dropped`) |
 | `-s, --sort`       | Sort cards within each column by a custom field (e.g. `priority`) instead of by manual position |
 | `-d, --descending` | Sort descending (use with `--sort`)                        |
 | `-g, --global`     | Target the designated global board (see [global](#global)) |
@@ -443,6 +449,15 @@ the order follows the option order defined in your board config (so
 not alphabetically. Cards missing a value for the field are always listed last,
 in both directions. Sorting is non-destructive — it only changes the listing
 order, never the cards' saved positions.
+
+`-f` and `-x` match custom fields, following each field's type in the board
+config: a set field (`enum-set`, `free-set`) matches when it contains the
+value, a `boolean` compares as `true` or `false`, and anything else compares
+as an exact, case-sensitive string. Every filter must hold, so two `-f` on one
+field keep only cards matching both. A card without the field never matches:
+`-f` drops it and `-x` keeps it. Filtering by a field the board doesn't define
+is an error that lists the board's fields; built-in fields such as the column
+have their own flags. `--sort` and `--descending` still apply after filtering.
 
 ### edit
 

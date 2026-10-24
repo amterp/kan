@@ -359,7 +359,12 @@ kan list -c done                  # Filter by column
 kan list -b myboard               # Filter by board
 kan list --sort priority          # Sort each column by a custom field
 kan list --sort priority --descending  # Sort high to low
+kan list -f labels=needs-decision # Keep cards whose custom field matches
+kan list -f type=bug -x labels=wontfix  # Combine; -x drops matches
+kan list --category open          # Cards in open columns
 ```
+
+`-f key=value` keeps and `-x key=value` drops cards by a custom field; both repeat, and every filter must hold. Set fields match when they contain the value, booleans take `true`/`false`, other fields compare as exact strings. A card without the field never matches `-f` and always survives `-x`. Filter keys must be custom fields the board defines; use `-c` for the column and `--category` for the column's category.
 
 `--sort <field>` orders cards within each column by a custom field instead of by manual position. For `enum`/`enum-set` fields the order follows the option order in the board config (not alphabetical); cards with no value are listed last. Add `--descending` (`-d`) to sort high to low. It's a view sort - saved card positions are unchanged.
 

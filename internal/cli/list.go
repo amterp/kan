@@ -43,6 +43,29 @@ func registerList(parent *ra.Cmd, ctx *CommandContext) {
 		SetCompletionFunc(completeColumns).
 		Register(cmd)
 
+	ctx.ListFilter, _ = ra.NewStringSlice("filter").
+		SetShort("f").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Keep cards whose custom field matches key=value (repeatable; all must match)").
+		SetCompletionFunc(completeFilters).
+		Register(cmd)
+
+	ctx.ListExclude, _ = ra.NewStringSlice("exclude").
+		SetShort("x").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Drop cards whose custom field matches key=value (repeatable)").
+		SetCompletionFunc(completeFilters).
+		Register(cmd)
+
+	ctx.ListCategory, _ = ra.NewString("category").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetEnumConstraint(model.ValidCategories).
+		SetUsage("Keep cards in columns of this category").
+		Register(cmd)
+
 	ctx.ListSort, _ = ra.NewString("sort").
 		SetShort("s").
 		SetOptional(true).
@@ -63,7 +86,7 @@ func registerList(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.ListUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runList(board, column, sortField string, global, descending, jsonOutput bool) {
+func runList(board, column, sortField string, filters, excludes []string, category string, global, descending, jsonOutput bool) {
 	app, err := NewAppWithOptions(AppOptions{Interactive: true, UseGlobalBoard: global, ReadOnly: true})
 	if err != nil {
 		Fatal(err)
@@ -94,6 +117,11 @@ func runList(board, column, sortField string, global, descending, jsonOutput boo
 		}
 	}
 
+	query, err := buildListQuery(boardCfg, filters, excludes, category)
+	if err != nil {
+		Fatal(err)
+	}
+
 	// --descending only affects a field sort; warn rather than silently ignore it.
 	if descending && sortField == "" {
 		PrintWarning("--descending has no effect without --sort")
@@ -104,6 +132,7 @@ func runList(board, column, sortField string, global, descending, jsonOutput boo
 	if err != nil {
 		Fatal(err)
 	}
+	cards = filterCards(cards, boardCfg, query)
 
 	if jsonOutput {
 		if err := printJson(NewListOutput(cards)); err != nil {
@@ -123,6 +152,51 @@ func runList(board, column, sortField string, global, descending, jsonOutput boo
 	} else {
 		printCardsList(cards, boardCfg)
 	}
+}
+
+// buildListQuery parses and checks the -f, -x and --category flags against
+// the board before any card is read, so a typo fails loudly instead of
+// quietly listing nothing.
+func buildListQuery(boardCfg *model.BoardConfig, filters, excludes []string, category string) (model.FilterSet, error) {
+	include, err := model.ParseFilters(filters)
+	if err != nil {
+		return model.FilterSet{}, err
+	}
+	exclude, err := model.ParseFilters(excludes)
+	if err != nil {
+		return model.FilterSet{}, err
+	}
+	if err := model.ValidateFilters(append(append([]model.Filter{}, include...), exclude...), boardCfg); err != nil {
+		return model.FilterSet{}, err
+	}
+
+	if category != "" && !boardHasCategory(boardCfg, category) {
+		return model.FilterSet{}, fmt.Errorf("board %q has no columns with category %q, so no card can match. "+
+			"Run \"kan column categorize\" or \"kan column edit <column> --category %s\" to set categories",
+			boardCfg.Name, category, category)
+	}
+
+	return model.FilterSet{Include: include, Exclude: exclude, Category: category}, nil
+}
+
+func boardHasCategory(boardCfg *model.BoardConfig, category string) bool {
+	for _, col := range boardCfg.Columns {
+		if col.Category == category {
+			return true
+		}
+	}
+	return false
+}
+
+// filterCards keeps the cards the query matches, in their existing order.
+func filterCards(cards []*model.Card, boardCfg *model.BoardConfig, query model.FilterSet) []*model.Card {
+	kept := cards[:0]
+	for _, card := range cards {
+		if query.Matches(card, boardCfg) {
+			kept = append(kept, card)
+		}
+	}
+	return kept
 }
 
 // cardColumnWidths holds the calculated widths for aligning card output.

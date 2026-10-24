@@ -292,6 +292,15 @@ func (b *BoardConfig) HasColumn(name string) bool {
 	return false
 }
 
+// ColumnCategory returns the category of the named column, or empty when the
+// column has none or doesn't exist.
+func (b *BoardConfig) ColumnCategory(name string) string {
+	if col := b.GetColumn(name); col != nil {
+		return col.Category
+	}
+	return ""
+}
+
 // GetDefaultColumn returns the default column name.
 // Falls back to the first column if default_column is not set.
 func (b *BoardConfig) GetDefaultColumn() string {

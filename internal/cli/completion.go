@@ -181,6 +181,56 @@ func completeCustomFields(toComplete string) ([]string, ra.CompletionDirective) 
 	return result, ra.CompletionDirectiveNoFileComp
 }
 
+// completeFilters completes key=value filters: the board's custom field names
+// first, then the options of an enum or set field, or true/false for a boolean.
+func completeFilters(toComplete string) ([]string, ra.CompletionDirective) {
+	initCompletionCtx()
+	if compCtx.err != nil {
+		return nil, ra.CompletionDirectiveNoFileComp
+	}
+
+	board := hintBoard()
+	if board == "" {
+		return nil, ra.CompletionDirectiveNoFileComp
+	}
+
+	boardCfg, err := compCtx.boardStore.Get(board)
+	if err != nil {
+		return nil, ra.CompletionDirectiveNoFileComp
+	}
+
+	key, valuePrefix, hasValue := strings.Cut(toComplete, "=")
+	if !hasValue {
+		var result []string
+		for name := range boardCfg.CustomFields {
+			if strings.HasPrefix(name, key) {
+				result = append(result, name+"=")
+			}
+		}
+		return result, ra.CompletionDirectiveNoSpace | ra.CompletionDirectiveNoFileComp
+	}
+
+	schema, ok := boardCfg.CustomFields[key]
+	if !ok {
+		return nil, ra.CompletionDirectiveNoFileComp
+	}
+	var values []string
+	if schema.Type == model.FieldTypeBoolean {
+		values = []string{"true", "false"}
+	} else {
+		for _, opt := range schema.Options {
+			values = append(values, opt.Value)
+		}
+	}
+	var result []string
+	for _, v := range values {
+		if strings.HasPrefix(v, valuePrefix) {
+			result = append(result, key+"="+v)
+		}
+	}
+	return result, ra.CompletionDirectiveNoFileComp
+}
+
 // hintBoard resolves which board to use for completion context.
 // Scans os.Args for -b/--board, falls back to resolver.InferBoard
 // for single-board auto-detect and default board from global config.

@@ -80,6 +80,9 @@ type CommandContext struct {
 	ListGlobal     *bool
 	ListSort       *string
 	ListDescending *bool
+	ListFilter     *[]string
+	ListExclude    *[]string
+	ListCategory   *string
 
 	// edit command
 	EditUsed        *bool
@@ -356,7 +359,7 @@ func executeCommand(ctx *CommandContext) {
 		runHistory(*ctx.HistoryCard, *ctx.HistoryBoard, *ctx.HistoryGlobal, *ctx.Json)
 
 	case *ctx.ListUsed:
-		runList(*ctx.ListBoard, *ctx.ListColumn, *ctx.ListSort, *ctx.ListGlobal, *ctx.ListDescending, *ctx.Json)
+		runList(*ctx.ListBoard, *ctx.ListColumn, *ctx.ListSort, *ctx.ListFilter, *ctx.ListExclude, *ctx.ListCategory, *ctx.ListGlobal, *ctx.ListDescending, *ctx.Json)
 
 	case *ctx.EditUsed:
 		runEdit(*ctx.EditCard, *ctx.EditBoard, *ctx.EditTitle, *ctx.EditDescription,
