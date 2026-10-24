@@ -16,8 +16,16 @@ describe('card links', () => {
 
   it.each(COLUMN_CATEGORIES)('only a done blocker releases its waiting card: %s', (category) => {
     const cards = [card('source', { blocked_by: ['target'] }), card('target')];
-    const result = getBlockedCardIds(cards, [{ name: 'todo', color: '', category }]);
+    cards[1].column = 'blocker';
+    const result = getBlockedCardIds(cards, [...columns, { name: 'blocker', color: '', category }]);
     expect(result.has('source')).toBe(category !== 'done');
+  });
+
+  it.each(['done', 'dropped'] as const)('hides the marker on a %s source and recomputes when reopened', (category) => {
+    const source = card('source', { column: 'finished', blocked_by: ['missing', 'remote:missing'] });
+    const configured = [...columns, { name: 'finished', color: '', category }];
+    expect(getBlockedCardIds([source], configured).has('source')).toBe(false);
+    expect(getBlockedCardIds([{ ...source, column: 'todo' }], configured).has('source')).toBe(true);
   });
 
   it('requires every blocker to be done', () => {

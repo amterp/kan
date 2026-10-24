@@ -4,7 +4,7 @@ Kan uses Markdown for card descriptions. Click anywhere on a description to edit
 
 ## Blockers
 
-Cards show **Blocked** while any blocker has not reached a column categorized as `done`. A dropped blocker still blocks work. Moving a blocker to done updates the cards waiting on it automatically, including when search hides the blocker.
+Cards show **Blocked** while any blocker has not reached a column categorized as `done`. Cards in done or dropped columns do not show the marker. A dropped blocker still blocks unfinished work. Moving a blocker to done updates the cards waiting on it automatically, including when search hides the blocker.
 
 Open a card to see **Blocked by** and **Blocks**. Click a card title in either list to open that card. Kan saves pending edits before switching; if saving fails, your edits stay open. Unavailable blockers show their stored reference. Links to another board stay blocked and show no card details here.
 

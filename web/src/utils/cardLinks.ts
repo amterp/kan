@@ -3,7 +3,7 @@ import type { Card, Column } from '../api/types';
 export function getBlockedCardIds(cards: Card[], columns: Column[]): Set<string> {
   const byId = new Map(cards.map((card) => [card.id, card]));
   const categories = new Map(columns.map((column) => [column.name, column.category]));
-  return new Set(cards.filter((card) => card.blocked_by?.some((ref) => {
+  return new Set(cards.filter((card) => !['done', 'dropped'].includes(categories.get(card.column) ?? '') && card.blocked_by?.some((ref) => {
     if (ref.includes(':')) return true;
     const blocker = byId.get(ref);
     return !blocker || categories.get(blocker.column) !== 'done';
