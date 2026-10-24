@@ -75,6 +75,7 @@ cmd/kan/main.go
        ├── Stores (internal/store/) - File I/O, interface-based for testability
        ├── Services (internal/service/) - Business logic
        ├── Resolvers (internal/resolver/) - ID/alias resolution
+       ├── Registry (internal/registry/) - Projects kan knows on this machine (the global config's [repos])
        └── API (internal/api/) - HTTP handlers for web frontend
 ```
 
@@ -101,6 +102,14 @@ Each card is a separate JSON file in `.kan/boards/<board>/cards/<flexid>.json`. 
 - **Card.CustomFields** uses custom JSON marshaling to flatten board-defined fields into the top-level JSON object.
 - **IDs are opaque strings**. The current format (prefixed flexids) is for human convenience only—never parse or validate ID structure in code.
 
+## Reads Never Write Inside a Project
+
+A command that only reads builds its App with `AppOptions{ReadOnly: true}`. Kan then migrates older schemas in memory, doesn't create a missing project config, and its stores refuse writes, so running a read in someone else's checkout leaves `git status` clean. The global config may still be written.
+
+When a new command takes a board or card ref, resolve it with `App.ResolveBoard` or `App.ResolveCardWithBoard` and pass `forRead` or `forWrite`. A board ID or card ref can name another registered project's board: a read gets that project opened read-only, and a write is refused, because a command may change only its own project. Use the stores of the project the resolver returns, not the App's own.
+
+Commands that can prompt take the `-I` flag: build the App with `Interactive: !nonInteractive` and pass the same value to the resolvers, so an agent gets an error instead of a picker it can't answer.
+
 ## File Locations
 
 - Global config: `~/.config/kan/config.toml`
@@ -125,6 +134,8 @@ Uses [ra](https://github.com/amterp/ra) for command-line parsing. Commands are r
 ## Testing Patterns
 
 Tests create temp directories and clean up via deferred functions. See `setupTestCardStore()` in `internal/store/card_store_test.go` for the standard pattern.
+
+Kan registers every project it opens in the global config at `$HOME/.config/kan/config.toml`, and migrates that file, so a test that reaches it would change the machine's real config. Packages whose tests can reach it call `testutil.RunWithIsolatedHome` from `TestMain`, which points `HOME` at a temp directory. Add the same `TestMain` to a new package whose tests open a project or the global config.
 
 ## Schema Versioning
 
