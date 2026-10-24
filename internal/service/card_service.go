@@ -238,7 +238,11 @@ func (s *CardService) Get(boardName, cardID string) (*model.Card, error) {
 
 // Update saves changes to a card.
 func (s *CardService) Update(boardName string, card *model.Card) error {
-	parentID, err := s.validateParent(boardName, card.ID, card.Parent, card.Alias)
+	stored, err := s.cardStore.Get(boardName, card.ID)
+	if err != nil {
+		return err
+	}
+	parentID, err := s.validateParent(boardName, card.ID, card.Parent, card.Alias, card.Parent == stored.Parent)
 	if err != nil {
 		return err
 	}
@@ -246,7 +250,7 @@ func (s *CardService) Update(boardName string, card *model.Card) error {
 	return s.saveCard(boardName, card)
 }
 
-func (s *CardService) validateParent(boardName, cardID, parentRef, alias string) (string, error) {
+func (s *CardService) validateParent(boardName, cardID, parentRef, alias string, unchanged bool) (string, error) {
 	if parentRef == "" {
 		return "", nil
 	}
@@ -254,7 +258,11 @@ func (s *CardService) validateParent(boardName, cardID, parentRef, alias string)
 	if err != nil {
 		return "", err
 	}
-	return newParentGraph(cards).validate(cardID, parentRef, alias)
+	graph := newParentGraph(cards)
+	if unchanged && graph.resolve(parentRef) == nil && parentRef != alias {
+		return parentRef, nil
+	}
+	return graph.validate(cardID, parentRef, alias)
 }
 
 func (s *CardService) saveCard(boardName string, card *model.Card) error {
@@ -565,7 +573,7 @@ func (s *CardService) Edit(input EditCardInput) (*model.Card, error) {
 		}
 		alias = *input.Alias
 	}
-	parentID, err := s.validateParent(input.BoardName, card.ID, parentRef, alias)
+	parentID, err := s.validateParent(input.BoardName, card.ID, parentRef, alias, input.Parent == nil)
 	if err != nil {
 		return nil, err
 	}

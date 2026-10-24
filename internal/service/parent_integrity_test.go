@@ -275,3 +275,41 @@ func TestCardService_AliasChangeCanBreakLegacyCycle(t *testing.T) {
 		t.Fatalf("alias change removes the legacy reference and should break the cycle: %v", err)
 	}
 }
+
+func TestCardService_DeletedParentDoesNotPreventEditingChild(t *testing.T) {
+	for _, operation := range []string{"edit", "update", "comment"} {
+		t.Run(operation, func(t *testing.T) {
+			svc, _ := setupCardIntegrityTest(t)
+			parent := addIntegrityCard(t, svc, "Parent", "")
+			child := addIntegrityCard(t, svc, "Child", parent.ID)
+			if err := svc.Delete("main", parent.ID); err != nil {
+				t.Fatal(err)
+			}
+			var err error
+			switch operation {
+			case "edit":
+				title := "Edited child"
+				_, err = svc.Edit(EditCardInput{BoardName: "main", CardIDOrAlias: child.ID, Title: &title})
+			case "update":
+				child.Description = "Saved from web"
+				err = svc.Update("main", child)
+			case "comment":
+				_, err = svc.AddComment("main", child.ID, "Still editable", "tester")
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			stored, err := svc.Get("main", child.ID)
+			if err != nil || stored.Parent != parent.ID {
+				t.Fatalf("unchanged missing parent was lost: %+v, %v", stored, err)
+			}
+			if operation == "edit" && stored.Title != "Edited child" || operation == "update" && stored.Description != "Saved from web" || operation == "comment" && len(stored.Comments) != 1 {
+				t.Fatalf("child change was not saved: %+v", stored)
+			}
+			missing := "another-missing-parent"
+			if _, err := svc.Edit(EditCardInput{BoardName: "main", CardIDOrAlias: child.ID, Parent: &missing}); err == nil {
+				t.Fatal("accepted a newly assigned missing parent")
+			}
+		})
+	}
+}
