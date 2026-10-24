@@ -93,8 +93,8 @@ func registerList(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.ListUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runList(board, column, sortField string, filters, excludes []string, category string, global, all, descending, jsonOutput bool) {
-	app, err := NewAppWithOptions(AppOptions{Interactive: true, UseGlobalBoard: global, ReadOnly: true})
+func runList(board, column, sortField string, filters, excludes []string, category string, global, all, descending, nonInteractive, jsonOutput bool) {
+	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, UseGlobalBoard: global, ReadOnly: true})
 	if err != nil {
 		Fatal(err)
 	}
@@ -108,7 +108,7 @@ func runList(board, column, sortField string, filters, excludes []string, catego
 	}
 
 	// Resolve board
-	project, boardName, err := app.ResolveBoard(board, true, forRead)
+	project, boardName, err := app.ResolveBoard(board, !nonInteractive, forRead)
 	if err != nil {
 		Fatal(err)
 	}

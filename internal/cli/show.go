@@ -32,14 +32,14 @@ func registerShow(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.ShowUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runShow(idOrAlias, board string, global, jsonOutput bool) {
-	app, err := NewAppWithOptions(AppOptions{Interactive: true, UseGlobalBoard: global, ReadOnly: true})
+func runShow(idOrAlias, board string, global, nonInteractive, jsonOutput bool) {
+	app, err := NewAppWithOptions(AppOptions{Interactive: !nonInteractive, UseGlobalBoard: global, ReadOnly: true})
 	if err != nil {
 		Fatal(err)
 	}
 
 	// Resolve board and card together (with cross-board search)
-	result, err := app.ResolveCardWithBoard(board, idOrAlias, true, forRead)
+	result, err := app.ResolveCardWithBoard(board, idOrAlias, !nonInteractive, forRead)
 	if err != nil {
 		Fatal(err)
 	}

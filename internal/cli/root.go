@@ -406,13 +406,13 @@ func executeCommand(ctx *CommandContext) {
 		runDelete(*ctx.DeleteCard, *ctx.DeleteBoard, *ctx.DeleteGlobal, *ctx.NonInteractive)
 
 	case *ctx.ShowUsed:
-		runShow(*ctx.ShowCard, *ctx.ShowBoard, *ctx.ShowGlobal, *ctx.Json)
+		runShow(*ctx.ShowCard, *ctx.ShowBoard, *ctx.ShowGlobal, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.HistoryUsed:
-		runHistory(*ctx.HistoryCard, *ctx.HistoryBoard, *ctx.HistoryGlobal, *ctx.Json)
+		runHistory(*ctx.HistoryCard, *ctx.HistoryBoard, *ctx.HistoryGlobal, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.ListUsed:
-		runList(*ctx.ListBoard, *ctx.ListColumn, *ctx.ListSort, *ctx.ListFilter, *ctx.ListExclude, *ctx.ListCategory, *ctx.ListGlobal, *ctx.ListAll, *ctx.ListDescending, *ctx.Json)
+		runList(*ctx.ListBoard, *ctx.ListColumn, *ctx.ListSort, *ctx.ListFilter, *ctx.ListExclude, *ctx.ListCategory, *ctx.ListGlobal, *ctx.ListAll, *ctx.ListDescending, *ctx.NonInteractive, *ctx.Json)
 
 	case *ctx.ReadyUsed:
 		runReady(*ctx.ReadyBoard, *ctx.ReadyExclude, *ctx.ReadyNoExclude, *ctx.ReadyLimit, *ctx.ReadyGlobal, *ctx.ReadyAll, *ctx.NonInteractive, *ctx.Json)

@@ -69,7 +69,7 @@ func TestShow_LinksAcrossProjects(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out := captureStdout(t, func() { runShow("card-abc", "", false, false) })
+	out := captureStdout(t, func() { runShow("card-abc", "", false, false, false) })
 
 	for _, want := range []string{
 		"b_api:card-xyz  Test Card",
