@@ -104,32 +104,18 @@ func NewAppWithOptions(opts AppOptions) (*App, error) {
 			dataLocation = repoCfg.DataLocation
 		}
 	} else {
-		// Discover project root (VCS-agnostic)
-		result, derr := discovery.DiscoverProject(globalCfg)
+		result, derr := discoverProject(globalCfg, gitClient)
 		if derr != nil {
-			// This is a real error (e.g., global config says path exists but it doesn't)
 			return nil, derr
-		}
-
-		// If we're in a git worktree, redirect to the main worktree's board
-		if result != nil {
-			result, derr = discovery.ResolveWorktree(result, gitClient, globalCfg, isWorktreeIndependent)
-			if derr != nil {
-				return nil, derr
-			}
 		}
 
 		if result != nil {
 			projectRoot = result.ProjectRoot
 			dataLocation = result.DataLocation
 
-			if result.ResolvedFromWorktree {
-				PrintInfo("Using board from main worktree at %s", result.ProjectRoot)
-
-				// Clean up stale global config entry for the worktree path
-				if globalCfg != nil && result.OriginalWorktreeRoot != "" {
-					cleanupStaleWorktreeEntry(globalStore, globalCfg, result.OriginalWorktreeRoot)
-				}
+			// Clean up stale global config entry for the worktree path
+			if result.ResolvedFromWorktree && globalCfg != nil && result.OriginalWorktreeRoot != "" {
+				cleanupStaleWorktreeEntry(globalStore, globalCfg, result.OriginalWorktreeRoot)
 			}
 
 			// Auto-register unregistered projects (but not worktree paths)
@@ -205,6 +191,26 @@ func NewAppWithOptions(opts AppOptions) (*App, error) {
 		ProjectRoot:      projectRoot,
 		UsingGlobalBoard: opts.UseGlobalBoard,
 	}, nil
+}
+
+// discoverProject finds the project for the working directory (VCS-agnostic),
+// and from a linked git worktree redirects to the main worktree's board.
+// Returns nil when there is no project. An error is real, e.g. the global
+// config names a path whose data is gone.
+func discoverProject(globalCfg *model.GlobalConfig, worktrees discovery.WorktreeResolver) (*discovery.Result, error) {
+	result, err := discovery.DiscoverProject(globalCfg)
+	if err != nil || result == nil {
+		return result, err
+	}
+
+	result, err = discovery.ResolveWorktree(result, worktrees, globalCfg, isWorktreeIndependent)
+	if err != nil {
+		return nil, err
+	}
+	if result.ResolvedFromWorktree {
+		PrintInfo("Using board from main worktree at %s", result.ProjectRoot)
+	}
+	return result, nil
 }
 
 // projectStores are the stores for one project.

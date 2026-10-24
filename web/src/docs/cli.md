@@ -483,6 +483,10 @@ only read (`list`, `show`, `history`, `board list`, `board describe`,
 `column list`, `doctor` without `--fix`, and shell completion) never modify
 files: they upgrade older data in memory and leave the files as they are.
 
+`kan migrate` finds the project the same way other commands do: it honors a
+registered custom data location, and in a linked git worktree it migrates the
+main worktree's board, which every command there uses.
+
 ```bash
 kan migrate
 kan migrate --dry-run

@@ -8,6 +8,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/discovery"
+	"github.com/amterp/kan/internal/git"
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/prompt"
 	"github.com/amterp/kan/internal/service"
@@ -34,17 +35,11 @@ func registerMigrate(parent *ra.Cmd, ctx *CommandContext) {
 }
 
 func runMigrate(dryRun bool) {
-	// Discover project without version validation
-	// Pass nil for global config to avoid loading it (which might fail version checks)
-	result, err := discovery.DiscoverProject(&model.GlobalConfig{})
+	paths, err := migrateTarget(git.NewClient())
 	if err != nil {
 		Fatal(err)
 	}
-	if result == nil {
-		Fatal(fmt.Errorf("no .kan directory found (run 'kan init' first)"))
-	}
 
-	paths := config.NewPaths(result.ProjectRoot, result.DataLocation)
 	migrateService := service.NewMigrateService(paths)
 
 	plan, err := migrateService.Plan()
@@ -78,6 +73,50 @@ func runMigrate(dryRun bool) {
 	}
 }
 
+// migrateTarget finds the project `kan migrate` acts on the same way every
+// other command does, so a registered data_location and the redirect from a
+// linked worktree to the main worktree's board both apply.
+func migrateTarget(worktrees discovery.WorktreeResolver) (*config.Paths, error) {
+	globalCfg, err := readGlobalConfigUnvalidated()
+	if err != nil {
+		return nil, err
+	}
+	if globalCfg == nil {
+		globalCfg = &model.GlobalConfig{}
+	}
+
+	result, err := discoverProject(globalCfg, worktrees)
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, fmt.Errorf("no .kan directory found (run 'kan init' first)")
+	}
+	return config.NewPaths(result.ProjectRoot, result.DataLocation), nil
+}
+
+// readGlobalConfigUnvalidated decodes the global config without checking its
+// schema, since the config may itself be awaiting migration and a dry run
+// must not migrate it. Returns nil, nil when there is no global config.
+func readGlobalConfigUnvalidated() (*model.GlobalConfig, error) {
+	path := config.GlobalConfigPath()
+	if path == "" {
+		return nil, nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read global config: %w", err)
+	}
+	var cfg model.GlobalConfig
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse global config: %w", err)
+	}
+	return &cfg, nil
+}
+
 // projectEntry is a resolved project for --all iteration.
 type projectEntry struct {
 	name         string
@@ -96,24 +135,12 @@ const (
 )
 
 func runMigrateAll(dryRun bool, nonInteractive bool) {
-	// Load global config via raw TOML to bypass version validation
-	// (the config might need migration itself).
-	globalConfigPath := config.GlobalConfigPath()
-	if globalConfigPath == "" {
-		Fatal(fmt.Errorf("no global config found"))
-	}
-
-	data, err := os.ReadFile(globalConfigPath)
+	cfg, err := readGlobalConfigUnvalidated()
 	if err != nil {
-		if os.IsNotExist(err) {
-			Fatal(fmt.Errorf("no global config found"))
-		}
-		Fatal(fmt.Errorf("failed to read global config: %w", err))
+		Fatal(err)
 	}
-
-	var cfg model.GlobalConfig
-	if err := toml.Unmarshal(data, &cfg); err != nil {
-		Fatal(fmt.Errorf("failed to parse global config: %w", err))
+	if cfg == nil {
+		Fatal(fmt.Errorf("no global config found"))
 	}
 
 	if len(cfg.Repos) == 0 {
@@ -123,7 +150,7 @@ func runMigrateAll(dryRun bool, nonInteractive bool) {
 
 	// Build sorted project list from Repos, using Projects
 	// for display names.
-	projects := buildProjectList(&cfg)
+	projects := buildProjectList(cfg)
 
 	var prompter prompt.Prompter
 	if nonInteractive {

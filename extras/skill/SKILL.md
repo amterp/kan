@@ -563,7 +563,7 @@ kan migrate --all --dry-run  # Preview changes for all projects
 | `--dry-run` | Show what would be changed without modifying files |
 | `--all`     | Migrate all projects registered in global config   |
 
-Read-only commands (`list`, `show`, `history`, `board list`, `board describe`, `column list`, `doctor` without `--fix`) never modify files, even on a project with an older schema. Any command that changes data, and `kan serve`, migrates the project on disk first.
+Read-only commands (`list`, `show`, `history`, `board list`, `board describe`, `column list`, `doctor` without `--fix`) never modify files, even on a project with an older schema. Any command that changes data, and `kan serve`, migrates the project on disk first. In a linked git worktree, `kan migrate` migrates the main worktree's board, like every other command there.
 
 ## Health Checks
 
