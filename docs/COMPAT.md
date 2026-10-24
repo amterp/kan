@@ -178,9 +178,10 @@ worktree_independent = true
 - **board/10**: Moves card-column association from board config (`card_ids` arrays in columns) to card files (`column` + `position` fields using fractional indexing). This eliminates a class of merge conflicts when multiple users add/move cards simultaneously.
 - **board/11**: Adds `tint` display slot to `card_display`. Points at an `enum` field whose option color is used as a subtle background wash on cards, making them visually stand out on the board.
 - **board/12**: Adds optional `default_sort` and `default_sort_desc` to `card_display`. When set, the board view sorts cards within each column by the named field on load (ascending unless `default_sort_desc = true`); the CLI `--sort`/`--descending` flags and the web Sort control still override it per view. Migration is schema-only - both fields are optional with zero-value defaults (empty = manual/position order).
-- **board/13 (current)**: Adds optional `on_move_default_position` field to columns, controlling where a card lands when it moves into that column: `top` (the default when unset) or `bottom`. Migration is schema-only, but **the default behavior changes**: moved cards previously always landed at the bottom. See "Card Insertion" below.
+- **board/13**: Adds optional `on_move_default_position` field to columns, controlling where a card lands when it moves into that column: `top` (the default when unset) or `bottom`. Migration is schema-only, but **the default behavior changes**: moved cards previously always landed at the bottom. See "Card Insertion" below.
+- **board/14 (current)**: Adds an optional `category` to columns and an optional `[ready]` table (`order`, `exclude`). Migration is schema-only and leaves existing columns without a category. See "Column Categories and Ready Settings" below.
 
-Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9 -> v10 -> v11 -> v12 -> v13 for boards, and card files migrate to `card/3`.
+Running `kan migrate` upgrades data to the current version. The migration is incremental - v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9 -> v10 -> v11 -> v12 -> v13 -> v14 for boards, and card files migrate to `card/3`.
 
 **Rationale**: Strict versioning—Kan refuses to read files without version stamps (or with incompatible versions). This catches schema drift early and forces explicit migration.
 
@@ -352,6 +353,45 @@ Does not apply to:
 A `default_sort` on the board overrides manual ordering entirely, so it has no visible effect while a sort is active.
 
 **Migration**: board/12 -> board/13 only updates the schema version. The `on_move_default_position` field is optional with a zero-value default (empty = top). An invalid value is a non-fatal warning and reads as the default.
+
+### Column Categories and Ready Settings (board/14)
+
+**Added in**: board/14
+
+A column can name one category from a fixed set that kan owns. Anything that reads across columns or boards, such as `kan ready`, reads categories, never column names, so each board keeps naming its columns as it likes.
+
+| Category | Meaning |
+|---|---|
+| `inbox` | Waiting for someone to decide what it is: new and untriaged, or a question that could be answered now. |
+| `idea` | Looked at and kept, but the direction is uncertain. |
+| `open` | Accepted and not started. Order within and across open columns is priority. |
+| `active` | Being worked on. |
+| `review` | Finished by whoever worked on it, waiting to be checked. |
+| `done` | Finished. |
+| `dropped` | Closed without being done. |
+
+The `[ready]` table holds a board's settings for `kan ready`: `order` lists open columns to read first, and `exclude` lists `key=value` filters that keep a card out of ready on this board.
+
+```toml
+[[columns]]
+name = "next"
+color = "#3b82f6"
+category = "open"
+
+[ready]
+order = ["next", "backlog-hi", "backlog-lo"]
+exclude = ["labels=needs-decision"]
+```
+
+Both are optional. A column without a category is invisible to `kan ready`, and a board with no categorized columns stays out of it entirely. New boards from `kan init` and `kan board create` set categories on the default columns: `backlog` and `next` are `open`, `in-progress` is `active`, `done` is `done`. `kan init --columns` sets none, because kan never infers a category from a column name.
+
+`[ready]` ships in the same schema version as categories, although `kan ready` comes later and nothing reads `[ready]` until then, so that no second board bump is needed for it. Otherwise a kan that knew categories but not `[ready]` would accept the same schema and drop the table the next time it saved the board config.
+
+Renaming a column renames its `[ready] order` entry, and deleting a column removes it, from the CLI and the API alike.
+
+These produce non-fatal warnings when the board loads: an unknown category (the column reads as having none), and a `[ready] order` entry that names no column, repeats a column, or names a column that isn't open, and an `exclude` entry that isn't `key=value`. Kan ignores the offending entry.
+
+**Migration**: board/13 -> board/14 only updates the schema version. Existing columns stay without a category.
 
 ### Boolean Fields (board/9)
 

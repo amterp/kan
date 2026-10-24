@@ -111,6 +111,7 @@ color = "#f59e0b"
 description = "Currently being worked on"
 limit = 5
 on_move_default_position = "top"
+category = "active"
 ```
 
 | Field | Required | Description |
@@ -120,8 +121,23 @@ on_move_default_position = "top"
 | `description` | No | Purpose of this workflow stage |
 | `limit` | No | Max cards allowed (0 or omitted = no limit) |
 | `on_move_default_position` | No | Where a card *moved* into this column lands: `top` (default) or `bottom` |
+| `category` | No | What kind of work the column holds; see below |
 
-**Default columns** when creating a new board: `backlog`, `next`, `in-progress`, `done`.
+**Default columns** when creating a new board: `backlog` and `next` (category `open`), `in-progress` (`active`), `done` (`done`).
+
+**Column Categories**: a column may name one category from a fixed set. Commands that read across columns or boards, such as `kan ready`, go by category and never by column name, so each board keeps naming its columns as it likes. A column without a category is invisible to them.
+
+| Category | Meaning | Column names it usually fits |
+|----------|---------|------------------------------|
+| `inbox` | Waiting for someone to decide what it is: new and untriaged, or a question that could be answered now. | inbox |
+| `idea` | Looked at and kept, but the direction is uncertain. | uncommitted, undecided, ideas |
+| `open` | Accepted and not started. Order within and across open columns is priority. | backlog, backlog-lo, backlog-hi, todo, next, today |
+| `active` | Being worked on. | in-progress, doing |
+| `review` | Finished by whoever worked on it, waiting to be checked. | review |
+| `done` | Finished. | done |
+| `dropped` | Closed without being done. | wont-do |
+
+Kan never infers a category from a column name: `kan init --columns` sets none. An unknown category is a warning, and the column reads as having none.
 
 **Column Limits**: When a column has a `limit`, adding or moving cards into it is refused once the limit is reached. Column headers show the count as `(X/Y)` when a limit is set. This is a core kanban practice for controlling flow.
 
@@ -135,6 +151,23 @@ on_move_default_position = "top"
 The name spells out the scope, because two cases are deliberately excluded. `kan add` always appends - creating a card is not a workflow transition, and `add` has its own `--top`/`--bottom`/`--before`/`--after` flags. Moving a card within the column it already occupies does nothing unless you pass an explicit placement flag. And "default" means exactly that: any explicit placement flag overrides it. A `default_sort` overrides manual order entirely, so this setting has no visible effect while a sort is active.
 
 Dragging is never affected, because a drag always names a slot - including a drop below the last card, which means the bottom whatever the column's default is.
+
+### Ready
+
+The optional `[ready]` table holds a board's settings for `kan ready`, a planned command that lists open work that can be started now. Until it ships, kan stores and validates these settings and nothing else reads them.
+
+```toml
+[ready]
+order = ["next", "backlog-hi", "backlog-lo"]
+exclude = ["labels=needs-decision"]
+```
+
+| Field | Description |
+|-------|-------------|
+| `order` | Open columns to read first, in this order. Open columns left out come after, right to left in board order. |
+| `exclude` | `key=value` filters; a card matching any of them is never ready on this board. |
+
+Renaming a column renames its `order` entry, and deleting a column removes it. Kan warns about, and ignores, an `order` entry that names no column, repeats a column, or names a column whose category isn't `open`, and an `exclude` entry that isn't `key=value`.
 
 ### Custom Fields
 
@@ -300,6 +333,7 @@ kan column add review
 kan column add review --color "#9333ea" --position 2
 kan column add review --limit 5
 kan column add review --on-move-default-position bottom
+kan column add review --category review
 
 # Rename a column
 kan column rename review code-review
@@ -310,6 +344,8 @@ kan column edit review --description "Cards under review"
 kan column edit review --limit 3
 kan column edit review --limit 0    # Clear limit
 kan column edit review --on-move-default-position bottom
+kan column edit review --category review
+kan column edit review --category ""   # Clear category
 
 # Reorder columns
 kan column move review --position 1

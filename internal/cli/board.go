@@ -164,6 +164,7 @@ func printBoardDescribeJson(cfg *model.BoardConfig, cardCounts map[string]int) {
 			Color:       col.Color,
 			Description: col.Description,
 			Limit:       col.Limit,
+			Category:    col.Category,
 			CardCount:   cardCounts[col.Name],
 			IsDefault:   col.Name == cfg.DefaultColumn,
 		}
@@ -175,6 +176,7 @@ func printBoardDescribeJson(cfg *model.BoardConfig, cardCounts map[string]int) {
 			Schema:        cfg.KanSchema,
 			DefaultColumn: cfg.DefaultColumn,
 			Columns:       columns,
+			Ready:         cfg.Ready,
 			CustomFields:  cfg.CustomFields,
 			CardDisplay:   cfg.CardDisplay,
 			LinkRules:     cfg.LinkRules,
@@ -211,10 +213,15 @@ func printBoardDescribeHuman(cfg *model.BoardConfig, cardCounts map[string]int) 
 			limitStr = fmt.Sprintf("/%d", col.Limit)
 		}
 		count := RenderMuted(fmt.Sprintf("(%d%s %s%s)", n, limitStr, cardWord, defaultTag))
-		fmt.Printf("  %-17s %s %s\n", col.Name, swatch, count)
+		fmt.Printf("  %-17s %s %s%s\n", col.Name, swatch, count, categorySuffix(col))
 		if col.Description != "" {
 			fmt.Printf("    %s\n", col.Description)
 		}
+	}
+
+	if !cfg.Ready.IsEmpty() {
+		fmt.Println()
+		printReadySettings(cfg.Ready, "")
 	}
 
 	// Custom Fields

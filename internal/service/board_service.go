@@ -269,6 +269,34 @@ func (s *BoardService) UpdateColumnOnMoveDefaultPosition(boardName, columnName, 
 	return s.boardStore.Update(cfg)
 }
 
+// UpdateColumnCategory sets a column's category. An empty value clears it.
+func (s *BoardService) UpdateColumnCategory(boardName, columnName, category string) error {
+	if err := ValidateColumnCategory(category); err != nil {
+		return err
+	}
+
+	cfg, err := s.boardStore.Get(boardName)
+	if err != nil {
+		return err
+	}
+
+	if !cfg.SetColumnCategory(columnName, category) {
+		return kanerr.ColumnNotFound(columnName, boardName)
+	}
+
+	return s.boardStore.Update(cfg)
+}
+
+// ValidateColumnCategory rejects a value that is not a column category, so
+// callers that write several column settings can check it before writing any.
+func ValidateColumnCategory(category string) error {
+	if !model.IsValidCategory(category) {
+		return kanerr.InvalidField("category",
+			"must be one of "+model.ValidCategoriesList()+", or empty to clear it")
+	}
+	return nil
+}
+
 // ReorderColumn moves a column to a new position (0-indexed).
 func (s *BoardService) ReorderColumn(boardName, columnName string, newPosition int) error {
 	cfg, err := s.boardStore.Get(boardName)

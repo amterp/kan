@@ -56,6 +56,7 @@ type BoardConfig struct {
 	Name          string                       `toml:"name" json:"name"`
 	Columns       []Column                     `toml:"columns" json:"columns"`
 	DefaultColumn string                       `toml:"default_column" json:"default_column"`
+	Ready         ReadyConfig                  `toml:"ready,omitempty" json:"ready,omitempty"`
 	CustomFields  map[string]CustomFieldSchema `toml:"custom_fields,omitempty" json:"custom_fields,omitempty"`
 	CardDisplay   CardDisplayConfig            `toml:"card_display,omitempty" json:"card_display,omitempty"`
 	LinkRules     []LinkRule                   `toml:"link_rules,omitempty" json:"link_rules,omitempty"`
@@ -72,6 +73,23 @@ type Column struct {
 	// "bottom". A default, not a rule - an explicit placement flag overrides it.
 	// Does not apply to kan add, which always appends.
 	OnMoveDefaultPosition string `toml:"on_move_default_position,omitempty" json:"on_move_default_position,omitempty"`
+	// One of ValidCategories, or empty for none. Queries that read across
+	// columns or boards go by category, never by column name.
+	Category string `toml:"category,omitempty" json:"category,omitempty"`
+}
+
+// ReadyConfig holds a board's settings for kan ready.
+type ReadyConfig struct {
+	// Open columns to read first, in this order. Open columns left out come
+	// after, right to left in board order.
+	Order []string `toml:"order,omitempty" json:"order,omitempty"`
+	// key=value filters that keep a card out of ready on this board.
+	Exclude []string `toml:"exclude,omitempty" json:"exclude,omitempty"`
+}
+
+// IsEmpty reports whether no ready setting is configured.
+func (r ReadyConfig) IsEmpty() bool {
+	return len(r.Order) == 0 && len(r.Exclude) == 0
 }
 
 // MoveInsertsAtTop reports whether a card moved into this column should land at
@@ -153,7 +171,55 @@ func ValidateColumns(columns []Column) []string {
 					"remove the key",
 				col.Name, col.OnMoveDefaultPosition))
 		}
+		if !IsValidCategory(col.Category) {
+			warnings = append(warnings, fmt.Sprintf(
+				"columns: column '%s' has unknown category %q, so kan treats it as having no "+
+					"category and leaves its cards out of kan ready. Valid categories are %s - "+
+					"fix the value or remove the key",
+				col.Name, col.Category, ValidCategoriesList()))
+		}
 	}
+	return warnings
+}
+
+// ValidateReady validates the [ready] settings against the board's columns.
+// Returns a list of warning messages for invalid entries (non-fatal).
+func ValidateReady(ready ReadyConfig, columns []Column) []string {
+	var warnings []string
+
+	byName := make(map[string]Column, len(columns))
+	for _, col := range columns {
+		byName[col.Name] = col
+	}
+
+	seen := make(map[string]bool, len(ready.Order))
+	for _, name := range ready.Order {
+		col, exists := byName[name]
+		switch {
+		case !exists:
+			warnings = append(warnings, fmt.Sprintf(
+				"ready.order: '%s' names no column on this board, so kan ready ignores it. "+
+					"Fix the name or remove the entry", name))
+		case seen[name]:
+			warnings = append(warnings, fmt.Sprintf(
+				"ready.order: column '%s' is listed more than once; kan ready uses its first "+
+					"place. Remove the repeat", name))
+		case col.Category != CategoryOpen:
+			warnings = append(warnings, fmt.Sprintf(
+				"ready.order: column '%s' is not an open column, so kan ready ignores it - only "+
+					"open columns hold ready work. Remove the entry or set the column's category "+
+					"with: kan column edit %s --category open", name, name))
+		}
+		seen[name] = true
+	}
+
+	for _, expr := range ready.Exclude {
+		if _, err := ParseFilter(expr); err != nil {
+			warnings = append(warnings, fmt.Sprintf(
+				"ready.exclude: %s, so kan ready ignores it. Fix the entry or remove it", err))
+		}
+	}
+
 	return warnings
 }
 
@@ -187,10 +253,10 @@ func DefaultColumns() []Column {
 	// in-progress and done are activity-ordered, where the newest is what you
 	// want to see first.
 	return []Column{
-		{Name: "backlog", Color: "#6b7280", OnMoveDefaultPosition: ColumnPositionBottom},
-		{Name: "next", Color: "#3b82f6", OnMoveDefaultPosition: ColumnPositionBottom},
-		{Name: "in-progress", Color: "#f59e0b", OnMoveDefaultPosition: ColumnPositionTop},
-		{Name: "done", Color: "#10b981", OnMoveDefaultPosition: ColumnPositionTop},
+		{Name: "backlog", Color: "#6b7280", OnMoveDefaultPosition: ColumnPositionBottom, Category: CategoryOpen},
+		{Name: "next", Color: "#3b82f6", OnMoveDefaultPosition: ColumnPositionBottom, Category: CategoryOpen},
+		{Name: "in-progress", Color: "#f59e0b", OnMoveDefaultPosition: ColumnPositionTop, Category: CategoryActive},
+		{Name: "done", Color: "#10b981", OnMoveDefaultPosition: ColumnPositionTop, Category: CategoryDone},
 	}
 }
 
@@ -279,7 +345,7 @@ func (b *BoardConfig) AddColumn(name, color string, position int) bool {
 	return true
 }
 
-// RemoveColumn removes a column by name.
+// RemoveColumn removes a column by name, and its entry in [ready] order.
 // Returns false if the column was not found.
 // Does not modify card files - caller is responsible for reassigning cards.
 func (b *BoardConfig) RemoveColumn(name string) bool {
@@ -289,6 +355,17 @@ func (b *BoardConfig) RemoveColumn(name string) bool {
 	}
 
 	b.Columns = append(b.Columns[:idx], b.Columns[idx+1:]...)
+
+	kept := b.Ready.Order[:0]
+	for _, entry := range b.Ready.Order {
+		if entry != name {
+			kept = append(kept, entry)
+		}
+	}
+	if len(kept) == 0 {
+		kept = nil
+	}
+	b.Ready.Order = kept
 	return true
 }
 
@@ -312,6 +389,12 @@ func (b *BoardConfig) RenameColumn(oldName, newName string) bool {
 	// Update default_column if it referenced the old name
 	if b.DefaultColumn == oldName {
 		b.DefaultColumn = newName
+	}
+
+	for i, entry := range b.Ready.Order {
+		if entry == oldName {
+			b.Ready.Order[i] = newName
+		}
 	}
 
 	return true
@@ -348,6 +431,17 @@ func (b *BoardConfig) SetColumnOnMoveDefaultPosition(name, position string) bool
 		return false
 	}
 	col.OnMoveDefaultPosition = position
+	return true
+}
+
+// SetColumnCategory updates a column's category. An empty value clears it.
+// Returns false if the column doesn't exist.
+func (b *BoardConfig) SetColumnCategory(name, category string) bool {
+	col := b.GetColumn(name)
+	if col == nil {
+		return false
+	}
+	col.Category = category
 	return true
 }
 

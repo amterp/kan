@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/ra"
@@ -53,6 +54,13 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetFlagOnly(true).
 		SetEnumConstraint(model.ValidColumnPositions).
 		SetUsage("Where a card moved into this column lands: 'top' (default) or 'bottom'").
+		Register(addCmd)
+
+	ctx.ColumnAddCategory, _ = ra.NewString("category").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetEnumConstraint(model.ValidCategories).
+		SetUsage("What kind of work the column holds, read by queries across columns and boards").
 		Register(addCmd)
 
 	ctx.ColumnAddBoard, _ = ra.NewString("board").
@@ -145,6 +153,14 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 		SetUsage("Where a card moved into this column lands: 'top' (default) or 'bottom'").
 		Register(editCmd)
 
+	// No enum constraint: an empty value clears the category, and ra would reject it.
+	ctx.ColumnEditCategory, _ = ra.NewString("category").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("What kind of work the column holds: " + model.ValidCategoriesList() + ". Empty clears it").
+		SetCompletionFunc(completeCategories).
+		Register(editCmd)
+
 	ctx.ColumnEditBoard, _ = ra.NewString("board").
 		SetShort("b").
 		SetOptional(true).
@@ -206,7 +222,7 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.ColumnUsed, _ = parent.RegisterCmd(cmd)
 }
 
-func runColumnAdd(name, color, description string, position, limit int, onMovePosition, board string, nonInteractive bool) {
+func runColumnAdd(name, color, description string, position, limit int, onMovePosition, category, board string, nonInteractive bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -240,6 +256,12 @@ func runColumnAdd(name, color, description string, position, limit int, onMovePo
 
 	if onMovePosition != "" {
 		if err := app.BoardService.UpdateColumnOnMoveDefaultPosition(boardName, name, onMovePosition); err != nil {
+			Fatal(err)
+		}
+	}
+
+	if category != "" {
+		if err := app.BoardService.UpdateColumnCategory(boardName, name, category); err != nil {
 			Fatal(err)
 		}
 	}
@@ -300,7 +322,7 @@ func runColumnRename(oldName, newName, board string, nonInteractive bool) {
 	PrintSuccess("Renamed column %q to %q in board %q", oldName, newName, boardName)
 }
 
-func runColumnEdit(name, color, description string, limit int, onMovePosition, board string, nonInteractive bool) {
+func runColumnEdit(name, color, description string, limit int, onMovePosition, category string, categorySet bool, board string, nonInteractive bool) {
 	app, err := NewApp(!nonInteractive)
 	if err != nil {
 		Fatal(err)
@@ -315,9 +337,16 @@ func runColumnEdit(name, color, description string, limit int, onMovePosition, b
 		Fatal(err)
 	}
 
-	if color == "" && description == "" && limit < 0 && onMovePosition == "" {
+	if color == "" && description == "" && limit < 0 && onMovePosition == "" && !categorySet {
 		Fatal(fmt.Errorf("no changes specified; use --color, --description, --limit, " +
-			"or --on-move-default-position"))
+			"--on-move-default-position, or --category"))
+	}
+
+	// First, so an invalid category fails before any other change is written.
+	if categorySet {
+		if err := app.BoardService.UpdateColumnCategory(boardName, name, category); err != nil {
+			Fatal(err)
+		}
 	}
 
 	if color != "" {
@@ -385,10 +414,11 @@ func runColumnList(board string, nonInteractive, jsonOutput bool) {
 				Color:       col.Color,
 				Description: col.Description,
 				Limit:       col.Limit,
+				Category:    col.Category,
 				CardCount:   cardCounts[col.Name],
 			}
 		}
-		if err := printJson(NewColumnsOutput(columns)); err != nil {
+		if err := printJson(NewColumnsOutput(columns, boardCfg.Ready)); err != nil {
 			Fatal(err)
 		}
 		return
@@ -412,10 +442,34 @@ func runColumnList(board string, nonInteractive, jsonOutput bool) {
 		} else {
 			count = RenderMuted(fmt.Sprintf("(%d %s)", n, cardWord))
 		}
-		fmt.Printf("%-15s %s %s\n", col.Name, swatch, count)
+		fmt.Printf("%-15s %s %s%s\n", col.Name, swatch, count, categorySuffix(col))
 		if col.Description != "" {
 			fmt.Printf("  %s\n", RenderMuted(col.Description))
 		}
+	}
+
+	if !boardCfg.Ready.IsEmpty() {
+		fmt.Println()
+		printReadySettings(boardCfg.Ready, "")
+	}
+}
+
+// categorySuffix renders a column's category for text output, or nothing
+// when the column has none.
+func categorySuffix(col model.Column) string {
+	if col.Category == "" {
+		return ""
+	}
+	return "  " + col.Category
+}
+
+// printReadySettings prints a board's [ready] settings, one line per key that is set.
+func printReadySettings(ready model.ReadyConfig, indent string) {
+	if len(ready.Order) > 0 {
+		fmt.Printf("%sReady order:   %s\n", indent, strings.Join(ready.Order, ", "))
+	}
+	if len(ready.Exclude) > 0 {
+		fmt.Printf("%sReady exclude: %s\n", indent, strings.Join(ready.Exclude, ", "))
 	}
 }
 

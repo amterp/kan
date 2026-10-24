@@ -152,16 +152,22 @@ func NewListOutput(cards []*model.Card) ListOutput {
 
 // ColumnsOutput wraps a list of columns for JSON output.
 type ColumnsOutput struct {
-	Columns []ColumnInfo `json:"columns"`
+	Columns []ColumnInfo       `json:"columns"`
+	Ready   *model.ReadyConfig `json:"ready,omitempty"`
 }
 
-// NewColumnsOutput creates a ColumnsOutput from column info.
+// NewColumnsOutput creates a ColumnsOutput from column info and the board's
+// [ready] settings, which are left out when none are set.
 // Always returns an empty array (not null) when there are no columns.
-func NewColumnsOutput(columns []ColumnInfo) ColumnsOutput {
+func NewColumnsOutput(columns []ColumnInfo, ready model.ReadyConfig) ColumnsOutput {
 	if columns == nil {
 		columns = []ColumnInfo{}
 	}
-	return ColumnsOutput{Columns: columns}
+	out := ColumnsOutput{Columns: columns}
+	if !ready.IsEmpty() {
+		out.Ready = &ready
+	}
+	return out
 }
 
 // ColumnInfo represents column data for JSON output.
@@ -170,6 +176,7 @@ type ColumnInfo struct {
 	Color       string `json:"color"`
 	Description string `json:"description,omitempty"`
 	Limit       int    `json:"limit,omitempty"`
+	Category    string `json:"category,omitempty"`
 	CardCount   int    `json:"card_count"`
 }
 
@@ -204,6 +211,7 @@ type BoardDescribeInfo struct {
 	Schema        string                             `json:"schema"`
 	DefaultColumn string                             `json:"default_column"`
 	Columns       []BoardDescribeColumnInfo          `json:"columns"`
+	Ready         model.ReadyConfig                  `json:"ready"`
 	CustomFields  map[string]model.CustomFieldSchema `json:"custom_fields,omitempty"`
 	CardDisplay   model.CardDisplayConfig            `json:"card_display,omitempty"`
 	LinkRules     []model.LinkRule                   `json:"link_rules,omitempty"`
@@ -216,6 +224,7 @@ type BoardDescribeColumnInfo struct {
 	Color       string `json:"color"`
 	Description string `json:"description,omitempty"`
 	Limit       int    `json:"limit,omitempty"`
+	Category    string `json:"category,omitempty"`
 	CardCount   int    `json:"card_count"`
 	IsDefault   bool   `json:"is_default"`
 }

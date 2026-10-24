@@ -1,4 +1,4 @@
-kan_schema = "board/13"
+kan_schema = "board/14"
 id = "main"
 name = "main"
 default_column = "nonexistent"

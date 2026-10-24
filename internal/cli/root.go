@@ -132,6 +132,7 @@ type CommandContext struct {
 	ColumnAddPosition       *int
 	ColumnAddLimit          *int
 	ColumnAddOnMovePosition *string
+	ColumnAddCategory       *string
 	ColumnAddBoard          *string
 
 	// column delete
@@ -152,6 +153,7 @@ type CommandContext struct {
 	ColumnEditDescription    *string
 	ColumnEditLimit          *int
 	ColumnEditOnMovePosition *string
+	ColumnEditCategory       *string
 	ColumnEditBoard          *string
 
 	// column list
@@ -373,7 +375,7 @@ func executeCommand(ctx *CommandContext) {
 		}
 
 	case *ctx.ColumnAddUsed:
-		runColumnAdd(*ctx.ColumnAddName, *ctx.ColumnAddColor, *ctx.ColumnAddDescription, *ctx.ColumnAddPosition, *ctx.ColumnAddLimit, *ctx.ColumnAddOnMovePosition, *ctx.ColumnAddBoard, *ctx.NonInteractive)
+		runColumnAdd(*ctx.ColumnAddName, *ctx.ColumnAddColor, *ctx.ColumnAddDescription, *ctx.ColumnAddPosition, *ctx.ColumnAddLimit, *ctx.ColumnAddOnMovePosition, *ctx.ColumnAddCategory, *ctx.ColumnAddBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnDeleteUsed:
 		runColumnDelete(*ctx.ColumnDeleteName, *ctx.ColumnDeleteBoard, *ctx.NonInteractive)
@@ -382,7 +384,7 @@ func executeCommand(ctx *CommandContext) {
 		runColumnRename(*ctx.ColumnRenameOld, *ctx.ColumnRenameNew, *ctx.ColumnRenameBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnEditUsed:
-		runColumnEdit(*ctx.ColumnEditName, *ctx.ColumnEditColor, *ctx.ColumnEditDescription, *ctx.ColumnEditLimit, *ctx.ColumnEditOnMovePosition, *ctx.ColumnEditBoard, *ctx.NonInteractive)
+		runColumnEdit(*ctx.ColumnEditName, *ctx.ColumnEditColor, *ctx.ColumnEditDescription, *ctx.ColumnEditLimit, *ctx.ColumnEditOnMovePosition, *ctx.ColumnEditCategory, ctx.RootCmd.Configured("category"), *ctx.ColumnEditBoard, *ctx.NonInteractive)
 
 	case *ctx.ColumnListUsed:
 		runColumnList(*ctx.ColumnListBoard, *ctx.NonInteractive, *ctx.Json)

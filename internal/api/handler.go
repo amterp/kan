@@ -650,6 +650,7 @@ type CreateColumnRequest struct {
 	Limit                 *int    `json:"limit,omitempty"`                    // Column limit (0 = no limit)
 	Position              *int    `json:"position,omitempty"`                 // Optional: insert position (-1 or omit for end)
 	OnMoveDefaultPosition *string `json:"on_move_default_position,omitempty"` // Where moved-in cards land: "top" or "bottom"
+	Category              *string `json:"category,omitempty"`                 // One of the column categories
 }
 
 // CreateColumn creates a new column on a board.
@@ -665,6 +666,14 @@ func (h *Handler) CreateColumn(w http.ResponseWriter, r *http.Request) {
 	if req.Name == "" {
 		BadRequest(w, "name is required")
 		return
+	}
+
+	// Checked before the column exists, so a bad value creates nothing.
+	if req.Category != nil {
+		if err := service.ValidateColumnCategory(*req.Category); err != nil {
+			Error(w, err)
+			return
+		}
 	}
 
 	// Determine position (-1 means append to end)
@@ -690,6 +699,13 @@ func (h *Handler) CreateColumn(w http.ResponseWriter, r *http.Request) {
 	if req.OnMoveDefaultPosition != nil {
 		if err := h.ctx().BoardService.UpdateColumnOnMoveDefaultPosition(
 			boardName, req.Name, *req.OnMoveDefaultPosition); err != nil {
+			Error(w, err)
+			return
+		}
+	}
+
+	if req.Category != nil && *req.Category != "" {
+		if err := h.ctx().BoardService.UpdateColumnCategory(boardName, req.Name, *req.Category); err != nil {
 			Error(w, err)
 			return
 		}
@@ -732,6 +748,7 @@ type UpdateColumnRequest struct {
 	Description           *string `json:"description,omitempty"`              // New description
 	Limit                 *int    `json:"limit,omitempty"`                    // Column limit (0 = clear)
 	OnMoveDefaultPosition *string `json:"on_move_default_position,omitempty"` // "top", "bottom", or "" to clear
+	Category              *string `json:"category,omitempty"`                 // A column category, or "" to clear
 }
 
 // UpdateColumn updates a column's properties (rename, color).
@@ -743,6 +760,14 @@ func (h *Handler) UpdateColumn(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		BadRequest(w, "invalid JSON body")
 		return
+	}
+
+	// Checked before any change, so a bad value changes nothing.
+	if req.Category != nil {
+		if err := service.ValidateColumnCategory(*req.Category); err != nil {
+			Error(w, err)
+			return
+		}
 	}
 
 	// Handle rename
@@ -782,6 +807,13 @@ func (h *Handler) UpdateColumn(w http.ResponseWriter, r *http.Request) {
 	if req.OnMoveDefaultPosition != nil {
 		if err := h.ctx().BoardService.UpdateColumnOnMoveDefaultPosition(
 			boardName, columnName, *req.OnMoveDefaultPosition); err != nil {
+			Error(w, err)
+			return
+		}
+	}
+
+	if req.Category != nil {
+		if err := h.ctx().BoardService.UpdateColumnCategory(boardName, columnName, *req.Category); err != nil {
 			Error(w, err)
 			return
 		}

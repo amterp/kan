@@ -79,7 +79,7 @@ func TestMigrateService_ProjectCurrent_NoOp(t *testing.T) {
 	if plan.Project == nil {
 		t.Fatal("v13 fixture has a project config; plan.Project should be set")
 	}
-	if plan.HasChanges() {
+	if plan.Project.NeedsMigration {
 		t.Errorf("current project config should not need migration: %+v", plan.Project)
 	}
 }
@@ -94,9 +94,6 @@ func TestMigrateService_ProjectMissing_NothingToMigrate(t *testing.T) {
 	}
 	if plan.Project != nil {
 		t.Errorf("missing project config should plan nothing, got %+v", plan.Project)
-	}
-	if plan.HasChanges() {
-		t.Error("project_missing fixture should not need migration")
 	}
 
 	if _, err := svc.MigrateProject(); err != nil {

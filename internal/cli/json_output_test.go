@@ -245,7 +245,7 @@ func TestEmptySlicesNotNull(t *testing.T) {
 		},
 		{
 			name:   "empty columns",
-			output: NewColumnsOutput(nil),
+			output: NewColumnsOutput(nil, model.ReadyConfig{}),
 			check:  `"columns":[]`,
 		},
 		{

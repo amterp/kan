@@ -42,43 +42,43 @@ Ask the user what columns they want. Offer these templates as inspiration - they
 
 **Simple** - Good default for most projects:
 
-| Column | Description | Limit | on_move_default_position |
-|--------|-------------|-------|--------------------------|
-| backlog | Planned work not yet started | | bottom |
-| next | Ready to be picked up next | 5 | bottom |
-| in-progress | Currently being worked on | 5 | top |
-| done | Completed work | | top |
+| Column | Description | Limit | on_move_default_position | Category |
+|--------|-------------|-------|--------------------------|----------|
+| backlog | Planned work not yet started | | bottom | open |
+| next | Ready to be picked up next | 5 | bottom | open |
+| in-progress | Currently being worked on | 5 | top | active |
+| done | Completed work | | top | done |
 
 **Prioritized Backlog** - Splits the backlog for triage:
 
-| Column | Description | Limit | on_move_default_position |
-|--------|-------------|-------|--------------------------|
-| backlog-lo | Low priority planned work | | bottom |
-| backlog-hi | High priority planned work | 10 | bottom |
-| next | Ready to be picked up next | 5 | bottom |
-| in-progress | Currently being worked on | 5 | top |
-| done | Completed work | | top |
+| Column | Description | Limit | on_move_default_position | Category |
+|--------|-------------|-------|--------------------------|----------|
+| backlog-lo | Low priority planned work | | bottom | open |
+| backlog-hi | High priority planned work | 10 | bottom | open |
+| next | Ready to be picked up next | 5 | bottom | open |
+| in-progress | Currently being worked on | 5 | top | active |
+| done | Completed work | | top | done |
 
 **With Ideas** - Adds a staging area for uncommitted thoughts:
 
-| Column | Description | Limit | on_move_default_position |
-|--------|-------------|-------|--------------------------|
-| uncommitted | Ideas and thoughts not yet committed to | | bottom |
-| backlog | Planned work not yet started | | bottom |
-| next | Ready to be picked up next | 5 | bottom |
-| in-progress | Currently being worked on | 5 | top |
-| done | Completed work | | top |
+| Column | Description | Limit | on_move_default_position | Category |
+|--------|-------------|-------|--------------------------|----------|
+| uncommitted | Ideas and thoughts not yet committed to | | bottom | idea |
+| backlog | Planned work not yet started | | bottom | open |
+| next | Ready to be picked up next | 5 | bottom | open |
+| in-progress | Currently being worked on | 5 | top | active |
+| done | Completed work | | top | done |
 
 **Full** - Prioritized backlog with ideas column:
 
-| Column | Description | Limit | on_move_default_position |
-|--------|-------------|-------|--------------------------|
-| uncommitted | Ideas and thoughts not yet committed to | | bottom |
-| backlog-lo | Low priority planned work | | bottom |
-| backlog-hi | High priority planned work | 10 | bottom |
-| next | Ready to be picked up next | 5 | bottom |
-| in-progress | Currently being worked on | 5 | top |
-| done | Completed work | | top |
+| Column | Description | Limit | on_move_default_position | Category |
+|--------|-------------|-------|--------------------------|----------|
+| uncommitted | Ideas and thoughts not yet committed to | | bottom | idea |
+| backlog-lo | Low priority planned work | | bottom | open |
+| backlog-hi | High priority planned work | 10 | bottom | open |
+| next | Ready to be picked up next | 5 | bottom | open |
+| in-progress | Currently being worked on | 5 | top | active |
+| done | Completed work | | top | done |
 
 **Important**: Every column should have a description. Descriptions serve as self-documentation and help guide AI agents using the board. Suggest descriptions if the user doesn't provide them.
 
@@ -90,6 +90,8 @@ Ask the user what columns they want. Offer these templates as inspiration - they
 - **Activity columns**, where position encodes recency (`in-progress`, `done`), want `top`, so the card just touched is the one on screen.
 
 `top` is the default when unset. The values in the templates above follow this rule and are good starting points. This does not affect `kan add`, which always appends, and an explicit placement flag always overrides it. Dragging is unaffected too - a drag always names a slot.
+
+**Column Categories**: give every column a category, one of `inbox`, `idea`, `open`, `active`, `review`, `done`, `dropped`. Commands that read across columns or boards, such as `kan ready`, go by category and never by column name; a column without one is invisible to them. Kan never infers a category from a name, so set them explicitly (the templates above show the usual choice). `open` means accepted and not started, and order within and across open columns is priority.
 
 The first column in the list becomes the default column for new cards.
 
@@ -236,7 +238,7 @@ command = ".kan/hooks/type-shortcut.rad"  # or .sh for bash
    - Additional board: `kan board create <board-name>`, then edit the TOML to set up columns
 
 2. **Edit the board config** at `.kan/boards/<name>/config.toml` to add:
-   - Column descriptions (and column definitions if using `kan board create`)
+   - Column descriptions and categories (and column definitions if using `kan board create`)
    - Custom fields with types, options, descriptions, colors, and wanted flags
    - Card display configuration
 
@@ -487,6 +489,7 @@ kan column add review --position 2                       # Insert at position
 kan column add review --description "Cards under review" # With description
 kan column add review --limit 5                          # With column limit
 kan column add review --on-move-default-position bottom  # Moved-in cards go to the back
+kan column add review --category review                  # With a category
 kan column delete review                 # Delete column
 kan column rename review code-review     # Rename column
 kan column edit review --color "#ec4899" # Change column color
@@ -495,6 +498,8 @@ kan column edit review --limit 3         # Set column limit
 kan column edit review --limit 0         # Clear column limit
 kan column edit review --on-move-default-position bottom  # Moved-in cards to the back
 kan column edit review --on-move-default-position top     # ...to the front (default)
+kan column edit review --category review # Set category
+kan column edit review --category ""     # Clear category
 kan column list                          # List columns
 kan column move review --position 1      # Reorder column
 kan column move review --after backlog   # Insert after another

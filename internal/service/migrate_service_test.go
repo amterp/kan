@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -1695,11 +1696,102 @@ func TestMigrateService_V12ToV13_Idempotent(t *testing.T) {
 }
 
 // ============================================================================
-// V13 Tests (Current schema - no migration needed)
+// V13 Tests (board/13 -> board/14, schema-only bump for column categories and [ready])
 // ============================================================================
 
-func TestMigrateService_Plan_V13_NoChanges(t *testing.T) {
+func TestMigrateService_V13ToV14_UpdatesSchema(t *testing.T) {
+	service, tempDir, cleanup := setupMigrationTest(t, "v13")
+	defer cleanup()
+
+	plan, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Plan failed: %v", err)
+	}
+	if !plan.HasChanges() {
+		t.Fatal("v13 data should need migration to v14")
+	}
+	if err := service.Execute(plan, false); err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	paths := config.NewPaths(tempDir, "")
+	boardStore := store.NewBoardStore(paths)
+
+	boardCfg, err := boardStore.Get("main")
+	if err != nil {
+		t.Fatalf("BoardStore.Get failed after migration: %v", err)
+	}
+	if boardCfg.KanSchema != version.CurrentBoardSchema() {
+		t.Errorf("Expected KanSchema %q, got %q", version.CurrentBoardSchema(), boardCfg.KanSchema)
+	}
+
+	// The migration never infers a category from a column name, so columns
+	// stay uncategorized and the board has no [ready] settings.
+	for _, col := range boardCfg.Columns {
+		if col.Category != "" {
+			t.Errorf("Column %q got category %q from migration, want none", col.Name, col.Category)
+		}
+	}
+	if !boardCfg.Ready.IsEmpty() {
+		t.Errorf("Expected no [ready] settings after migration, got %+v", boardCfg.Ready)
+	}
+
+	backlog := boardCfg.GetColumn("Backlog")
+	if backlog == nil {
+		t.Fatal("Expected 'Backlog' column")
+	}
+	if backlog.Limit != 5 {
+		t.Errorf("Expected Backlog Limit 5, got %d", backlog.Limit)
+	}
+	if backlog.OnMoveDefaultPosition != model.ColumnPositionBottom {
+		t.Errorf("Expected Backlog on_move_default_position 'bottom', got %q", backlog.OnMoveDefaultPosition)
+	}
+	if len(boardCfg.PatternHooks) != 1 {
+		t.Error("PatternHooks should be preserved")
+	}
+	if boardCfg.CardDisplay.DefaultSort != "type" {
+		t.Errorf("Expected default_sort 'type' preserved, got %q", boardCfg.CardDisplay.DefaultSort)
+	}
+
+	data, err := os.ReadFile(paths.BoardConfigPath("main"))
+	if err != nil {
+		t.Fatalf("Failed to read migrated config: %v", err)
+	}
+	if strings.Contains(string(data), "[ready]") {
+		t.Errorf("Migrated config should not gain an empty [ready] table:\n%s", data)
+	}
+}
+
+func TestMigrateService_V13ToV14_Idempotent(t *testing.T) {
 	service, _, cleanup := setupMigrationTest(t, "v13")
+	defer cleanup()
+
+	plan1, err := service.Plan()
+	if err != nil {
+		t.Fatalf("First Plan failed: %v", err)
+	}
+	if !plan1.HasChanges() {
+		t.Fatal("First plan should have changes")
+	}
+	if err := service.Execute(plan1, false); err != nil {
+		t.Fatalf("First Execute failed: %v", err)
+	}
+
+	plan2, err := service.Plan()
+	if err != nil {
+		t.Fatalf("Second Plan failed: %v", err)
+	}
+	if plan2.HasChanges() {
+		t.Error("Second plan should have no changes (migration is idempotent)")
+	}
+}
+
+// ============================================================================
+// V14 Tests (Current schema - no migration needed)
+// ============================================================================
+
+func TestMigrateService_Plan_V14_NoChanges(t *testing.T) {
+	service, _, cleanup := setupMigrationTest(t, "v14")
 	defer cleanup()
 
 	plan, err := service.Plan()
@@ -1707,15 +1799,15 @@ func TestMigrateService_Plan_V13_NoChanges(t *testing.T) {
 		t.Fatalf("Plan failed: %v", err)
 	}
 	if plan.HasChanges() {
-		t.Error("Current schema (v13) data should not need migration")
+		t.Error("Current schema (v14) data should not need migration")
 	}
 }
 
-func TestMigrateService_V13_ReadableByStores(t *testing.T) {
-	_, tempDir, cleanup := setupMigrationTest(t, "v13")
+func TestMigrateService_V14_ReadableByStores(t *testing.T) {
+	_, tempDir, cleanup := setupMigrationTest(t, "v14")
 	defer cleanup()
 
-	// V13 fixtures should be directly readable by stores without migration
+	// V14 fixtures should be directly readable by stores without migration
 	paths := config.NewPaths(tempDir, "")
 	cardStore := store.NewCardStore(paths)
 	boardStore := store.NewBoardStore(paths)
@@ -1723,7 +1815,7 @@ func TestMigrateService_V13_ReadableByStores(t *testing.T) {
 	// Board store should read without error
 	boardCfg, err := boardStore.Get("main")
 	if err != nil {
-		t.Fatalf("BoardStore.Get failed on v13 fixtures: %v", err)
+		t.Fatalf("BoardStore.Get failed on v14 fixtures: %v", err)
 	}
 	if boardCfg.Name != "main" {
 		t.Errorf("Board name = %q, want 'main'", boardCfg.Name)
@@ -1768,6 +1860,28 @@ func TestMigrateService_V13_ReadableByStores(t *testing.T) {
 	}
 	if !done.MoveInsertsAtTop() {
 		t.Error("Unset on_move_default_position should resolve to top")
+	}
+
+	// Column categories should be present, and a column may have none
+	if backlog.Category != model.CategoryOpen {
+		t.Errorf("Expected Backlog category 'open', got %q", backlog.Category)
+	}
+	if done.Category != model.CategoryDone {
+		t.Errorf("Expected Done category 'done', got %q", done.Category)
+	}
+	if review := boardCfg.GetColumn("Review"); review == nil || review.Category != "" {
+		t.Errorf("Expected uncategorized 'Review' column, got %+v", review)
+	}
+
+	// [ready] settings should be present
+	if !reflect.DeepEqual(boardCfg.Ready.Order, []string{"Next", "Backlog"}) {
+		t.Errorf("Expected ready.order [Next Backlog], got %v", boardCfg.Ready.Order)
+	}
+	if !reflect.DeepEqual(boardCfg.Ready.Exclude, []string{"labels=urgent"}) {
+		t.Errorf("Expected ready.exclude [labels=urgent], got %v", boardCfg.Ready.Exclude)
+	}
+	if warnings := model.ValidateReady(boardCfg.Ready, boardCfg.Columns); len(warnings) > 0 {
+		t.Errorf("v14 fixture [ready] should validate cleanly, got %v", warnings)
 	}
 
 	// Pattern hooks should be present
@@ -1959,9 +2073,9 @@ func TestMigrateService_CardV2ToV3_SeedsHistory(t *testing.T) {
 }
 
 func TestMigrateService_CardV3_NoOp(t *testing.T) {
-	// The v13 fixture card is already card/3 with history on a current-schema
+	// The v14 fixture card is already card/3 with history on a current-schema
 	// board, so nothing (card or board) should need migration.
-	service, _, cleanup := setupMigrationTest(t, "v13")
+	service, _, cleanup := setupMigrationTest(t, "v14")
 	defer cleanup()
 
 	plan, err := service.Plan()

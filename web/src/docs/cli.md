@@ -67,7 +67,7 @@ Deleting the last remaining board is not allowed. If the deleted board was set a
 
 **Describe a board:**
 
-Show full board documentation including columns, custom fields, card display settings, link rules, and pattern hooks.
+Show full board documentation including columns with their categories, `[ready]` settings, custom fields, card display settings, link rules, and pattern hooks.
 
 ```bash
 kan board describe
@@ -92,11 +92,13 @@ kan column add review --color "#9333ea" --position 2
 kan column add review --description "Cards under code review"
 kan column add review --limit 5
 kan column add review --on-move-default-position bottom
+kan column add review --category review
 ```
 
 | Flag                | Description                                       |
 |---------------------|---------------------------------------------------|
 | `-b, --board`       | Target board                                      |
+| `--category`        | Column category: `inbox`, `idea`, `open`, `active`, `review`, `done` or `dropped` |
 | `-C, --color`       | Hex color (default: auto from palette)            |
 | `-d, --description` | Description of the column's purpose               |
 | `-l, --limit`       | Max cards allowed in column (0 = no limit)        |
@@ -131,11 +133,14 @@ kan column edit review --description "Updated purpose"
 kan column edit review --limit 3
 kan column edit review --limit 0    # Clear limit
 kan column edit review --on-move-default-position bottom
+kan column edit review --category review
+kan column edit review --category ""   # Clear category
 ```
 
 | Flag                | Description                                       |
 |---------------------|---------------------------------------------------|
 | `-b, --board`       | Target board                                      |
+| `--category`        | Column category, or `""` to clear it              |
 | `-C, --color`       | New hex color                                     |
 | `-d, --description` | New description for the column                    |
 | `-l, --limit`       | Column limit (0 = clear, >0 = set max cards)      |
@@ -147,6 +152,9 @@ kan column edit review --on-move-default-position bottom
 kan column list
 kan column list -b features
 ```
+
+Each column shows its card count and, when set, its category. A board with `[ready]` settings
+lists them after the columns.
 
 | Flag          | Description  |
 |---------------|--------------|
@@ -627,7 +635,8 @@ kan board list --json
 
 # List columns as JSON
 kan column list --json
-# Output: {"columns": [{"name": "backlog", "color": "#...", "card_count": 5}, ...]}
+# Output: {"columns": [{"name": "backlog", "color": "#...", "category": "open", "card_count": 5}, ...]}
+# A board with [ready] settings also gets "ready": {"order": [...], "exclude": [...]}
 
 # Add a comment and get the result as JSON
 kan comment add fix-login "Found the issue" --json

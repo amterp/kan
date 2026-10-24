@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -1368,5 +1369,104 @@ func TestHandler_CreateCard_CommandNotFoundGetsPathHint(t *testing.T) {
 	}
 	if hint := resp.HookResults[0].Hint; !strings.Contains(hint, "PATH") {
 		t.Errorf("Expected a PATH hint for a not-found command, got %q", hint)
+	}
+}
+
+func TestHandler_ColumnCategory(t *testing.T) {
+	api := setupTestAPI(t)
+	api.createBoard(t, "main")
+
+	w := api.request("POST", "/api/v1/boards/main/columns",
+		map[string]any{"name": "review", "category": "review"})
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create failed: %d %s", w.Code, w.Body.String())
+	}
+	var created model.Column
+	decodeJSON(t, w, &created)
+	if created.Category != model.CategoryReview {
+		t.Errorf("created column category = %q, want review", created.Category)
+	}
+
+	w = api.request("PATCH", "/api/v1/boards/main/columns/backlog", map[string]any{"category": "open"})
+	if w.Code != http.StatusOK {
+		t.Fatalf("set failed: %d %s", w.Code, w.Body.String())
+	}
+	var updated model.Column
+	decodeJSON(t, w, &updated)
+	if updated.Category != model.CategoryOpen {
+		t.Errorf("updated column category = %q, want open", updated.Category)
+	}
+
+	w = api.request("PATCH", "/api/v1/boards/main/columns/backlog", map[string]any{"category": ""})
+	if w.Code != http.StatusOK {
+		t.Fatalf("clear failed: %d %s", w.Code, w.Body.String())
+	}
+	cfg, err := api.boardStore.Get("main")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if got := cfg.GetColumn("backlog").Category; got != "" {
+		t.Errorf("cleared category = %q, want none", got)
+	}
+}
+
+func TestHandler_ColumnCategory_InvalidChangesNothing(t *testing.T) {
+	api := setupTestAPI(t)
+	api.createBoard(t, "main")
+
+	w := api.request("POST", "/api/v1/boards/main/columns",
+		map[string]any{"name": "p0", "category": "urgent"})
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("create with bad category: got %d, want 400", w.Code)
+	}
+
+	w = api.request("PATCH", "/api/v1/boards/main/columns/backlog",
+		map[string]any{"color": "#000000", "category": "urgent"})
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("update with bad category: got %d, want 400", w.Code)
+	}
+
+	cfg, err := api.boardStore.Get("main")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if cfg.HasColumn("p0") {
+		t.Error("a column was created despite the bad category")
+	}
+	if got := cfg.GetColumn("backlog").Color; got != "#6b7280" {
+		t.Errorf("color changed to %q despite the bad category", got)
+	}
+}
+
+func TestHandler_GetBoard_ReadyFollowsRename(t *testing.T) {
+	api := setupTestAPI(t)
+	api.createBoard(t, "main")
+
+	cfg, err := api.boardStore.Get("main")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	cfg.GetColumn("backlog").Category = model.CategoryOpen
+	cfg.Ready = model.ReadyConfig{Order: []string{"backlog"}, Exclude: []string{"labels=blocked"}}
+	if err := api.boardStore.Update(cfg); err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+
+	w := api.request("PATCH", "/api/v1/boards/main/columns/backlog", map[string]any{"name": "todo"})
+	if w.Code != http.StatusOK {
+		t.Fatalf("rename failed: %d %s", w.Code, w.Body.String())
+	}
+
+	w = api.request("GET", "/api/v1/boards/main", nil)
+	var board model.BoardConfig
+	decodeJSON(t, w, &board)
+	if col := board.GetColumn("todo"); col == nil || col.Category != model.CategoryOpen {
+		t.Errorf("renamed column = %+v, want category open", col)
+	}
+	if !reflect.DeepEqual(board.Ready.Order, []string{"todo"}) {
+		t.Errorf("ready order = %v, want [todo]", board.Ready.Order)
+	}
+	if !reflect.DeepEqual(board.Ready.Exclude, []string{"labels=blocked"}) {
+		t.Errorf("ready exclude = %v, want [labels=blocked]", board.Ready.Exclude)
 	}
 }

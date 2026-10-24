@@ -117,6 +117,17 @@ func completeCards(toComplete string) ([]string, ra.CompletionDirective) {
 	return result, ra.CompletionDirectiveNoFileComp
 }
 
+// completeCategories returns column categories matching the given prefix.
+func completeCategories(toComplete string) ([]string, ra.CompletionDirective) {
+	var result []string
+	for _, c := range model.ValidCategories {
+		if strings.HasPrefix(c, toComplete) {
+			result = append(result, c)
+		}
+	}
+	return result, ra.CompletionDirectiveNoFileComp
+}
+
 // completeColumns returns column names matching the given prefix.
 func completeColumns(toComplete string) ([]string, ra.CompletionDirective) {
 	initCompletionCtx()
