@@ -124,3 +124,77 @@ func TestBoardService_DeleteColumn_DropsReadyOrderEntry(t *testing.T) {
 		t.Errorf("ready order = %v, want [backlog]", got)
 	}
 }
+
+// setupCustomColumnsBoard returns a BoardService over real file stores with
+// one board, "main", whose columns are given by name; done is pre-categorized.
+func setupCustomColumnsBoard(t *testing.T, names ...string) (*BoardService, *store.FileBoardStore) {
+	t.Helper()
+	paths := config.NewPaths(t.TempDir(), "")
+	boardStore := store.NewBoardStore(paths)
+	cfg := &model.BoardConfig{ID: "b_test", Name: "main", DefaultColumn: names[0]}
+	for _, name := range names {
+		col := model.Column{Name: name, Color: "#6b7280"}
+		if name == "done" {
+			col.Category = model.CategoryDropped
+		}
+		cfg.Columns = append(cfg.Columns, col)
+	}
+	if err := boardStore.Create(cfg); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	return NewBoardService(boardStore, store.NewCardStore(paths)), boardStore
+}
+
+func categoriesOf(cfg *model.BoardConfig) map[string]string {
+	got := map[string]string{}
+	for _, col := range cfg.Columns {
+		got[col.Name] = col.Category
+	}
+	return got
+}
+
+func TestBoardService_CategorizeColumns_SuggestsWithoutWriting(t *testing.T) {
+	svc, boardStore := setupCustomColumnsBoard(t, "inbox", "ideas", "backlog-hi", "doing", "p0", "wont-do", "done")
+
+	got, err := svc.CategorizeColumns("main", false)
+	if err != nil {
+		t.Fatalf("CategorizeColumns failed: %v", err)
+	}
+	want := []CategorySuggestion{
+		{Column: "inbox", Category: "inbox"},
+		{Column: "ideas", Category: "idea"},
+		{Column: "backlog-hi", Category: "open"},
+		{Column: "doing", Category: "active"},
+		{Column: "p0", Category: ""},
+		{Column: "wont-do", Category: "dropped"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("suggestions = %+v, want %+v", got, want)
+	}
+
+	for name, category := range categoriesOf(readBoard(t, boardStore)) {
+		if name != "done" && category != "" {
+			t.Errorf("column %q was written (%q) without apply", name, category)
+		}
+	}
+}
+
+func TestBoardService_CategorizeColumns_Apply(t *testing.T) {
+	svc, boardStore := setupCustomColumnsBoard(t, "backlog", "review", "p0", "done")
+
+	if _, err := svc.CategorizeColumns("main", true); err != nil {
+		t.Fatalf("CategorizeColumns failed: %v", err)
+	}
+	want := map[string]string{"backlog": "open", "review": "review", "p0": "", "done": "dropped"}
+	if got := categoriesOf(readBoard(t, boardStore)); !reflect.DeepEqual(got, want) {
+		t.Errorf("categories = %v, want %v (an existing category must survive)", got, want)
+	}
+
+	again, err := svc.CategorizeColumns("main", true)
+	if err != nil {
+		t.Fatalf("second CategorizeColumns failed: %v", err)
+	}
+	if !reflect.DeepEqual(again, []CategorySuggestion{{Column: "p0"}}) {
+		t.Errorf("second run = %+v, want only the unmatched column", again)
+	}
+}

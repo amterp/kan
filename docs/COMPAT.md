@@ -383,7 +383,7 @@ order = ["next", "backlog-hi", "backlog-lo"]
 exclude = ["labels=needs-decision"]
 ```
 
-Both are optional. A column without a category is invisible to `kan ready`, and a board with no categorized columns stays out of it entirely. New boards from `kan init` and `kan board create` set categories on the default columns: `backlog` and `next` are `open`, `in-progress` is `active`, `done` is `done`. `kan init --columns` sets none, because kan never infers a category from a column name.
+Both are optional. A column without a category is invisible to `kan ready`, and a board with no categorized columns stays out of it entirely. New boards from `kan init` and `kan board create` set categories on the default columns: `backlog` and `next` are `open`, `in-progress` is `active`, `done` is `done`. `kan init --columns` sets none, because kan never infers a category from a column name; `kan column categorize` suggests categories for an existing board and writes them only with `--apply`.
 
 `[ready]` ships in the same schema version as categories, although `kan ready` comes later and nothing reads `[ready]` until then, so that no second board bump is needed for it. Otherwise a kan that knew categories but not `[ready]` would accept the same schema and drop the table the next time it saved the board config.
 
@@ -391,7 +391,7 @@ Renaming a column renames its `[ready] order` entry, and deleting a column remov
 
 These produce non-fatal warnings when the board loads: an unknown category (the column reads as having none), and a `[ready] order` entry that names no column, repeats a column, or names a column that isn't open, and an `exclude` entry that isn't `key=value`. Kan ignores the offending entry.
 
-**Migration**: board/13 -> board/14 only updates the schema version. Existing columns stay without a category.
+**Migration**: board/13 -> board/14 only updates the schema version. Existing columns stay without a category; run `kan column categorize` to set them.
 
 ### Boolean Fields (board/9)
 

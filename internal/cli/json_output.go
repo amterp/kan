@@ -180,6 +180,20 @@ type ColumnInfo struct {
 	CardCount   int    `json:"card_count"`
 }
 
+// CategorizeOutput is the JSON output of kan column categorize.
+type CategorizeOutput struct {
+	Board       string                   `json:"board"`
+	Applied     bool                     `json:"applied"`
+	Suggestions []CategorySuggestionInfo `json:"suggestions"`
+}
+
+// CategorySuggestionInfo is one uncategorized column and the category
+// suggested for it; Category is empty when its name matches nothing.
+type CategorySuggestionInfo struct {
+	Column   string `json:"column"`
+	Category string `json:"category"`
+}
+
 // BoardsOutput wraps a list of board names for JSON output.
 type BoardsOutput struct {
 	Boards []string `json:"boards"`

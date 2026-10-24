@@ -219,6 +219,26 @@ func registerColumn(parent *ra.Cmd, ctx *CommandContext) {
 
 	ctx.ColumnMoveUsed, _ = cmd.RegisterCmd(moveCmd)
 
+	// column categorize
+	categorizeCmd := ra.NewCmd("categorize")
+	categorizeCmd.SetDescription("Suggest categories for uncategorized columns from their names")
+
+	ctx.ColumnCategorizeApply, _ = ra.NewBool("apply").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Write the suggested categories instead of only printing them").
+		Register(categorizeCmd)
+
+	ctx.ColumnCategorizeBoard, _ = ra.NewString("board").
+		SetShort("b").
+		SetOptional(true).
+		SetFlagOnly(true).
+		SetUsage("Target board").
+		SetCompletionFunc(completeBoards).
+		Register(categorizeCmd)
+
+	ctx.ColumnCategorizeUsed, _ = cmd.RegisterCmd(categorizeCmd)
+
 	ctx.ColumnUsed, _ = parent.RegisterCmd(cmd)
 }
 
@@ -470,6 +490,79 @@ func printReadySettings(ready model.ReadyConfig, indent string) {
 	}
 	if len(ready.Exclude) > 0 {
 		fmt.Printf("%sReady exclude: %s\n", indent, strings.Join(ready.Exclude, ", "))
+	}
+}
+
+func runColumnCategorize(board string, apply, nonInteractive, jsonOutput bool) {
+	app, err := NewApp(!nonInteractive)
+	if err != nil {
+		Fatal(err)
+	}
+
+	if err := app.RequireKan(); err != nil {
+		Fatal(err)
+	}
+
+	boardName, err := app.BoardResolver.Resolve(board, !nonInteractive)
+	if err != nil {
+		Fatal(err)
+	}
+
+	suggestions, err := app.BoardService.CategorizeColumns(boardName, apply)
+	if err != nil {
+		Fatal(err)
+	}
+
+	if jsonOutput {
+		out := CategorizeOutput{Board: boardName, Applied: apply, Suggestions: []CategorySuggestionInfo{}}
+		for _, s := range suggestions {
+			out.Suggestions = append(out.Suggestions, CategorySuggestionInfo{Column: s.Column, Category: s.Category})
+		}
+		if err := printJson(out); err != nil {
+			Fatal(err)
+		}
+		return
+	}
+
+	if len(suggestions) == 0 {
+		PrintInfo("All columns on board %q have categories", boardName)
+		return
+	}
+
+	matched := 0
+	for _, s := range suggestions {
+		if s.Category != "" {
+			matched++
+		}
+	}
+
+	if apply {
+		columnWord := "columns"
+		if matched == 1 {
+			columnWord = "column"
+		}
+		PrintSuccess("Set categories on %d %s of board %q", matched, columnWord, boardName)
+	} else {
+		fmt.Printf("Suggested categories for board %q:\n", boardName)
+	}
+	for _, s := range suggestions {
+		category := s.Category
+		if category == "" {
+			category = RenderMuted("no suggestion")
+		}
+		fmt.Printf("  %-15s %s\n", s.Column, category)
+	}
+	if !apply && matched > 0 {
+		fmt.Println()
+		boardFlag := ""
+		if board != "" {
+			boardFlag = " -b " + boardName
+		}
+		fmt.Printf("Run \"kan column categorize%s --apply\" to set them.\n", boardFlag)
+	}
+	if matched < len(suggestions) {
+		fmt.Println()
+		fmt.Println(`Set the rest with "kan column edit <column> --category <category>".`)
 	}
 }
 

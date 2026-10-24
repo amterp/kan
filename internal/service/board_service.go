@@ -380,3 +380,63 @@ func (s *BoardService) GetColumnCardCount(boardName, columnName string) (int, er
 	}
 	return count, nil
 }
+
+// categorySuggestions maps the column names each category usually fits to that
+// category. These are suggestions the user applies explicitly; kan never
+// infers a category from a column name on its own.
+var categorySuggestions = map[string]string{
+	"inbox":       model.CategoryInbox,
+	"uncommitted": model.CategoryIdea,
+	"undecided":   model.CategoryIdea,
+	"ideas":       model.CategoryIdea,
+	"backlog":     model.CategoryOpen,
+	"backlog-lo":  model.CategoryOpen,
+	"backlog-hi":  model.CategoryOpen,
+	"todo":        model.CategoryOpen,
+	"next":        model.CategoryOpen,
+	"today":       model.CategoryOpen,
+	"in-progress": model.CategoryActive,
+	"doing":       model.CategoryActive,
+	"review":      model.CategoryReview,
+	"done":        model.CategoryDone,
+	"wont-do":     model.CategoryDropped,
+}
+
+// CategorySuggestion is the category suggested for one uncategorized column.
+// Category is empty when the column's name matches nothing.
+type CategorySuggestion struct {
+	Column   string
+	Category string
+}
+
+// CategorizeColumns suggests a category for each column that has none, from
+// its name. With apply, it writes every suggestion in one board update.
+// Columns that already have a category are left alone and not returned.
+func (s *BoardService) CategorizeColumns(boardName string, apply bool) ([]CategorySuggestion, error) {
+	cfg, err := s.boardStore.Get(boardName)
+	if err != nil {
+		return nil, err
+	}
+
+	var suggestions []CategorySuggestion
+	changed := false
+	for i := range cfg.Columns {
+		col := &cfg.Columns[i]
+		if col.Category != "" {
+			continue
+		}
+		category := categorySuggestions[col.Name]
+		suggestions = append(suggestions, CategorySuggestion{Column: col.Name, Category: category})
+		if apply && category != "" {
+			col.Category = category
+			changed = true
+		}
+	}
+
+	if changed {
+		if err := s.boardStore.Update(cfg); err != nil {
+			return nil, err
+		}
+	}
+	return suggestions, nil
+}

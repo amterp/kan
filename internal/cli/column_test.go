@@ -74,3 +74,21 @@ func TestColumnsOutput_Ready(t *testing.T) {
 		t.Errorf("expected ready order in output: %s", data)
 	}
 }
+
+func TestColumnCategorize_Parse(t *testing.T) {
+	ctx := buildRootCmd()
+	if err := ctx.RootCmd.ParseOrError([]string{"column", "categorize", "--apply", "-b", "main"}); err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if !*ctx.ColumnCategorizeUsed || !*ctx.ColumnCategorizeApply || *ctx.ColumnCategorizeBoard != "main" {
+		t.Errorf("used=%v apply=%v board=%q", *ctx.ColumnCategorizeUsed, *ctx.ColumnCategorizeApply, *ctx.ColumnCategorizeBoard)
+	}
+
+	ctx = buildRootCmd()
+	if err := ctx.RootCmd.ParseOrError([]string{"column", "categorize"}); err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if *ctx.ColumnCategorizeApply {
+		t.Error("--apply must default to false so the command only prints")
+	}
+}

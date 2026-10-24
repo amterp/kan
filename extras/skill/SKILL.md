@@ -91,7 +91,7 @@ Ask the user what columns they want. Offer these templates as inspiration - they
 
 `top` is the default when unset. The values in the templates above follow this rule and are good starting points. This does not affect `kan add`, which always appends, and an explicit placement flag always overrides it. Dragging is unaffected too - a drag always names a slot.
 
-**Column Categories**: give every column a category, one of `inbox`, `idea`, `open`, `active`, `review`, `done`, `dropped`. Commands that read across columns or boards, such as `kan ready`, go by category and never by column name; a column without one is invisible to them. Kan never infers a category from a name, so set them explicitly (the templates above show the usual choice). `open` means accepted and not started, and order within and across open columns is priority.
+**Column Categories**: give every column a category, one of `inbox`, `idea`, `open`, `active`, `review`, `done`, `dropped`. Commands that read across columns or boards, such as `kan ready`, go by category and never by column name; a column without one is invisible to them. Kan never infers a category from a name, so set them explicitly (the templates above show the usual choice). `open` means accepted and not started, and order within and across open columns is priority. For an existing board without categories, run `kan column categorize` to see suggestions from column names, check them, then `kan column categorize --apply` and set any column it couldn't match with `kan column edit <column> --category <category>`.
 
 The first column in the list becomes the default column for new cards.
 
@@ -500,6 +500,8 @@ kan column edit review --on-move-default-position bottom  # Moved-in cards to th
 kan column edit review --on-move-default-position top     # ...to the front (default)
 kan column edit review --category review # Set category
 kan column edit review --category ""     # Clear category
+kan column categorize                    # Suggest categories from column names
+kan column categorize --apply            # Write the suggestions
 kan column list                          # List columns
 kan column move review --position 1      # Reorder column
 kan column move review --after backlog   # Insert after another

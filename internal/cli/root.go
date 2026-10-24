@@ -160,6 +160,11 @@ type CommandContext struct {
 	ColumnListUsed  *bool
 	ColumnListBoard *string
 
+	// column categorize
+	ColumnCategorizeUsed  *bool
+	ColumnCategorizeApply *bool
+	ColumnCategorizeBoard *string
+
 	// column move
 	ColumnMoveUsed     *bool
 	ColumnMoveName     *string
@@ -389,6 +394,8 @@ func executeCommand(ctx *CommandContext) {
 	case *ctx.ColumnListUsed:
 		runColumnList(*ctx.ColumnListBoard, *ctx.NonInteractive, *ctx.Json)
 
+	case *ctx.ColumnCategorizeUsed:
+		runColumnCategorize(*ctx.ColumnCategorizeBoard, *ctx.ColumnCategorizeApply, *ctx.NonInteractive, *ctx.Json)
 	case *ctx.ColumnMoveUsed:
 		runColumnMove(*ctx.ColumnMoveName, *ctx.ColumnMoveBoard, *ctx.ColumnMovePosition, *ctx.ColumnMoveAfter, *ctx.NonInteractive)
 

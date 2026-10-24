@@ -160,6 +160,23 @@ lists them after the columns.
 |---------------|--------------|
 | `-b, --board` | Target board |
 
+**Categorize columns:**
+
+Suggest a category for each column that has none, from its name, using the "Column names it
+usually fits" list in [Configuration](/docs/configuration#columns). Names must match exactly;
+columns that already have a category are left alone. Nothing is written without `--apply`.
+
+```bash
+kan column categorize           # Print suggestions
+kan column categorize --apply   # Write them
+kan column categorize --json    # {"board": "main", "applied": false, "suggestions": [{"column": "backlog", "category": "open"}, ...]}
+```
+
+| Flag          | Description                                         |
+|---------------|-----------------------------------------------------|
+| `-b, --board` | Target board                                        |
+| `--apply`     | Write the suggested categories instead of printing them |
+
 **Move/reorder a column:**
 
 ```bash

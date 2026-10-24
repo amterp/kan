@@ -137,7 +137,7 @@ category = "active"
 | `done` | Finished. | done |
 | `dropped` | Closed without being done. | wont-do |
 
-Kan never infers a category from a column name: `kan init --columns` sets none. An unknown category is a warning, and the column reads as having none.
+Kan never infers a category from a column name: `kan init --columns` sets none. For an existing board, `kan column categorize` suggests categories from the last column of this table and `kan column categorize --apply` writes them. An unknown category is a warning, and the column reads as having none.
 
 **Column Limits**: When a column has a `limit`, adding or moving cards into it is refused once the limit is reached. Column headers show the count as `(X/Y)` when a limit is set. This is a core kanban practice for controlling flow.
 
@@ -346,6 +346,10 @@ kan column edit review --limit 0    # Clear limit
 kan column edit review --on-move-default-position bottom
 kan column edit review --category review
 kan column edit review --category ""   # Clear category
+
+# Suggest categories from column names, then write them
+kan column categorize
+kan column categorize --apply
 
 # Reorder columns
 kan column move review --position 1
