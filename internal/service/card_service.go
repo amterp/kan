@@ -1,7 +1,9 @@
 package service
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"sort"
 	"strings"
 
@@ -15,18 +17,20 @@ import (
 
 // CardService handles card operations.
 type CardService struct {
-	cardStore    store.CardStore
-	boardStore   store.BoardStore
-	aliasService *AliasService
-	hookService  *HookService
+	cardStore      store.CardStore
+	boardStore     store.BoardStore
+	aliasService   *AliasService
+	hookService    *HookService
+	generateCardID func() string
 }
 
 // NewCardService creates a new card service.
 func NewCardService(cardStore store.CardStore, boardStore store.BoardStore, aliasService *AliasService) *CardService {
 	return &CardService{
-		cardStore:    cardStore,
-		boardStore:   boardStore,
-		aliasService: aliasService,
+		cardStore:      cardStore,
+		boardStore:     boardStore,
+		aliasService:   aliasService,
+		generateCardID: func() string { return id.Generate(id.Card) },
 	}
 }
 
@@ -117,7 +121,7 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 	}
 
 	// Generate ID and alias
-	cardID := id.Generate(id.Card)
+	cardID := s.generateCardID()
 	alias, err := s.aliasService.GenerateAlias(input.BoardName, input.Title, "")
 	if err != nil {
 		return nil, nil, err
@@ -148,8 +152,20 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 		}
 	}
 
-	if err := s.cardStore.Create(input.BoardName, card); err != nil {
-		return nil, nil, err
+	const maxAttempts = 5
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		err := s.cardStore.Create(input.BoardName, card)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, fs.ErrExist) {
+			return nil, nil, err
+		}
+		if attempt == maxAttempts-1 {
+			return nil, nil, fmt.Errorf("failed to create card after %d ID collisions: %w", maxAttempts, err)
+		}
+		cardID = s.generateCardID()
+		card.ID = cardID
 	}
 
 	// Execute pattern hooks if configured

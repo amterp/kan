@@ -43,7 +43,7 @@ func (s *FileCardStore) Create(boardName string, card *model.Card) error {
 		return fmt.Errorf("failed to create cards directory: %w", err)
 	}
 
-	return s.writeCard(path, card)
+	return s.writeCard(path, card, os.O_WRONLY|os.O_CREATE|os.O_EXCL)
 }
 
 // Get reads a card from disk by ID.
@@ -65,7 +65,7 @@ func (s *FileCardStore) Update(boardName string, card *model.Card) error {
 	if err := s.checkWritable(path); err != nil {
 		return err
 	}
-	if err := s.writeCard(path, card); err != nil {
+	if err := s.writeCard(path, card, os.O_WRONLY|os.O_CREATE|os.O_TRUNC); err != nil {
 		return fmt.Errorf("failed to update card %s: %w", card.ID, err)
 	}
 	return nil
@@ -159,7 +159,7 @@ func (s *FileCardStore) readCard(path string) (*model.Card, error) {
 	return &card, nil
 }
 
-func (s *FileCardStore) writeCard(path string, card *model.Card) error {
+func (s *FileCardStore) writeCard(path string, card *model.Card, flags int) error {
 	// Stamp current schema version
 	card.Version = version.CurrentCardVersion
 
@@ -170,8 +170,16 @@ func (s *FileCardStore) writeCard(path string, card *model.Card) error {
 		return fmt.Errorf("failed to marshal card: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	file, err := os.OpenFile(path, flags, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open card file: %w", err)
+	}
+	if _, err := file.Write(data); err != nil {
+		_ = file.Close()
 		return fmt.Errorf("failed to write card file: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("failed to close card file: %w", err)
 	}
 	return nil
 }

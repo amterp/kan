@@ -1,6 +1,9 @@
 package store
 
 import (
+	"bytes"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -82,6 +85,30 @@ func TestFileCardStore_GetNotFound(t *testing.T) {
 
 	if !kanerr.IsNotFound(err) {
 		t.Errorf("Expected NotFound error, got: %v", err)
+	}
+}
+
+func TestFileCardStore_CreatePreservesExistingFile(t *testing.T) {
+	for _, original := range []string{`{"unreadable":true}`, "", "invalid json"} {
+		t.Run(original, func(t *testing.T) {
+			store, _, cleanup := setupTestCardStore(t)
+			defer cleanup()
+			path := store.paths.CardPath("main", "existing")
+			if err := os.WriteFile(path, []byte(original), 0644); err != nil {
+				t.Fatal(err)
+			}
+			err := store.Create("main", &model.Card{ID: "existing", Title: "Replacement"})
+			if !errors.Is(err, fs.ErrExist) {
+				t.Fatalf("expected an existence error, got %v", err)
+			}
+			after, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(after, []byte(original)) {
+				t.Fatalf("existing bytes changed: got %q, want %q", after, original)
+			}
+		})
 	}
 }
 
