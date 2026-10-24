@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -2137,4 +2139,57 @@ func TestSeedCardHistory(t *testing.T) {
 			t.Error("should not add history without a column")
 		}
 	})
+}
+
+// A migration interrupted after some writes must leave the board marked
+// unmigrated, so the next run redoes it and ends where an uninterrupted run
+// would. The board config's schema stamp is the commit point; board/9 ->
+// board/10 moves each card's column out of the config's card_ids, which a
+// config written first would lose.
+func TestMigrateService_InterruptedBoardMigrationIsRedone(t *testing.T) {
+	clean, cleanDir, cleanup := setupMigrationTest(t, "v9")
+	defer cleanup()
+	plan, err := clean.Plan()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := clean.Execute(plan, false); err != nil {
+		t.Fatal(err)
+	}
+
+	svc, dir, cleanup2 := setupMigrationTest(t, "v9")
+	defer cleanup2()
+	plan, err = svc.Plan()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The process dies just after its first write lands.
+	crashAfterFirstWrite := func(path string, data []byte) error {
+		if err := writeToDisk(path, data); err != nil {
+			return err
+		}
+		return errors.New("simulated crash")
+	}
+	if err := svc.migrateBoard(&plan.Boards[0], crashAfterFirstWrite); err == nil {
+		t.Fatal("the simulated crash should fail the migration")
+	}
+
+	rerun, err := svc.Plan()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !rerun.Boards[0].NeedsMigration {
+		t.Fatal("an interrupted board must still need migration")
+	}
+	if err := svc.Execute(rerun, false); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, rel := range []string{".kan/boards/main/config.toml", ".kan/boards/main/cards/card-abc.json"} {
+		want, _ := os.ReadFile(filepath.Join(cleanDir, rel))
+		got, _ := os.ReadFile(filepath.Join(dir, rel))
+		if !bytes.Equal(want, got) {
+			t.Errorf("%s after an interrupted run and a rerun differs from a clean run:\n%s\nwant:\n%s", rel, got, want)
+		}
+	}
 }

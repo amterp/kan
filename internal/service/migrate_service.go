@@ -763,16 +763,9 @@ func (s *MigrateService) migrateBoard(plan *BoardMigration, write writeFunc) err
 		}
 	}
 
-	if plan.NeedsMigration || configChanged {
-		data, err := encodeTOMLMap(b.config)
-		if err != nil {
-			return fmt.Errorf("failed to encode board %q config: %w", plan.BoardName, err)
-		}
-		if err := write(b.configPath, data); err != nil {
-			return fmt.Errorf("failed to write board %q config: %w", plan.BoardName, err)
-		}
-	}
-
+	// Cards first, board config last: the config's schema stamp is what
+	// marks the board migrated, so an interrupted run leaves the old stamp
+	// and the old card_ids, and the next run redoes the migration.
 	for _, c := range b.cards {
 		if !c.changed {
 			continue
@@ -783,6 +776,16 @@ func (s *MigrateService) migrateBoard(plan *BoardMigration, write writeFunc) err
 		}
 		if err := write(c.path, data); err != nil {
 			return fmt.Errorf("failed to write card %s: %w", filepath.Base(c.path), err)
+		}
+	}
+
+	if plan.NeedsMigration || configChanged {
+		data, err := encodeTOMLMap(b.config)
+		if err != nil {
+			return fmt.Errorf("failed to encode board %q config: %w", plan.BoardName, err)
+		}
+		if err := write(b.configPath, data); err != nil {
+			return fmt.Errorf("failed to write board %q config: %w", plan.BoardName, err)
 		}
 	}
 
