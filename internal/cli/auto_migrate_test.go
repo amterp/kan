@@ -179,3 +179,50 @@ func TestAutoMigrateProject_MissingSchema_Migrates(t *testing.T) {
 		t.Errorf("Expected schema %q after migration, got %q", version.CurrentBoardSchema(), schema)
 	}
 }
+
+func writeProjectConfig(t *testing.T, paths *config.Paths, contents string) {
+	t.Helper()
+	if err := os.WriteFile(paths.ProjectConfigPath(), []byte(contents), 0644); err != nil {
+		t.Fatalf("write project config: %v", err)
+	}
+}
+
+func TestAutoMigrateProject_OldProjectConfig_Migrates(t *testing.T) {
+	paths, cleanup := setupAutoMigrateProject(t, version.CurrentBoardSchema(), version.CurrentCardVersion)
+	defer cleanup()
+	writeProjectConfig(t, paths, "kan_schema = \"project/1\"\nid = \"p_1\"\nname = \"old\"\n")
+
+	if err := autoMigrateProject(paths); err != nil {
+		t.Fatalf("autoMigrateProject: %v", err)
+	}
+
+	data, err := os.ReadFile(paths.ProjectConfigPath())
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	var raw map[string]any
+	if _, err := toml.Decode(string(data), &raw); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if raw["kan_schema"] != version.CurrentProjectSchema() {
+		t.Errorf("kan_schema = %v, want %s", raw["kan_schema"], version.CurrentProjectSchema())
+	}
+}
+
+func TestAutoMigrateProject_FutureProjectConfig_ReturnsError(t *testing.T) {
+	paths, cleanup := setupAutoMigrateProject(t, version.CurrentBoardSchema(), version.CurrentCardVersion)
+	defer cleanup()
+	future := "kan_schema = \"project/999\"\nid = \"p_1\"\n"
+	writeProjectConfig(t, paths, future)
+
+	err := autoMigrateProject(paths)
+	var schemaErr *version.SchemaVersionError
+	if !errors.As(err, &schemaErr) {
+		t.Fatalf("autoMigrateProject = %v, want SchemaVersionError", err)
+	}
+
+	data, _ := os.ReadFile(paths.ProjectConfigPath())
+	if string(data) != future {
+		t.Errorf("future project config was rewritten:\n%s", data)
+	}
+}

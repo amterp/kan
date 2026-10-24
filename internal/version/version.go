@@ -139,6 +139,16 @@ func IsFutureGlobalSchema(schema string) bool {
 	return v > CurrentGlobalVersion
 }
 
+// IsFutureProjectSchema returns true if schema represents a project version
+// newer than this binary supports.
+func IsFutureProjectSchema(schema string) bool {
+	v, err := ParseProjectVersion(schema)
+	if err != nil {
+		return false
+	}
+	return v > CurrentProjectVersion
+}
+
 // IsFutureCardVersion returns true if v is newer than this binary supports.
 func IsFutureCardVersion(v int) bool {
 	return v > CurrentCardVersion

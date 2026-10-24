@@ -1,0 +1,11 @@
+kan_schema = "project/999"
+id = "p_future"
+name = "Future Project"
+
+[favicon]
+background = "#3b82f6"
+icon_type = "letter"
+letter = "F"
+
+[linked_boards]
+api = "b_2hH3HWg0E"

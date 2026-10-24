@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -334,50 +335,78 @@ func TestFileProjectStore_EnsureInitialized_Idempotent(t *testing.T) {
 	}
 }
 
-func TestFileProjectStore_EnsureInitialized_UpgradesOutdatedSchema(t *testing.T) {
+func TestFileProjectStore_EnsureInitialized_LeavesOlderSchemaToMigration(t *testing.T) {
 	store, dir, cleanup := setupTestProjectStore(t)
 	defer cleanup()
 
-	// Create a config with old schema but valid ID (simulates upgrading Kan)
 	configPath := filepath.Join(dir, ".kan", "config.toml")
 	oldConfig := `kan_schema = "project/1"
 id = "p_existing456"
 name = "old-schema-project"
-
-[favicon]
-background = "#ef4444"
-icon_type = "letter"
-letter = "O"
 `
 	if err := os.WriteFile(configPath, []byte(oldConfig), 0644); err != nil {
 		t.Fatalf("Failed to write old config: %v", err)
 	}
 
-	// EnsureInitialized should upgrade the schema
 	if err := store.EnsureInitialized("default-name"); err != nil {
 		t.Fatalf("EnsureInitialized failed: %v", err)
 	}
 
-	// Load and verify schema was upgraded
-	cfg, err := store.Load()
+	data, err := os.ReadFile(configPath)
 	if err != nil {
-		t.Fatalf("Load failed: %v", err)
+		t.Fatalf("read: %v", err)
+	}
+	if string(data) != oldConfig {
+		t.Errorf("EnsureInitialized rewrote an older config; migration owns that. Got:\n%s", data)
+	}
+}
+
+const futureProjectConfig = `kan_schema = "project/999"
+id = "p_future"
+name = "future"
+
+[linked_boards]
+api = "b_2hH3HWg0E"
+`
+
+func writeFutureProjectConfig(t *testing.T, dir string) string {
+	t.Helper()
+	path := filepath.Join(dir, ".kan", "config.toml")
+	if err := os.WriteFile(path, []byte(futureProjectConfig), 0644); err != nil {
+		t.Fatalf("write future config: %v", err)
+	}
+	return path
+}
+
+func assertFileContent(t *testing.T, path, want string) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	if string(data) != want {
+		t.Errorf("%s changed:\n%s", path, data)
+	}
+}
+
+func TestFileProjectStore_FutureSchema_RefusedEverywhere(t *testing.T) {
+	store, dir, cleanup := setupTestProjectStore(t)
+	defer cleanup()
+	path := writeFutureProjectConfig(t, dir)
+
+	var schemaErr *version.SchemaVersionError
+
+	if _, err := store.Load(); !errors.As(err, &schemaErr) {
+		t.Errorf("Load = %v, want SchemaVersionError", err)
+	}
+	if err := store.EnsureInitialized("x"); !errors.As(err, &schemaErr) {
+		t.Errorf("EnsureInitialized = %v, want SchemaVersionError", err)
+	}
+	if err := store.Save(&model.ProjectConfig{ID: "p_other", Name: "other"}); !errors.As(err, &schemaErr) {
+		t.Errorf("Save = %v, want SchemaVersionError", err)
 	}
 
-	if cfg.KanSchema != version.CurrentProjectSchema() {
-		t.Errorf("KanSchema = %q, want %q (should be upgraded)", cfg.KanSchema, version.CurrentProjectSchema())
-	}
-
-	// Should preserve existing data
-	if cfg.ID != "p_existing456" {
-		t.Errorf("ID = %q, want 'p_existing456' (should preserve)", cfg.ID)
-	}
-	if cfg.Name != "old-schema-project" {
-		t.Errorf("Name = %q, want 'old-schema-project' (should preserve)", cfg.Name)
-	}
-	if cfg.Favicon.Background != "#ef4444" {
-		t.Errorf("Favicon.Background = %q, want '#ef4444' (should preserve)", cfg.Favicon.Background)
-	}
+	assertFileContent(t, path, futureProjectConfig)
 }
 
 func TestColorFromID_Deterministic(t *testing.T) {

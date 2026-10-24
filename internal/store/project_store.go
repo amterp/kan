@@ -54,12 +54,16 @@ func (s *FileProjectStore) Load() (*model.ProjectConfig, error) {
 	return &cfg, nil
 }
 
-// Save writes the project config to disk.
+// Save writes the project config to disk. It refuses to overwrite a config
+// written by a newer kan, which would drop the fields this one doesn't know.
 func (s *FileProjectStore) Save(cfg *model.ProjectConfig) error {
+	path := s.paths.ProjectConfigPath()
+	if err := refuseFutureProjectConfig(path); err != nil {
+		return err
+	}
+
 	// Stamp current schema version
 	cfg.KanSchema = version.CurrentProjectSchema()
-
-	path := s.paths.ProjectConfigPath()
 
 	f, err := os.Create(path)
 	if err != nil {
@@ -81,6 +85,8 @@ func (s *FileProjectStore) Exists() bool {
 // If the config file doesn't exist, creates one with the given name.
 // If the config exists but has no ID, generates one and saves.
 // This provides a graceful upgrade path for projects created before project configs existed.
+// An older schema is left to the migration, which callers run first; a newer
+// one is refused without writing.
 func (s *FileProjectStore) EnsureInitialized(defaultName string) error {
 	path := s.paths.ProjectConfigPath()
 
@@ -105,6 +111,10 @@ func (s *FileProjectStore) EnsureInitialized(defaultName string) error {
 		return fmt.Errorf("invalid project config: %w", err)
 	}
 
+	if version.IsFutureProjectSchema(cfg.KanSchema) {
+		return version.InvalidProjectSchema(path, cfg.KanSchema)
+	}
+
 	needsSave := false
 
 	// Check if we need to generate an ID
@@ -125,16 +135,29 @@ func (s *FileProjectStore) EnsureInitialized(defaultName string) error {
 		needsSave = true
 	}
 
-	// Auto-upgrade outdated project schema. Save() stamps the current
-	// version, so this handles forward migration for additive changes
-	// (e.g., new optional fields) without requiring `kan migrate`.
-	if cfg.KanSchema != version.CurrentProjectSchema() {
-		needsSave = true
-	}
-
 	if needsSave {
 		return s.Save(&cfg)
 	}
 
+	return nil
+}
+
+// refuseFutureProjectConfig returns a SchemaVersionError if the config at
+// path declares a schema newer than this kan. A missing or unreadable file
+// is not refused here; writing it reports its own error.
+func refuseFutureProjectConfig(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var header struct {
+		KanSchema string `toml:"kan_schema"`
+	}
+	if _, err := toml.Decode(string(data), &header); err != nil {
+		return nil
+	}
+	if version.IsFutureProjectSchema(header.KanSchema) {
+		return version.InvalidProjectSchema(path, header.KanSchema)
+	}
 	return nil
 }

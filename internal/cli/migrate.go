@@ -247,7 +247,7 @@ func migrateGlobalOnce(dryRun bool) {
 }
 
 // migrateProject plans and optionally executes migration for a
-// single project's boards. Returns the outcome for summary tracking.
+// single project's config, boards and cards. Returns the outcome for summary tracking.
 func migrateProject(proj projectEntry, dryRun bool, nonInteractive bool, prompter prompt.Prompter) migrateOutcome {
 	header := fmt.Sprintf("Project: %s (%s)", RenderBold(proj.name), proj.path)
 
@@ -260,7 +260,7 @@ func migrateProject(proj projectEntry, dryRun bool, nonInteractive bool, prompte
 	paths := config.NewPaths(proj.path, proj.dataLocation)
 	svc := service.NewMigrateService(paths)
 
-	plan, err := svc.PlanBoardsOnly()
+	plan, err := svc.PlanProject()
 	if err != nil {
 		PrintWarning("Skipping %q - failed to plan: %v", proj.name, err)
 		return outcomeFailed
@@ -324,6 +324,13 @@ func boardMigrationNotes(fromVersion, toVersion int) []string {
 // printBoardSummary prints a concise summary of board migrations
 // in a plan.
 func printBoardSummary(plan *service.MigrationPlan) {
+	if p := plan.Project; p != nil && p.NeedsMigration {
+		from := p.FromSchema
+		if from == "" {
+			from = "(missing)"
+		}
+		fmt.Printf("  Project config: %s -> %s\n", from, p.ToSchema)
+	}
 	for _, board := range plan.Boards {
 		cardsToMigrate := 0
 		for _, card := range board.Cards {

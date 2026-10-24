@@ -149,7 +149,9 @@ name = "my-project"
 worktree_independent = true
 ```
 
-**Migration**: project/1 -> project/2 is handled automatically by `EnsureInitialized` (runs on every CLI command). The field is optional with `omitempty` - existing projects without it default to `false` (use main worktree's board). No manual `kan migrate` step needed.
+**Migration**: project/1 -> project/2 is a schema-only step. The field is optional with `omitempty` - existing projects without it default to `false` (use main worktree's board). Like boards and cards, the project config is part of `kan migrate`'s plan and of the automatic migration before write commands. The step edits the decoded TOML rather than a struct, so fields this kan doesn't know survive it.
+
+**Newer project config**: Kan refuses to load or save a project config whose schema is newer than its own, and the migration refuses to touch it, exactly as for boards and cards. Before this protection, kan rewrote any project config whose schema differed from its own, so an older kan would have stamped a newer config with its own version and dropped every field it didn't know. The protection has to ship before any project schema bump, so that kans in use already have it when the bump lands.
 
 ### Why Independent Versions?
 

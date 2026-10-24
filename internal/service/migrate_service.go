@@ -38,11 +38,22 @@ func NewQuietMigrateService(paths *config.Paths) *MigrateService {
 // MigrationPlan describes what changes would be made during migration.
 type MigrationPlan struct {
 	GlobalConfig *GlobalMigration
-	Boards       []BoardMigration
+	// Project is nil when the project has no config file; one is created
+	// with defaults elsewhere, so there is nothing to migrate.
+	Project *ProjectMigration
+	Boards  []BoardMigration
 }
 
 // GlobalMigration describes changes to the global config.
 type GlobalMigration struct {
+	Path           string
+	NeedsMigration bool
+	FromSchema     string // empty if missing
+	ToSchema       string
+}
+
+// ProjectMigration describes changes to the project config.
+type ProjectMigration struct {
 	Path           string
 	NeedsMigration bool
 	FromSchema     string // empty if missing
@@ -100,12 +111,12 @@ func (s *MigrateService) Plan() (*MigrationPlan, error) {
 	}
 	plan.GlobalConfig = globalPlan
 
-	// Plan board migrations
-	boardsPlan, err := s.PlanBoardsOnly()
+	projectPlan, err := s.PlanProject()
 	if err != nil {
 		return nil, err
 	}
-	plan.Boards = boardsPlan.Boards
+	plan.Project = projectPlan.Project
+	plan.Boards = projectPlan.Boards
 
 	return plan, nil
 }
@@ -129,6 +140,17 @@ func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
 				return fmt.Errorf("failed to migrate global config: %w", err)
 			}
 			fmt.Fprintf(w, "Migrated global config\n")
+		}
+	}
+
+	if plan.Project != nil && plan.Project.NeedsMigration {
+		if dryRun {
+			fmt.Fprintf(w, "Would migrate project config: update kan_schema = %q\n", plan.Project.ToSchema)
+		} else {
+			if err := s.migrateProjectConfig(plan.Project, writeToDisk); err != nil {
+				return err
+			}
+			fmt.Fprintf(w, "Migrated project config\n")
 		}
 	}
 
@@ -185,6 +207,9 @@ func (p *MigrationPlan) FutureVersionError() error {
 			return version.InvalidGlobalSchema(p.GlobalConfig.Path, p.GlobalConfig.FromSchema)
 		}
 	}
+	if p.Project != nil && version.IsFutureProjectSchema(p.Project.FromSchema) {
+		return version.InvalidProjectSchema(p.Project.Path, p.Project.FromSchema)
+	}
 	for _, board := range p.Boards {
 		if board.FromSchema != "" && version.IsFutureBoardSchema(board.FromSchema) {
 			return version.InvalidBoardSchema(board.ConfigPath, board.FromSchema)
@@ -201,6 +226,9 @@ func (p *MigrationPlan) FutureVersionError() error {
 // HasChanges returns true if the plan has any migrations to perform.
 func (p *MigrationPlan) HasChanges() bool {
 	if p.GlobalConfig != nil && p.GlobalConfig.NeedsMigration {
+		return true
+	}
+	if p.Project != nil && p.Project.NeedsMigration {
 		return true
 	}
 	for _, board := range p.Boards {
@@ -222,10 +250,17 @@ func (s *MigrateService) PlanGlobalMigration() (*GlobalMigration, error) {
 	return s.planGlobalMigration()
 }
 
-// PlanBoardsOnly returns a migration plan with only board migrations (no global config).
-// Used by --all to plan each project's boards independently.
-func (s *MigrateService) PlanBoardsOnly() (*MigrationPlan, error) {
+// PlanProject returns a migration plan for the project's config, boards
+// and cards, leaving out the global config. Used by --all to plan each
+// project independently.
+func (s *MigrateService) PlanProject() (*MigrationPlan, error) {
 	plan := &MigrationPlan{}
+
+	projectPlan, err := s.planProjectMigration()
+	if err != nil {
+		return nil, fmt.Errorf("failed to plan project config migration: %w", err)
+	}
+	plan.Project = projectPlan
 
 	boards, err := listBoards(s.paths)
 	if err != nil {
@@ -241,6 +276,26 @@ func (s *MigrateService) PlanBoardsOnly() (*MigrationPlan, error) {
 	}
 
 	return plan, nil
+}
+
+// MigrateProject migrates the project's config, boards and cards on disk.
+// It refuses, with a SchemaVersionError, when any of them is newer than
+// this kan. Returns whether anything was migrated.
+func (s *MigrateService) MigrateProject() (bool, error) {
+	plan, err := s.PlanProject()
+	if err != nil {
+		return false, fmt.Errorf("failed to check project schema versions: %w", err)
+	}
+	if !plan.HasChanges() {
+		return false, nil
+	}
+	if err := plan.FutureVersionError(); err != nil {
+		return false, err
+	}
+	if err := s.Execute(plan, false); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (s *MigrateService) planGlobalMigration() (*GlobalMigration, error) {
@@ -275,6 +330,27 @@ func (s *MigrateService) planGlobalMigration() (*GlobalMigration, error) {
 		plan.NeedsMigration = true
 	}
 
+	return plan, nil
+}
+
+func (s *MigrateService) planProjectMigration() (*ProjectMigration, error) {
+	path := s.paths.ProjectConfigPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var raw map[string]any
+	if _, err := toml.Decode(string(data), &raw); err != nil {
+		return nil, fmt.Errorf("invalid TOML in %s: %w", path, err)
+	}
+
+	plan := &ProjectMigration{Path: path, ToSchema: version.CurrentProjectSchema()}
+	plan.FromSchema, _ = raw["kan_schema"].(string)
+	plan.NeedsMigration = plan.FromSchema != plan.ToSchema
 	return plan, nil
 }
 
@@ -411,6 +487,38 @@ func (s *MigrateService) prependTOMLField(path, key, value string) error {
 	newContent := fmt.Sprintf("%s = %q\n\n%s", key, value, string(data))
 
 	return os.WriteFile(path, []byte(newContent), 0644)
+}
+
+// migrateProjectConfig brings the project config to the current schema and
+// passes it to write. It works on the decoded TOML, so fields this kan
+// doesn't know survive.
+func (s *MigrateService) migrateProjectConfig(plan *ProjectMigration, write writeFunc) error {
+	data, err := os.ReadFile(plan.Path)
+	if err != nil {
+		return fmt.Errorf("failed to read project config: %w", err)
+	}
+	var raw map[string]any
+	if _, err := toml.Decode(string(data), &raw); err != nil {
+		return fmt.Errorf("invalid TOML in %s: %w", plan.Path, err)
+	}
+
+	migrateProjectRaw(raw)
+
+	out, err := encodeTOMLMap(raw)
+	if err != nil {
+		return fmt.Errorf("failed to encode project config: %w", err)
+	}
+	if err := write(plan.Path, out); err != nil {
+		return fmt.Errorf("failed to write project config: %w", err)
+	}
+	return nil
+}
+
+// migrateProjectRaw runs every project config step. project/1 to project/2
+// only added an optional field, and a config with no schema predates
+// project/1, so for now every step is a schema stamp.
+func migrateProjectRaw(raw map[string]any) {
+	raw["kan_schema"] = version.CurrentProjectSchema()
 }
 
 // writeFunc receives each file a migration changed. Writing to disk and

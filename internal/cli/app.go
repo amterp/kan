@@ -290,26 +290,21 @@ func autoMigrateGlobal() error {
 	return nil
 }
 
-// autoMigrateProject checks a project's boards and cards for outdated schema
-// versions and migrates transparently. Returns a SchemaVersionError for future
-// versions, or a wrapped error if migration fails.
+// autoMigrateProject checks a project's config, boards and cards for
+// outdated schema versions and migrates transparently. Returns a
+// SchemaVersionError for future versions, or a wrapped error if migration
+// fails.
 func autoMigrateProject(paths *config.Paths) error {
-	svc := service.NewQuietMigrateService(paths)
-	plan, err := svc.PlanBoardsOnly()
+	migrated, err := service.NewQuietMigrateService(paths).MigrateProject()
 	if err != nil {
-		return fmt.Errorf("failed to check project schema versions: %w", err)
-	}
-
-	if !plan.HasChanges() {
-		return nil
-	}
-
-	if err := plan.FutureVersionError(); err != nil {
-		return err
-	}
-
-	if err := svc.Execute(plan, false); err != nil {
+		var schemaErr *version.SchemaVersionError
+		if errors.As(err, &schemaErr) {
+			return err
+		}
 		return fmt.Errorf("auto-migration failed: %w", err)
+	}
+	if !migrated {
+		return nil
 	}
 
 	PrintInfo("Auto-migrated project data to current schema.")

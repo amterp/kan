@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/service"
 	"github.com/amterp/kan/internal/store"
+	"github.com/amterp/kan/internal/version"
 )
 
 // ProjectContext bundles all per-project dependencies needed by the HTTP handlers.
@@ -41,7 +43,7 @@ func BuildProjectContext(projectRoot, dataLocation, creator string) (*ProjectCon
 
 	paths := config.NewPaths(projectRoot, dataLocation)
 
-	// Auto-migrate boards + cards before creating stores (stores reject
+	// Auto-migrate project config, boards and cards before creating stores (stores reject
 	// old schemas on read). Mirrors the startup path in cli/app.go.
 	if err := autoMigrateProject(paths, projectRoot); err != nil {
 		return nil, err
@@ -78,28 +80,20 @@ func BuildProjectContext(projectRoot, dataLocation, creator string) (*ProjectCon
 	}, nil
 }
 
-// autoMigrateProject checks a project's boards and cards for outdated schemas
+// autoMigrateProject checks a project's config, boards and cards for outdated schemas
 // and migrates transparently. Returns an error for future versions (user needs
 // a newer Kan) or if migration fails.
 func autoMigrateProject(paths *config.Paths, projectRoot string) error {
-	svc := service.NewQuietMigrateService(paths)
-	plan, err := svc.PlanBoardsOnly()
+	migrated, err := service.NewQuietMigrateService(paths).MigrateProject()
 	if err != nil {
-		return fmt.Errorf("failed to check project schema versions: %w", err)
-	}
-
-	if !plan.HasChanges() {
-		return nil
-	}
-
-	if err := plan.FutureVersionError(); err != nil {
-		return err
-	}
-
-	if err := svc.Execute(plan, false); err != nil {
+		var schemaErr *version.SchemaVersionError
+		if errors.As(err, &schemaErr) {
+			return err
+		}
 		return fmt.Errorf("auto-migration failed for %s: %w", projectRoot, err)
 	}
-
-	log.Printf("Auto-migrated project at %s to current schema", projectRoot)
+	if migrated {
+		log.Printf("Auto-migrated project at %s to current schema", projectRoot)
+	}
 	return nil
 }
