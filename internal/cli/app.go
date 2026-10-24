@@ -49,6 +49,16 @@ type App struct {
 	UsingGlobalBoard bool
 
 	globalCfg *model.GlobalConfig
+
+	boardLocator *registry.Locator
+	// opened holds the projects openProjectForReading opened, by path with
+	// symlinks resolved, so each is opened, and migrated in memory, once.
+	opened map[string]openedProject
+}
+
+type openedProject struct {
+	app *App
+	err error
 }
 
 // AppOptions configures how NewAppWithOptions wires up the App.
@@ -244,6 +254,19 @@ func newProjectApp(paths *config.Paths, readOnly bool, prompter prompt.Prompter,
 // this kan, or a migration that can't be planned, fails with an error naming
 // the project.
 func (a *App) openProjectForReading(root, dataLocation string) (*App, error) {
+	key := registry.Canonical(root)
+	if p, ok := a.opened[key]; ok {
+		return p.app, p.err
+	}
+	project, err := a.openProjectForReadingUncached(root, dataLocation)
+	if a.opened == nil {
+		a.opened = map[string]openedProject{}
+	}
+	a.opened[key] = openedProject{app: project, err: err}
+	return project, err
+}
+
+func (a *App) openProjectForReadingUncached(root, dataLocation string) (*App, error) {
 	paths := config.NewPaths(root, dataLocation)
 	// The caller's prompter, so pickers in that project prompt exactly when
 	// the command could (it is the no-op prompter under -I).

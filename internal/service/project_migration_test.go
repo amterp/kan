@@ -190,4 +190,12 @@ func TestMigrateService_UnparseableProjectConfigIsSkipped(t *testing.T) {
 	if !strings.Contains(notices.String(), path) || !strings.Contains(notices.String(), "not valid TOML") {
 		t.Errorf("warning = %q", notices.String())
 	}
+
+	// A command opens a project for reading more than once; warn once.
+	if _, err := svc.PlanProject(); err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(notices.String(), "not valid TOML"); n != 1 {
+		t.Errorf("warned %d times", n)
+	}
 }

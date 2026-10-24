@@ -294,3 +294,47 @@ func TestAll_OneUnreadableBoardIsNamedNotTheProject(t *testing.T) {
 		t.Errorf("note = %q, want it to name board second", note)
 	}
 }
+
+// A project registered twice, once through a symlink, is listed once.
+func TestBoardsForAll_SymlinkedEntriesListedOnce(t *testing.T) {
+	openFixtureProject(t, "v15")
+	api := otherProject(t, "v15", "b_api")
+	link := filepath.Join(resolvedTempDir(t), "api-link")
+	if err := os.Symlink(api, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	registerProjects(t, []string{api, link})
+
+	boards, _ := newReadApp(t).boardsForAll()
+	count := 0
+	for _, b := range boards {
+		if b.Project.OtherProject {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("the api project's board was listed %d times: %v", count, boardKeys(boards))
+	}
+}
+
+// The current project reports one path whichever spelling kan ran from:
+// its registry entry's, else the path with symlinks resolved.
+func TestBoardsForAll_CurrentProjectPathIndependentOfCwdSpelling(t *testing.T) {
+	current := openFixtureProject(t, "v15")
+	link := filepath.Join(resolvedTempDir(t), "current-link")
+	if err := os.Symlink(current, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	t.Chdir(link)
+
+	boards, _ := newReadApp(t).boardsForAll()
+	if got := boardKeys(boards); !reflect.DeepEqual(got, []string{current + "#main"}) {
+		t.Errorf("unregistered: boards = %v, want the resolved path %s", got, current)
+	}
+
+	registerProjects(t, []string{current})
+	boards, _ = newReadApp(t).boardsForAll()
+	if got := boardKeys(boards); !reflect.DeepEqual(got, []string{current + "#main"}) {
+		t.Errorf("registered: boards = %v, want the registry's spelling %s", got, current)
+	}
+}

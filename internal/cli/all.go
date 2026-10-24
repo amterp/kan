@@ -40,29 +40,53 @@ func (a *App) boardsForAll() ([]allBoard, []skippedBoard) {
 		skip   string
 	}
 
-	var projects []project
-	current := ""
-	if a.RequireKan() == nil {
-		current = a.ProjectRoot
-		projects = append(projects, project{path: a.ProjectRoot, open: func() (*App, error) { return a, nil }})
-	}
+	var statuses []registry.Status
 	if a.globalCfg != nil {
-		for _, status := range registry.Inspect(a.globalCfg, false) {
-			if current != "" && registry.SamePath(status.Path, current) {
-				continue
+		statuses = registry.Inspect(a.globalCfg, false)
+	}
+
+	// A project is listed once, under one spelling of its path, whichever
+	// directory or symlink kan ran from: the registry's entry when it has
+	// one (the first by path, if several name the same directory), else the
+	// path with symlinks resolved.
+	var projects []project
+	listed := map[string]bool{}
+	if a.RequireKan() == nil {
+		current := a
+		reported := registry.Canonical(a.ProjectRoot)
+		if a.globalCfg != nil {
+			for _, e := range registry.Entries(a.globalCfg) {
+				if registry.SamePath(e.Path, a.ProjectRoot) {
+					reported = e.Path
+					break
+				}
 			}
-			p := project{path: status.Path, boards: status.Boards}
-			switch status.State {
-			case registry.StateMissing:
-				p.skip = `project not found; run "kan registry prune" to remove stale entries`
-			case registry.StateUnreadable:
-				p.skip = status.Error
-			default:
-				entry := status.Entry
-				p.open = func() (*App, error) { return a.openProjectForReading(entry.Path, entry.DataLocation) }
-			}
-			projects = append(projects, p)
 		}
+		if reported != a.ProjectRoot {
+			view := *a
+			view.ProjectRoot = reported
+			current = &view
+		}
+		listed[registry.Canonical(reported)] = true
+		projects = append(projects, project{path: reported, open: func() (*App, error) { return current, nil }})
+	}
+	for _, status := range statuses {
+		key := registry.Canonical(status.Path)
+		if listed[key] {
+			continue
+		}
+		listed[key] = true
+		p := project{path: status.Path, boards: status.Boards}
+		switch status.State {
+		case registry.StateMissing:
+			p.skip = `project not found; run "kan registry prune" to remove stale entries`
+		case registry.StateUnreadable:
+			p.skip = status.Error
+		default:
+			entry := status.Entry
+			p.open = func() (*App, error) { return a.openProjectForReading(entry.Path, entry.DataLocation) }
+		}
+		projects = append(projects, p)
 	}
 	sort.SliceStable(projects, func(i, j int) bool { return projects[i].path < projects[j].path })
 

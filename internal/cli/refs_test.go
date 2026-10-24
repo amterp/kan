@@ -354,3 +354,41 @@ func TestOpenProjectForReading_UsesCallersPrompter(t *testing.T) {
 		t.Errorf("want the caller's prompter to pick \"second\", got %q, %v", board, err)
 	}
 }
+
+// Each project is opened for reading, and migrated in memory, once per
+// command, under any spelling of its path.
+func TestOpenProjectForReading_OpensEachProjectOnce(t *testing.T) {
+	api := setupCrossProject(t)
+	link := filepath.Join(resolvedTempDir(t), "api-link")
+	if err := os.Symlink(api, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	app := newReadApp(t)
+
+	first, err := app.openProjectForReading(api, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, _ := app.openProjectForReading(link, "")
+	if again != first {
+		t.Error("the same project was opened twice")
+	}
+}
+
+// The shell shows completion's stderr on every Tab, so completion silences
+// it before reading the project.
+func TestCompletion_SilencesStderr(t *testing.T) {
+	root := openFixtureProject(t, "v15")
+	if err := os.WriteFile(filepath.Join(root, ".kan", "config.toml"), []byte("name = [unclosed\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	saved := os.Stderr
+	t.Cleanup(func() { os.Stderr = saved; compCtx = completionCtx{} })
+	compCtx = completionCtx{}
+
+	initCompletionCtx()
+
+	if os.Stderr == saved {
+		t.Error("completion left stderr connected")
+	}
+}

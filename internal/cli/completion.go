@@ -33,6 +33,13 @@ var compCtx completionCtx
 
 func initCompletionCtx() {
 	compCtx.once.Do(func() {
+		// The shell shows whatever completion writes to stderr on every Tab,
+		// so the migration notices and store warnings a read can print go
+		// nowhere here. This process only completes, so silencing stderr
+		// for the rest of it hides nothing a command would have shown.
+		if devNull, err := os.Open(os.DevNull); err == nil {
+			os.Stderr = devNull
+		}
 		globalStore := store.NewGlobalStore()
 		globalCfg, err := globalStore.Load()
 		if err != nil {

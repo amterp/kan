@@ -46,8 +46,13 @@ func otherProjectPath(project *App) string {
 	return project.ProjectRoot
 }
 
+// locator is the App's one Locator, so the registered projects' boards are
+// read once per command however many lookups it makes.
 func (a *App) locator() *registry.Locator {
-	return registry.NewLocator(a.globalCfg, a.Paths, a.BoardStore)
+	if a.boardLocator == nil {
+		a.boardLocator = registry.NewLocator(a.globalCfg, a.Paths, a.BoardStore)
+	}
+	return a.boardLocator
 }
 
 // ResolveBoard resolves a board ref: a board name in the App's project, or a

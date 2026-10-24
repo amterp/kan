@@ -212,9 +212,17 @@ func (s *MigrateService) Execute(plan *MigrationPlan, dryRun bool) error {
 	return nil
 }
 
-// renameNotices holds the in-memory renames already announced in this
-// process, keyed by board config path and field.
-var renameNotices sync.Map
+// printedNotices holds the notices already printed in this process. One
+// command can plan or migrate the same project several times, once each time
+// it opens the project for reading, and should say each thing once.
+var printedNotices sync.Map
+
+func (s *MigrateService) noticeOnce(key, format string, args ...any) {
+	if _, seen := printedNotices.LoadOrStore(key+"\x00"+format, true); seen {
+		return
+	}
+	fmt.Fprintf(s.notices, format, args...)
+}
 
 // MigrateInMemory applies the plan's project config, board and card
 // migrations through the same steps as Execute, without writing anything.
@@ -241,13 +249,7 @@ func (s *MigrateService) MigrateInMemory(plan *MigrationPlan) (*store.Overlay, e
 			return nil, err
 		}
 		for _, field := range board.FieldRenames {
-			// One command can migrate the same project in memory several
-			// times, each time it opens it for reading; say this once.
-			key := board.ConfigPath + "\x00" + field
-			if _, seen := renameNotices.LoadOrStore(key, true); seen {
-				continue
-			}
-			fmt.Fprintf(s.notices, "Custom field %s on board %q in %s is read as x_%s; "+
+			s.noticeOnce(board.ConfigPath+"\x00"+field, "Custom field %s on board %q in %s is read as x_%s; "+
 				"the field is renamed when the project is next migrated.\n",
 				field, board.BoardName, s.paths.ProjectRoot(), field)
 		}
@@ -435,7 +437,7 @@ func (s *MigrateService) planProjectMigration() (*ProjectMigration, error) {
 	// don't need it. Skip its migration rather than stop every command.
 	var raw map[string]any
 	if _, err := toml.Decode(string(data), &raw); err != nil {
-		fmt.Fprintf(s.notices, "Warning: %s is not valid TOML, so kan can't check or migrate its schema: %v. "+
+		s.noticeOnce(path, "Warning: %s is not valid TOML, so kan can't check or migrate its schema: %v. "+
 			"Commands that read project settings may fail until the file is fixed by hand.\n", path, err)
 		return nil, nil
 	}
