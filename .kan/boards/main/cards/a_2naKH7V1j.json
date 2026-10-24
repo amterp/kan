@@ -2,7 +2,7 @@
   "_v": 3,
   "alias": "kan-doctor-all-check",
   "alias_explicit": false,
-  "column": "next",
+  "column": "in-progress",
   "created_at_millis": 1792875238781,
   "creator": "Alexander Terp",
   "description": "Design: `docs/design/work-across-boards.md`, last paragraph of \"Queries across boards\". `--fix` still edits only the current project.\n\nAfter a_2naKGuufW.",
@@ -11,9 +11,10 @@
   "position": "a0",
   "title": "kan doctor --all: check links and the registry across boards",
   "type": "enhancement",
-  "updated_at_millis": 1792881588257,
+  "updated_at_millis": 1792883386692,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875238781},
-    {"field":"column","value":"next","at":1792881588257}
+    {"field":"column","value":"next","at":1792881588257},
+    {"field":"column","value":"in-progress","at":1792883386692}
   ]
 }
