@@ -41,6 +41,23 @@ type ReadyResult struct {
 	Attention []ReadyEntry
 }
 
+// NoCategoriesError is a ready query on a board none of whose columns has a
+// category. ProjectPath, when set, names the project to run kan column
+// categorize in, for a board outside the current project.
+type NoCategoriesError struct {
+	Board       string
+	ProjectPath string
+}
+
+func (e *NoCategoriesError) Error() string {
+	where := ""
+	if e.ProjectPath != "" {
+		where = " in " + e.ProjectPath
+	}
+	return fmt.Sprintf("board %q has no column categories, so kan can't tell which cards are open work. "+
+		"Run \"kan column categorize\"%s to set them.", e.Board, where)
+}
+
 // FindReady answers a ready query for one board from an already loaded link
 // graph, so the board, its cards and every blocker come from one read.
 func FindReady(graph *LinkGraph, boardName string, opts ReadyOptions) (*ReadyResult, error) {
@@ -59,8 +76,7 @@ func FindReady(graph *LinkGraph, boardName string, opts ReadyOptions) (*ReadyRes
 
 func findReady(board *model.BoardConfig, cards []*model.Card, blockers func(*model.Card) []LinkLookup, opts ReadyOptions) (*ReadyResult, error) {
 	if !board.HasCategories() {
-		return nil, fmt.Errorf("board %q has no column categories, so kan can't tell which cards "+
-			"are open work. Run \"kan column categorize\" to set them.", board.Name)
+		return nil, &NoCategoriesError{Board: board.Name}
 	}
 
 	exclusions := model.FilterSet{Exclude: opts.Exclude}

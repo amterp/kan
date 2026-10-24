@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/amterp/kan/internal/model"
 	"github.com/amterp/kan/internal/service"
+	"github.com/amterp/kan/internal/util"
 	"github.com/amterp/ra"
 )
 
@@ -112,6 +114,10 @@ func readyOne(app *App, board string, interactive bool, opts service.ReadyOption
 	warnUnreadCards(graph, boardName)
 
 	result, err := service.FindReady(graph, boardName, opts)
+	var noCategories *service.NoCategoriesError
+	if errors.As(err, &noCategories) && project.OtherProject {
+		noCategories.ProjectPath = util.PrettyPath(project.ProjectRoot)
+	}
 	if err != nil {
 		return readyBoard{}, err
 	}

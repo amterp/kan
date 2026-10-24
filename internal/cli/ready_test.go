@@ -142,3 +142,25 @@ func addSecondBoard(t *testing.T, root string) {
 		t.Fatal(err)
 	}
 }
+
+// Categorizing has to happen in the board's own project, so the hint for
+// another project's board names that project.
+func TestReadyOne_OtherProjectWithoutCategoriesNamesTheProject(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	old := otherProject(t, "v2", "b_old")
+	registerProjects(t, []string{old})
+	t.Chdir(resolvedTempDir(t))
+
+	_, err := readyOne(newReadApp(t), "b_old", false, service.ReadyOptions{})
+	if err == nil || !strings.Contains(err.Error(), `Run "kan column categorize" in `+old) {
+		t.Errorf("error = %v, want the categorize hint naming %s", err, old)
+	}
+}
+
+func TestReadyOne_CurrentProjectWithoutCategoriesKeepsThePlainHint(t *testing.T) {
+	openFixtureProject(t, "v2")
+	_, err := readyOne(newReadApp(t), "", false, service.ReadyOptions{})
+	if err == nil || !strings.Contains(err.Error(), `Run "kan column categorize" to set them.`) {
+		t.Errorf("error = %v, want the plain categorize hint", err)
+	}
+}
