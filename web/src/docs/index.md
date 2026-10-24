@@ -31,7 +31,7 @@ kan serve
 
 That's it. Your board opens in the browser.
 
-From there, the web UI handles everything - add cards, drag them between columns, click to edit, use ⌘K to quick-search. Most users never need to touch the CLI for anything more.
+From there, add cards, drag them between columns, click to edit, and use ⌘K to quick-search. The web UI also shows blockers; set up those links from the CLI.
 
 For scripting or automation (CI, AI agents, etc.), there's a full [CLI](/docs/cli) with commands to add, edit, move, and query cards programmatically.
 
@@ -51,7 +51,7 @@ Every page here also ships inside the binary: run `kan docs` in a terminal for t
 
 Kan is usable today. Current focus areas:
 
-- **Card relationships** - "Related to" links and "blocked by" dependencies
+- **Card relationships** - Edit links in the web UI and show dependencies across boards
 - **More card features** - Additional field types, richer visualization, display customization
 - **Board customization** - More control over how your boards & cards look and behave
 - **Quality of life** - Ongoing improvements and bug fixes

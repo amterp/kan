@@ -3,6 +3,7 @@ import type { Card, BoardConfig, UpdateCardInput, Comment } from '../api/types';
 import { createComment, editComment, deleteComment } from '../api/cards';
 import { toApiFieldValues } from '../utils/customFields';
 import { formatDuration } from '../utils/duration';
+import { getCardBlockers, getCardsBlockedBy } from '../utils/cardLinks';
 import MarkdownField from './MarkdownField';
 import MarkdownView from './MarkdownView';
 import CustomFieldsEditor from './CustomFieldsEditor';
@@ -10,6 +11,8 @@ import CustomFieldsEditor from './CustomFieldsEditor';
 interface CardEditModalProps {
   card: Card;
   board: BoardConfig;
+  cards: Card[];
+  onOpenCard: (id: string) => void;
   onSave: (updates: UpdateCardInput) => Promise<void>;
   onDelete: () => void;
   onClose: () => void;
@@ -35,12 +38,15 @@ function getFieldValue(card: Card, fieldName: string): unknown {
   return card[fieldName];
 }
 
-export default function CardEditModal({ card, board, onSave, onDelete, onClose, focusDescription }: CardEditModalProps) {
+export default function CardEditModal({ card, board, cards, onOpenCard, onSave, onDelete, onClose, focusDescription }: CardEditModalProps) {
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description || '');
   const [column, setColumn] = useState(card.column);
   const [saving, setSaving] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [linkError, setLinkError] = useState('');
+  const blockers = useMemo(() => getCardBlockers(card, cards), [card, cards]);
+  const blocks = useMemo(() => getCardsBlockedBy(card.id, cards), [card.id, cards]);
 
   // Column transitions, oldest first. Reflects the saved card (not the unsaved
   // dropdown selection) so durations stay accurate. Kan records these natively;
@@ -245,6 +251,22 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose, 
     }
     onClose();
   }, [saving, hasChanges, title, performSave, onClose]);
+
+  const handleOpenLinkedCard = async (id: string) => {
+    if (saving || id === card.id) return;
+    if (hasChanges && !title.trim()) {
+      setLinkError('Enter a title before opening another card.');
+      titleRef.current?.focus();
+      return;
+    }
+    setLinkError('');
+    try {
+      if (hasChanges) await performSave();
+      onOpenCard(id);
+    } catch (error) {
+      setLinkError(`Could not save changes: ${error instanceof Error ? error.message : 'Please try again.'}`);
+    }
+  };
 
   // Document-level keyboard handler so Cmd+Enter works without focus
   useEffect(() => {
@@ -593,6 +615,54 @@ export default function CardEditModal({ card, board, onSave, onDelete, onClose, 
                 In this column for {formatDuration(Date.now() - columnSince)}
               </p>
             </div>
+
+            {blockers.length > 0 && (
+              <section className="mb-4" aria-label="Blocked by">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Blocked by</h3>
+                <ul className="space-y-2 text-sm">
+                  {blockers.map(({ ref, card: blocker }) => (
+                    <li key={ref}>
+                      {blocker ? (
+                        <button
+                          type="button"
+                          className="text-left text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50 break-words"
+                          disabled={saving}
+                          onClick={() => void handleOpenLinkedCard(blocker.id)}
+                        >
+                          {blocker.title}
+                          <span className="block text-xs text-gray-500 dark:text-gray-400">{blocker.column}</span>
+                        </button>
+                      ) : (
+                        <span className="text-gray-500 dark:text-gray-400 break-all">
+                          {ref}<span className="block text-xs">Unavailable blocker</span>
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            {blocks.length > 0 && (
+              <section className="mb-4" aria-label="Blocks">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Blocks</h3>
+                <ul className="space-y-2 text-sm">
+                  {blocks.map((blocked) => (
+                    <li key={blocked.id}>
+                      <button
+                        type="button"
+                        className="text-left text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50 break-words"
+                        disabled={saving}
+                        onClick={() => void handleOpenLinkedCard(blocked.id)}
+                      >
+                        {blocked.title}
+                        <span className="block text-xs text-gray-500 dark:text-gray-400">{blocked.column}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            {linkError && <p className="mb-4 text-sm text-red-600 dark:text-red-400" role="alert">{linkError}</p>}
 
             {/* Custom fields */}
             {/* TODO: Field ordering is currently undefined (Go map → JSON → JS object).

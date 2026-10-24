@@ -87,6 +87,7 @@ interface ColumnProps {
   column: ColumnType;
   cards: Card[];
   board: BoardConfig;
+  blockedCardIds: ReadonlySet<string>;
   highlightedCardId?: string | null;
   isAddingCard: boolean;
   draftTitle: string;
@@ -119,6 +120,7 @@ export default function Column({
   column,
   cards,
   board,
+  blockedCardIds,
   highlightedCardId,
   isAddingCard,
   draftTitle,
@@ -588,6 +590,7 @@ export default function Column({
                   key={card.id}
                   card={card}
                   board={board}
+                  isBlocked={blockedCardIds.has(card.id)}
                   onClick={() => onCardClick(card)}
                   onDelete={() => onDeleteCard(card.id)}
                   onAdvance={onAdvanceCard ? () => onAdvanceCard(card.id) : undefined}

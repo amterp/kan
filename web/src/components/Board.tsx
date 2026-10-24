@@ -8,6 +8,7 @@ import { cardMatchesQuery } from '../utils/fuzzyMatch';
 import { toApiFieldValue } from '../utils/customFields';
 import { groupCardsByColumn, resolveSortField } from '../utils/cardSort';
 import { APPEND_POSITION } from '../utils/columnPlacement';
+import { getBlockedCardIds } from '../utils/cardLinks';
 import { BoardConfigProvider } from '../contexts/BoardConfigContext';
 import { useToast } from '../contexts/ToastContext';
 import Column from './Column';
@@ -103,6 +104,8 @@ export default function Board({
   );
 
   const columnNames = board.columns.map((c) => c.name);
+
+  const blockedCardIds = useMemo(() => getBlockedCardIds(cards, board.columns), [cards, board.columns]);
 
   // Filter cards based on search query
   const filteredCards = useMemo(() => {
@@ -814,6 +817,7 @@ export default function Board({
                 columnIndex={index}
                 cards={cardsByColumn[column.name] || []}
                 board={board}
+                blockedCardIds={blockedCardIds}
                 highlightedCardId={highlightedCardId}
                 isAddingCard={addingToColumn === column.name}
                 draftTitle={draftTitles[column.name] || ''}
@@ -903,7 +907,7 @@ export default function Board({
         </div>
         <DragOverlay>
           {activeCard ? (
-            <CardComponent card={activeCard} board={board} isDragging />
+            <CardComponent card={activeCard} board={board} isBlocked={blockedCardIds.has(activeCard.id)} isDragging />
           ) : activeColumn ? (
             <div className="bg-gray-200 dark:bg-gray-800 rounded-lg shadow-lg opacity-90 cursor-grabbing border-t-[3px]" style={{ borderTopColor: activeColumn.color }}>
               <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-300 dark:border-gray-600">

@@ -12,6 +12,7 @@ import { useToast } from '../contexts/ToastContext';
 interface CardProps {
   card: CardType;
   board: BoardConfig;
+  isBlocked?: boolean;
   isDragging?: boolean;
   isPlaceholder?: boolean;
   isHighlighted?: boolean;
@@ -46,7 +47,7 @@ function getSetValues(card: CardType, fieldName: string): string[] {
  * NOTE: The data-card-id attribute is used by Board.tsx to find this element
  * when anchoring the FloatingFieldPanel after card creation. Don't remove it.
  */
-export default function Card({ card, board, isDragging = false, isPlaceholder = false, isHighlighted = false, onClick, onDelete, onAdvance, onContextMenu, onSaveTitle, forceEdit, onForceEditDone }: CardProps) {
+export default function Card({ card, board, isBlocked = false, isDragging = false, isPlaceholder = false, isHighlighted = false, onClick, onDelete, onAdvance, onContextMenu, onSaveTitle, forceEdit, onForceEditDone }: CardProps) {
   const { isCompact } = useCompactMode();
   const { isSlim } = useSlimMode();
   const { showToast } = useToast();
@@ -355,8 +356,13 @@ export default function Card({ card, board, isDragging = false, isPlaceholder = 
         </div>
 
         {/* Card indicators - bottom-right, text wraps around them */}
-        {(card.missing_wanted_fields?.length || card.description?.trim() || card.comments?.length) ? (
+        {(isBlocked || card.missing_wanted_fields?.length || card.description?.trim() || card.comments?.length) ? (
           <div className="flex-shrink-0 flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+            {isBlocked && (
+              <span className="text-[10px] font-medium text-amber-700 dark:text-amber-400" title="Waiting for blockers to finish">
+                Blocked
+              </span>
+            )}
             {card.missing_wanted_fields && card.missing_wanted_fields.length > 0 && (
               <span className="relative group/warning">
                 <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -643,8 +643,11 @@ function BoardApp() {
       </main>
       {modalCard && board && (
         <CardEditModal
+          key={modalCard.id}
           card={modalCard}
           board={board}
+          cards={cards}
+          onOpenCard={handleOpenCard}
           onSave={handleSaveModalCard}
           onDelete={handleDeleteModalCard}
           onClose={closeCard}

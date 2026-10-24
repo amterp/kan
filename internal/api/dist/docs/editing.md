@@ -2,6 +2,14 @@
 
 Kan uses Markdown for card descriptions. Click anywhere on a description to edit it; press **⌘↵** or click outside to stop editing.
 
+## Blockers
+
+Cards show **Blocked** while any blocker has not reached a column categorized as `done`. A dropped blocker still blocks work. Moving a blocker to done updates the cards waiting on it automatically, including when search hides the blocker.
+
+Open a card to see **Blocked by** and **Blocks**. Click a card title in either list to open that card. Kan saves pending edits before switching; if saving fails, your edits stay open. Unavailable blockers show their stored reference. Links to another board stay blocked and show no card details here.
+
+Manage links from the CLI with `kan link`, `kan unlink`, or `kan add --blocked-by`. Related links do not affect the blocked marker. Link editing in the web UI is planned for a later release.
+
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
