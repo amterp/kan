@@ -35,7 +35,7 @@ func TestDoctorElsewhere_CyclesUseProjectIdentity(t *testing.T) {
 }
 
 func TestDoctorElsewhere_FixRechecksRegistryAndExternalFiles(t *testing.T) {
-	for _, change := range []string{"revived", "hidden", "duplicate", "future", "unreadable"} {
+	for _, change := range []string{"revived", "hidden", "duplicate", "future", "unreadable", "unreadable clone", "clone without ID"} {
 		t.Run(change, func(t *testing.T) {
 			web := newLinkProject(t, "web", "b_web")
 			api := newLinkProject(t, "api", "b_api")
@@ -62,6 +62,16 @@ func TestDoctorElsewhere_FixRechecksRegistryAndExternalFiles(t *testing.T) {
 			case "duplicate":
 				clone := newLinkProject(t, "clone", "b_api")
 				cfg.SetRepoConfig(clone.root, model.RepoConfig{})
+			case "unreadable clone", "clone without ID":
+				clone := newLinkProject(t, "clone", "b_api")
+				cfg.SetRepoConfig(clone.root, model.RepoConfig{})
+				contents := "invalid = ["
+				if change == "clone without ID" {
+					contents = "kan_schema = \"board/14\"\nname = \"main\"\n"
+				}
+				if err := os.WriteFile(clone.paths.BoardConfigPath("main"), []byte(contents), 0644); err != nil {
+					t.Fatal(err)
+				}
 			case "future":
 				if err := os.WriteFile(api.paths.BoardConfigPath("main"), []byte("kan_schema = \"board/999\"\nid = \"b_api\"\n"), 0644); err != nil {
 					t.Fatal(err)

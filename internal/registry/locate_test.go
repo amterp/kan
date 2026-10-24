@@ -84,6 +84,28 @@ func TestLocatorBoard_OneVisibleHolder(t *testing.T) {
 	}
 }
 
+func TestLocatorBoard_IncompleteExternalIdentitiesCannotEstablishUniqueness(t *testing.T) {
+	for _, contents := range []string{"invalid = [", "name = \"unknown\"\n"} {
+		t.Run(contents, func(t *testing.T) {
+			current := makeCurrentProject(t, resolved(t), "b_local")
+			known := makeProject(t, resolved(t), "", "b_api")
+			unknown := makeProject(t, resolved(t), "", "b_api")
+			if err := os.WriteFile(config.NewPaths(unknown, "").BoardConfigPath("b0"), []byte(contents), 0644); err != nil {
+				t.Fatal(err)
+			}
+			cfg := &model.GlobalConfig{}
+			register(cfg, known, false)
+			register(cfg, unknown, false)
+			if _, err := locatorFor(cfg, current).Board("b_api"); err == nil || kanerr.IsNotFound(err) || !strings.Contains(err.Error(), unknown) {
+				t.Fatalf("incomplete registry established uniqueness: %v", err)
+			}
+			if loc, err := locatorFor(cfg, current).Board("b_local"); err != nil || loc.Root != current {
+				t.Fatalf("external uncertainty hid current board: %+v, %v", loc, err)
+			}
+		})
+	}
+}
+
 func TestLocatorBoard_HiddenEntriesNeverCount(t *testing.T) {
 	api := makeProject(t, resolved(t), "", "b_2")
 	hiddenClone := makeProject(t, resolved(t), "", "b_2")

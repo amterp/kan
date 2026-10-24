@@ -52,12 +52,15 @@ func (l *Locator) Board(boardID string) (Location, error) {
 		}
 	}
 
+	index := l.boardIndex()
+	if err := index.unknownIdentity(boardID, l.currentRoot()); err != nil {
+		return Location{}, err
+	}
 	var found []Location
-	for _, p := range l.boardIndex().holders(boardID, l.currentRoot()) {
+	for _, p := range index.holders(boardID, l.currentRoot()) {
 		for _, b := range p.boards {
 			if b.ID == boardID {
 				found = append(found, Location{Root: p.Path, DataLocation: p.DataLocation, Board: b.Name, BoardID: b.ID})
-				break
 			}
 		}
 	}
