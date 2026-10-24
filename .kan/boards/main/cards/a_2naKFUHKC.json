@@ -2,20 +2,21 @@
   "_v": 3,
   "alias": "add-kan-column",
   "alias_explicit": false,
-  "column": "backlog-hi",
+  "column": "done",
   "created_at_millis": 1792875237767,
   "creator": "Alexander Terp",
   "description": "Existing boards have no categories, and setting them by hand across about 40 boards is tedious.\n\nDesign: `docs/design/work-across-boards.md`, section \"CLI, API and web\". It suggests from column names and writes only with `--apply`; kan never infers a category from a name anywhere else.\n\nAfter a_2naKFO3Lq.",
   "id": "a_2naKFUHKC",
   "parent": "a_2naKFEs7S",
-  "position": "Zz",
+  "position": "Zt",
   "title": "Add kan column categorize to suggest categories from column names",
   "type": "feature",
-  "updated_at_millis": 1792876512611,
+  "updated_at_millis": 1792877854283,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875237767},
     {"field":"column","value":"backlog-hi","at":1792875445177},
     {"field":"column","value":"in-progress","at":1792876501711},
-    {"field":"column","value":"backlog-hi","at":1792876512611}
+    {"field":"column","value":"backlog-hi","at":1792876512611},
+    {"field":"column","value":"done","at":1792877854283}
   ]
 }

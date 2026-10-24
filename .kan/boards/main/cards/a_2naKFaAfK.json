@@ -2,18 +2,19 @@
   "_v": 3,
   "alias": "show-and-set-column",
   "alias_explicit": false,
-  "column": "backlog-hi",
+  "column": "done",
   "created_at_millis": 1792875237827,
   "creator": "Alexander Terp",
   "description": "Design: `docs/design/work-across-boards.md`, section \"CLI, API and web\", last bullet. The column endpoints, their Go request and response types and the TypeScript types carry `category`, and the column menu shows and sets it. Commit the rebuilt `internal/api/dist/`.\n\nAfter a_2naKFO3Lq.",
   "id": "a_2naKFaAfK",
   "parent": "a_2naKFEs7S",
-  "position": "a5",
+  "position": "Zs",
   "title": "Show and set column categories in the web UI",
   "type": "feature",
-  "updated_at_millis": 1792875445245,
+  "updated_at_millis": 1792877854327,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875237827},
-    {"field":"column","value":"backlog-hi","at":1792875445245}
+    {"field":"column","value":"backlog-hi","at":1792875445245},
+    {"field":"column","value":"done","at":1792877854327}
   ]
 }
