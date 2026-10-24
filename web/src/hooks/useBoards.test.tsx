@@ -20,6 +20,7 @@ vi.mock('../api/boards', () => ({
 
 vi.mock('../api/cards', () => ({
   listCards: vi.fn(),
+  listCardsWithLinks: vi.fn(async (board: string) => ({ cards: await listCards(board) })),
   getCard: vi.fn(),
   moveCard: vi.fn(),
   createCard: vi.fn(),

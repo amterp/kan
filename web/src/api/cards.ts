@@ -1,10 +1,17 @@
 import { api } from './client';
-import type { Card, Comment, CreateCardInput, CreateCardResponse, UpdateCardInput } from './types';
+import type { Card, Comment, CreateCardInput, CreateCardResponse, UpdateCardInput, BoardCardsResponse, LinkedCardResponse } from './types';
 
 export async function listCards(board: string, column?: string): Promise<Card[]> {
+	return (await listCardsWithLinks(board, column)).cards;
+}
+
+export async function listCardsWithLinks(board: string, column?: string): Promise<BoardCardsResponse> {
   const params = column ? `?column=${encodeURIComponent(column)}` : '';
-  const result = await api.get<{ cards: Card[] }>(`/boards/${encodeURIComponent(board)}/cards${params}`);
-  return result.cards;
+  return api.get<BoardCardsResponse>(`/boards/${encodeURIComponent(board)}/cards${params}`);
+}
+
+export async function getLinkedCard(ref: string): Promise<LinkedCardResponse> {
+  return api.get<LinkedCardResponse>(`/linked-cards/${encodeURIComponent(ref)}`);
 }
 
 export async function getCard(board: string, id: string): Promise<Card> {

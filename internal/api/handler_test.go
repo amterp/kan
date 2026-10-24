@@ -250,10 +250,12 @@ func TestHandler_ListCards_Empty(t *testing.T) {
 		t.Errorf("Expected Content-Type 'application/json', got %q", ct)
 	}
 
-	var resp map[string][]*model.Card
+	var resp struct {
+		Cards []*model.Card `json:"cards"`
+	}
 	decodeJSON(t, w, &resp)
-	if len(resp["cards"]) != 0 {
-		t.Errorf("Expected empty cards list, got %d cards", len(resp["cards"]))
+	if len(resp.Cards) != 0 {
+		t.Errorf("Expected empty cards list, got %d cards", len(resp.Cards))
 	}
 }
 
@@ -675,9 +677,11 @@ func TestHandler_MoveCard_OmittedPositionHonorsColumnDefault(t *testing.T) {
 			}
 
 			listResp := api.request("GET", "/api/v1/boards/main/cards?column=done", nil)
-			var listResult map[string][]CardResponse
+			var listResult struct {
+				Cards []CardResponse `json:"cards"`
+			}
 			decodeJSON(t, listResp, &listResult)
-			cards := listResult["cards"]
+			cards := listResult.Cards
 			if len(cards) != 3 {
 				t.Fatalf("Expected 3 cards in done, got %d", len(cards))
 			}
@@ -713,9 +717,11 @@ func TestHandler_MoveCard_NegativePositionAppends(t *testing.T) {
 	}
 
 	listResp := api.request("GET", "/api/v1/boards/main/cards?column=done", nil)
-	var listResult map[string][]CardResponse
+	var listResult struct {
+		Cards []CardResponse `json:"cards"`
+	}
 	decodeJSON(t, listResp, &listResult)
-	cards := listResult["cards"]
+	cards := listResult.Cards
 	if len(cards) != 3 {
 		t.Fatalf("Expected 3 cards in done, got %d", len(cards))
 	}
@@ -759,9 +765,11 @@ func TestHandler_MoveCard_WithPosition(t *testing.T) {
 
 	// Verify order in done column: Third, First, Second
 	listResp := api.request("GET", "/api/v1/boards/main/cards?column=done", nil)
-	var listResult map[string][]CardResponse
+	var listResult struct {
+		Cards []CardResponse `json:"cards"`
+	}
 	decodeJSON(t, listResp, &listResult)
-	cards := listResult["cards"]
+	cards := listResult.Cards
 	if len(cards) != 3 {
 		t.Fatalf("Expected 3 cards in done, got %d", len(cards))
 	}
@@ -846,12 +854,14 @@ func TestHandler_ListCards_WithColumnFilter(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
 
-	var resp map[string][]CardResponse
-	decodeJSON(t, w, &resp)
-	if len(resp["cards"]) != 2 {
-		t.Errorf("Expected 2 cards in backlog, got %d", len(resp["cards"]))
+	var resp struct {
+		Cards []CardResponse `json:"cards"`
 	}
-	for _, card := range resp["cards"] {
+	decodeJSON(t, w, &resp)
+	if len(resp.Cards) != 2 {
+		t.Errorf("Expected 2 cards in backlog, got %d", len(resp.Cards))
+	}
+	for _, card := range resp.Cards {
 		if card.Column != "backlog" {
 			t.Errorf("Expected column 'backlog', got %q", card.Column)
 		}

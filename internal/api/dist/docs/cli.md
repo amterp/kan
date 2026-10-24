@@ -325,7 +325,8 @@ kan add "Deploy" --blocked-by tests
 
 `--blocked-by` and `--related` accept multiple values and can be repeated. At
 least one is required. Blocker cycles and blockers that name a card's ancestor
-are rejected before writing. Related links do not block work. Adding an existing
+are rejected before writing. A card cannot name itself as related. Related links
+do not block work. Adding an existing
 link is a no-op. Cycle checks follow links into other boards and projects as far
 as kan can read them.
 
@@ -353,7 +354,9 @@ kan unlink deploy deleted-id
 Stored strings match first, so a dangling reference can be removed even when its
 target cannot be found. Otherwise references resolve as card IDs or aliases, and
 `board:card` references as they do for `link`.
-Removing a link that is already absent is a no-op.
+Unmatched references are reported on stderr. If no links match, the command
+exits 1 and leaves the card unchanged. If some match, those links are removed
+and the command succeeds while naming the unmatched references.
 
 Both commands accept `-b/--board`, `-g/--global`, and `--json`. `show` lists
 blockers with their columns and categories, cards that wait on this one, and
@@ -818,6 +821,7 @@ kan doctor
 kan doctor --fix
 kan doctor --dry-run
 kan doctor -b main
+kan doctor --all
 kan doctor --json
 ```
 
@@ -826,6 +830,8 @@ kan doctor --json
 | `--fix`       | Apply automatic fixes for issues with deterministic solutions |
 | `--dry-run`   | Show what fixes would be applied without making changes |
 | `-b, --board` | Check only a specific board, by name or ID (default: all) |
+| `-g, --global` | Check the designated global board |
+| `--all`       | Check every visible registered project and the current project |
 
 **Exit codes:**
 
@@ -857,6 +863,7 @@ kan doctor --json
   - `BLOCKED_BY_ANCESTOR`: A blocker is the card's own ancestor (manual repair)
   - `UNCATEGORIZED_LINK`: A card with links, or a linked target, has no usable column category
   - `INVALID_READY_CONFIG`: A `[ready]` entry fails validation
+  - `DUPLICATE_BOARD_ID`: Multiple visible registered projects hold the same board ID (`--all`)
   - `MISSING_WANTED_FIELDS`: Card is missing fields marked as `wanted`
   - `DUPLICATE_POSITION_KEYS`: Two cards in a column share a position key, so no card can be placed between them (fixable)
   - `LEGACY_POSITION_KEYS`: A column has cards with no position key, or with keys written by an older Kan (fixable)
@@ -865,6 +872,17 @@ kan doctor --json
   - `GLOBAL_SCHEMA_OUTDATED`: Global config needs migration
 
 `--fix` removes a link only when its target is still confirmed absent on a fresh lookup immediately before writing. It edits only source cards in the current project. Missing boards, ambiguous board IDs, newer schemas, and read failures leave links intact. A skipped or damaged card file prevents the board from proving a target absent. Cycles, ancestor blockers, category problems, and invalid ready settings require manual repair.
+
+`kan doctor --all` checks every readable board of the current project and every visible registered
+project, even when run outside a project. It checks links between projects and reports duplicate
+board IDs as `DUPLICATE_BOARD_ID`, naming the visible copies. Board statistics and issues include
+`project_path` in JSON. Skipped projects or boards appear under `skipped` (`path`, `board_id`,
+`reason`) and on stderr in text mode; skips alone do not change the exit status.
+
+With `--all --fix`, only the current project's findings can be repaired. Other projects remain
+read-only; run doctor from their directory to repair them. Outside a project, `--all --fix`
+performs no project writes. `--all` cannot be combined with `-b/--board` or `-g/--global`.
+`-g` checks the designated global board; `-b` accepts a local board name or ID.
 
 Fixing the position-key warnings rewrites cards' `position` fields and keeps their order. When most of a column needs new keys, every card in it is renumbered, so on a board used with an older Kan the fix touches many card files: commit it on its own.
 

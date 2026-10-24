@@ -6,7 +6,11 @@ Kan uses Markdown for card descriptions. Click anywhere on a description to edit
 
 Cards show **Blocked** while any blocker has not reached a column categorized as `done`. Cards in done or dropped columns do not show the marker. A dropped blocker still blocks unfinished work. Moving a blocker to done updates the cards waiting on it automatically, including when search hides the blocker.
 
-Open a card to see **Blocked by** and **Blocks**. Click a card title in either list to open that card. Kan saves pending edits before switching; if saving fails, your edits stay open. Unavailable blockers show their stored reference. Links to another board stay blocked and show no card details here.
+Open a card to see **Blocked by**, **Blocks**, and **Related**. Click a card title to open it. Kan saves pending edits before switching; if saving fails, your edits stay open. Post or clear a comment draft, and finish editing an existing comment, before following a link.
+
+Kan resolves links to other boards when the board loads and when you click **Refresh**. A blocker found in a done column releases the waiting card; every other lookup result keeps it blocked. Unavailable links show their stored reference and the reason. Cards on other boards do not update live, so refresh after changing them elsewhere.
+
+Cards on another board open read-only, with the project name, description, comments, fields, and links. Opening one keeps your current board and the server's project. Follow a link back to a card on the active board to edit it.
 
 Post or clear a new comment before switching cards. If you are editing a comment, save or cancel that edit first. Kan keeps comment drafts open until you finish them.
 

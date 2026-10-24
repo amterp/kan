@@ -91,4 +91,4 @@ AI-assisted contributions.
 ## Status
 
 Kan is usable and actively developed. Core features are solid - boards, cards, columns, custom fields, comments, drag-and-drop, and a full CLI.
-Cards can be linked from the CLI, with blocker status and navigation in the web UI. Web link editing and cross-board relationship views are still to come.
+Cards can be linked from the CLI. The web UI shows blocker status and links between boards; cards on another board open in a read-only view that names their project.

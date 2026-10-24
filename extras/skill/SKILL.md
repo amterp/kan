@@ -634,6 +634,8 @@ kan serve -p 8080        # Custom port
 kan serve --no-open      # Don't auto-open browser
 ```
 
+The web UI resolves cross-board blockers when a board loads or reloads. Only a found blocker in a done column releases unfinished work; done and dropped source cards show no Blocked marker. Clicking another board's card opens a read-only view that names its project, without switching the server's project. Other boards are not watched; use Refresh to read their latest state. Set up or change links from the CLI.
+
 ## Migration
 
 ```bash

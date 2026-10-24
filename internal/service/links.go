@@ -332,6 +332,18 @@ func (g *LinkGraph) Board(boardName string) (*model.BoardConfig, error) {
 	return b.config, b.err
 }
 
+func (g *LinkGraph) LookupBoard(result LinkLookup) (*model.BoardConfig, error) {
+	return g.Board(result.board)
+}
+
+func (g *LinkGraph) ResolveFrom(source LinkLookup, ref string) LinkLookup {
+	return g.Resolve(source.board, ref)
+}
+
+func (g *LinkGraph) BlocksFor(target LinkLookup) []LinkLookup {
+	return g.Blocks(target.board, target.Card.ID)
+}
+
 func (g *LinkGraph) Cards(boardName string) ([]*model.Card, error) {
 	b := g.boards[boardName]
 	if b == nil {

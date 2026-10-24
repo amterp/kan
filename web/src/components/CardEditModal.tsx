@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
-import type { Card, BoardConfig, UpdateCardInput, Comment } from '../api/types';
+import type { Card, BoardConfig, BoardLinks, UpdateCardInput, Comment } from '../api/types';
 import { createComment, editComment, deleteComment } from '../api/cards';
 import { toApiFieldValues } from '../utils/customFields';
 import { formatDuration } from '../utils/duration';
-import { getCardBlockers, getCardsBlockedBy } from '../utils/cardLinks';
+import { resolveCardLinks, incomingCardLinks } from '../utils/cardLinks';
+import CardLinkList from './CardLinkList';
 import MarkdownField from './MarkdownField';
 import MarkdownView from './MarkdownView';
 import CustomFieldsEditor from './CustomFieldsEditor';
@@ -12,6 +13,7 @@ interface CardEditModalProps {
   card: Card;
   board: BoardConfig;
   cards: Card[];
+  links?: BoardLinks;
   onOpenCard: (id: string) => void;
   onSave: (updates: UpdateCardInput) => Promise<void>;
   onDelete: () => void;
@@ -38,15 +40,16 @@ function getFieldValue(card: Card, fieldName: string): unknown {
   return card[fieldName];
 }
 
-export default function CardEditModal({ card, board, cards, onOpenCard, onSave, onDelete, onClose, focusDescription }: CardEditModalProps) {
+export default function CardEditModal({ card, board, cards, links, onOpenCard, onSave, onDelete, onClose, focusDescription }: CardEditModalProps) {
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description || '');
   const [column, setColumn] = useState(card.column);
   const [saving, setSaving] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [linkError, setLinkError] = useState('');
-  const blockers = useMemo(() => getCardBlockers(card, cards), [card, cards]);
-  const blocks = useMemo(() => getCardsBlockedBy(card.id, cards), [card.id, cards]);
+  const blockers = useMemo(() => resolveCardLinks(card.blocked_by ?? [], cards, links, board.id), [card.blocked_by, cards, links, board.id]);
+  const blocks = useMemo(() => incomingCardLinks(card.id, cards, links, board.id), [card.id, cards, links, board.id]);
+  const related = useMemo(() => resolveCardLinks(card.related ?? [], cards, links, board.id), [card.related, cards, links, board.id]);
 
   // Column transitions, oldest first. Reflects the saved card (not the unsaved
   // dropdown selection) so durations stay accurate. Kan records these natively;
@@ -645,52 +648,9 @@ export default function CardEditModal({ card, board, cards, onOpenCard, onSave, 
               </p>
             </div>
 
-            {blockers.length > 0 && (
-              <section className="mb-4" aria-label="Blocked by">
-                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Blocked by</h3>
-                <ul className="space-y-2 text-sm">
-                  {blockers.map(({ ref, card: blocker }) => (
-                    <li key={ref}>
-                      {blocker ? (
-                        <button
-                          type="button"
-                          className="text-left text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50 break-words"
-                          disabled={saving || commentSaving}
-                          onClick={() => void handleOpenLinkedCard(blocker.id)}
-                        >
-                          {blocker.title}
-                          <span className="block text-xs text-gray-500 dark:text-gray-400">{blocker.column}</span>
-                        </button>
-                      ) : (
-                        <span className="text-gray-500 dark:text-gray-400 break-all">
-                          {ref}<span className="block text-xs">Unavailable blocker</span>
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-            {blocks.length > 0 && (
-              <section className="mb-4" aria-label="Blocks">
-                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Blocks</h3>
-                <ul className="space-y-2 text-sm">
-                  {blocks.map((blocked) => (
-                    <li key={blocked.id}>
-                      <button
-                        type="button"
-                        className="text-left text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50 break-words"
-                        disabled={saving || commentSaving}
-                        onClick={() => void handleOpenLinkedCard(blocked.id)}
-                      >
-                        {blocked.title}
-                        <span className="block text-xs text-gray-500 dark:text-gray-400">{blocked.column}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
+            <CardLinkList label="Blocked by" links={blockers} onOpen={(ref) => void handleOpenLinkedCard(ref)} disabled={saving || commentSaving} />
+            <CardLinkList label="Blocks" links={blocks} onOpen={(ref) => void handleOpenLinkedCard(ref)} disabled={saving || commentSaving} />
+            <CardLinkList label="Related" links={related} onOpen={(ref) => void handleOpenLinkedCard(ref)} disabled={saving || commentSaving} />
             {linkError && <p className="mb-4 text-sm text-red-600 dark:text-red-400" role="alert">{linkError}</p>}
 
             {/* Custom fields */}

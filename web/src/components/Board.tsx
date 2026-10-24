@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent, DragOverEvent, CollisionDetection, DroppableContainer } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import type { BoardConfig, Card, Column as ColumnType, CreateCardInput, CreateCardResponse, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
+import type { BoardConfig, BoardLinks, Card, Column as ColumnType, CreateCardInput, CreateCardResponse, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
 import type { UndoAction } from '../hooks/useUndo';
 import { cardMatchesQuery } from '../utils/fuzzyMatch';
 import { toApiFieldValue } from '../utils/customFields';
@@ -30,6 +30,7 @@ interface PanelTarget {
 interface BoardProps {
   board: BoardConfig;
   cards: Card[];
+  links?: BoardLinks;
   filterQuery?: string;
   highlightedCardId?: string | null;
   onMoveCard: (cardId: string, column: string, position?: number) => Promise<void>;
@@ -53,6 +54,7 @@ interface BoardProps {
 export default function Board({
   board,
   cards,
+  links,
   filterQuery = '',
   highlightedCardId,
   onMoveCard,
@@ -105,7 +107,7 @@ export default function Board({
 
   const columnNames = board.columns.map((c) => c.name);
 
-  const blockedCardIds = useMemo(() => getBlockedCardIds(cards, board.columns), [cards, board.columns]);
+  const blockedCardIds = useMemo(() => getBlockedCardIds(cards, board.columns, links, board.id), [cards, board.columns, board.id, links]);
 
   // Filter cards based on search query
   const filteredCards = useMemo(() => {

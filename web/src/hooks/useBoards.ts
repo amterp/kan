@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { listBoards, getBoard, createColumn as apiCreateColumn, deleteColumn as apiDeleteColumn, updateColumn as apiUpdateColumn, reorderColumns as apiReorderColumns } from '../api/boards';
-import { listCards, moveCard as apiMoveCard, createCard as apiCreateCard, updateCard as apiUpdateCard, deleteCard as apiDeleteCard, getCard as apiGetCard } from '../api/cards';
+import { listCardsWithLinks, moveCard as apiMoveCard, createCard as apiCreateCard, updateCard as apiUpdateCard, deleteCard as apiDeleteCard, getCard as apiGetCard } from '../api/cards';
 import { ApiError } from '../api/client';
-import type { BoardConfig, Card, CreateCardInput, CreateCardResponse, FileChange, HookInfo, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
+import type { BoardConfig, BoardLinks, Card, CreateCardInput, CreateCardResponse, FileChange, HookInfo, UpdateCardInput, CreateColumnInput, UpdateColumnInput } from '../api/types';
 import { useFileSyncStatus, useFileSyncSubscription } from '../contexts/FileSyncContext';
 import { useToast } from '../contexts/ToastContext';
 import { resolveInsertIndex } from '../utils/columnPlacement';
@@ -66,6 +66,7 @@ export function useBoards(refreshKey = 0) {
 export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?: () => void) {
   const [board, setBoard] = useState<BoardConfig | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
+  const [links, setLinks] = useState<BoardLinks | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { showToast } = useToast();
@@ -86,10 +87,11 @@ export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?:
     fetchVersionRef.current += 1;
     setBoard(null);
     setCards([]);
+    setLinks(undefined);
     setError(null);
     setLoading(!!boardName);
     pendingChangesRef.current = new Set();
-  }, [boardName]);
+  }, [boardName, refreshKey]);
 
   const refresh = useCallback(async () => {
     if (!boardName) return;
@@ -98,11 +100,12 @@ export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?:
     try {
       const [boardData, cardsData] = await Promise.all([
         getBoard(boardName),
-        listCards(boardName),
+        listCardsWithLinks(boardName),
       ]);
       if (fetchVersionRef.current !== version) return;
       setBoard(boardData);
-      setCards(cardsData);
+      setCards(cardsData.cards);
+      setLinks(cardsData.links);
       setError(null);
     } catch (e) {
       if (fetchVersionRef.current !== version) return;
@@ -129,8 +132,10 @@ export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?:
     } else if (change.type === 'created' || change.type === 'modified') {
       // Fetch the updated card from the server
       if (change.card_id) {
+        const version = fetchVersionRef.current;
         try {
           const updatedCard = await apiGetCard(boardName, change.card_id);
+          if (fetchVersionRef.current !== version) return;
           setCards((prev) => upsertCard(prev, updatedCard));
         } catch (err) {
           // Card might have been deleted between notification and fetch
@@ -148,20 +153,21 @@ export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?:
     try {
       const [boardData, cardsData] = await Promise.all([
         getBoard(boardName),
-        listCards(boardName),
+        listCardsWithLinks(boardName),
       ]);
       if (fetchVersionRef.current !== version) return;
       setBoard(boardData);
+      setLinks(cardsData.links);
       setError(null);
       // Merge fetched cards, but preserve any with pending local changes
       setCards((prev) => {
         const pendingIds = pendingChangesRef.current;
         if (pendingIds.size === 0) {
-          return cardsData;
+          return cardsData.cards;
         }
         // Keep local versions of cards with pending changes
         const pendingCards = prev.filter((c) => pendingIds.has(c.id));
-        const freshCards = cardsData.filter((c) => !pendingIds.has(c.id));
+        const freshCards = cardsData.cards.filter((c) => !pendingIds.has(c.id));
         return [...freshCards, ...pendingCards];
       });
     } catch (err) {
@@ -413,6 +419,7 @@ export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?:
   return {
     board,
     cards,
+    links,
     loading,
     error,
     moveCard,

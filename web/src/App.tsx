@@ -14,6 +14,7 @@ import { groupCardsByColumn } from './utils/cardSort';
 import Header from './components/Header';
 import Board from './components/Board';
 import CardEditModal from './components/CardEditModal';
+import ReadOnlyCardModal from './components/ReadOnlyCardModal';
 import HomeLauncher from './components/HomeLauncher';
 import LandingPage from './pages/LandingPage';
 import Omnibar, { type NavigationDirection } from './components/Omnibar';
@@ -51,6 +52,7 @@ function BoardApp() {
   const {
     board,
     cards,
+    links,
     loading,
     error,
     moveCard,
@@ -458,12 +460,14 @@ function BoardApp() {
     }
   }, [board, createCard, openCard]);
 
+  const boardId = board?.id;
   const handleOpenCard = useCallback((id: string, focusDescription?: boolean) => {
     if (focusDescription) {
       setNewlyCreatedCardId(id);
     }
-    openCard(id);
-  }, [openCard]);
+    const prefix = boardId ? `${boardId}:` : '';
+    openCard(prefix && id.startsWith(prefix) ? id.slice(prefix.length) : id);
+  }, [openCard, boardId]);
 
   // Auto-select first board if only one exists (replace so no extra history
   // entry). Only on the initial load, not on every visit to "/", so clicking the
@@ -479,17 +483,22 @@ function BoardApp() {
 
   // Find the card for the modal (from URL ?card= param)
   const modalCard = useMemo(
-    () => (cardId ? cards.find((c) => c.id === cardId) : undefined),
-    [cardId, cards]
+    () => {
+      const prefix = boardId ? `${boardId}:` : '';
+      const id = prefix && cardId?.startsWith(prefix) ? cardId.slice(prefix.length) : cardId;
+      return cards.find((card) => card.id === id);
+    },
+    [cardId, cards, boardId]
   );
+  const linkedCardRef = cardId?.includes(':') && !modalCard ? cardId : undefined;
 
   // If cardId is set but card not found (deleted/invalid), silently clear it.
   // Only act once the board has loaded so we don't race the initial fetch.
   useEffect(() => {
-    if (cardId && !loading && board && !modalCard) {
+    if (cardId && !loading && board && !modalCard && !linkedCardRef) {
       closeCard({ replace: true });
     }
-  }, [cardId, loading, board, modalCard, closeCard]);
+  }, [cardId, loading, board, modalCard, linkedCardRef, closeCard]);
 
   // onSave/onDelete don't navigate - CardEditModal calls onClose() after these
   // resolve, which handles the URL update via closeCard.
@@ -620,6 +629,7 @@ function BoardApp() {
           <Board
             board={board}
             cards={cards}
+            links={links}
             filterQuery={omnibar.mode === 'cards' && !slashAutocomplete.isActive ? omnibar.query : ''}
             highlightedCardId={omnibar.isOpen && omnibar.mode === 'cards' ? omnibar.highlightedCardId : null}
             onMoveCard={moveCard}
@@ -647,12 +657,17 @@ function BoardApp() {
           card={modalCard}
           board={board}
           cards={cards}
+          links={links}
           onOpenCard={handleOpenCard}
           onSave={handleSaveModalCard}
           onDelete={handleDeleteModalCard}
           onClose={closeCard}
           focusDescription={modalCard?.id === newlyCreatedCardId}
         />
+      )}
+      {linkedCardRef && board && !loading && (
+        <ReadOnlyCardModal key={`${refreshKey}:${boardName}:${linkedCardRef}`} cardRef={linkedCardRef}
+          onOpenCard={handleOpenCard} onClose={closeCard} />
       )}
       {omnibar.isOpen && (
         <Omnibar

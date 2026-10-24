@@ -199,6 +199,11 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	// Card routes
 	mux.HandleFunc("GET /api/v1/boards/{board}/cards", h.ListCards)
+	mux.HandleFunc("GET /api/v1/linked-cards/{ref}", h.GetLinkedCard)
+	mux.HandleFunc("/api/v1/linked-cards/{ref}", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Allow", "GET, HEAD")
+		JSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Linked cards are read only"})
+	})
 	mux.HandleFunc("POST /api/v1/boards/{board}/cards", h.CreateCard)
 	mux.HandleFunc("GET /api/v1/boards/{board}/cards/{id}", h.GetCard)
 	mux.HandleFunc("PUT /api/v1/boards/{board}/cards/{id}", h.UpdateCard)
@@ -301,24 +306,55 @@ func (h *Handler) DeleteBoard(w http.ResponseWriter, r *http.Request) {
 
 // ListCards returns all cards for a board, optionally filtered by column.
 func (h *Handler) ListCards(w http.ResponseWriter, r *http.Request) {
+	ctx := h.ctx()
 	boardName := r.PathValue("board")
 	columnFilter := r.URL.Query().Get("column")
 
 	// Verify board exists first
-	if !h.ctx().BoardStore.Exists(boardName) {
+	if !ctx.BoardStore.Exists(boardName) {
 		NotFound(w, "board", boardName)
 		return
 	}
 
-	cards, err := h.ctx().CardService.List(boardName, columnFilter)
+	snapshot, err := h.loadLinks(ctx)
+	if err != nil {
+		Error(w, err)
+		return
+	}
+	cards, err := snapshot.graph.Cards(boardName)
 	if err != nil {
 		Error(w, err)
 		return
 	}
 
 	// Get board config for wanted fields check
-	boardCfg, _ := h.ctx().BoardStore.Get(boardName)
-	JSON(w, http.StatusOK, map[string]any{"cards": toCardResponses(cards, boardCfg)})
+	boardCfg, err := snapshot.graph.Board(boardName)
+	if err != nil {
+		Error(w, err)
+		return
+	}
+	var ordered []*model.Card
+	for _, column := range boardCfg.Columns {
+		if columnFilter != "" && columnFilter != column.Name {
+			continue
+		}
+		var group []*model.Card
+		for _, card := range cards {
+			if card.Column == column.Name {
+				group = append(group, card)
+			}
+		}
+		model.SortCardsByPosition(group)
+		ordered = append(ordered, group...)
+	}
+	if columnFilter == "" {
+		for _, card := range cards {
+			if !boardCfg.HasColumn(card.Column) {
+				ordered = append(ordered, card)
+			}
+		}
+	}
+	JSON(w, http.StatusOK, map[string]any{"cards": toCardResponses(ordered, boardCfg), "links": snapshot.boardLinks(boardName, cards, false)})
 }
 
 // CreateCardRequest is the JSON body for creating a card.

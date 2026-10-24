@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Card, Column } from '../api/types';
+import type { Card, Column, BoardLinks, CardLink } from '../api/types';
 import { COLUMN_CATEGORIES } from '../api/types';
-import { getBlockedCardIds, getCardBlockers, getCardsBlockedBy } from './cardLinks';
+import { getBlockedCardIds, getCardBlockers, getCardsBlockedBy, resolveCardLinks, incomingCardLinks } from './cardLinks';
 
 const card = (id: string, updates: Partial<Card> = {}): Card => ({
   id, alias: id, alias_explicit: false, title: id, column: 'todo', creator: 'tester',
@@ -71,5 +71,39 @@ describe('card links', () => {
     const waiting = card('waiting', { blocked_by: ['target'] });
     const cards = [waiting, card('related', { related: ['target'] }), card('cross-board', { blocked_by: ['board:target'] })];
     expect(getCardsBlockedBy('target', cards)).toEqual([waiting]);
+  });
+
+  it.each<CardLink['result']>(['found', 'absent', 'board_not_here', 'ambiguous_board', 'unsupported_schema', 'unreadable'])('keeps external lookup %s conservative', (result) => {
+    const source = card('source', { blocked_by: ['remote:target'] });
+    const links: BoardLinks = { resolved: { 'remote:target': { ref: 'remote:target', result, category: 'done' } }, blocks: {} };
+    expect(getBlockedCardIds([source], columns, links, 'local').has('source')).toBe(result !== 'found');
+    links.resolved['remote:target'].category = 'dropped';
+    expect(getBlockedCardIds([source], columns, links, 'local').has('source')).toBe(true);
+  });
+
+  it('uses live state for a qualified reference to the loaded board', () => {
+    const source = card('source', { blocked_by: ['local:target'] });
+    const links: BoardLinks = { resolved: { 'local:target': { ref: 'local:target', result: 'found', category: 'done' } }, blocks: {} };
+    expect(getBlockedCardIds([source, card('target')], columns, links, 'local').has('source')).toBe(true);
+    expect(getBlockedCardIds([source, card('target', { column: 'done' })], columns, links, 'local').has('source')).toBe(false);
+    links.resolved['local:target'].result = 'ambiguous_board';
+    expect(getBlockedCardIds([source, card('target', { column: 'done' })], columns, links, 'local').has('source')).toBe(true);
+    expect(getBlockedCardIds([source, card('target', { column: 'done' })], columns, undefined, 'local').has('source')).toBe(true);
+  });
+
+  it('retains qualified lookup failures even when a matching local card is loaded', () => {
+    const target = card('target', { column: 'done' });
+    const waiter = card('waiter', { blocked_by: ['local:target'] });
+    const links: BoardLinks = { resolved: { 'local:target': { ref: 'local:target', result: 'ambiguous_board' } }, blocks: {} };
+    expect(resolveCardLinks(['local:target'], [target], links, 'local')[0].result).toBe('ambiguous_board');
+    expect(incomingCardLinks('target', [waiter, target], links, 'local')).toHaveLength(0);
+    links.resolved['local:target'] = { ref: 'local:target', result: 'found', board_id: 'local', card: target };
+    expect(incomingCardLinks('target', [waiter, target], links, 'local')[0].card?.id).toBe('waiter');
+  });
+
+  it('deduplicates external incoming cards by project, board, and card identity', () => {
+    const remote = { ref: 'remote:shared', result: 'found' as const, board_id: 'remote', project_path: '/remote', card: card('shared') };
+    const links: BoardLinks = { resolved: {}, blocks: { target: [remote, remote] } };
+    expect(incomingCardLinks('target', [card('shared', { blocked_by: ['target'] })], links, 'local')).toHaveLength(2);
   });
 });

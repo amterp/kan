@@ -31,7 +31,7 @@ kan serve
 
 That's it. Your board opens in the browser.
 
-From there, add cards, drag them between columns, click to edit, and use ⌘K to quick-search. The web UI also shows blockers; set up those links from the CLI.
+From there, add cards, drag them between columns, click to edit, and use ⌘K to quick-search. The web UI shows blockers and read-only views of cards on other boards; set up links from the CLI.
 
 For scripting or automation (CI, AI agents, etc.), there's a full [CLI](/docs/cli) with commands to add, edit, move, and query cards programmatically.
 

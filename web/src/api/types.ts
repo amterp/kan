@@ -32,6 +32,37 @@ export interface Card {
   [key: string]: unknown; // custom fields
 }
 
+export interface CardLink {
+  ref: string;
+  result: 'found' | 'absent' | 'board_not_here' | 'ambiguous_board' | 'unsupported_schema' | 'unreadable';
+  board_id?: string;
+  board?: string;
+  project_path?: string;
+  project_name?: string;
+  category?: string;
+  reason?: string;
+  min_kan_version?: string;
+  linked_name?: string;
+  linked_remote?: string;
+  card?: Card;
+}
+
+export interface BoardLinks {
+  resolved: Record<string, CardLink>;
+  blocks: Record<string, CardLink[]>;
+}
+
+export interface BoardCardsResponse {
+  cards: Card[];
+  links?: BoardLinks;
+}
+
+export interface LinkedCardResponse extends CardLink {
+  read_only: boolean;
+  board_config?: BoardConfig;
+  links?: BoardLinks;
+}
+
 export interface Comment {
   id: string;
   body: string;
