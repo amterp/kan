@@ -2,18 +2,19 @@
   "_v": 3,
   "alias": "add-all-to-kan-list",
   "alias_explicit": false,
-  "column": "next",
+  "column": "in-progress",
   "created_at_millis": 1792875238715,
   "creator": "Alexander Terp",
   "description": "Design: `docs/design/work-across-boards.md`, section \"Queries across boards\": grouped by board in path order, `--limit` per board, skipped boards reported on stderr and under `skipped` in JSON, and the envelope JSON carrying each card's raw links so an outside tool can draw the dependency graph.\n\nAfter a_2naKGoYNg.",
   "id": "a_2naKH1llh",
   "parent": "a_2naKGb6Hi",
-  "position": "a4",
+  "position": "Zz",
   "title": "Add --all to kan list and kan ready",
   "type": "feature",
-  "updated_at_millis": 1792879079940,
+  "updated_at_millis": 1792881184063,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875238715},
-    {"field":"column","value":"next","at":1792879079940}
+    {"field":"column","value":"next","at":1792879079940},
+    {"field":"column","value":"in-progress","at":1792881184063}
   ]
 }
