@@ -2,20 +2,21 @@
   "_v": 3,
   "alias": "kan-migrate-discover",
   "alias_explicit": false,
-  "column": "next",
+  "column": "done",
   "created_at_millis": 1792875237351,
   "creator": "Alexander Terp",
   "description": "`kan migrate` calls `discovery.DiscoverProject` with an empty global config (`internal/cli/migrate.go`), so it ignores a custom `data_location` and skips the worktree redirect. Run in a linked worktree, it migrates the worktree's copy instead of the shared board.\n\nDesign: `docs/design/work-across-boards.md`, section \"Read commands never write inside a project\", next to last paragraph.",
   "id": "a_2naKEoVJp",
   "parent": "a_2naKEWqdp",
-  "position": "a2",
+  "position": "Zx",
   "title": "kan migrate: discover the project the way other commands do",
   "type": "bug",
-  "updated_at_millis": 1792876512568,
+  "updated_at_millis": 1792877541289,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875237351},
     {"field":"column","value":"next","at":1792875444804},
     {"field":"column","value":"in-progress","at":1792876501627},
-    {"field":"column","value":"next","at":1792876512568}
+    {"field":"column","value":"next","at":1792876512568},
+    {"field":"column","value":"done","at":1792877541289}
   ]
 }

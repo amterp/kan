@@ -2,18 +2,19 @@
   "_v": 3,
   "alias": "rework-the-project",
   "alias_explicit": false,
-  "column": "next",
+  "column": "in-progress",
   "created_at_millis": 1792875237409,
   "creator": "Alexander Terp",
   "description": "Two folders with the same basename share one `[projects]` slot in the global config, so registering the second drops the first from the web UI's project switcher. Separately, every project kan runs in is registered and offered in the switcher and omnibar: 73 of the 124 entries on the maintainer's machine are temp directories, mostly agents' test projects.\n\nDesign: `docs/design/work-across-boards.md`, sections \"The project registry\", \"Hidden entries\" and \"Duplicate board IDs\". `global/3` removes `[projects]` and adds `hidden`. The switcher and `kan migrate` read `[repos]` and take names from each project's own config. Implicit registration skips temp directories; a second copy of an already registered board ID registers hidden; the migration hides existing entries under temp directories.",
   "id": "a_2naKEucjD",
   "parent": "a_2naKEWqdp",
-  "position": "a3",
+  "position": "Zu",
   "title": "Rework the project registry: drop [projects], add hidden entries (global/3)",
   "type": "enhancement",
-  "updated_at_millis": 1792875444857,
+  "updated_at_millis": 1792877546344,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875237409},
-    {"field":"column","value":"next","at":1792875444857}
+    {"field":"column","value":"next","at":1792875444857},
+    {"field":"column","value":"in-progress","at":1792877546344}
   ]
 }

@@ -2,19 +2,20 @@
   "_v": 3,
   "alias": "protect-project",
   "alias_explicit": false,
-  "column": "in-progress",
+  "column": "done",
   "created_at_millis": 1792875237232,
   "creator": "Alexander Terp",
   "description": "`FileProjectStore.EnsureInitialized` saves `.kan/config.toml` whenever its schema differs from the running kan's, including when the file is newer, and `Save` drops fields kan doesn't know. Phase 4 adds `project/3` with `[linked_boards]`, which an older kan would silently strip. Project config is also missing from `MigrateService.MigrationPlan`.\n\nDesign: `docs/design/work-across-boards.md`, section \"Read commands never write inside a project\", the paragraph on project config. This has to ship before any project schema bump. Fixtures should cover a missing project config and one newer than the running kan.",
   "id": "a_2naKEczaZ",
   "parent": "a_2naKEWqdp",
-  "position": "a0",
+  "position": "Zz",
   "title": "Protect project config from being rewritten by an older kan",
   "type": "bug",
-  "updated_at_millis": 1792876501547,
+  "updated_at_millis": 1792877541168,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875237232},
     {"field":"column","value":"next","at":1792875444705},
-    {"field":"column","value":"in-progress","at":1792876501547}
+    {"field":"column","value":"in-progress","at":1792876501547},
+    {"field":"column","value":"done","at":1792877541168}
   ]
 }
