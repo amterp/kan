@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import type { Card, BoardConfig, UpdateCardInput, Comment } from '../api/types';
 import { createComment, editComment, deleteComment } from '../api/cards';
 import { toApiFieldValues } from '../utils/customFields';
@@ -78,6 +78,11 @@ export default function CardEditModal({ card, board, cards, onOpenCard, onSave, 
     }
     return values;
   });
+
+  const latestEdits = useRef({ title, description, column, customFieldValues, newCommentBody, editingCommentId, commentSaving });
+  useLayoutEffect(() => {
+    latestEdits.current = { title, description, column, customFieldValues, newCommentBody, editingCommentId, commentSaving };
+  }, [title, description, column, customFieldValues, newCommentBody, editingCommentId, commentSaving]);
 
   // Drag state - initialize from saved state
   const [position, setPosition] = useState(savedModalState.position);
@@ -253,13 +258,17 @@ export default function CardEditModal({ card, board, cards, onOpenCard, onSave, 
   }, [saving, hasChanges, title, performSave, onClose]);
 
   const handleOpenLinkedCard = async (id: string) => {
-    if (saving || commentSaving || id === card.id) return;
-    if (newCommentBody.trim()) {
-      setLinkError('Post or clear your comment before opening another card.');
-      return;
-    }
-    if (editingCommentId !== null) {
-      setLinkError('Save or cancel your comment edit before opening another card.');
+    if (saving || id === card.id) return;
+    const commentError = () => {
+      const edits = latestEdits.current;
+      if (edits.commentSaving) return 'Wait for the comment to finish saving before opening another card.';
+      if (edits.newCommentBody.trim()) return 'Post or clear your comment before opening another card.';
+      if (edits.editingCommentId !== null) return 'Save or cancel your comment edit before opening another card.';
+      return '';
+    };
+    const pendingComment = commentError();
+    if (pendingComment) {
+      setLinkError(pendingComment);
       return;
     }
     if (hasChanges && !title.trim()) {
@@ -269,7 +278,19 @@ export default function CardEditModal({ card, board, cards, onOpenCard, onSave, 
     }
     setLinkError('');
     try {
+      const beforeSave = latestEdits.current;
       if (hasChanges) await performSave();
+      const afterSave = latestEdits.current;
+      const pendingComment = commentError();
+      if (pendingComment) {
+        setLinkError(pendingComment);
+        return;
+      }
+      if (afterSave.title !== beforeSave.title || afterSave.description !== beforeSave.description ||
+          afterSave.column !== beforeSave.column || afterSave.customFieldValues !== beforeSave.customFieldValues) {
+        setLinkError('Your edits changed while saving. Open the linked card again to save them.');
+        return;
+      }
       onOpenCard(id);
     } catch (error) {
       setLinkError(`Could not save changes: ${error instanceof Error ? error.message : 'Please try again.'}`);

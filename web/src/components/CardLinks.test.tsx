@@ -207,4 +207,57 @@ describe('modal blockers', () => {
     fireEvent.click(openTarget);
     await waitFor(() => expect(screen.getByLabelText('Location').textContent).toContain('card=target'));
   });
+
+  it('keeps a comment typed while the card save is pending', async () => {
+    const source = makeCard('source', { blocked_by: ['target'] });
+    let finishSave: ((response: Response) => void) | undefined;
+    vi.stubGlobal('fetch', () => new Promise<Response>((resolve) => { finishSave = resolve; }));
+    renderModal([source, makeCard('target', { title: 'Dependency' })]);
+    fireEvent.change(screen.getByPlaceholderText('Card title'), { target: { value: 'Edited source' } });
+    fireEvent.click(within(screen.getByRole('region', { name: 'Blocked by' })).getByRole('button', { name: /Dependency/ }));
+    const draft = screen.getByPlaceholderText('Add a comment...') as HTMLTextAreaElement;
+    fireEvent.change(draft, { target: { value: 'Typed during save' } });
+    await act(async () => { finishSave?.(new Response(JSON.stringify({ ...source, title: 'Edited source' }), { status: 200 })); });
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Post or clear your comment before opening another card.'));
+    expect(screen.getByLabelText('Location').textContent).toContain('card=source');
+    expect(draft.value).toBe('Typed during save');
+  });
+
+  it('keeps the source open if a comment starts posting during the card save', async () => {
+    const source = makeCard('source', { blocked_by: ['target'] });
+    let finishSave: ((response: Response) => void) | undefined;
+    let finishPost: ((response: Response) => void) | undefined;
+    vi.stubGlobal('fetch', (_path: string, init: RequestInit) => new Promise<Response>((resolve) => {
+      if (init.method === 'PUT') finishSave = resolve;
+      else finishPost = resolve;
+    }));
+    renderModal([source, makeCard('target', { title: 'Dependency' })]);
+    fireEvent.change(screen.getByPlaceholderText('Card title'), { target: { value: 'Edited source' } });
+    const openTarget = within(screen.getByRole('region', { name: 'Blocked by' })).getByRole('button', { name: /Dependency/ });
+    fireEvent.click(openTarget);
+    fireEvent.change(screen.getByPlaceholderText('Add a comment...'), { target: { value: 'Typed during save' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Comment' }));
+    await act(async () => { finishSave?.(new Response(JSON.stringify({ ...source, title: 'Edited source' }), { status: 200 })); });
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Wait for the comment to finish saving before opening another card.'));
+    expect(screen.getByLabelText('Location').textContent).toContain('card=source');
+    await act(async () => { finishPost?.(new Response(JSON.stringify({ id: 'new-comment', body: 'Typed during save', author: 'tester', created_at_millis: 0 }), { status: 200 })); });
+    await waitFor(() => expect((openTarget as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(openTarget);
+    await waitFor(() => expect(screen.getByLabelText('Location').textContent).toContain('card=target'));
+  });
+
+  it('keeps newer card edits made while the previous version is saving', async () => {
+    const source = makeCard('source', { blocked_by: ['target'] });
+    let finishSave: ((response: Response) => void) | undefined;
+    vi.stubGlobal('fetch', () => new Promise<Response>((resolve) => { finishSave = resolve; }));
+    renderModal([source, makeCard('target', { title: 'Dependency' })]);
+    const title = screen.getByPlaceholderText('Card title') as HTMLTextAreaElement;
+    fireEvent.change(title, { target: { value: 'First version' } });
+    fireEvent.click(within(screen.getByRole('region', { name: 'Blocked by' })).getByRole('button', { name: /Dependency/ }));
+    fireEvent.change(title, { target: { value: 'Newer version' } });
+    await act(async () => { finishSave?.(new Response(JSON.stringify({ ...source, title: 'First version' }), { status: 200 })); });
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Your edits changed while saving. Open the linked card again to save them.'));
+    expect(screen.getByLabelText('Location').textContent).toContain('card=source');
+    expect(title.value).toBe('Newer version');
+  });
 });
