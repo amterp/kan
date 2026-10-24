@@ -226,6 +226,20 @@ var expectedPersistedFields = map[string][]string{
 		"name",
 		"worktree_independent",
 	},
+	"project/3": {
+		"favicon",
+		"favicon.background",
+		"favicon.emoji",
+		"favicon.icon_type",
+		"favicon.letter",
+		"id",
+		"kan_schema",
+		"linked_boards",
+		"linked_boards.name",
+		"linked_boards.remote",
+		"name",
+		"worktree_independent",
+	},
 }
 
 func TestPersistedStructShapeIsVersioned(t *testing.T) {

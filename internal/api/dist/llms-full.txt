@@ -1097,6 +1097,7 @@ Kan uses TOML files for configuration. This page documents the board configurati
 ## File Locations
 
 - **Board config**: `.kan/boards/<board-name>/config.toml`
+- **Project config**: `.kan/config.toml`
 - **Global user config**: `~/.config/kan/config.toml`
 
 ## Board Configuration
@@ -1396,6 +1397,33 @@ DESCRIPTION=$(curl -s "https://jira.example.com/rest/api/2/issue/$TITLE" | jq -r
 kan edit "$CARD_ID" -b "$BOARD" -d "$DESCRIPTION"
 echo "Synced description from JIRA"
 ```
+
+## Project Configuration
+
+`.kan/config.toml` holds settings for the whole project. Kan creates and maintains it; you rarely
+edit it by hand.
+
+```toml
+kan_schema = "project/3"
+id = "p_abc123"
+name = "web"
+
+[linked_boards.b_2hH3HWg0E]
+name = "api/main"
+remote = "git@github.com:example/api.git"
+```
+
+| Field | Description |
+|-------|-------------|
+| `name` | Project name, shown in the web UI |
+| `worktree_independent` | `true` when this git worktree keeps its own board instead of sharing the main worktree's |
+| `linked_boards.<board ID>` | A board in another repo that this project's cards link to, recorded by `kan link` and `kan add --blocked-by` |
+| `linked_boards.<board ID>.name` | The target's project name and board name |
+| `linked_boards.<board ID>.remote` | The target repo's `origin` URL (or its only remote), with any user name or password removed |
+
+Kan never uses `[linked_boards]` to find a board: any registered clone holding that board ID
+satisfies the link. It only lets kan say what is missing, and where to get it, when the board isn't
+on this machine.
 
 ## Global User Configuration
 

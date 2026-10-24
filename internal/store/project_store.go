@@ -45,19 +45,26 @@ func (s *FileProjectStore) Load() (*model.ProjectConfig, error) {
 		return nil, fmt.Errorf("failed to read project config: %w", err)
 	}
 
+	// Check the version before decoding the rest: a newer kan may have
+	// changed a field's shape, which should read as "upgrade kan", not as a
+	// decode error.
+	var header struct {
+		KanSchema string `toml:"kan_schema"`
+	}
+	if _, err := toml.Decode(string(data), &header); err != nil {
+		return nil, fmt.Errorf("invalid project config: %w", err)
+	}
+	if header.KanSchema == "" {
+		return nil, version.MissingProjectSchema(path)
+	}
+	if header.KanSchema != version.CurrentProjectSchema() {
+		return nil, version.InvalidProjectSchema(path, header.KanSchema)
+	}
+
 	var cfg model.ProjectConfig
 	if err := toml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("invalid project config: %w", err)
 	}
-
-	// Strict version validation (only if file exists and has content)
-	if cfg.KanSchema == "" {
-		return nil, version.MissingProjectSchema(path)
-	}
-	if cfg.KanSchema != version.CurrentProjectSchema() {
-		return nil, version.InvalidProjectSchema(path, cfg.KanSchema)
-	}
-
 	return &cfg, nil
 }
 
@@ -118,14 +125,14 @@ func (s *FileProjectStore) EnsureInitialized(defaultName string) error {
 		return fmt.Errorf("failed to read project config: %w", err)
 	}
 
+	if err := refuseFutureProjectConfig(path); err != nil {
+		return err
+	}
+
 	// Parse existing config
 	var cfg model.ProjectConfig
 	if err := toml.Unmarshal(data, &cfg); err != nil {
 		return fmt.Errorf("invalid project config: %w", err)
-	}
-
-	if version.IsFutureProjectSchema(cfg.KanSchema) {
-		return version.InvalidProjectSchema(path, cfg.KanSchema)
 	}
 
 	needsSave := false

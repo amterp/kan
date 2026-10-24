@@ -1,4 +1,4 @@
-kan_schema = "project/2"
+kan_schema = "project/3"
 id = "p_test123"
 name = "Test Project"
 
@@ -6,3 +6,7 @@ name = "Test Project"
 background = "#3b82f6"
 icon_type = "letter"
 letter = "T"
+
+[linked_boards.b_2hH3HWg0E]
+name = "api/main"
+remote = "git@github.com:example/api.git"

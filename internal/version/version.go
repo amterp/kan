@@ -18,7 +18,7 @@ const (
 	CurrentCardVersion    = 4
 	CurrentBoardVersion   = 14
 	CurrentGlobalVersion  = 3
-	CurrentProjectVersion = 2
+	CurrentProjectVersion = 3
 )
 
 // Schema type prefixes for config files.
@@ -54,6 +54,7 @@ var MinKanVersion = map[string]string{
 	"global/3":  "0.30.0",
 	"project/1": "0.3.0",
 	"project/2": "0.20.0",
+	"project/3": "0.30.0",
 }
 
 // FormatBoardSchema creates a board schema string from a version number.

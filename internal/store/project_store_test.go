@@ -171,8 +171,8 @@ func TestFileProjectStore_EnsureInitialized_CreatesNewConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to read config file: %v", err)
 	}
-	if !strings.Contains(string(data), `kan_schema = "project/2"`) {
-		t.Error("Config file should have project/2 schema stamp")
+	if !strings.Contains(string(data), `kan_schema = "project/3"`) {
+		t.Error("Config file should have project/3 schema stamp")
 	}
 }
 
@@ -489,5 +489,26 @@ func TestFileProjectStore_SavesValidTOML(t *testing.T) {
 	}
 	if parsed["id"] != "p_tomltest" {
 		t.Errorf("id = %v, want 'p_tomltest'", parsed["id"])
+	}
+}
+
+func TestFileProjectStore_LinkedBoardsRoundTrip(t *testing.T) {
+	store, _, cleanup := setupTestProjectStore(t)
+	defer cleanup()
+
+	cfg := &model.ProjectConfig{ID: "p_1", Name: "web", LinkedBoards: map[string]model.LinkedBoard{
+		"b_2hH3HWg0E": {Name: "api/main", Remote: "git@github.com:example/api.git"},
+		"b_3":         {Name: "docs/main"},
+	}}
+	if err := store.Save(cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	loaded, err := store.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(loaded.LinkedBoards) != 2 || loaded.LinkedBoards["b_2hH3HWg0E"] != cfg.LinkedBoards["b_2hH3HWg0E"] ||
+		loaded.LinkedBoards["b_3"] != cfg.LinkedBoards["b_3"] {
+		t.Errorf("linked boards = %+v", loaded.LinkedBoards)
 	}
 }

@@ -69,7 +69,7 @@ func TestMigrateService_ProjectV1ToCurrent(t *testing.T) {
 }
 
 func TestMigrateService_ProjectCurrent_NoOp(t *testing.T) {
-	svc, _, cleanup := setupMigrationTest(t, "v13")
+	svc, _, cleanup := setupMigrationTest(t, "v15")
 	defer cleanup()
 
 	plan, err := svc.PlanProject()
@@ -77,7 +77,7 @@ func TestMigrateService_ProjectCurrent_NoOp(t *testing.T) {
 		t.Fatalf("PlanProject: %v", err)
 	}
 	if plan.Project == nil {
-		t.Fatal("v13 fixture has a project config; plan.Project should be set")
+		t.Fatal("v15 fixture has a project config; plan.Project should be set")
 	}
 	if plan.Project.NeedsMigration {
 		t.Errorf("current project config should not need migration: %+v", plan.Project)
@@ -133,5 +133,34 @@ func TestMigrateService_ProjectFuture_Refused(t *testing.T) {
 	}
 	if !bytes.Equal(before, after) {
 		t.Errorf("future project config was rewritten:\n%s", after)
+	}
+}
+
+// project/3 adds [linked_boards], an optional table, so a project/2 config
+// only needs its stamp.
+func TestMigrateService_ProjectV2ToV3(t *testing.T) {
+	svc, tempDir, cleanup := setupMigrationTest(t, "v14")
+	defer cleanup()
+
+	plan, err := svc.PlanProject()
+	if err != nil {
+		t.Fatalf("PlanProject: %v", err)
+	}
+	if plan.Project == nil || !plan.Project.NeedsMigration || plan.Project.FromSchema != "project/2" {
+		t.Fatalf("want a project/2 migration, got %+v", plan.Project)
+	}
+	if err := svc.Execute(plan, false); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	raw := readRawTOML(t, filepath.Join(tempDir, ".kan", "config.toml"))
+	if raw["kan_schema"] != "project/3" {
+		t.Errorf("kan_schema = %v, want project/3", raw["kan_schema"])
+	}
+	if raw["id"] != "p_test123" || raw["name"] != "Test Project" {
+		t.Errorf("id/name not preserved: %v / %v", raw["id"], raw["name"])
+	}
+	if _, ok := raw["favicon"].(map[string]any); !ok {
+		t.Errorf("favicon dropped: %v", raw["favicon"])
 	}
 }

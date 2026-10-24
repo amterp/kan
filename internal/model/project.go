@@ -19,6 +19,19 @@ type ProjectConfig struct {
 	Name                string        `toml:"name" json:"name"`
 	Favicon             FaviconConfig `toml:"favicon" json:"favicon"`
 	WorktreeIndependent bool          `toml:"worktree_independent,omitempty" json:"worktree_independent,omitempty"`
+	// LinkedBoards records, by board ID, boards in other repos that this
+	// project's cards link to. Kan never uses it to find a board, only to
+	// say where to get one that isn't on this machine.
+	LinkedBoards map[string]LinkedBoard `toml:"linked_boards,omitempty" json:"linked_boards,omitempty"`
+}
+
+// LinkedBoard describes a board in another repo that a card links to.
+type LinkedBoard struct {
+	// Name is the target's project name and board name, e.g. "api/main".
+	Name string `toml:"name" json:"name"`
+	// Remote is a URL the target repo can be fetched from, with any
+	// credentials removed, since the project config is committed.
+	Remote string `toml:"remote,omitempty" json:"remote,omitempty"`
 }
 
 // FaviconConfig holds the favicon appearance settings.

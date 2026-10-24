@@ -173,6 +173,32 @@ worktree_independent = true
 
 **Newer project config**: Kan refuses to load or save a project config whose schema is newer than its own, and the migration refuses to touch it, exactly as for boards and cards. Before this protection, kan rewrote any project config whose schema differed from its own, so an older kan would have stamped a newer config with its own version and dropped every field it didn't know. The protection has to ship before any project schema bump, so that kans in use already have it when the bump lands.
 
+### Linked Boards (project/3)
+
+**Added in**: project/3
+
+Adds an optional `[linked_boards]` table. A card can wait on, or refer to, a card on another repo's board; the link is stored on the card as `boardID:cardID`. When kan records such a link, it also records the target board here, keyed by board ID:
+
+```toml
+kan_schema = "project/3"
+id = "p_abc123"
+name = "web"
+
+[linked_boards.b_2hH3HWg0E]
+  name = "api/main"
+  remote = "git@github.com:example/api.git"
+```
+
+`name` is the target's project name and board name. `remote` is the target repo's `origin` URL, or its only remote; kan leaves it out when the repo has several remotes and none named `origin`, or none.
+
+**Never used to find a board.** Any registered clone or mirror holding that board ID satisfies the link. The table only improves the message when the board isn't on this machine, by naming it and saying where to get it.
+
+**Credentials removed.** The project config is committed, so kan removes secrets from the URL before storing it: a URL with a scheme loses its user info (`https://user:token@host/x` becomes `https://host/x`), except that `ssh://` keeps the user name and drops any password. The scp-like form (`git@github.com:example/api.git`) carries no password and is stored as is.
+
+**Written only for the current project.** Recording a link writes the linking project's config, never the target's. Links to another board in the same project record nothing, since that board is always in the same repo.
+
+**Migration**: project/2 -> project/3 is a schema-only step; the table is optional. Kan before 0.30.0 refuses to save a project/3 config (see "Newer project config" above), so it can't drop the table.
+
 ### Why Independent Versions?
 
 **Decision**: Card schema and board schema evolve independently. A card at `_v: 2` can exist in a board at `board/1`.
