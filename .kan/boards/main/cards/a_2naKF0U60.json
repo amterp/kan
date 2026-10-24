@@ -2,18 +2,19 @@
   "_v": 3,
   "alias": "add-kan-registry",
   "alias_explicit": false,
-  "column": "backlog-hi",
+  "column": "done",
   "created_at_millis": 1792875237466,
   "creator": "Alexander Terp",
   "description": "The only way to see or clean the registry today is editing `~/.config/kan/config.toml` by hand.\n\nDesign: `docs/design/work-across-boards.md`, section \"Hidden entries\", the command list. `prune` removes only entries confirmed missing, never one it failed to read.\n\nAfter a_2naKEucjD.",
   "id": "a_2naKF0U60",
   "parent": "a_2naKEWqdp",
-  "position": "a1",
+  "position": "Zp",
   "title": "Add kan registry: list, hide, unhide, remove, prune",
   "type": "feature",
-  "updated_at_millis": 1792875445013,
+  "updated_at_millis": 1792879071635,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875237466},
-    {"field":"column","value":"backlog-hi","at":1792875445013}
+    {"field":"column","value":"backlog-hi","at":1792875445013},
+    {"field":"column","value":"done","at":1792879071635}
   ]
 }
