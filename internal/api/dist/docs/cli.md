@@ -331,9 +331,10 @@ as kan can read them.
 
 Linking to a board in another project also records that board in the current
 project's config, under `[linked_boards]`: its project and board name, and the
-repo's `origin` URL with any credentials removed. Kan never uses this to find the
-board. When the board isn't on this machine, `show` uses it to say what is missing
-and where to get it:
+repo's `origin` URL with any credentials removed (a local path, or a URL kan
+can't parse, isn't recorded). Kan never uses this to find the board. When the
+board isn't on this machine, `show` uses it to say what is missing and where to
+get it:
 
 ```
 a_2nQ0vLx1k waits on api/main (b_2hH3HWg0E), which isn't on this machine.

@@ -23,19 +23,31 @@ func TestFetchURL(t *testing.T) {
 	}
 }
 
-func TestStripCredentials(t *testing.T) {
+func TestShareableRemote(t *testing.T) {
 	cases := map[string]string{
-		"https://user:token@github.com/example/api.git": "https://github.com/example/api.git",
-		"https://token@github.com/example/api.git":      "https://github.com/example/api.git",
-		"https://github.com/example/api.git":            "https://github.com/example/api.git",
-		"ssh://git:secret@github.com/example/api.git":   "ssh://git@github.com/example/api.git",
-		"ssh://git@github.com/example/api.git":          "ssh://git@github.com/example/api.git",
-		"git@github.com:example/api.git":                "git@github.com:example/api.git",
-		"/srv/git/api.git":                              "/srv/git/api.git",
+		"https://user:token@github.com/example/api.git":  "https://github.com/example/api.git",
+		"https://token@github.com/example/api.git":       "https://github.com/example/api.git",
+		"https://github.com/example/api.git":             "https://github.com/example/api.git",
+		"https://github.com/example/api.git?token=abc#x": "https://github.com/example/api.git",
+		"ssh://git:secret@github.com/example/api.git":    "ssh://git@github.com/example/api.git",
+		"ssh://git@github.com/example/api.git":           "ssh://git@github.com/example/api.git",
+		"git@github.com:example/api.git":                 "git@github.com:example/api.git",
+		"github.com:example/api.git":                     "github.com:example/api.git",
+		"https://user:pa%ssword@github.com/a/b.git":      "",
+		"https://user:pa/ss@github.com/a/b.git":          "",
+		"https://user:pa#ss@github.com/a/b.git":          "",
+		"https://user:pa?ss@github.com/a/b.git":          "",
+		"https://user:pa ss@github.com/a/b.git":          "",
+		"user:secret@github.com:example/api.git":         "",
+		"file:///srv/git/api.git":                        "",
+		"/srv/git/api.git":                               "",
+		"../api.git":                                     "",
+		`C:\repos\api.git`:                               "",
+		"":                                               "",
 	}
 	for in, want := range cases {
-		if got := StripCredentials(in); got != want {
-			t.Errorf("StripCredentials(%q) = %q, want %q", in, got, want)
+		if got := ShareableRemote(in); got != want {
+			t.Errorf("ShareableRemote(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

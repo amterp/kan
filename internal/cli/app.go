@@ -190,7 +190,7 @@ func (a *App) elsewhere(project *App) *service.Elsewhere {
 			return p.BoardStore, p.CardStore, nil
 		},
 		Remote: func(root string) string {
-			return git.StripCredentials(git.FetchURL(a.GitClient.Remotes(root)))
+			return git.ShareableRemote(git.FetchURL(a.GitClient.Remotes(root)))
 		},
 	}
 	if a.globalCfg != nil {

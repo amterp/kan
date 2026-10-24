@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 )
 
@@ -49,24 +50,46 @@ func FetchURL(remotes map[string]string) string {
 	return ""
 }
 
-// StripCredentials removes secrets from a remote URL, so it can be written
-// to a committed file. A URL with a scheme loses its user info, except that
-// ssh:// keeps the user name, which is a login, not a secret. The scp-like
-// form (git@github.com:example/api.git) has no password and is kept as is.
-func StripCredentials(remote string) string {
-	if !strings.Contains(remote, "://") {
+// ShareableRemote returns a form of a remote URL that is safe to write to
+// a committed file and useful to someone on another machine, or "" when
+// there is none. It fails closed: anything it can't parse is dropped, not
+// kept as is.
+//   - A URL with a scheme loses its user info (ssh:// keeps the user name,
+//     a login rather than a secret), query and fragment.
+//   - The scp-like form (git@github.com:example/api.git) has no password
+//     and is kept when its user and host are plain.
+//   - A local path or file:// URL is dropped: it names a place on this
+//     machine only, and would publish the user's directory layout.
+func ShareableRemote(remote string) string {
+	if strings.Contains(remote, "://") {
+		u, err := url.Parse(remote)
+		if err != nil || u.Scheme == "file" || u.Host == "" {
+			return ""
+		}
+		if u.User != nil && u.Scheme == "ssh" {
+			u.User = url.User(u.User.Username())
+		} else {
+			u.User = nil
+		}
+		u.RawQuery, u.ForceQuery, u.Fragment, u.RawFragment = "", false, "", ""
+		return u.String()
+	}
+	if isPlainSCP(remote) {
 		return remote
 	}
-	u, err := url.Parse(remote)
-	if err != nil || u.User == nil {
-		return remote
-	}
-	if u.Scheme == "ssh" {
-		u.User = url.User(u.User.Username())
-	} else {
-		u.User = nil
-	}
-	return u.String()
+	return ""
+}
+
+var scpUserHost = regexp.MustCompile(`^([A-Za-z0-9._-]+@)?[A-Za-z0-9.-]{2,}$`)
+
+// isPlainSCP reports whether remote is git's scp-like syntax,
+// [user@]host:path, with a plain user and host and a path holding no '@',
+// ':' or backslash, any of which could be a mistyped password or a Windows
+// path. A Windows drive (C:\...) has a one-letter host, so it doesn't
+// match either.
+func isPlainSCP(remote string) bool {
+	userHost, path, ok := strings.Cut(remote, ":")
+	return ok && path != "" && scpUserHost.MatchString(userHost) && !strings.ContainsAny(path, "@:\\")
 }
 
 func withoutRepoOverrides(env []string) []string {
