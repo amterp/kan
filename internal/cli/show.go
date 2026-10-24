@@ -78,6 +78,10 @@ func runShow(idOrAlias, board string, global, jsonOutput bool) {
 	if err != nil {
 		Fatal(err)
 	}
+	links.SetElsewhere(app.elsewhere(project))
+	for _, skipped := range links.LoadOtherProjects() {
+		PrintWarning("skipped %s while looking for cards that link here: %s", util.PrettyPath(skipped.Path), skipped.Reason)
+	}
 	printCardLinks(links, boardName, card)
 }
 
@@ -88,6 +92,10 @@ func printCardLinks(links *service.LinkGraph, boardName string, card *model.Card
 		}
 		fmt.Printf("\n%s:\n", label)
 		for _, result := range results {
+			if result.State == service.LinkBoardNotHere && label == "Blocked by" {
+				fmt.Printf("  %s\n", strings.ReplaceAll(service.NotOnThisMachine(card.ID, result), "\n", "\n  "))
+				continue
+			}
 			if result.State != service.LinkFound {
 				fmt.Printf("  %s: %s (%s)\n", result.Ref, result.State, result.Reason)
 				continue
@@ -96,7 +104,16 @@ func printCardLinks(links *service.LinkGraph, boardName string, card *model.Card
 			if result.Column != nil && result.Column.Category != "" {
 				state = result.Column.Category
 			}
-			fmt.Printf("  %s  %s (%s, %s)\n", result.Card.ID, result.Card.Title, result.Card.Column, state)
+			// A card on another board is named by its stored form, and one in
+			// another project also by where that project is.
+			ref, where := result.Card.ID, ""
+			if result.BoardName != boardName || result.Project != "" {
+				ref = result.BoardID + ":" + result.Card.ID
+			}
+			if result.Project != "" {
+				where = "  " + RenderMuted(util.PrettyPath(result.Project))
+			}
+			fmt.Printf("  %s  %s (%s, %s)%s\n", ref, result.Card.Title, result.Card.Column, state, where)
 		}
 	}
 	printLinks("Blocked by", links.Blockers(boardName, card))

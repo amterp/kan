@@ -22,6 +22,14 @@ type CardService struct {
 	aliasService   *AliasService
 	hookService    *HookService
 	generateCardID func() string
+	elsewhere      *Elsewhere
+	projectStore   store.ProjectStore
+}
+
+// SetElsewhere lets --blocked-by name cards on boards in other projects.
+// projectStore is the current project's config, where those are recorded.
+func (s *CardService) SetElsewhere(e *Elsewhere, projectStore store.ProjectStore) {
+	s.elsewhere, s.projectStore = e, projectStore
 }
 
 // NewCardService creates a new card service.
@@ -167,11 +175,13 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 	const maxAttempts = 5
 	var links *LinkGraph
 	linkService := NewLinkService(s.cardStore, s.boardStore)
+	linkService.SetElsewhere(s.elsewhere, s.projectStore)
 	if len(input.BlockedBy) > 0 {
 		links, err = loadLinkGraph(s.boardStore, s.cardStore, input.BoardName, boardCfg, listing)
 		if err != nil {
 			return nil, nil, err
 		}
+		links.SetElsewhere(s.elsewhere)
 	}
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		if parents.cards[card.ID] == nil {
@@ -180,6 +190,9 @@ func (s *CardService) Add(input AddCardInput) (*model.Card, []*HookResult, error
 			}
 			if links != nil {
 				if err := linkService.Prepare(links, input.BoardName, card, input.BlockedBy, nil); err != nil {
+					return nil, nil, err
+				}
+				if err := linkService.RecordLinkedBoards(links, input.BoardName, card); err != nil {
 					return nil, nil, err
 				}
 			}

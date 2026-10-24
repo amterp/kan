@@ -338,7 +338,7 @@ kan add "Buy milk" -g                            # Add to the global board from 
 | `-b, --board` | Target board |
 | `-c, --column` | Target column |
 | `-p, --parent` | Parent card ID or alias |
-| `--blocked-by` | Blocking card IDs or aliases (repeatable or variadic) |
+| `--blocked-by` | Blocking card IDs, aliases or `board:card` refs (repeatable or variadic) |
 | `--position` | Insert at index (0 = top, -1 = end, negatives count from end) |
 | `--top` | Insert at the top of the column |
 | `--bottom` | Insert at the bottom of the column |
@@ -424,9 +424,9 @@ kan unlink deploy tests rollout             # Remove refs from both link lists
 kan unlink deploy deleted-id                # Remove a dangling stored ref
 ```
 
-`link` accepts `--blocked-by` and `--related`, both repeatable or variadic. `link` and `unlink` accept `-b/--board`, `-g/--global`, and `--json`. Targets must be on the same board. Commands accept IDs or aliases and store IDs; cross-board additions are refused. Repeating a link or removing an absent link is a no-op.
+`link` accepts `--blocked-by` and `--related`, both repeatable or variadic. `link` and `unlink` accept `-b/--board`, `-g/--global`, and `--json`. Commands accept IDs or aliases and store IDs. A card on another board is named `board:card`, with a board name in this project or a board ID (`kan board describe` shows it), including a board in another registered repo: `kan link deploy --blocked-by b_2hH3HWg0E:api-endpoint`. Such links are stored as `boardID:cardID`; a link into another repo also records that board under `[linked_boards]` in this project's config, which `show` uses to say where to get it when it isn't on this machine. Repeating a link or removing an absent link is a no-op.
 
-Blockers cannot form a cycle or name the card's own ancestor. Related links have no blocking effect. `unlink` matches the stored string first, then resolves an ID or alias, so deleted targets can be removed. `show` lists blockers with column/category or a lookup failure reason, reverse blockers, and related links. JSON keeps `blocked_by` and `related` inside the existing card object.
+Blockers cannot form a cycle (checked across boards and repos as far as kan can read them) or name the card's own ancestor. Related links have no blocking effect. A blocker done on another board, in any repo, releases the card in `kan ready`. `unlink` matches the stored string first, then resolves an ID or alias, so deleted targets can be removed. `show` lists blockers with column/category or a lookup failure reason, related links, and the cards that wait on this one or name it as related, gathered from every visible registered project. JSON keeps `blocked_by` and `related` inside the existing card object.
 
 ## Card History
 

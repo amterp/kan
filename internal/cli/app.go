@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/amterp/kan/internal/config"
 	"github.com/amterp/kan/internal/creator"
@@ -164,7 +165,42 @@ func NewAppWithOptions(opts AppOptions) (*App, error) {
 		app.CardService.SetHookService(app.HookService)
 	}
 
+	elsewhere := app.elsewhere(app)
+	app.LinkService.SetElsewhere(elsewhere, app.ProjectStore)
+	app.CardService.SetElsewhere(elsewhere, app.ProjectStore)
+
 	return app, nil
+}
+
+// elsewhere lets link lookups from project reach boards in other registered
+// projects, read-only. project is the App itself, or another project it
+// opened; its [linked_boards] describes boards that aren't on this machine.
+func (a *App) elsewhere(project *App) *service.Elsewhere {
+	e := &service.Elsewhere{
+		Locator: a.locator(),
+		Open: func(root, dataLocation string) (store.BoardStore, store.CardStore, error) {
+			p, err := a.openProjectForReading(root, dataLocation)
+			if err != nil {
+				return nil, nil, err
+			}
+			return p.BoardStore, p.CardStore, nil
+		},
+		Remote: func(root string) string {
+			return git.StripCredentials(git.FetchURL(a.GitClient.Remotes(root)))
+		},
+	}
+	if a.globalCfg != nil {
+		e.Projects = registry.Visible(a.globalCfg)
+	}
+	if a.RequireKan() == nil && !slices.ContainsFunc(e.Projects, func(p registry.Entry) bool { return p.Path == a.ProjectRoot }) {
+		e.Projects = append(e.Projects, registry.Entry{Path: a.ProjectRoot, DataLocation: a.Paths.DataLocation()})
+	}
+	if project.ProjectRoot != "" {
+		if cfg, err := project.ProjectStore.Load(); err == nil {
+			e.LinkedBoards = cfg.LinkedBoards
+		}
+	}
+	return e
 }
 
 // newProjectApp wires the stores, services and resolvers for the project at

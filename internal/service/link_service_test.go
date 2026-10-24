@@ -102,7 +102,7 @@ func TestCardService_AddBlockersBeforePersistence(t *testing.T) {
 	before, _ := svc.cardStore.List("main")
 	for _, tc := range []AddCardInput{
 		{BoardName: "main", Title: "Missing", BlockedBy: []string{"missing"}},
-		{BoardName: "main", Title: "Cross board", BlockedBy: []string{"main:" + parent.ID}},
+		{BoardName: "main", Title: "Unknown board", BlockedBy: []string{"b_nowhere:" + parent.ID}},
 		{BoardName: "main", Title: "Ancestor", Parent: parent.ID, BlockedBy: []string{parent.Alias}},
 	} {
 		if _, _, err := svc.Add(tc); err == nil {

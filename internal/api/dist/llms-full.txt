@@ -403,7 +403,7 @@ kan add "Update docs" "Description goes here"
 | `-b, --board`  | Target board (name or ID)                     |
 | `-c, --column` | Target column                                 |
 | `-p, --parent` | Parent card ID or alias                       |
-| `--blocked-by` | Blocking card IDs or aliases (repeatable or variadic) |
+| `--blocked-by` | Blocking card IDs, aliases or `board:card` refs (repeatable or variadic) |
 | `--position`   | Insert at index (0 = top, -1 = end, negatives count from end) |
 | `--top`        | Insert at the top of the column                |
 | `--bottom`     | Insert at the bottom of the column             |
@@ -463,18 +463,35 @@ see [Board and Card References](#board-and-card-references).
 ### link
 
 Add blockers or related cards. References accept card IDs, aliases, or an
-unambiguous partial match on the same board, and are stored as card IDs.
+unambiguous partial match on the same board, and are stored as card IDs. To link
+a card on another board, prefix it with the board's name or ID:
+`features:login-form`, or `b_2hH3HWg0E:a_2n5h6dlsT` for a board in another
+registered project. Kan stores such a link as `boardID:cardID`, so it keeps
+working whichever clone of that repo is on the machine.
 
 ```bash
 kan link deploy --blocked-by tests review
 kan link deploy --related rollout
+kan link deploy --blocked-by b_2hH3HWg0E:api-endpoint   # a card in another repo
 kan add "Deploy" --blocked-by tests
 ```
 
 `--blocked-by` and `--related` accept multiple values and can be repeated. At
 least one is required. Blocker cycles and blockers that name a card's ancestor
 are rejected before writing. Related links do not block work. Adding an existing
-link is a no-op. Adding a reference to another board is not supported yet.
+link is a no-op. Cycle checks follow links into other boards and projects as far
+as kan can read them.
+
+Linking to a board in another project also records that board in the current
+project's config, under `[linked_boards]`: its project and board name, and the
+repo's `origin` URL with any credentials removed. Kan never uses this to find the
+board. When the board isn't on this machine, `show` uses it to say what is missing
+and where to get it:
+
+```
+a_2nQ0vLx1k waits on api/main (b_2hH3HWg0E), which isn't on this machine.
+One place to get it: git@github.com:example/api.git
+```
 
 ### unlink
 
@@ -486,12 +503,17 @@ kan unlink deploy deleted-id
 ```
 
 Stored strings match first, so a dangling reference can be removed even when its
-target cannot be found. Otherwise references resolve as card IDs or aliases.
+target cannot be found. Otherwise references resolve as card IDs or aliases, and
+`board:card` references as they do for `link`.
 Removing a link that is already absent is a no-op.
 
 Both commands accept `-b/--board`, `-g/--global`, and `--json`. `show` lists
 blockers with their columns and categories, cards that wait on this one, and
-related cards. Unresolved references show their lookup state and reason. A missing
+related cards. Cards that wait on this one are gathered from every visible
+registered project, so closing a card shows what waits on it in other repos too;
+a project that can't be read is skipped with a note on stderr. A card on another
+board is shown as `boardID:cardID`, with its project's path when it's in another
+repo. Unresolved references show their lookup state and reason. A missing
 card is reported as absent only after its board was read completely. JSON keeps
 `blocked_by` and `related` inside the existing card object.
 

@@ -15,7 +15,7 @@ func registerLink(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.LinkRelated, _ = ra.NewStringSlice("related").SetOptional(true).SetFlagOnly(true).SetVariadic(true).
 		SetUsage("Related cards (repeatable)").SetCompletionFunc(completeCards).Register(cmd)
 	ctx.LinkBoard, _ = ra.NewString("board").SetShort("b").SetOptional(true).SetFlagOnly(true).
-		SetUsage("Board name").SetCompletionFunc(completeBoards).Register(cmd)
+		SetUsage("Board name or ID").SetCompletionFunc(completeBoards).Register(cmd)
 	ctx.LinkGlobal = registerGlobalFlag(cmd)
 	ctx.LinkUsed, _ = parent.RegisterCmd(cmd)
 }
@@ -27,7 +27,7 @@ func registerUnlink(parent *ra.Cmd, ctx *CommandContext) {
 	ctx.UnlinkRefs, _ = ra.NewStringSlice("refs").SetVariadic(true).SetUsage("Stored refs, card IDs, or aliases").
 		SetCompletionFunc(completeCards).Register(cmd)
 	ctx.UnlinkBoard, _ = ra.NewString("board").SetShort("b").SetOptional(true).SetFlagOnly(true).
-		SetUsage("Board name").SetCompletionFunc(completeBoards).Register(cmd)
+		SetUsage("Board name or ID").SetCompletionFunc(completeBoards).Register(cmd)
 	ctx.UnlinkGlobal = registerGlobalFlag(cmd)
 	ctx.UnlinkUsed, _ = parent.RegisterCmd(cmd)
 }

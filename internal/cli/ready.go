@@ -81,6 +81,7 @@ func runReady(board string, excludes []string, noExclude bool, limit int, global
 	if err != nil {
 		Fatal(err)
 	}
+	graph.SetElsewhere(app.elsewhere(project))
 	boardCfg, err := graph.Board(boardName)
 	if err != nil {
 		Fatal(err)
@@ -158,6 +159,7 @@ func readyAll(app *App, opts service.ReadyOptions) ([]readyBoard, []skippedBoard
 				skipped = skipBoard(skipped, t, "", err)
 				continue
 			}
+			graph.SetElsewhere(app.elsewhere(t.Project))
 			graphs[t.Project] = graph
 		}
 		cfg, err := graph.Board(t.Name)
