@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/amterp/kan/internal/service"
 	"github.com/amterp/ra"
@@ -51,13 +50,10 @@ func runDoctor(boardName string, fix bool, dryRun bool, jsonOutput bool) {
 		Fatal(fmt.Errorf("--fix and --dry-run cannot be used together"))
 	}
 
-	// Validate board exists if specified
-	if boardName != "" && !app.BoardStore.Exists(boardName) {
-		boards, _ := app.BoardStore.List()
-		if len(boards) == 0 {
-			Fatal(fmt.Errorf("board %q not found (no boards exist)", boardName))
-		} else {
-			Fatal(fmt.Errorf("board %q not found (available: %s)", boardName, strings.Join(boards, ", ")))
+	if boardName != "" {
+		boardName, err = app.BoardResolver.Resolve(boardName, false)
+		if err != nil {
+			Fatal(err)
 		}
 	}
 
