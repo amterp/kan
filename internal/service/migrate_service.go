@@ -39,8 +39,8 @@ func NewQuietMigrateService(paths *config.Paths) *MigrateService {
 // MigrationPlan describes what changes would be made during migration.
 type MigrationPlan struct {
 	GlobalConfig *GlobalMigration
-	// Project is nil when the project has no config file; one is created
-	// with defaults elsewhere, so there is nothing to migrate.
+	// Project is nil when the project has no config file, which leaves
+	// nothing to migrate.
 	Project *ProjectMigration
 	Boards  []BoardMigration
 }
@@ -311,8 +311,7 @@ func (s *MigrateService) PlanGlobalMigration() (*GlobalMigration, error) {
 }
 
 // PlanProject returns a migration plan for the project's config, boards
-// and cards, leaving out the global config. Used by --all to plan each
-// project independently.
+// and cards, leaving out the global config.
 func (s *MigrateService) PlanProject() (*MigrationPlan, error) {
 	plan := &MigrationPlan{}
 
@@ -576,7 +575,7 @@ func (s *MigrateService) migrateProjectConfig(plan *ProjectMigration, write writ
 
 // migrateProjectRaw runs every project config step. project/1 to project/2
 // only added an optional field, and a config with no schema predates
-// project/1, so for now every step is a schema stamp.
+// project/1, so both reach the current schema with a stamp.
 func migrateProjectRaw(raw map[string]any) {
 	raw["kan_schema"] = version.CurrentProjectSchema()
 }
