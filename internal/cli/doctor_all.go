@@ -67,7 +67,7 @@ func doctorAll(app *App, fix bool) (*service.DiagnosticReport, []skippedBoard, e
 			issue := &part.Issues[j]
 			if issue.Board != "" {
 				issue.ProjectPath = selected.project.ProjectRoot
-				if selected.project != app {
+				if selected.project.OtherProject {
 					issue.Fixable = false
 					if issue.FixAction != "" {
 						issue.FixAction = "In " + selected.project.ProjectRoot + ": " + issue.FixAction
@@ -75,7 +75,7 @@ func doctorAll(app *App, fix bool) (*service.DiagnosticReport, []skippedBoard, e
 				}
 			}
 		}
-		if fix && selected.project == app {
+		if fix && !selected.project.OtherProject {
 			part, err = doctor.Fix(part)
 			if err != nil {
 				return nil, nil, err

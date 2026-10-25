@@ -138,3 +138,36 @@ func TestDoctorAll_OutsideProjectDuplicateIDsAndOldSchemas(t *testing.T) {
 		t.Fatalf("created local project: %v", err)
 	}
 }
+
+// Run from a symlinked path, the current project is still the one --fix
+// repairs.
+func TestDoctorAll_FixesCurrentProjectReachedThroughSymlink(t *testing.T) {
+	root := openFixtureProject(t, "v15")
+	link := filepath.Join(resolvedTempDir(t), "current-link")
+	if err := os.Symlink(root, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	t.Chdir(link)
+	app, err := NewAppWithOptions(AppOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	card, err := app.CardStore.Get("main", "card-abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	card.BlockedBy = []string{"missing"}
+	card.Related = nil
+	if err := app.CardStore.Update("main", card); err != nil {
+		t.Fatal(err)
+	}
+
+	report, _, err := doctorAll(app, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	card, err = app.CardStore.Get("main", "card-abc")
+	if err != nil || len(card.BlockedBy) != 0 || report.Summary.Fixed == 0 {
+		t.Fatalf("the current project's link was not fixed: fixed %d, blocked_by %v, %v", report.Summary.Fixed, card.BlockedBy, err)
+	}
+}
