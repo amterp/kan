@@ -2,16 +2,17 @@
   "_v": 3,
   "alias": "web-add-and-remove",
   "alias_explicit": false,
-  "column": "backlog-lo",
+  "column": "next",
   "created_at_millis": 1792875238911,
   "creator": "Alexander Terp",
   "description": "Phase 3 shows links in the web UI but sets them only from the CLI.\n\nDesign: `docs/design/work-across-boards.md`, section \"Web\" under phase 3.\n\nAfter a_2naKGO4kC.",
   "id": "a_2naKHKDio",
-  "position": "ZzzzzzzV",
+  "position": "a1",
   "title": "Web: add and remove links in the card modal",
   "type": "feature",
-  "updated_at_millis": 1792875238911,
+  "updated_at_millis": 1792886741253,
   "history": [
-    {"field":"column","value":"backlog-lo","at":1792875238911}
+    {"field":"column","value":"backlog-lo","at":1792875238911},
+    {"field":"column","value":"next","at":1792886741253}
   ]
 }
