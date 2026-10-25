@@ -622,6 +622,7 @@ kan list -b b_2hH3HWg0E            # Another project's board
 
 - A bare argument matches an exact card ID in the current project, then a card with that ID in another visible registered project, then an alias or fuzzy match in the current project only. Aliases never resolve across projects.
 - `board:card` can't be combined with `-b` or `-g`.
+- In a script, brace the variable: `"${BOARD}:$CARD"`. zsh reads `$BOARD:a` as its absolute-path modifier, so an unbraced `$BOARD:a_2n5h6dlsT` becomes a file path and the card isn't found.
 - The current project's boards always win. If two visible projects hold the same board ID (clones), the ref is ambiguous; hide one with `kan registry hide <path>`.
 - Reads of another project change no file there. Writes are refused: `card a_2n5h6dlsT is on board b_2hH3HWg0E in /Users/alex/src/api; run kan from there to change it.`
 - `show --json` and `history --json` add `"project"` beside `"card"` when the card is in another project.
