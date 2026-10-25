@@ -862,7 +862,7 @@ kan doctor --json
   - `UNRESOLVED_LINK`: A link cannot be resolved; the message includes its state and reason
   - `BLOCKED_BY_CYCLE`: Blockers form a cycle, including self-blocking (manual repair)
   - `BLOCKED_BY_ANCESTOR`: A blocker is the card's own ancestor (manual repair)
-  - `UNCATEGORIZED_LINK`: A card with links, or a linked target, has no usable column category
+  - `UNCATEGORIZED_LINK`: A card with blockers, or one of its blockers, is in a column with no usable category (related links don't count: `kan ready` ignores them)
   - `INVALID_READY_CONFIG`: A `[ready]` entry fails validation
   - `DUPLICATE_BOARD_ID`: Multiple visible registered projects hold the same board ID (`--all`)
   - `MISSING_WANTED_FIELDS`: Card is missing fields marked as `wanted`

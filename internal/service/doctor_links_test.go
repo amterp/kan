@@ -394,7 +394,7 @@ func TestDoctorLinks_NamesUncategorizedSourceAndTargetColumns(t *testing.T) {
 	if err := f.svc.cardStore.Update("main", target); err != nil {
 		t.Fatal(err)
 	}
-	f.source.Related = []string{target.ID}
+	f.source.BlockedBy = []string{target.ID}
 	f.save()
 	cfg, _ := f.svc.boardStore.Get("main")
 	cfg.Columns[0].Category, cfg.Columns[1].Category = "", "invalid"
@@ -480,5 +480,23 @@ func TestDoctorLinks_BoardFilterRetainsOverlappingCrossBoardCycles(t *testing.T)
 		if board == "beta" && (cycles[0].CardID != "c" || !strings.Contains(cycles[0].Message, "beta:c")) {
 			t.Fatalf("cycle path must include a card on the selected board: %+v", cycles)
 		}
+	}
+}
+
+// kan ready ignores related links, so their columns' categories don't matter.
+func TestDoctorLinks_RelatedLinksIgnoreCategories(t *testing.T) {
+	f := setupDoctorLinks(t)
+	target := addIntegrityCard(t, f.svc, "Target", "")
+	f.source.Related = []string{target.ID}
+	f.save()
+	cfg, _ := f.svc.boardStore.Get("main")
+	for i := range cfg.Columns {
+		cfg.Columns[i].Category = ""
+	}
+	if err := f.svc.boardStore.Update(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if issues := issuesWithCode(f.diagnose(), CodeUncategorizedLink); len(issues) != 0 {
+		t.Fatalf("related links warned about categories: %+v", issues)
 	}
 }

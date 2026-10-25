@@ -108,6 +108,16 @@ func otherKey(boardID string) string {
 	return "\x00" + boardID
 }
 
+// boardLabel names the board a lookup found: its name in this project, or
+// project/board in another, as [linked_boards] records it.
+func (g *LinkGraph) boardLabel(found LinkLookup) string {
+	b := g.boards[found.board]
+	if b == nil || b.project == "" {
+		return found.BoardName
+	}
+	return registry.ProjectName(b.project, b.dataLocation) + "/" + found.BoardName
+}
+
 // SetElsewhere lets the graph follow links to boards in other projects.
 func (g *LinkGraph) SetElsewhere(e *Elsewhere) {
 	g.elsewhere = e

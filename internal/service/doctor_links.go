@@ -27,11 +27,13 @@ func (s *DoctorService) checkCardLinks(report *DiagnosticReport, boardName strin
 		if card.Version != version.CurrentCardVersion || len(card.BlockedBy)+len(card.Related) == 0 {
 			continue
 		}
-		if !hasLinkCategory(cfg.GetColumn(card.Column)) {
+		// Only blockers depend on categories: kan ready reads a card's own
+		// column and each blocker's, and ignores related links.
+		if len(card.BlockedBy) > 0 && !hasLinkCategory(cfg.GetColumn(card.Column)) {
 			report.Issues = append(report.Issues, Issue{
 				Severity: SeverityWarning, Code: CodeUncategorizedLink, Board: boardName,
 				CardID: fileID, Column: card.Column,
-				Message: fmt.Sprintf("Card with links is in column %q, which has no usable category", card.Column),
+				Message: fmt.Sprintf("Card with blockers is in column %q, which has no usable category", card.Column),
 			})
 		}
 		ancestors := map[string]bool{}
@@ -61,9 +63,9 @@ func (s *DoctorService) checkCardLinks(report *DiagnosticReport, boardName strin
 					report.Issues = append(report.Issues, issue)
 					continue
 				}
-				if !hasLinkCategory(result.Column) {
+				if field.name == "blocked_by" && !hasLinkCategory(result.Column) {
 					issue.Code = CodeUncategorizedLink
-					issue.Message = fmt.Sprintf("%s %q is in board %q column %q, which has no usable category", field.name, ref, result.BoardName, result.Card.Column)
+					issue.Message = fmt.Sprintf("%s %q is in board %q column %q, which has no usable category", field.name, ref, graph.boardLabel(result), result.Card.Column)
 					report.Issues = append(report.Issues, issue)
 				}
 				if field.name == "blocked_by" && result.board == boardName && ancestors[result.Card.ID] {

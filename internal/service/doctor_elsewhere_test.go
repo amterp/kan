@@ -92,3 +92,30 @@ func TestDoctorElsewhere_FixRechecksRegistryAndExternalFiles(t *testing.T) {
 		})
 	}
 }
+
+// A board in another project is named project/board, since every project's
+// board may be called main.
+func TestDoctorElsewhere_NamesAnotherProjectsBoardWithItsProject(t *testing.T) {
+	web := newLinkProject(t, "web", "b_web")
+	api := newLinkProject(t, "api", "b_api")
+	blocker := api.add(t, "Blocker")
+	cfg, err := api.boards.Get("main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Columns[0].Category = ""
+	if err := api.boards.Update(cfg); err != nil {
+		t.Fatal(err)
+	}
+	web.setLinks(t, web.add(t, "Waiting"), "b_api:"+blocker.ID)
+	doctor := NewDoctorService(web.paths, web.cards, web.boards)
+	doctor.SetElsewhere(elsewhereFor(web, registryOf(web, api)), nil)
+	report, err := doctor.Diagnose("main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	issues := issuesWithCode(report, CodeUncategorizedLink)
+	if len(issues) != 1 || !strings.Contains(issues[0].Message, `board "api/main"`) {
+		t.Fatalf("want one warning naming api/main: %+v", issues)
+	}
+}
