@@ -1,14 +1,14 @@
 {
-  "_v": 3,
+  "_v": 4,
   "alias": "kan-serve-should",
   "alias_explicit": false,
   "column": "done",
   "comments": [
     {
-      "author": "Alexander Terp",
+      "id": "c_1pU8xwe9Y",
       "body": "Validated: **not a bug**. Nothing caches board config - `FileBoardStore.Get` does a fresh `os.ReadFile` + TOML parse per call, and every API handler calls it per request. The frontend also refetches the board when the fsnotify watcher sees `config.toml` change.\n\nVerified empirically end-to-end: started `kan serve` against a board with **no** pattern hook configured, and created a card via the web UI - title kept `!bug` literally, no type. Then appended a `[[pattern_hooks]]` block to `config.toml` with the server still running (same PID, never restarted), and created a second card in the same browser tab: the hook fired, stripping `!bug` and setting `type=bug`. No restart involved.\n\nThe original symptom was the sibling silent-hook-failure bug, not a stale config cache.\n\nAdjacent gap found but **not** fixed here (worth its own card): project-level `.kan/config.toml` changes (project name, favicon) are watched and broadcast, but the frontend never wires `onProjectChange` - so those alone still need a page reload.",
-      "created_at_millis": 1783994702760,
-      "id": "c_1pU8xwe9Y"
+      "author": "Alexander Terp",
+      "created_at_millis": 1783994702760
     }
   ],
   "created_at_millis": 1783993044848,

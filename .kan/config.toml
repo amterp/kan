@@ -1,9 +1,9 @@
-kan_schema = "project/2"
 id = "p_BDnFKuao"
+kan_schema = "project/3"
 name = "kan"
 
 [favicon]
   background = "#ef4444"
+  emoji = ""
   icon_type = "letter"
   letter = "K"
-  emoji = ""

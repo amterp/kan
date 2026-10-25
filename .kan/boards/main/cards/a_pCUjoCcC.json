@@ -1,14 +1,14 @@
 {
-  "_v": 3,
+  "_v": 4,
   "alias": "cross-board-kanban",
   "alias_explicit": false,
   "column": "backlog-lo",
   "comments": [
     {
-      "author": "Alexander Terp",
+      "id": "c_2naKo6xzt",
       "body": "2026-10-24: queries across boards are planned in phase 4 of docs/design/work-across-boards.md (a_2naKGb6Hi): kan list --all and kan ready --all, grouped by board. A visual board or dependency view across repos is out of kan's scope in that design; another tool reads the --all --json output.",
-      "created_at_millis": 1792875259228,
-      "id": "c_2naKo6xzt"
+      "author": "Alexander Terp",
+      "created_at_millis": 1792875259228
     }
   ],
   "created_at_millis": 1774791312335,
