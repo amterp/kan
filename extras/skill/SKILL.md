@@ -381,9 +381,9 @@ kan ready --json                   # {"ready": [...], "attention": [...], "skipp
 kan ready --all                    # Every registered project's boards, --limit per board
 ```
 
-A card is ready when its column's category is `open`, every blocker is in a `done` column, it has no children outside `done` or `dropped` columns, and no exclusion matches. Open columns are read right to left (or in `[ready] order`), each top to bottom. Cards whose blocker was dropped are listed under "Needs attention": unlink the blocker or drop the card. JSON entries hold `ref`, `board`, `blockers` (each `ref`, `result`, `category`) and the unchanged `card`. A board without column categories is an error; run `kan column categorize`.
+A card is ready when its column's category is `open`, every blocker is in a `done` column, it has no children outside `done` or `dropped` columns, and no exclusion matches. Open columns are read right to left (or in `[ready] order`), each top to bottom. Cards whose blocker was dropped are listed under "Needs attention": unlink the blocker or drop the card. `--json` prints `{"ready": [...], "attention": [...], "skipped": [...]}`; each entry holds `ref`, `board_id`, `board`, `project_path`, `category`, `blockers` (each `ref`, `result`, and `category` when found) and the unchanged `card`. A board without column categories is an error; run `kan column categorize`.
 
-`--all` (on `kan ready`, `kan list`, and `kan doctor`) reads every board of every visible registered project plus the current one, from any directory, grouped by board in project path order. It can't be combined with `-b` or `-g`. Boards kan can't read, and for `ready` boards without categories, are skipped: named on stderr and under `skipped` (`path`, `board`, `board_id`, `reason`; `board_id` is empty when the board's config can't be read) in JSON, without changing the exit status. `kan list --all --json` returns `{"cards": [entry...], "skipped": [...]}`, each entry holding `ref`, `board`, `project_path`, `category` and the card with its raw `blocked_by`/`related`.
+`--all` (on `kan ready`, `kan list`, and `kan doctor`) reads every board of every visible registered project plus the current one, from any directory, grouped by board in project path order. It can't be combined with `-b` or `-g`. Boards kan can't read, and for `ready` boards without categories, are skipped: named on stderr and under `skipped` (`path`, `board`, `board_id`, `reason`; `board_id` is empty when the board's config can't be read) in JSON, without changing the exit status. `kan list --all --json` returns `{"cards": [entry...], "skipped": [...]}`, each entry holding `ref`, `board_id`, `board`, `project_path`, `category` (left out when the column has none) and the card with its raw `blocked_by`/`related`.
 
 To take work:
 
@@ -595,7 +595,7 @@ kan list -g               # the global board's cards
 kan edit -g buy-milk -c done
 ```
 
-`-g` works on `add`, `list`, `show`, `history`, `edit`, `delete`, and `comment add`/`edit`/`delete`. It targets the global board's project with the designated board as default; an explicit `-b` overrides it (`kan add -g -b other "..."`). There is no implicit fallback - `-g` must be explicit, and bare commands outside a project still error rather than capturing to the global board.
+`-g` works on `add`, `list`, `ready`, `show`, `history`, `edit`, `move`, `delete`, `link`, `unlink`, `doctor`, and `comment add`/`edit`/`delete`. It targets the global board's project with the designated board as default; an explicit `-b` overrides it (`kan add -g -b other "..."`). There is no implicit fallback - `-g` must be explicit, and bare commands outside a project still error rather than capturing to the global board.
 
 ## Project Registry
 
@@ -650,7 +650,7 @@ kan migrate --all --dry-run  # Preview changes for all projects
 | `--dry-run` | Show what would be changed without modifying files |
 | `--all`     | Migrate all projects registered in global config   |
 
-Read-only commands (`list`, `show`, `history`, `board list`, `board describe`, `column list`, `doctor` without `--fix`) never modify files, even on a project with an older schema. Any command that changes data, and `kan serve`, migrates the project on disk first. In a linked git worktree, `kan migrate` migrates the main worktree's board, like every other command there.
+Read-only commands (`list`, `ready`, `show`, `history`, `board list`, `board describe`, `column list`, `column categorize` without `--apply`, `registry list`, `doctor` without `--fix`) never modify files, even on a project with an older schema, and never write in another project they read. Any command that changes data, and `kan serve`, migrates the project on disk first. In a linked git worktree, `kan migrate` migrates the main worktree's board, like every other command there.
 
 ## Health Checks
 
@@ -693,7 +693,7 @@ Completion supports commands, flags, board names, card IDs/aliases, and column n
 | Flag | Description |
 |------|-------------|
 | `-I, --non-interactive` | Fail instead of prompting for input |
-| `--json` | Output results as JSON (supported by: show, list, add, edit, history, board list, board describe, column list, comment add, doctor, docs) |
+| `--json` | Output results as JSON (supported by: add, edit, move, show, history, list, ready, link, unlink, board list, board describe, column list, column categorize, comment add, registry list, doctor, docs) |
 
 ## Board Configuration
 

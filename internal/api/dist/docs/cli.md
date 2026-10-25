@@ -209,8 +209,8 @@ lists them after the columns.
 **Categorize columns:**
 
 Suggest a category for each column that has none, from its name, using the "Column names it
-usually fits" list in [Configuration](/docs/configuration#columns). Names must match exactly;
-columns that already have a category are left alone. Nothing is written without `--apply`.
+usually fits" list in [Configuration](/docs/configuration#columns). Names match ignoring case
+but otherwise exactly; columns that already have a category are left alone. Nothing is written without `--apply`.
 
 ```bash
 kan column categorize           # Print suggestions
@@ -492,8 +492,8 @@ so a custom field can never collide with a context field:
 {
   "ready": [
     {
-      "ref": "2R9nzEvz:a_2nQ0vLx1k",
-      "board_id": "2R9nzEvz",
+      "ref": "b_2nPzK4wQe:a_2nQ0vLx1k",
+      "board_id": "b_2nPzK4wQe",
       "board": "main",
       "project_path": "/Users/alex/src/kan",
       "category": "open",
@@ -536,14 +536,14 @@ combined with `-b` or `-g`.
 
 `kan list --all --json` uses the same envelope as `kan ready`, with each card's
 raw `blocked_by` and `related` inside it, so an outside tool can draw the
-dependency graph:
+dependency graph. `category` is left out when the card's column has none:
 
 ```json
 {
   "cards": [
     {
-      "ref": "2R9nzEvz:a_2nQ0vLx1k",
-      "board_id": "2R9nzEvz",
+      "ref": "b_2nPzK4wQe:a_2nQ0vLx1k",
+      "board_id": "b_2nPzK4wQe",
       "board": "main",
       "project_path": "/Users/alex/src/kan",
       "category": "open",
@@ -740,8 +740,8 @@ kan global show           # show the current designation (and warn if it's stale
 kan global unset          # clear the designation
 ```
 
-Once set, `-g` works across the card commands - `add`, `list`, `show`, `history`,
-`edit`, `delete`, and `comment add`/`edit`/`delete`:
+Once set, `-g` works on `add`, `list`, `ready`, `show`, `history`, `edit`,
+`move`, `delete`, `link`, `unlink`, `doctor`, and `comment add`/`edit`/`delete`:
 
 ```bash
 kan add -g "Buy milk"        # from anywhere, lands on the global board
@@ -792,9 +792,10 @@ Migrate board data to current schema version.
 
 You rarely need to run this yourself. Any command that changes data, and
 `kan serve`, migrates an older project on disk before it runs. Commands that
-only read (`list`, `show`, `history`, `board list`, `board describe`,
-`column list`, `doctor` without `--fix`, and shell completion) never modify
-files: they upgrade older data in memory and leave the files as they are.
+only read (`list`, `ready`, `show`, `history`, `board list`, `board describe`,
+`column list`, `column categorize` without `--apply`, `registry list`, `doctor`
+without `--fix`, and shell completion) never modify files, in this project or
+in any other project they read: they upgrade older data in memory and leave the files as they are.
 
 `kan migrate` finds the project the same way other commands do: it honors a
 registered custom data location, and in a linked git worktree it migrates the
@@ -926,7 +927,7 @@ eval "$(kan completion bash)"
 | Flag                    | Description                                                                              |
 |-------------------------|------------------------------------------------------------------------------------------|
 | `-I, --non-interactive` | Fail instead of prompting for missing input                                              |
-| `--json`                | Output results as JSON (supported by: show, list, ready, add, edit, board list, column list, comment add, doctor, docs) |
+| `--json`                | Output results as JSON (supported by: add, edit, move, show, history, list, ready, link, unlink, board list, board describe, column list, column categorize, comment add, registry list, doctor, docs) |
 
 ## JSON Output
 
