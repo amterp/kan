@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -283,5 +284,16 @@ func TestHandler_DeletedParentDoesNotPreventChildSaveOrComment(t *testing.T) {
 	stored, err := api.cardStore.Get("main", child.ID)
 	if err != nil || stored.Parent != parent.ID || stored.Title != "Edited child" || len(stored.Comments) != 1 {
 		t.Fatalf("child state: %+v, %v", stored, err)
+	}
+}
+
+func TestHandler_ListCardsLoadsWhenTheRegistryCannotBeRead(t *testing.T) {
+	api, gs := setupCrossProjectAPI(t, &model.GlobalConfig{})
+	api.createBoard(t, "main")
+	gs.err = errors.New("toml: line 3: expected '='")
+
+	resp := api.request("GET", "/api/v1/boards/main/cards", nil)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("an unreadable global config failed the board: %d %s", resp.Code, resp.Body.String())
 	}
 }

@@ -1,7 +1,7 @@
 package api
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -47,9 +47,13 @@ func (h *Handler) loadLinks(ctx *ProjectContext) (*linkSnapshot, error) {
 	cfg := &model.GlobalConfig{}
 	if h.globalStore != nil {
 		var err error
-		cfg, err = h.globalStore.Load()
+		loaded, err := h.globalStore.Load()
 		if err != nil {
-			return nil, fmt.Errorf("reading project registry: %w", err)
+			log.Printf("Warning: can't read the project registry in the global config: %v. "+
+				"The board still loads, but links to boards in other projects show as not on this machine "+
+				"until the global config can be read again; check that file for a syntax error.", err)
+		} else {
+			cfg = loaded
 		}
 	}
 	graph, err := service.LoadLinkGraph(ctx.BoardStore, ctx.CardStore)
