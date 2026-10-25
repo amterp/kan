@@ -1,0 +1,17 @@
+{
+  "_v": 4,
+  "alias": "serve-a-board-that",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1792959079089,
+  "creator": "Alexander Terp",
+  "description": "Alex's chat notes, 2026-09-04 (\"ssh view support\") and 2026-10-13 (\"some sort of ssh support ie board lives remote but local kan serve sees it\"). A board in a repo on another machine (the devenv, the Mac mini) can only be viewed by running kan serve there and tunneling the port. Wanted: a local kan serve that opens a board over SSH, reading (and ideally writing) the remote .kan/. Today kan serve takes only --port and --no-open.",
+  "id": "a_2o9VLQlhF",
+  "position": "aM",
+  "title": "Serve a board that lives on a remote host over SSH",
+  "type": "feature",
+  "updated_at_millis": 1792959079089,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1792959079089}
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "_v": 4,
+  "alias": "let-kan-commit",
+  "alias_explicit": false,
+  "column": "backlog-hi",
+  "created_at_millis": 1792959079152,
+  "creator": "Alexander Terp",
+  "description": "Alex's chat note, 2026-09-10: \"commit to take cards as arguments? or a flag for how many expected to commit\". kan commit stages every changed file under .kan/, so when two agents share a checkout, one commits the other's half-made cards. It happened on 2026-10-25: in agent-engine, a triage session committing its cards found another session's untracked new card beside them and had to stage files by hand to leave it out. Wanted: kan commit \u003ccard\u003e... to commit only the named cards (plus board config they changed), or --expect \u003cn\u003e to fail when the count of changed cards differs. Today it takes only -m.",
+  "id": "a_2o9VLWAfy",
+  "position": "a1",
+  "title": "Let kan commit target specific cards, or assert how many it expects",
+  "type": "feature",
+  "updated_at_millis": 1792959079152,
+  "history": [
+    {"field":"column","value":"backlog-hi","at":1792959079152}
+  ]
+}

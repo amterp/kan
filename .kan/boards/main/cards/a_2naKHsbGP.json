@@ -3,6 +3,14 @@
   "alias": "design-moving-cards",
   "alias_explicit": false,
   "column": "backlog-lo",
+  "comments": [
+    {
+      "id": "c_2o9VLcQxk",
+      "body": "A data point from 2026-10-25: rad's sprint board (120 cards) was folded into its main board by hand, since kan has no cross-board move. What it took: git mv each card file and set its column; rewrite refs on the moved cards (sprint:X and main:X both became bare X, while bugfixes:X and other projects' refs stayed prefixed); rewrite sprint:X to bare X on main's own cards and to main:X on bugfixes cards; edit two other projects (go-snap, nook), whose cards linked sprint:X and whose linked_boards table named the sprint board; copy the sprint's custom fields and options into main's config so no card lost data; then order each column with kan move --bottom, because the moved cards' position keys meant nothing in their new columns. kan doctor confirmed no dangling links afterward. A kan board merge \u003cfrom\u003e \u003cinto\u003e doing the in-project part, plus a printed list of outside projects still pointing at the old board, would have covered all of it except the outside edits. rad commit 3476f00e has the result.",
+      "author": "Alexander Terp",
+      "created_at_millis": 1792959079202
+    }
+  ],
   "created_at_millis": 1792875239245,
   "creator": "Alexander Terp",
   "description": "A card's identity is `boardID:cardID`, so moving its file to another board breaks every link to it and turns its own bare refs into refs on the new board. Restoring a deleted card to a different board has the same effect.\n\nSee `docs/design/work-across-boards.md`, section \"Deferred\". Open: redirects left on the old board versus explicit repair, given that kan doesn't write to other projects' boards.",
@@ -10,7 +18,7 @@
   "position": "ZzzzzzzzV",
   "title": "Design: moving cards between boards without breaking links",
   "type": "feature",
-  "updated_at_millis": 1792875239245,
+  "updated_at_millis": 1792959079202,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875239245}
   ]
