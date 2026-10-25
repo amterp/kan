@@ -8,7 +8,7 @@ Cards show **Blocked** while any blocker has not reached a column categorized as
 
 Open a card to see **Blocked by**, **Blocks**, and **Related**. Click a card title to open it. Kan saves pending edits before switching; if saving fails, your edits stay open. Post or clear a comment draft, and finish editing an existing comment, before following a link.
 
-Kan resolves links to other boards when the board loads and when you click **Refresh**. A blocker found in a done column releases the waiting card; every other lookup result keeps it blocked. Unavailable links show their stored reference and the reason. Cards on other boards do not update live, so refresh after changing them elsewhere.
+Kan resolves links to other boards when the board loads, when you click **Refresh**, and after links on a current-board card change. A blocker found in a done column releases the waiting card; every other lookup result keeps it blocked. Unavailable links show their stored reference and the reason. Cards on other boards do not update live, so refresh after changing them elsewhere.
 
 Cards on another board open read-only, with the project name, description, comments, fields, and links. Opening one keeps your current board and the server's project. Follow a link back to a card on the active board to edit it.
 

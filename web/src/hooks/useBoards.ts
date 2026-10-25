@@ -81,6 +81,7 @@ export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?:
 
   // Version counter to discard stale fetch responses after board/project switches
   const fetchVersionRef = useRef(0);
+  const linksVersionRef = useRef(0);
 
   // Reset state when switching boards so stale data doesn't render
   useEffect(() => {
@@ -96,6 +97,7 @@ export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?:
   const refresh = useCallback(async () => {
     if (!boardName) return;
     const version = ++fetchVersionRef.current;
+    const linksVersion = ++linksVersionRef.current;
     setLoading(true);
     try {
       const [boardData, cardsData] = await Promise.all([
@@ -105,7 +107,7 @@ export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?:
       if (fetchVersionRef.current !== version) return;
       setBoard(boardData);
       setCards(cardsData.cards);
-      setLinks(cardsData.links);
+      if (linksVersionRef.current === linksVersion) setLinks(cardsData.links);
       setError(null);
     } catch (e) {
       if (fetchVersionRef.current !== version) return;
@@ -114,6 +116,20 @@ export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?:
       if (fetchVersionRef.current === version) {
         setLoading(false);
       }
+    }
+  }, [boardName]);
+
+  const refreshLinks = useCallback(async () => {
+    if (!boardName) return;
+    const version = fetchVersionRef.current;
+    const linksVersion = ++linksVersionRef.current;
+    try {
+      const result = await listCardsWithLinks(boardName);
+      if (fetchVersionRef.current !== version || linksVersionRef.current !== linksVersion) return;
+      setLinks(result.links);
+    } catch (err) {
+      if (fetchVersionRef.current !== version || linksVersionRef.current !== linksVersion) return;
+      console.warn('Failed to refresh card links:', err);
     }
   }, [boardName]);
 
@@ -126,30 +142,40 @@ export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?:
       return;
     }
 
+    const referenced = cards.some((card) => [...(card.blocked_by ?? []), ...(card.related ?? [])].some(
+      (ref) => ref === change.card_id || !!board?.id && ref === `${board.id}:${change.card_id}`,
+    ));
+
     if (change.type === 'deleted' && change.card_id) {
       // Remove deleted card from state
       setCards((prev) => prev.filter((c) => c.id !== change.card_id));
+      if (referenced) await refreshLinks();
     } else if (change.type === 'created' || change.type === 'modified') {
       // Fetch the updated card from the server
       if (change.card_id) {
         const version = fetchVersionRef.current;
         try {
           const updatedCard = await apiGetCard(boardName, change.card_id);
-          if (fetchVersionRef.current !== version) return;
+          if (fetchVersionRef.current !== version || pendingChangesRef.current.has(change.card_id)) return;
+          const previousCard = cards.find((card) => card.id === updatedCard.id);
+          const linksChanged = JSON.stringify(previousCard?.blocked_by ?? []) !== JSON.stringify(updatedCard.blocked_by ?? [])
+            || JSON.stringify(previousCard?.related ?? []) !== JSON.stringify(updatedCard.related ?? []);
           setCards((prev) => upsertCard(prev, updatedCard));
+          if (linksChanged || referenced && previousCard?.column !== updatedCard.column) await refreshLinks();
         } catch (err) {
           // Card might have been deleted between notification and fetch
           console.warn('Failed to fetch updated card:', err);
         }
       }
     }
-  }, [boardName]);
+  }, [boardName, board, cards, refreshLinks]);
 
   const handleBoardChange = useCallback(async (change: FileChange) => {
     // Board config changed - refresh both board AND cards
     // Cards need refresh because their column assignments come from board config
     if (!boardName || change.board_name !== boardName) return;
     const version = ++fetchVersionRef.current;
+    const linksVersion = ++linksVersionRef.current;
     try {
       const [boardData, cardsData] = await Promise.all([
         getBoard(boardName),
@@ -157,7 +183,7 @@ export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?:
       ]);
       if (fetchVersionRef.current !== version) return;
       setBoard(boardData);
-      setLinks(cardsData.links);
+      if (linksVersionRef.current === linksVersion) setLinks(cardsData.links);
       setError(null);
       // Merge fetched cards, but preserve any with pending local changes
       setCards((prev) => {
@@ -339,9 +365,10 @@ export function useBoard(boardName: string | null, refreshKey = 0, onBoardGone?:
   const addCardToState = useCallback((card: Card) => {
     pendingChangesRef.current.add(card.id);
     setCards((prev) => upsertCard(prev, card));
+    void refreshLinks();
     // Clear pending after a short delay to let WebSocket settle
     setTimeout(() => pendingChangesRef.current.delete(card.id), 2000);
-  }, []);
+  }, [refreshLinks]);
 
   // Column operations
 
