@@ -411,3 +411,26 @@ func TestLinkGraph_ReverseLinksFromProjectRegisteredThroughSymlink(t *testing.T)
 		t.Errorf("blocks = %+v", blocks)
 	}
 }
+
+func TestLinkService_KeepsARecordedRemoteThisMachineCantShare(t *testing.T) {
+	web := newLinkProject(t, "web", "b_web")
+	api := newLinkProject(t, "api", "b_api")
+	endpoint := api.add(t, "Endpoint")
+	cfg := registryOf(web, api)
+	if _, err := web.linkService(cfg).Link("main", web.add(t, "Page").ID, []string{"b_api:" + endpoint.ID}, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	local := web.linkService(cfg)
+	local.elsewhere.Remote = func(string) string { return "" }
+	if _, err := local.Link("main", web.add(t, "Other").ID, nil, []string{"b_api:" + endpoint.ID}); err != nil {
+		t.Fatal(err)
+	}
+	projectCfg, err := web.project.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := projectCfg.LinkedBoards["b_api"].Remote; got != "https://example.com/api.git" {
+		t.Errorf("remote = %q, want the one recorded earlier kept", got)
+	}
+}

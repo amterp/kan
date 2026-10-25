@@ -104,6 +104,11 @@ func (s *LinkService) RecordLinkedBoards(g *LinkGraph, boardName string, card *m
 	}
 	changed := false
 	for id, linked := range found {
+		// A remote this machine can't share mustn't erase one that another
+		// clone recorded, since the file is committed and shared.
+		if linked.Remote == "" {
+			linked.Remote = cfg.LinkedBoards[id].Remote
+		}
 		if cfg.LinkedBoards[id] != linked {
 			if cfg.LinkedBoards == nil {
 				cfg.LinkedBoards = map[string]model.LinkedBoard{}
