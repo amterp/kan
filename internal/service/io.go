@@ -19,6 +19,28 @@ func writeTOMLMap(path string, data map[string]any) error {
 	return os.WriteFile(path, output, 0644)
 }
 
+// encodeInStoreOrder encodes a migrated config the way its store writes
+// one: decoded into config, a pointer to the config's struct, and encoded
+// in that struct's field order. The map encoder sorts keys alphabetically,
+// so a config encoded from the map would be reordered again, whole, by the
+// store's next save. A config holding keys the struct has no field for is
+// encoded from the map instead, so settings from a newer kan survive.
+func encodeInStoreOrder(raw map[string]any, config any) ([]byte, error) {
+	encoded, err := encodeTOMLMap(raw)
+	if err != nil {
+		return nil, err
+	}
+	meta, err := toml.Decode(string(encoded), config)
+	if err != nil || len(meta.Undecoded()) > 0 {
+		return encoded, nil
+	}
+	var buf bytes.Buffer
+	if err := toml.NewEncoder(&buf).Encode(config); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 func encodeTOMLMap(data map[string]any) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := toml.NewEncoder(&buf).Encode(data); err != nil {

@@ -573,7 +573,11 @@ func (s *MigrateService) migrateGlobalConfig(plan *GlobalMigration) error {
 	}
 	migrateGlobalRaw(raw, fromVersion)
 
-	return writeTOMLMap(plan.Path, raw)
+	out, err := encodeInStoreOrder(raw, &model.GlobalConfig{})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(plan.Path, out, 0644)
 }
 
 // ReadGlobalConfigInMemory reads the global config at path without schema
@@ -656,7 +660,7 @@ func (s *MigrateService) migrateProjectConfig(plan *ProjectMigration, write writ
 
 	migrateProjectRaw(raw)
 
-	out, err := encodeTOMLMap(raw)
+	out, err := encodeInStoreOrder(raw, &model.ProjectConfig{})
 	if err != nil {
 		return fmt.Errorf("failed to encode project config: %w", err)
 	}
@@ -793,7 +797,7 @@ func (s *MigrateService) migrateBoard(plan *BoardMigration, write writeFunc) err
 	}
 
 	if plan.NeedsMigration || configChanged {
-		data, err := encodeTOMLMap(b.config)
+		data, err := encodeInStoreOrder(b.config, &model.BoardConfig{})
 		if err != nil {
 			return fmt.Errorf("failed to encode board %q config: %w", plan.BoardName, err)
 		}

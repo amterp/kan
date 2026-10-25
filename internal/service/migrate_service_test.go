@@ -2193,3 +2193,94 @@ func TestMigrateService_InterruptedBoardMigrationIsRedone(t *testing.T) {
 		}
 	}
 }
+
+// A store's first ordinary save after a migration must leave each config as
+// the migration wrote it. Otherwise every migrated project's history gets a
+// second commit that reorders whole files without changing them.
+func TestMigrateService_StoresKeepMigratedConfigsByteForByte(t *testing.T) {
+	unchangedBySave := func(t *testing.T, path string, save func() error) {
+		t.Helper()
+		before, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := save(); err != nil {
+			t.Fatal(err)
+		}
+		after, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(before, after) {
+			t.Errorf("saving %s changed what migration wrote:\n--- migrated\n%s\n--- saved\n%s", filepath.Base(path), before, after)
+		}
+	}
+
+	for _, fixture := range []string{"v9", "v13"} {
+		t.Run(fixture, func(t *testing.T) {
+			svc, root, cleanup := setupMigrationTest(t, fixture)
+			defer cleanup()
+			plan, err := svc.Plan()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := svc.Execute(plan, false); err != nil {
+				t.Fatal(err)
+			}
+			paths := config.NewPaths(root, "")
+
+			boards := store.NewBoardStore(paths)
+			names, err := boards.List()
+			if err != nil || len(names) == 0 {
+				t.Fatalf("boards: %v, %v", names, err)
+			}
+			for _, name := range names {
+				unchangedBySave(t, paths.BoardConfigPath(name), func() error {
+					cfg, err := boards.Get(name)
+					if err != nil {
+						return err
+					}
+					return boards.Update(cfg)
+				})
+			}
+			projects := store.NewProjectStore(paths)
+			unchangedBySave(t, paths.ProjectConfigPath(), func() error {
+				cfg, err := projects.Load()
+				if err != nil {
+					return err
+				}
+				return projects.Save(cfg)
+			})
+		})
+	}
+
+	t.Run("global", func(t *testing.T) {
+		path := writeGlobalConfig(t, `kan_schema = "global/2"
+editor = "vim"
+
+[projects]
+  web = "/home/u/web"
+
+[repos]
+  [repos."/home/u/web"]
+    default_board = "main"
+    data_location = ".kan"
+`)
+		svc := NewQuietMigrateService(config.NewPaths("", ""))
+		plan, err := svc.PlanGlobalMigration()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := svc.Execute(&MigrationPlan{GlobalConfig: plan}, false); err != nil {
+			t.Fatal(err)
+		}
+		global := store.NewGlobalStore()
+		unchangedBySave(t, path, func() error {
+			cfg, err := global.Load()
+			if err != nil {
+				return err
+			}
+			return global.Save(cfg)
+		})
+	})
+}
