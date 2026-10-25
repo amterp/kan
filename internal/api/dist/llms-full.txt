@@ -1465,7 +1465,7 @@ remote = "git@github.com:example/api.git"
 | `worktree_independent` | `true` when this git worktree keeps its own board instead of sharing the main worktree's |
 | `linked_boards.<board ID>` | A board in another repo that this project's cards link to, recorded by `kan link` and `kan add --blocked-by` |
 | `linked_boards.<board ID>.name` | The target's project name and board name |
-| `linked_boards.<board ID>.remote` | The target repo's `origin` URL (or its only remote), with any user name, password, query or fragment removed; left out for a local path, a `file://` URL, or a URL kan can't parse |
+| `linked_boards.<board ID>.remote` | The target repo's `origin` URL (or its only remote), with any password, query or fragment removed (and the user name, except for `ssh://` URLs); left out for a local path, a `file://` URL, or a URL kan can't parse |
 
 Kan never uses `[linked_boards]` to find a board: any registered clone holding that board ID
 satisfies the link. It only lets kan say what is missing, and where to get it, when the board isn't
