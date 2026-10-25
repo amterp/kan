@@ -2,6 +2,9 @@
   "_v": 4,
   "alias": "cross-board-kanban",
   "alias_explicit": false,
+  "blocked_by": [
+    "a_2nbwyiJjU"
+  ],
   "column": "backlog-lo",
   "comments": [
     {
@@ -17,7 +20,7 @@
   "position": "Zzzzzzzzzl",
   "title": "cross-board kanban view ?",
   "type": "feature",
-  "updated_at_millis": 1792875443898,
+  "updated_at_millis": 1792891912500,
   "history": [
     {"field":"column","value":"backlog-hi","at":1774791312335},
     {"field":"column","value":"backlog-lo","at":1792875443898}

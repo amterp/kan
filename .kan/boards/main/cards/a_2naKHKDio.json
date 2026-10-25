@@ -2,6 +2,9 @@
   "_v": 4,
   "alias": "web-add-and-remove",
   "alias_explicit": false,
+  "blocked_by": [
+    "a_2naKGO4kC"
+  ],
   "column": "next",
   "created_at_millis": 1792875238911,
   "creator": "Alexander Terp",
@@ -10,7 +13,7 @@
   "position": "a1",
   "title": "Web: add and remove links in the card modal",
   "type": "feature",
-  "updated_at_millis": 1792886741253,
+  "updated_at_millis": 1792891912355,
   "history": [
     {"field":"column","value":"backlog-lo","at":1792875238911},
     {"field":"column","value":"next","at":1792886741253}
