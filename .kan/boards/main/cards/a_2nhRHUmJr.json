@@ -1,0 +1,17 @@
+{
+  "_v": 4,
+  "alias": "let-a-private",
+  "alias_explicit": false,
+  "column": "backlog-hi",
+  "created_at_millis": 1792892191048,
+  "creator": "Alexander Terp",
+  "description": "Linking a card to a board in another repo records that board under `[linked_boards]` in the linking project's committed `.kan/config.toml`: the target's project name and its git remote URL (credentials stripped). Kan doesn't know whether either repo is public, so a public repo that links to a private repo's board publishes the private repo's name and URL in its history. Today only agent instructions prevent that.\n\nOne option is for the private side to declare itself: an optional `private = true` in its own project config. When another project links to one of its boards, kan stores the opaque `boardID:cardID` ref and leaves the `[linked_boards]` name and remote out. Links, `kan ready` and `kan show` keep working on any machine where the private project is registered; only the \"where to get it\" hint is lost. Declaring it on the target means every clone of the private repo carries the flag, and nothing has to know about hosting or visibility.\n\nThis is a project-config field, so it needs a project schema bump (project/4) with a migration and fixtures, per AGENTS.md. Open questions: whether `kan link` should also warn when a link from this project would record a private target's details anyway (e.g. a target registered before it set the flag), and whether existing `[linked_boards]` entries for a now-private target get scrubbed on the next write.",
+  "id": "a_2nhRHUmJr",
+  "position": "a0",
+  "title": "Let a private project keep its name out of other projects' configs",
+  "type": "feature",
+  "updated_at_millis": 1792892191048,
+  "history": [
+    {"field":"column","value":"backlog-hi","at":1792892191048}
+  ]
+}
