@@ -96,8 +96,13 @@ func TestLocatorBoard_IncompleteExternalIdentitiesCannotEstablishUniqueness(t *t
 			cfg := &model.GlobalConfig{}
 			register(cfg, known, false)
 			register(cfg, unknown, false)
-			if _, err := locatorFor(cfg, current).Board("b_api"); err == nil || kanerr.IsNotFound(err) || !strings.Contains(err.Error(), unknown) {
+			strict := locatorFor(cfg, current)
+			strict.RequireKnownIdentities()
+			if _, err := strict.Board("b_api"); err == nil || kanerr.IsNotFound(err) || !strings.Contains(err.Error(), unknown) {
 				t.Fatalf("incomplete registry established uniqueness: %v", err)
+			}
+			if loc, err := locatorFor(cfg, current).Board("b_api"); err != nil || loc.Root != known {
+				t.Fatalf("a read lookup should name the holder it can identify: %+v, %v", loc, err)
 			}
 			if loc, err := locatorFor(cfg, current).Board("b_local"); err != nil || loc.Root != current {
 				t.Fatalf("external uncertainty hid current board: %+v, %v", loc, err)

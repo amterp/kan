@@ -29,6 +29,7 @@ type Locator struct {
 	current      []Board
 	loaded       bool
 	index        *boardIndex
+	strict       bool
 }
 
 // NewLocator returns a Locator for the current project at currentPaths,
@@ -36,6 +37,15 @@ type Locator struct {
 // kan runs outside any project.
 func NewLocator(cfg *model.GlobalConfig, currentPaths *config.Paths, current store.BoardStore) *Locator {
 	return &Locator{cfg: cfg, currentPaths: currentPaths, currentStore: current}
+}
+
+// RequireKnownIdentities makes Board fail, rather than name a holder or
+// report the board missing, while a visible project's boards can't all be
+// identified, since that project could also hold the ID. Doctor needs this
+// before it deletes a link as pointing nowhere. Reads don't: one broken
+// registered project would otherwise break every link lookup on the machine.
+func (l *Locator) RequireKnownIdentities() {
+	l.strict = true
 }
 
 // Board finds the project holding boardID: the current project's own boards
@@ -53,8 +63,10 @@ func (l *Locator) Board(boardID string) (Location, error) {
 	}
 
 	index := l.boardIndex()
-	if err := index.unknownIdentity(boardID, l.currentRoot()); err != nil {
-		return Location{}, err
+	if l.strict {
+		if err := index.unknownIdentity(boardID, l.currentRoot()); err != nil {
+			return Location{}, err
+		}
 	}
 	var found []Location
 	for _, p := range index.holders(boardID, l.currentRoot()) {

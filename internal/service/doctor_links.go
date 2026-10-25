@@ -254,6 +254,9 @@ func (s *DoctorService) fixAbsentLink(issue Issue) error {
 		if err != nil {
 			return err
 		}
+		if e.Locator != nil {
+			e.Locator.RequireKnownIdentities()
+		}
 		graph.SetElsewhere(e)
 	} else if s.elsewhere != nil {
 		return fmt.Errorf("a fresh cross-project lookup is required before repairing links")
