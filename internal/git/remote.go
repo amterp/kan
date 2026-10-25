@@ -54,8 +54,9 @@ func FetchURL(remotes map[string]string) string {
 // a committed file and useful to someone on another machine, or "" when
 // there is none. It fails closed: anything it can't parse is dropped, not
 // kept as is.
-//   - A URL with a scheme loses its user info (ssh:// keeps the user name,
-//     a login rather than a secret), query and fragment.
+//   - A URL with a scheme loses its user info (ssh:// and its git+ssh://
+//     spellings keep the user name, a login rather than a secret), query and
+//     fragment.
 //   - The scp-like form (git@github.com:example/api.git) has no password
 //     and is kept when its user and host are plain.
 //   - A local path or file:// URL is dropped: it names a place on this
@@ -66,7 +67,7 @@ func ShareableRemote(remote string) string {
 		if err != nil || u.Scheme == "file" || u.Host == "" {
 			return ""
 		}
-		if u.User != nil && u.Scheme == "ssh" {
+		if u.User != nil && (u.Scheme == "ssh" || u.Scheme == "git+ssh" || u.Scheme == "ssh+git") {
 			u.User = url.User(u.User.Username())
 		} else {
 			u.User = nil
