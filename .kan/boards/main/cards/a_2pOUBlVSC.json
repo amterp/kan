@@ -1,0 +1,21 @@
+{
+  "_v": 4,
+  "alias": "a-board-name-in-b",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1793142547221,
+  "creator": "Alexander Terp",
+  "description": "Seen 2026-10-26: `kan ready -b \u003cname\u003e`, run from a worktree of another repo for a board that lives in a notes repo, printed `✗ kan not initialized (run 'kan init')`. The registry knows the board: `kan ready --all` lists it with its path.\n\nSince a_2naKGoYNg, `-b` takes a board ID across registered projects, and that works from any directory. A board name does not. From `~`, on 2026-10-27: `kan list -b b_2lNzcTaiA` lists that board, and `kan list -b main` prints the same \"not initialized\" error. The hint is risky as well, since following it would init a new board in the wrong repo.\n\nPossibly: when the cwd has no project and `-b` names a board that exactly one visible registered project has, use it, or say \"board \u003cname\u003e is in \u003cpath\u003e; run there, or pass its ID\". Either way, drop the `kan init` hint when `-b` was given.",
+  "id": "a_2pOUBlVSC",
+  "position": "aO",
+  "related": [
+    "a_2naKGoYNg",
+    "a_2naKGhsQL"
+  ],
+  "title": "A board name in -b outside a project says 'not initialized (run kan init)'",
+  "type": "enhancement",
+  "updated_at_millis": 1793142552019,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1793142547221}
+  ]
+}

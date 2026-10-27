@@ -1,0 +1,20 @@
+{
+  "_v": 4,
+  "alias": "a-waiting-on-someone",
+  "alias_explicit": false,
+  "column": "backlog-lo",
+  "created_at_millis": 1793142541464,
+  "creator": "Alexander Terp",
+  "description": "Seen 2026-10-26, setting up blocker links on a notes repo's board after categorizing its columns. The board has a `waiting` column for cards blocked on people outside the team, and none of the seven categories fits it: `open` would put those cards in `kan ready`, and the others mean something else.\n\nLeft uncategorized, the column already behaves right for `ready`: a card blocked by a waiting card stays blocked. But `kan doctor` warns on every such link (`[UNCATEGORIZED_LINK] ... column \"waiting\", which has no usable category`), so the intended setup is a permanent warning.\n\nPossibly: a `waiting` (or `blocked`) category that is not ready, not done, and valid as a blocker without a doctor warning. Or let doctor skip UNCATEGORIZED_LINK for a column explicitly marked as having no category.",
+  "id": "a_2pOU2TCqU",
+  "position": "aN",
+  "related": [
+    "a_2naKFEs7S"
+  ],
+  "title": "A 'waiting on someone else' column fits no category, so doctor warns on every link to it",
+  "type": "enhancement",
+  "updated_at_millis": 1793142551915,
+  "history": [
+    {"field":"column","value":"backlog-lo","at":1793142541464}
+  ]
+}
